@@ -23,13 +23,13 @@ if [ "$LINCLUST_MODULE" = "linclust2" ]; then
     if [ -n "$CLUSTHASH" ]; then
         if notExists "${TMP_PATH}/input_clusthash.dbtype"; then
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" clusthash "$INPUT" "${TMP_PATH}/input_clusthash" ${CLUSTHASH_PAR} \
+            "$MMSEQS" clusthash "$INPUT" "${TMP_PATH}/input_clusthash" ${CLUSTHASH_PAR} \
                 || fail "clusthash died"
         fi
 
         if notExists "${TMP_PATH}/input_clusthash_clust.dbtype"; then
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" clust "$INPUT" "${TMP_PATH}/input_clusthash" "${TMP_PATH}/input_clusthash_clust" ${CLUSTHASH_CLUST_PAR} \
+            "$MMSEQS" clust "$INPUT" "${TMP_PATH}/input_clusthash" "${TMP_PATH}/input_clusthash_clust" ${CLUSTHASH_CLUST_PAR} \
                 || fail "clusthash-based clust died"
         fi
 
@@ -144,13 +144,13 @@ elif [ "$LINCLUST_MODULE" = "linclust1" ]; then
     if [ -n "$CLUSTHASH" ]; then
         if notExists "${TMP_PATH}/input_clusthash.dbtype"; then
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" clusthash "$INPUT" "${TMP_PATH}/input_clusthash" ${CLUSTHASH_PAR} \
+            "$MMSEQS" clusthash "$INPUT" "${TMP_PATH}/input_clusthash" ${CLUSTHASH_PAR} \
                     || fail "clust hash died"
         fi
 
         if notExists "${TMP_PATH}/input_clusthash_clust.dbtype"; then
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" clust "$INPUT" "${TMP_PATH}/input_clusthash" "${TMP_PATH}/input_clusthash_clust" ${CLUSTHASH_CLUST_PAR} \
+            "$MMSEQS" clust "$INPUT" "${TMP_PATH}/input_clusthash" "${TMP_PATH}/input_clusthash_clust" ${CLUSTHASH_CLUST_PAR} \
                     || fail "clust hash based clust died"
         fi
 

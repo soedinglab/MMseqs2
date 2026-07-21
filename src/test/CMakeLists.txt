@@ -2,6 +2,7 @@ include(MMseqsSetupTest)
 
 set(TESTS
         #TestAdjustedKmerIterator.cpp
+        TestAlign2ClustReducer.cpp
         TestAlignment.cpp
         TestAlignmentPerformance.cpp
         TestAlignmentTraceback.cpp

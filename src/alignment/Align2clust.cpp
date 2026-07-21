@@ -11,6 +11,10 @@
 #include "BlockAligner.h"
 #include "Alignment.h"
 #include "AlignmentSymmetry.h"
+#include "Align2ClustReducer.h"
+#include "Align2ClustChunking.h"
+#include "Align2ClustCheckpoint.h"
+#include "MMseqsMPI.h"
 #include <atomic>
 #include <cstdlib>
 #include <thread>
@@ -23,13 +27,6 @@
 #endif
 
 #define MIN_SIZE 32
-
-struct ClusterResult {
-    size_t sequenceIdx;
-    DBLocalId representativeId;
-    size_t prefSize;
-    std::vector<DBLocalId> memberIds;
-};
 
 struct PrefInfo {
     DBLocalId id;
@@ -48,90 +45,10 @@ struct PrefInfo {
     }
 };
 
-// Lightweight entry stored in the set-cover ready queue. Instead of carrying the
-// member id vector (as ClusterResult does) it only references the members, which
-// are kept in a single shared pool (setCoverMemberPool), by offset and count.
-struct SetCoverCandidate {
-    DBLocalId representativeId;
-    size_t memberCount;
-    size_t memberOffset;
-};
-
-struct SetCoverComparator {
-    bool operator()(const SetCoverCandidate& a, const SetCoverCandidate& b) const {
-        if (a.memberCount < b.memberCount) {
-            return true;
-        }
-        if (b.memberCount < a.memberCount) {
-            return false;
-        }
-        if (a.representativeId < b.representativeId) {
-            return true;
-        }
-        if (b.representativeId < a.representativeId) {
-            return false;
-        }
-        return false;
-    }
-};
-
-static std::mutex clusterMutex;
-static std::condition_variable clusterCondition;
-static std::condition_variable reorderSpaceCondition;
-// Reorders out-of-order worker results back to sequenceIdx order for the consumer,
-// indexed by sequenceIdx % reorderCapacity. The next-in-order slot is always free,
-// so producers never deadlock.
-static std::vector<ClusterResult> reorderSlots;    // slot storage, size == reorderCapacity
-static std::vector<unsigned char> reorderFilled;   // 1 == slot holds an unconsumed result
-static size_t reorderCapacity = 0;                 // max out-of-order window
-static size_t reorderBufferedCount = 0;            // number of filled slots
-// Max-heap of candidates by member count (plain vector so the pool stays compactable).
-static std::vector<SetCoverCandidate> setCoverCandidates;
-static SetCoverComparator setCoverComparator;
-// Shared backing store for all member ids referenced by setCoverCandidates.
-static std::vector<DBLocalId> setCoverMemberPool;
-static size_t setCoverLiveMemberCount = 0;
-
-static size_t currentProcessPosition = 0;
-static size_t currentPrefSize = 0;
-static bool allCalculationsDone = false;
-
-typedef std::atomic<DBLocalId> ClusterAssignment;
-
-static DBLocalId loadAssignedCluster(const ClusterAssignment *assignedCluster, size_t sequenceId) {
-    return assignedCluster[sequenceId].load(std::memory_order_relaxed);
-}
-
-static void storeAssignedCluster(ClusterAssignment *assignedCluster, size_t sequenceId, DBLocalId representativeId) {
-    assignedCluster[sequenceId].store(representativeId, std::memory_order_relaxed);
-}
-
 // Serialize a single alignment record and append it to the per-representative buffer.
 static void appendAlignmentResult(std::string &alnResultBuffer, char *lineBuffer, const Matcher::result_t &result, bool addBacktrace) {
     size_t len = Matcher::resultToBuffer(lineBuffer, result, addBacktrace);
     alnResultBuffer.append(lineBuffer, len);
-}
-
-// Compact setCoverMemberPool when over half is dead. Only offsets change, so heap order holds.
-static const size_t ALIGN2CLUST_MIN_COMPACTION_DEAD_MEMBERS = 16 * 1024 * 1024 / sizeof(DBLocalId);
-
-static void compactSetCoverMemberPool() {
-    const size_t deadMemberCount = setCoverMemberPool.size() - setCoverLiveMemberCount;
-    if (setCoverMemberPool.empty() ||
-        deadMemberCount < ALIGN2CLUST_MIN_COMPACTION_DEAD_MEMBERS ||
-        deadMemberCount * 2 <= setCoverMemberPool.size()) {
-        return;
-    }
-    std::vector<DBLocalId> compactedPool;
-    compactedPool.reserve(setCoverLiveMemberCount);
-    for (SetCoverCandidate &candidate : setCoverCandidates) {
-        const size_t newOffset = compactedPool.size();
-        compactedPool.insert(compactedPool.end(),
-                             setCoverMemberPool.begin() + candidate.memberOffset,
-                             setCoverMemberPool.begin() + candidate.memberOffset + candidate.memberCount);
-        candidate.memberOffset = newOffset;
-    }
-    setCoverMemberPool.swap(compactedPool);
 }
 
 // Env override for the reorder-buffer size; 0 (unset/invalid) means size from memory.
@@ -151,13 +68,34 @@ static size_t getReorderBufferLimitFromEnv() {
     return static_cast<size_t>(parsedValue);
 }
 
+// Env override for the MPI/checkpoint chunk size; 0 (unset/invalid) means use the default.
+// Deliberately not derived from rank or thread count: chunk boundaries must stay identical
+// across topology changes so a run can be resumed with a different node count (see
+// Align2ClustChunking and Align2ClustCheckpoint).
+static size_t getAlign2ClustChunkSizeFromEnv() {
+    const size_t defaultChunkSize = 50000;
+    const char *envValue = getenv("MMSEQS_ALIGN2CLUST_CHUNK_SIZE");
+    if (envValue == nullptr || *envValue == '\0') {
+        return defaultChunkSize;
+    }
+
+    char *end = nullptr;
+    unsigned long long parsedValue = strtoull(envValue, &end, 10);
+    if (end == envValue || *end != '\0' || parsedValue == 0) {
+        Debug(Debug::WARNING) << "Ignoring invalid MMSEQS_ALIGN2CLUST_CHUNK_SIZE=" << envValue
+                              << "; using default chunk size " << defaultChunkSize << "\n";
+        return defaultChunkSize;
+    }
+    return static_cast<size_t>(parsedValue);
+}
+
 // Size the reorder buffer from free memory: subtract the resident per-sequence arrays,
 // keep 10% headroom, divide by the worst-case result size. Capped by
 // MMSEQS_ALIGN2CLUST_REORDER_LIMIT and by the number of results produced.
 static size_t computeReorderCapacity(const Parameters &par, size_t dbSize, int mode, size_t resultCount) {
     const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
 
-    size_t fixedMemory = dbSize * sizeof(ClusterAssignment);
+    size_t fixedMemory = dbSize * sizeof(std::atomic<DBLocalId>);
     if (mode == Parameters::SET_COVER) {
         fixedMemory += dbSize * sizeof(PrefInfo);
     }
@@ -180,27 +118,6 @@ static size_t computeReorderCapacity(const Parameters &par, size_t dbSize, int m
     Debug(Debug::INFO) << "Reorder buffer capacity: " << capacity << " results ("
                        << capacity * sizeof(ClusterResult) << " byte pre-allocated slots)\n";
     return capacity;
-}
-
-static void pushClusterResult(ClusterResult &&clusterResult) {
-    const size_t idx = clusterResult.sequenceIdx;
-    bool shouldNotifyClusterThread = false;
-    {
-        std::unique_lock<std::mutex> lock(clusterMutex);
-        // Wait for this result's slot to free up. The next-in-order slot is always
-        // free, so the producer the consumer is waiting on never blocks (deadlock-free).
-        reorderSpaceCondition.wait(lock, [&] {
-            return allCalculationsDone || idx < currentProcessPosition + reorderCapacity;
-        });
-        const size_t slot = idx % reorderCapacity;
-        reorderSlots[slot] = std::move(clusterResult);   // O(1) vector move, no heap sift
-        reorderFilled[slot] = 1;
-        reorderBufferedCount++;
-        shouldNotifyClusterThread = (idx == currentProcessPosition);
-    }
-    if (shouldNotifyClusterThread) {
-        clusterCondition.notify_one();
-    }
 }
 
 static float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double targetCov, double targetPrecision) {
@@ -262,141 +179,11 @@ static void writeClustering(DBWriter *dbWriter, const std::pair<DBKeyType, DBKey
     }
 }
 
-static void (*clusterThreadFunc)(ClusterAssignment*) = nullptr;
-
-void clusterThreadFuncSetcover(ClusterAssignment* assignedCluster) {
-    while (true) {
-        std::unique_lock<std::mutex> lock(clusterMutex);
-        
-        clusterCondition.wait(lock, [] {
-            return reorderFilled[currentProcessPosition % reorderCapacity] != 0 ||
-                   allCalculationsDone;
-        });
-
-        // 1) reorder buffer → setCoverCandidates
-        while (reorderFilled[currentProcessPosition % reorderCapacity] != 0) {
-            const size_t slot = currentProcessPosition % reorderCapacity;
-            ClusterResult result = std::move(reorderSlots[slot]);
-            reorderFilled[slot] = 0;
-            reorderBufferedCount--;
-            currentProcessPosition++;
-            reorderSpaceCondition.notify_all();
-            currentPrefSize = result.prefSize;
-
-            if (result.memberIds.size() > 1) {
-                SetCoverCandidate candidate;
-                candidate.representativeId = result.representativeId;
-                candidate.memberCount = result.memberIds.size();
-                candidate.memberOffset = setCoverMemberPool.size();
-                setCoverMemberPool.insert(setCoverMemberPool.end(),
-                                          result.memberIds.begin(), result.memberIds.end());
-                setCoverLiveMemberCount += candidate.memberCount;
-                setCoverCandidates.push_back(candidate);
-                std::push_heap(setCoverCandidates.begin(), setCoverCandidates.end(), setCoverComparator);
-            }
-        }
-
-        // 2) assign candidates guaranteed to be the currently largest set
-        while (setCoverCandidates.empty() == false &&
-               (allCalculationsDone ||
-                setCoverCandidates.front().memberCount > currentPrefSize)) {
-
-            std::pop_heap(setCoverCandidates.begin(), setCoverCandidates.end(), setCoverComparator);
-            SetCoverCandidate candidate = setCoverCandidates.back();
-            setCoverCandidates.pop_back();
-            setCoverLiveMemberCount -= candidate.memberCount;
-
-            if (loadAssignedCluster(assignedCluster, candidate.representativeId) != DB_LOCAL_ID_INVALID) {
-                continue;
-            }
-
-            // Drop already-assigned members, compacting the survivors in place
-            // within the pool region [memberOffset, memberOffset + memberCount).
-            DBLocalId *members = setCoverMemberPool.data() + candidate.memberOffset;
-            size_t validCount = 0;
-            for (size_t i = 0; i < candidate.memberCount; i++) {
-                if (loadAssignedCluster(assignedCluster, members[i]) == DB_LOCAL_ID_INVALID) {
-                    members[validCount++] = members[i];
-                }
-            }
-
-            if (validCount <= 1) {
-                continue;
-            }
-
-            if (validCount != candidate.memberCount) {
-                candidate.memberCount = validCount;
-                setCoverLiveMemberCount += validCount;
-                setCoverCandidates.push_back(candidate);
-                std::push_heap(setCoverCandidates.begin(), setCoverCandidates.end(), setCoverComparator);
-                continue;
-            }
-
-            for (size_t i = 0; i < candidate.memberCount; i++) {
-                storeAssignedCluster(assignedCluster, members[i], candidate.representativeId);
-            }
-        }
-
-        // Compaction only touches consumer-private structures (setCoverCandidates,
-        // setCoverMemberPool, setCoverLiveMemberCount), never shared state, so release
-        // the mutex during the copy so worker threads can keep pushing results.
-        lock.unlock();
-        compactSetCoverMemberPool();
-        lock.lock();
-
-        if (allCalculationsDone &&
-            reorderBufferedCount == 0 &&
-            setCoverCandidates.empty()) {
-            break;
-        }
-    }
-}
-
-void clusterThreadFuncGreedy(ClusterAssignment* assignedCluster) {
-    while (true) {
-        std::unique_lock<std::mutex> lock(clusterMutex);
-        
-        clusterCondition.wait(lock, [] {
-            return reorderFilled[currentProcessPosition % reorderCapacity] != 0 ||
-                   allCalculationsDone;
-        });
-
-        if (allCalculationsDone && reorderBufferedCount == 0) {
-            break;
-        }
-
-        while (reorderFilled[currentProcessPosition % reorderCapacity] != 0) {
-            const size_t slot = currentProcessPosition % reorderCapacity;
-            ClusterResult result = std::move(reorderSlots[slot]);
-            reorderFilled[slot] = 0;
-            reorderBufferedCount--;
-            currentProcessPosition++;
-            reorderSpaceCondition.notify_all();
-
-            if (loadAssignedCluster(assignedCluster, result.representativeId) != DB_LOCAL_ID_INVALID) {
-                continue;
-            }
-
-            std::vector<DBLocalId> validMemberIds;
-            validMemberIds.reserve(result.memberIds.size());
-            for (DBLocalId memberId : result.memberIds) {
-                if (loadAssignedCluster(assignedCluster, memberId) == DB_LOCAL_ID_INVALID) {
-                    validMemberIds.push_back(memberId);
-                }
-            }
-
-            if (validMemberIds.size() <= 1) {
-                continue;
-            }
-
-            for (DBLocalId memberId : validMemberIds) {
-                storeAssignedCluster(assignedCluster, memberId, result.representativeId);
-            }
-        }
-    }
-}
-
-int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &alnDbr, DBWriter *alnWriter) {
+// resultWriter is nullptr on non-master MPI ranks: only rank 0 performs the global
+// reduction and writes the final clustering result (see the useDistributedGeneration
+// branch below and the Align2ClustReducer class comment for why this cannot itself
+// be decentralized).
+int doAlign2clust(Parameters &par, DBWriter *resultWriter, DBReader<DBKeyType> &alnDbr, DBWriter *alnWriter) {
     DBReader<DBKeyType> *seqDbr = new DBReader<DBKeyType>(
         par.db1.c_str(), par.db1Index.c_str(), par.threads, 
         DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX
@@ -442,24 +229,18 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     
     EvalueComputation evaluer(seqDbr->getAminoAcidDBSize(), subMat);
     int32_t xDrop = (MIN_SIZE * par.gapExtend.values.aminoacid() + par.gapOpen.values.aminoacid());
-    
-    ClusterAssignment *assignedCluster = new(std::nothrow) ClusterAssignment[dbSize];
-    Util::checkAllocation(assignedCluster, "Can not allocate assignedCluster memory in Align2Clust");
-    for (size_t i = 0; i < dbSize; ++i) {
-        storeAssignedCluster(assignedCluster, i, DB_LOCAL_ID_INVALID);
-    }
 
     int mode = par.clusteringMode;
-    
+
+    Align2ClustReducer::Mode reducerMode;
     if (mode == Parameters::SET_COVER) {
-        clusterThreadFunc = clusterThreadFuncSetcover;
+        reducerMode = Align2ClustReducer::SET_COVER;
         Debug(Debug::INFO) << "Using SET_COVER clustering mode\n";
     } else if (mode == Parameters::GREEDY || mode == Parameters::GREEDY_MEM) {
-        clusterThreadFunc = clusterThreadFuncGreedy;
+        reducerMode = Align2ClustReducer::GREEDY;
         Debug(Debug::INFO) << "Using GREEDY clustering mode\n";
     } else {
         Debug(Debug::ERROR) << "MMseqs2 align2clust doesn't support clustering mode: " << mode << "\n";
-        delete[] assignedCluster;
         delete[] fastMatrix.matrix;
         delete[] fastMatrix.matrixData;
         delete subMat;
@@ -468,30 +249,67 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         return EXIT_FAILURE;
     }
 
+    const size_t endRange = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
+
     // Ring size = out-of-order window, sized from the memory budget (OOM-aware) and
     // capped by the result count. sequenceIdx runs over [0, endRange); every index
     // publishes exactly one result.
-    const size_t align2clustResultCount = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
-    const size_t reorderCapacityChosen = computeReorderCapacity(par, dbSize, mode, align2clustResultCount);
-    {
-        std::lock_guard<std::mutex> lock(clusterMutex);
-        reorderCapacity = reorderCapacityChosen;
-        reorderSlots.clear();
-        reorderSlots.resize(reorderCapacity);
-        reorderFilled.assign(reorderCapacity, 0);
-        reorderBufferedCount = 0;
-        setCoverCandidates.clear();
-        setCoverCandidates.shrink_to_fit();
-        setCoverMemberPool.clear();
-        setCoverMemberPool.shrink_to_fit();
-        setCoverLiveMemberCount = 0;
-        currentProcessPosition = 0;
-        currentPrefSize = 0;
-        allCalculationsDone = false;
+    const size_t reorderCapacityChosen = computeReorderCapacity(par, dbSize, mode, endRange);
+
+    int mpiRank = 0;
+    int mpiNumProc = 1;
+#ifdef HAVE_MPI
+    mpiRank = MMseqsMPI::rank;
+    mpiNumProc = MMseqsMPI::numProc;
+#endif
+
+    // Deterministic, topology-independent chunking of [0, endRange) for MPI-distributed
+    // candidate generation and checkpoint/resume. Chunk boundaries depend only on
+    // endRange and chunkSize -- never on rank or thread count -- so a run interrupted
+    // on N nodes can always be resumed on M nodes (including M == 1); see
+    // Align2ClustChunking and Align2ClustCheckpoint.
+    const size_t chunkSize = getAlign2ClustChunkSizeFromEnv();
+    std::vector<Align2ClustChunking::Chunk> chunks = Align2ClustChunking::computeChunks(endRange, chunkSize);
+    Align2ClustCheckpoint checkpoint(par, par.db3, dbSize, endRange, mode, chunkSize);
+
+    bool anyChunkAlreadyDone = false;
+    for (const Align2ClustChunking::Chunk &chunk : chunks) {
+        if (checkpoint.isChunkDone(chunk.index)) {
+            anyChunkAlreadyDone = true;
+            break;
+        }
+    }
+    // Every rank evaluates mpiNumProc/anyChunkAlreadyDone identically (shared
+    // filesystem, same CLI parameters), so this decision is consistent across ranks.
+    const bool useDistributedGeneration = (mpiNumProc > 1) || anyChunkAlreadyDone;
+
+    if (useDistributedGeneration && par.includeAlignFiles) {
+        Debug(Debug::ERROR) << "align2clust: --include-align-files is not supported together with "
+                            << "MPI-distributed candidate generation (numProc > 1) or a resumed "
+                            << "checkpointed run. Re-run on a single rank with the checkpoint "
+                            << "directory (" << checkpoint.getChunkDir() << ") removed, or without "
+                            << "--include-align-files.\n";
+        delete[] fastMatrix.matrix;
+        delete[] fastMatrix.matrixData;
+        delete subMat;
+        seqDbr->close();
+        delete seqDbr;
+        if (cluDbr != nullptr) {
+            cluDbr->close();
+            delete cluDbr;
+        }
+        if (cluSeqDbr != nullptr) {
+            cluSeqDbr->close();
+            delete cluSeqDbr;
+        }
+        return EXIT_FAILURE;
     }
 
-    std::thread clusterThread(clusterThreadFunc, assignedCluster);
-    
+    Align2ClustReducer reducer(reducerMode, dbSize, reorderCapacityChosen);
+    if (mpiRank == 0) {
+        reducer.start();
+    }
+
     Timer timer;
     timer.reset();
     PrefInfo *prefRepSizePair = nullptr;
@@ -521,12 +339,19 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
 
     timer.reset();
 
-    size_t endRange = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
     unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
-    Debug::Progress progress(endRange);
     size_t db_maxseqlen = (cluSeqDbr != nullptr)
         ? std::max(seqDbr->getMaxSeqLen(), cluSeqDbr->getMaxSeqLen())
         : seqDbr->getMaxSeqLen();
+
+    // Candidate generation for [rangeStart, rangeEnd), pushing every produced result to
+    // `sink`. Parameterized so it can run once over the full [0, endRange) range against
+    // the live `reducer` (single-process/fresh-run fast path, byte-identical to the
+    // pre-MPI behavior) or once per not-yet-done checkpoint chunk against a fresh
+    // distributed-collect-only reducer whose buffered results are written to a chunk
+    // file (see useDistributedGeneration below).
+    auto generateCandidates = [&](Align2ClustReducer &sink, size_t rangeStart, size_t rangeEnd) {
+        Debug::Progress progress(rangeEnd - rangeStart);
 #pragma omp parallel
     {
         unsigned int threadIdx = 0;
@@ -556,7 +381,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         }
 
 #pragma omp for schedule(dynamic, 1) nowait
-        for (size_t i = 0; i < endRange; i++) {
+        for (size_t i = rangeStart; i < rangeEnd; i++) {
             progress.updateProgress();
             ClusterResult clusterResult;
             clusterResult.sequenceIdx = i;
@@ -583,8 +408,8 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             // by the cluster thread anyway, so skip parsing and aligning it entirely. prefSize
             // is already set (precomputed for set-cover), so the currentPrefSize gate stays
             // correct.
-            if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
-                pushClusterResult(std::move(clusterResult));
+            if (sink.isAssigned(representativeId)) {
+                sink.pushResult(std::move(clusterResult));
                 continue;
             }
 
@@ -604,7 +429,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     targetsWithDiagonal.push_back(std::make_pair(hit.seqId, hit.diagonal));
                 } else {
                     const size_t targetId = seqDbr->getId(hit.seqId);
-                    if (loadAssignedCluster(assignedCluster, targetId) == DB_LOCAL_ID_INVALID) {
+                    if (!sink.isAssigned(targetId)) {
                             targetsWithDiagonal.push_back(std::make_pair(hit.seqId, hit.diagonal));
                     }
                 }
@@ -619,7 +444,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 // never used; stop aligning the rest. Safe in set-cover too: prefSize is
                 // already fully counted, so this is just the k-th-target form of the
                 // (k=0) rep-skip above.
-                if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
+                if (sink.isAssigned(representativeId)) {
                     break;
                 }
 
@@ -645,7 +470,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 // Skip the (expensive) alignment if the target was assigned meanwhile.
                 // Safe in set-cover too: an assigned target is monotonic, so it would be
                 // dropped by the cluster thread's re-evaluation anyway.
-                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) {
+                if (sink.isAssigned(targetId)) {
                     continue;
                 }
 
@@ -675,10 +500,10 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 }
                 
                 bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
-                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
+                if (sink.isAssigned(targetId)) continue;
 
                 if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
-                    if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
+                    if (sink.isAssigned(targetId)) continue;
                     if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
                         // check all the member from filtering file
                         const size_t cluId = cluDbr->getId(targetKey);
@@ -782,7 +607,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     continue;
                 }
 
-                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
+                if (sink.isAssigned(targetId)) continue;
 
                 bool foundConsecutiveMatchSeed = false;
                 for (int blockIdx = 0; blockIdx <= alignmentLength - 3; ++blockIdx) {
@@ -815,7 +640,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     );
                     if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, 
                                                 par.alnLenThr, par.covMode, par.covThr)) {
-                        if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
+                        if (sink.isAssigned(targetId)) continue;
                         if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
                             // check all the member from filtering file
                             const size_t cluId = cluDbr->getId(targetKey);
@@ -902,26 +727,86 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             if (includeAlignFiles) {
                 alnWriter->writeData(alnResultBuffer.c_str(), alnResultBuffer.length(), queryKey, threadIdx);
             }
-            pushClusterResult(std::move(clusterResult));
+            sink.pushResult(std::move(clusterResult));
+        }
+    }
+    };  // end generateCandidates lambda
+
+    if (useDistributedGeneration == false) {
+        // Fast path: numProc == 1 and no pre-existing checkpoint chunks for this
+        // fingerprint. Behavior is unchanged from before Phase 3: one pass over the
+        // full range straight into the live reducer, no chunk files written or read.
+        generateCandidates(reducer, 0, endRange);
+    } else {
+        checkpoint.ensureChunkDirExists();
+        for (const Align2ClustChunking::Chunk &chunk : chunks) {
+            if (Align2ClustChunking::isChunkOwnedByRank(chunk.index, mpiRank, mpiNumProc) == false) {
+                continue;
+            }
+            if (checkpoint.isChunkDone(chunk.index)) {
+                continue;
+            }
+            // A worker rank has no live view of cross-rank assignment state, so it
+            // generates into a fresh distributed-collect-only reducer (no consumer
+            // thread, isAssigned() always false -- see the Align2ClustReducer class
+            // comment) and simply buffers whatever candidates it produces. The
+            // reducer that eventually runs on rank 0 re-validates every candidate
+            // against the true assignment state at consumption time, so this
+            // superset of candidates is always safe.
+            Align2ClustReducer collector(reducerMode, dbSize, 1, /*distributedCollectOnly=*/true);
+            collector.start();
+            generateCandidates(collector, chunk.start, chunk.end);
+            collector.finish();
+            checkpoint.writeChunk(chunk.index, collector.getCollectedResults());
+        }
+
+#ifdef HAVE_MPI
+        if (mpiNumProc > 1) {
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+#endif
+
+        if (mpiRank == 0) {
+            // Only rank 0 re-reads the chunks (in global chunk order, which matches
+            // ascending sequenceIdx order since chunks are contiguous ranges) and
+            // feeds them into the single live reducer that performs the ordered
+            // set-cover/greedy reduction.
+            for (const Align2ClustChunking::Chunk &chunk : chunks) {
+                std::vector<ClusterResult> results = checkpoint.readChunk(chunk.index);
+                for (ClusterResult &result : results) {
+                    reducer.pushResult(std::move(result));
+                }
+            }
         }
     }
 
-    {
-        std::lock_guard<std::mutex> lock(clusterMutex);
-        allCalculationsDone = true;
-    }
-    clusterCondition.notify_one();
-    reorderSpaceCondition.notify_all();
-    
-    if (clusterThread.joinable()) {
-        clusterThread.join(); 
+    if (mpiRank != 0) {
+        // Non-master ranks only ever generate/checkpoint candidates; the global
+        // reduction and final DB write happen exclusively on rank 0 (see the
+        // Align2ClustReducer class comment for why this step cannot itself be
+        // decentralized). resultWriter/alnWriter are nullptr here (see align2clust()).
+        delete[] fastMatrix.matrix;
+        delete[] fastMatrix.matrixData;
+        delete subMat;
+        if (prefRepSizePair != nullptr) {
+            delete[] prefRepSizePair;
+        }
+        seqDbr->close();
+        delete seqDbr;
+        if (cluDbr != nullptr) {
+            cluDbr->close();
+            delete cluDbr;
+        }
+        if (cluSeqDbr != nullptr) {
+            cluSeqDbr->close();
+            delete cluSeqDbr;
+        }
+        return EXIT_SUCCESS;
     }
 
-    for (size_t i = 0; i < dbSize; ++i) {
-        if (loadAssignedCluster(assignedCluster, i) == DB_LOCAL_ID_INVALID) {
-            storeAssignedCluster(assignedCluster, i, i);
-        }
-    }
+    reducer.finish();
+
+    reducer.finalizeSingletons();
 
     std::pair<DBKeyType, DBKeyType> *assignment = new std::pair<DBKeyType, DBKeyType>[dbSize];
     
@@ -929,7 +814,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     {
 #pragma omp for schedule(static)
         for (size_t i = 0; i < dbSize; i++) {
-            const DBLocalId representativeId = loadAssignedCluster(assignedCluster, i);
+            const DBLocalId representativeId = reducer.getAssignment(i);
             if (representativeId == DB_LOCAL_ID_INVALID) {
                 Debug(Debug::ERROR) << "There must be an error: " << i 
                                     << " is not assigned to a cluster\n";
@@ -951,9 +836,15 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << clusterCount << "\n";
     
-    writeClustering(&resultWriter, assignment, dbSize);
-    
-    delete[] assignedCluster;
+    writeClustering(resultWriter, assignment, dbSize);
+
+    if (useDistributedGeneration) {
+        // Safe to remove only now that the final clustering result has been fully
+        // written; an interrupted run must keep its checkpoint directory intact so it
+        // can be resumed (with any node/rank count) rather than recomputing candidates.
+        checkpoint.cleanup();
+    }
+
     delete[] assignment;
     if (prefRepSizePair != nullptr) {
         delete[] prefRepSizePair;
@@ -976,6 +867,8 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
 }
 
 int align2clust(int argc, const char **argv, const Command &command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
     
@@ -987,11 +880,10 @@ int align2clust(int argc, const char **argv, const Command &command) {
     alnDbr.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
     int dbtype =  Parameters::DBTYPE_CLUSTER_RES;
 
-    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, dbtype);
-    resultWriter.open();
-
     // Optional alignment-result output; path derived from the cluster DB (db3 + "_aln").
     // Alignment output needs a backtrace (-a) and score+cov+seqid so member records carry a CIGAR.
+    // Checked on every rank (identical parameters everywhere) so a bad flag combination
+    // fails the same way on every rank rather than only on rank 0.
     if (par.includeAlignFiles) {
         const unsigned int effectiveSwMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
         if (par.addBacktrace == false || effectiveSwMode != Matcher::SCORE_COV_SEQID) {
@@ -1001,19 +893,33 @@ int align2clust(int argc, const char **argv, const Command &command) {
             EXIT(EXIT_FAILURE);
         }
     }
+
+    // Only rank 0 opens the output DBs: on a shared filesystem every other rank would
+    // otherwise try to create/write the same output paths concurrently. doAlign2clust
+    // never dereferences resultWriter/alnWriter on non-master ranks (see its
+    // "mpiRank != 0" early return).
+    DBWriter *resultWriter = nullptr;
     DBWriter *alnWriter = nullptr;
-    if (par.includeAlignFiles) {
-        std::string alnDb = par.db3 + "_aln";
-        std::string alnDbIndex = alnDb + ".index";
-        alnWriter = new DBWriter(alnDb.c_str(), alnDbIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
-        alnWriter->open();
+    if (MMseqsMPI::isMaster()) {
+        resultWriter = new DBWriter(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, dbtype);
+        resultWriter->open();
+
+        if (par.includeAlignFiles) {
+            std::string alnDb = par.db3 + "_aln";
+            std::string alnDbIndex = alnDb + ".index";
+            alnWriter = new DBWriter(alnDb.c_str(), alnDbIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+            alnWriter->open();
+        }
     }
 
     int status = doAlign2clust(par, resultWriter, alnDbr, alnWriter);
 
     Debug(Debug::INFO) << "Time for run Align2Clust: " << timer.lap() << " sec\n";
 
-    resultWriter.close();
+    if (resultWriter != nullptr) {
+        resultWriter->close();
+        delete resultWriter;
+    }
     if (alnWriter != nullptr) {
         alnWriter->close();
         delete alnWriter;

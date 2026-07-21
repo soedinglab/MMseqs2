@@ -11,12 +11,17 @@ set(alignment_header_files
         alignment/BlockAligner.h
         alignment/DistanceCalculator.h
         alignment/Fwbw.h
+        alignment/Align2ClustReducer.h
+        alignment/Align2ClustChunking.h
+        alignment/Align2ClustCheckpoint.h
         PARENT_SCOPE
         )
 
 set(alignment_source_files
         alignment/Alignment.cpp
         alignment/Align2clust.cpp
+        alignment/Align2ClustReducer.cpp
+        alignment/Align2ClustCheckpoint.cpp
         alignment/CompressedA3M.cpp
         alignment/Main.cpp
         alignment/Matcher.cpp

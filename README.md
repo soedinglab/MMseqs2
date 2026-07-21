@@ -150,6 +150,78 @@ To search with multiple servers, call the `search` or `cluster` workflow with th
 
     RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
 
+#### Multi-node `linclust`/`easy-linclust` on Slurm
+
+The default (v2) `linclust`/`easy-linclust` pipeline distributes its most expensive stage,
+`kmermatcher` and the candidate-alignment stage `align2clust`, across MPI ranks while
+keeping cluster assignment (representative selection and membership) byte-identical to a
+single-node run. This is the same `--mpi-runner`/`RUNNER` mechanism described above --
+there is no separate Slurm submission layer, so `linclust` should be launched as a single
+process (not itself wrapped in `mpirun`/`srun`) with the runner passed through
+`--mpi-runner`/`RUNNER`; the workflow script wraps only its MPI-aware sub-stages
+(`kmermatcher`, `align2clust`, and, for Linclust v1, `rescorediagonal`/`align`) in that
+runner internally. Wrapping the top-level `linclust` invocation in `mpirun`/`srun` yourself
+will fail ("recursive mpirun") or, on some launchers, silently run duplicate,
+non-cooperating single-rank jobs.
+
+Requirements and recommended topology:
+
+* Build with `-DHAVE_MPI=1` (version string gets a `-MPI` suffix). A non-MPI binary
+  launched under a multi-task runner (e.g. `srun -n 4 mmseqs ...` without `-DHAVE_MPI=1`)
+  fails fast with an explicit error instead of silently letting every task race on the
+  same output files.
+* The input/output databases and the `--tmp-folder` must be on a shared POSIX filesystem
+  visible to every node (e.g. NFS, Lustre, GPFS).
+* Recommended: one MPI rank per node, with `--threads` set to the number of CPUs allocated
+  to that node (OpenMP parallelizes within each rank). Running multiple ranks per node
+  works but duplicates the memory-mapped sequence/prefilter DB cache footprint per rank, so
+  it is not the default recommendation.
+
+Example `sbatch` script requesting 4 nodes and running `linclust` once `RUNNER` is set:
+
+```sh
+#!/bin/bash
+#SBATCH --nodes=4
+#SBATCH --ntasks=4
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+
+export RUNNER="srun --mpi=pmix -n $SLURM_NTASKS --ntasks-per-node=1"
+# or: export RUNNER="mpirun -np $SLURM_NTASKS"
+
+mmseqs linclust queryDB resultDB /shared/tmp --threads $SLURM_CPUS_PER_TASK
+```
+
+`--mpi-runner "srun --mpi=pmix -n 4 --ntasks-per-node=1"` works equivalently as a
+command-line flag instead of the `RUNNER` environment variable. The exact `srun --mpi=...`
+plugin name is site-specific; check with your cluster administrator or `srun --mpi=list`.
+
+Checkpoint/resume across topology changes: `align2clust` splits its candidate-generation
+work into fixed-size, topology-independent chunks (tunable via
+`MMSEQS_ALIGN2CLUST_CHUNK_SIZE`, default 50000) and records completed chunks under a
+`_chunks` directory next to the output. If a run is interrupted, rerunning the identical
+`mmseqs linclust`/`align2clust` command resumes by regenerating only the chunks that were
+not yet completed and reusing all finished ones -- this works even if the rank count
+changes between the interrupted and resumed run (e.g. starting on 8 nodes and resuming on
+1), because chunk boundaries and ownership only depend on the (fixed) input size and chunk
+size, never on the runner or rank count. The `_chunks` directory is removed automatically
+once a run completes successfully; keep it (e.g. via `--remove-tmp-files 0`) if you want to
+inspect or reuse it after a failure.
+
+Known limitations and scaling expectations:
+
+* `--include-align-files` is currently not supported together with distributed (multi-rank)
+  candidate generation in `align2clust` and is rejected at startup in that combination; it
+  still works normally on a single rank.
+* `clusthash` and `clust` (used for the optional `--cluster-mode`/hash-based prefilter path)
+  and the final `mergeclusters`/representative-switching stages are not MPI-aware and always
+  run once from the workflow process, regardless of the runner.
+* Representative selection and cluster assignment are a single deterministic, ordered
+  reduction performed on rank 0 after all candidate chunks are collected. Scaling is
+  therefore strongest when candidate/alignment generation dominates total runtime; very
+  large numbers of nodes will eventually be bottlenecked by this final reduction step and by
+  shared-filesystem bandwidth for chunk I/O rather than by compute.
+
 ## Contributors
 
 MMseqs2 exists thanks to all the people who contribute. 
