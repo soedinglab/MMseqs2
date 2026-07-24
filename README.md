@@ -150,19 +150,11 @@ To search with multiple servers, call the `search` or `cluster` workflow with th
 
     RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
 
-#### Multi-node `linclust`/`easy-linclust` on Slurm
+#### Multi-node `linclust` on Slurm
 
-The default (v2) `linclust`/`easy-linclust` pipeline distributes its most expensive stage,
-`kmermatcher` and the candidate-alignment stage `align2clust`, across MPI ranks while
-keeping cluster assignment (representative selection and membership) byte-identical to a
-single-node run. This is the same `--mpi-runner`/`RUNNER` mechanism described above --
-there is no separate Slurm submission layer, so `linclust` should be launched as a single
-process (not itself wrapped in `mpirun`/`srun`) with the runner passed through
-`--mpi-runner`/`RUNNER`; the workflow script wraps only its MPI-aware sub-stages
-(`kmermatcher`, `align2clust`, and, for Linclust v1, `rescorediagonal`/`align`) in that
-runner internally. Wrapping the top-level `linclust` invocation in `mpirun`/`srun` yourself
-will fail ("recursive mpirun") or, on some launchers, silently run duplicate,
-non-cooperating single-rank jobs.
+The default Linclust v2 workflow runs under one persistent MPI launch. Rank 0 executes
+serial workflow stages, while all ranks execute `kmermatcher` and `align2clust` in-process
+using the same communicator. Do not set `RUNNER` or pass `--mpi-runner` to Linclust v2.
 
 Requirements and recommended topology:
 
@@ -177,7 +169,7 @@ Requirements and recommended topology:
   works but duplicates the memory-mapped sequence/prefilter DB cache footprint per rank, so
   it is not the default recommendation.
 
-Example `sbatch` script requesting 4 nodes and running `linclust` once `RUNNER` is set:
+Example `sbatch` script requesting four nodes:
 
 ```sh
 #!/bin/bash
@@ -186,15 +178,13 @@ Example `sbatch` script requesting 4 nodes and running `linclust` once `RUNNER` 
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 
-export RUNNER="srun --mpi=pmix -n $SLURM_NTASKS --ntasks-per-node=1"
-# or: export RUNNER="mpirun -np $SLURM_NTASKS"
-
-mmseqs linclust queryDB resultDB /shared/tmp --threads $SLURM_CPUS_PER_TASK
+srun --mpi=pmix -n "$SLURM_NTASKS" --ntasks-per-node=1 \
+    mmseqs linclust queryDB resultDB /shared/tmp --threads "$SLURM_CPUS_PER_TASK"
 ```
 
-`--mpi-runner "srun --mpi=pmix -n 4 --ntasks-per-node=1"` works equivalently as a
-command-line flag instead of the `RUNNER` environment variable. The exact `srun --mpi=...`
-plugin name is site-specific; check with your cluster administrator or `srun --mpi=list`.
+The equivalent direct launch is
+`mpirun -np 4 mmseqs linclust queryDB resultDB /shared/tmp`. The exact
+`srun --mpi=...` plugin name is site-specific.
 
 Checkpoint/resume across topology changes: `align2clust` splits its candidate-generation
 work into fixed-size, topology-independent chunks (tunable via
@@ -213,9 +203,10 @@ Known limitations and scaling expectations:
 * `--include-align-files` is currently not supported together with distributed (multi-rank)
   candidate generation in `align2clust` and is rejected at startup in that combination; it
   still works normally on a single rank.
-* `clusthash` and `clust` (used for the optional `--cluster-mode`/hash-based prefilter path)
-  and the final `mergeclusters`/representative-switching stages are not MPI-aware and always
-  run once from the workflow process, regardless of the runner.
+* Linclust v1 does not support a multi-rank outer launch. It retains the legacy
+  single-rank workflow.
+* `clusthash`, `clust`, and the final merge/representative-switching stages are not
+  MPI-aware and run only on rank 0 while the other ranks wait.
 * Representative selection and cluster assignment are a single deterministic, ordered
   reduction performed on rank 0 after all candidate chunks are collected. Scaling is
   therefore strongest when candidate/alignment generation dominates total runtime; very

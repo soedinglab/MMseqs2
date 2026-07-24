@@ -1323,6 +1323,16 @@ public:
 
     std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 
+    // Clears MMseqsParameter::wasSet on every parameter in the list. MMseqsParameter
+    // objects are shared (by uniqid) across every command that exposes them (e.g.
+    // --threads is the same object for kmermatcher, align2clust, ...), and
+    // parseParameters() never clears wasSet itself, so replaying parseParameters for a
+    // second in-process command (see workflow/Linclust.cpp) whose argv repeats a flag
+    // already consumed by an earlier in-process command would otherwise misreport a
+    // "duplicate parameter" and abort. Call this on a command's own parameter list
+    // immediately before re-parsing its argv in the same process.
+    static void resetWasSet(const std::vector<MMseqsParameter*> &vector);
+
     void overrideParameterDescription(MMseqsParameter& par, const char *description, const char *regex = NULL, int category = 0);
 
     static std::vector<std::string> findMissingTaxDbFiles(const std::string &filename);

@@ -112,4 +112,11 @@ struct Categories {
 
 void registerCommands(std::vector<Command>* cmd);
 
+// Looks up a registered command by its CLI name (e.g. "kmermatcher"), returning the
+// same Command instance the top-level dispatcher (Application.cpp) would use to run it.
+// Exposed so in-process coordinators (e.g. workflow/Linclust.cpp for Linclust v2) can
+// call a command's commandFunction directly -- with its real parameter list and
+// metadata -- instead of forking/exec'ing a new mmseqs process for it.
+const Command* getCommandByName(const char *s);
+
 #endif

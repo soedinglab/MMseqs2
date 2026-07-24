@@ -2986,6 +2986,12 @@ size_t Parameters::hashParameter(const std::vector<DbType> &dbtypes, const std::
 }
 
 
+void Parameters::resetWasSet(const std::vector<MMseqsParameter*> &par) {
+    for (size_t i = 0; i < par.size(); ++i) {
+        par[i]->wasSet = false;
+    }
+}
+
 std::string Parameters::createParameterString(const std::vector<MMseqsParameter*> &par, bool wasSet) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {

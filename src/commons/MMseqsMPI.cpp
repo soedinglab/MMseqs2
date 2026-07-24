@@ -1,6 +1,5 @@
 #include "MMseqsMPI.h"
 #include "Debug.h"
-#include "Parameters.h"
 #include "Util.h"
 
 #include <cstdlib>
@@ -12,20 +11,54 @@ int MMseqsMPI::numProc = -1;
 
 #ifdef HAVE_MPI
 void MMseqsMPI::init(int argc, const char **argv) {
-    MPI_Init(&argc, const_cast<char ***>(&argv));
+    if (active) {
+        return;
+    }
+
+    int finalized = 0;
+    MPI_Finalized(&finalized);
+    if (finalized != 0) {
+        Debug(Debug::ERROR) << "Cannot initialize MPI after MPI_Finalize.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    int initialized = 0;
+    MPI_Initialized(&initialized);
+    if (initialized == 0) {
+        MPI_Init(&argc, const_cast<char ***>(&argv));
+    }
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numProc);
 
     active = true;
 
     if(!isMaster()) {
-        Parameters& par = Parameters::getInstance();
-        par.verbosity = Debug::ERROR;
         Debug::setDebugLevel(Debug::ERROR);
     }
 
     Debug(Debug::INFO) << "MPI Init\n";
     Debug(Debug::INFO) << "Rank: " << rank << " Size: " << numProc << "\n";
+}
+
+void MMseqsMPI::finalize() {
+    if (active == false) {
+        return;
+    }
+    int finalized = 0;
+    MPI_Finalized(&finalized);
+    if (finalized == 0) {
+        MPI_Finalize();
+    }
+    active = false;
+}
+
+bool MMseqsMPI::broadcast(bool value) {
+    if (active && numProc > 1) {
+        int broadcastValue = value ? 1 : 0;
+        MPI_Bcast(&broadcastValue, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
+        return broadcastValue != 0;
+    }
+    return value;
 }
 #else
 // Best-effort fail-fast: this binary was built without MPI (-DHAVE_MPI=0/unset), so it
@@ -51,6 +84,11 @@ static int getEnvTaskCount(const char *name) {
 }
 
 void MMseqsMPI::init(int, const char **) {
+    static bool initialized = false;
+    if (initialized) {
+        return;
+    }
+    initialized = true;
     rank = 0;
 
     const char *taskCountVars[] = {
@@ -73,5 +111,11 @@ void MMseqsMPI::init(int, const char **) {
         }
     }
 }
-#endif
 
+void MMseqsMPI::finalize() {
+}
+
+bool MMseqsMPI::broadcast(bool value) {
+    return value;
+}
+#endif
