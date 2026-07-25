@@ -51,6 +51,11 @@ if notExists "${TMP_PATH}/alis.dbtype"; then
         || fail "Convert Alignments died"
 fi
 
+if [ -n "${TAXONOMY}" ]; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" taxonomyreport "${TARGET}" "${INTERMEDIATE}" "${RESULTS}_report" ${TAXONOMYREPORT_PAR} \
+        || fail "taxonomyreport died"
+fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     if [ -n "${GREEDY_BEST_HITS}" ]; then

@@ -1481,6 +1481,7 @@ Parameters::Parameters():
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
     easysearchworkflow = combineList(easysearchworkflow, createdb);
     easysearchworkflow = combineList(easysearchworkflow, makepaddedseqdb);
+    easysearchworkflow = combineList(easysearchworkflow, taxonomyreport);
     easysearchworkflow.push_back(&PARAM_GREEDY_BEST_HITS);
 
     // easyproteomesearch

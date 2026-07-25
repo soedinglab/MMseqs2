@@ -16,6 +16,8 @@ void setEasySearchDefaults(Parameters *p, bool linsearch) {
     p->removeTmpFiles = true;
     p->writeLookup = false;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    // 2: do not create a taxonomy report
+    p->reportMode = 2;
 }
 
 void setEasySearchMustPassAlong(Parameters *p, bool linsearch) {
@@ -67,6 +69,10 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
         bool needSource = false;
         Parameters::getOutputFormat(par.formatAlignmentMode, par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
                 needLookup, needSource, needTaxonomyMapping, needTaxonomy);
+        if (par.reportMode != 2) {
+            needTaxonomy = true;
+            needTaxonomyMapping = true;
+        }
     }
 
     if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM || par.greedyBestHits) {
@@ -142,6 +148,8 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     cmd.addVariable("GPU", par.gpu ? "TRUE" : NULL);
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());
+    cmd.addVariable("TAXONOMY", needTaxonomy && needTaxonomyMapping && par.reportMode != 2 ? "TRUE" : NULL);
+    cmd.addVariable("TAXONOMYREPORT_PAR", par.createParameterString(par.taxonomyreport).c_str());
 
     std::string program = tmpDir + "/easysearch.sh";
     FileUtil::writeFile(program, easysearch_sh, easysearch_sh_len);
