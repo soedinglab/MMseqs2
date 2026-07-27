@@ -254,7 +254,12 @@ void runPickConsensusRepFastSubprocess(std::vector<std::string> &args) {
     runSerialCommand("pickconsensusrepfast", args);
 }
 
-int runLinclustV2(const std::string &sourceDb, const std::string &outputDb, const std::string &tmpDir,
+// sourceDb/outputDb/tmpDir are taken by value on purpose: the caller passes par.db1,
+// par.db2 and a path derived from par.db3, but Parameters is a process-wide singleton
+// that every in-process leaf command (runInProcess -> parseParameters) overwrites with
+// its own database arguments. Binding const references to those members would make the
+// coordinator's own paths silently change to the last stage's argv.
+int runLinclustV2(const std::string sourceDb, const std::string outputDb, const std::string tmpDir,
                    const LinclustV2Options &opts) {
     std::string input = sourceDb;
 
