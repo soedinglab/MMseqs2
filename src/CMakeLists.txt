@@ -284,6 +284,11 @@ if (ENABLE_CUDA)
     endif ()
 endif ()
 
+if (ENABLE_MPS)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_MPS=1)
+    target_link_libraries(mmseqs-framework marv)
+endif ()
+
 if (NOT FRAMEWORK_ONLY)
     include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)

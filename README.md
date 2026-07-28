@@ -97,6 +97,18 @@ To perform searches using GPU acceleration, you can add the `--gpu` flag to `eas
     mmseqs createdb examples/DB.fasta targetDB
     mmseqs makepaddedseqdb targetDB targetDB_padded
     mmseqs easy-search examples/QUERY.fasta targetDB_padded alnRes.m8 tmp --gpu 1
+
+#### Apple Silicon (Metal/MPS) GPU support
+
+> [!NOTE]
+> This is a local, unofficial backend (not part of the upstream project or the precompiled binaries) that ports GPU-accelerated search to Apple Silicon via Metal, as an alternative to the CUDA backend above. It currently only accelerates the default ungapped prefilter (`--prefilter-mode 0`, the same mode used by `--gpu 1` above); the gapped Smith-Waterman GPU kernel (`--prefilter-mode 2`) is CUDA/HIP-only for now.
+
+Build with `-DENABLE_MPS=1` instead of `-DENABLE_CUDA=1` (the two are mutually exclusive):
+
+    cmake -DENABLE_MPS=1 -DHAVE_ARM8=1 -DCMAKE_BUILD_TYPE=Release ..
+    make -j
+
+Usage is identical to the CUDA workflow above (`makepaddedseqdb` + `--gpu 1`); no macOS-specific flags are needed. See [lib/libmarv-mps/marv_mps.mm](lib/libmarv-mps/marv_mps.mm) for the implementation and design notes.
         
 The `databases` workflow provides download and setup procedures for many public reference databases, such as the Uniref, NR, NT, PFAM and many more (see [Downloading databases](https://github.com/soedinglab/mmseqs2/wiki#downloading-databases)). For example, to download and search against a database containing the Swiss-Prot reference proteins run: 
 
