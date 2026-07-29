@@ -690,7 +690,20 @@ std::vector<Command> baseCommands = {
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:sequenceDB> <o:kmerDir>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
-                                         {"kmerDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+                                         {"kmerDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"kmerreduceparallel",   kmerreduceparallel,   &par.kmerreduceparallel,   COMMAND_PREFILTER,
+                "Group shuffled k-mer partitions into candidate edges with many workers",
+                "# Read back the partitions kmermatcherparallel wrote, group each one, and\n"
+                "# write its (representative, member) candidate edges as packed binary.\n"
+                "# Workers claim whole partitions from <edgeDir>/coord.\n"
+                "mmseqs kmerreduceparallel sequenceDB kmerDir edgeDir\n\n"
+                "# Run it from several nodes against the same shared filesystem\n"
+                "srun -N 8 mmseqs kmerreduceparallel sequenceDB kmerDir edgeDir\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:kmerDir> <o:edgeDir>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"kmerDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
+                                         {"edgeDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,

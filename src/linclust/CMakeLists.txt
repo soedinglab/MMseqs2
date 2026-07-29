@@ -1,6 +1,8 @@
 set(linclust_source_files
         linclust/kmermatcher.cpp
         linclust/kmermatcherparallel.cpp
+        linclust/kmerreduceparallel.cpp
+        linclust/CandidateEdge.cpp
         linclust/KmerPartition.cpp
         linclust/kmerindexdb.cpp
         linclust/kmersearch.cpp

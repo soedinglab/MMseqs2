@@ -947,6 +947,21 @@ Parameters::Parameters():
     kmermatcherparallel.push_back(&PARAM_COMPRESSED);
     kmermatcherparallel.push_back(&PARAM_V);
 
+    // kmerreduceparallel
+    // Grouping knobs. No k-mer extraction parameters: k and the partitioning are
+    // fixed by the shuffle manifest the map wrote, not re-derived here, so passing
+    // them would only create a way to disagree with what is on disk.
+    kmerreduceparallel.push_back(&PARAM_SUB_MAT);
+    kmerreduceparallel.push_back(&PARAM_ALPH_SIZE);
+    kmerreduceparallel.push_back(&PARAM_C);
+    kmerreduceparallel.push_back(&PARAM_COV_MODE);
+    kmerreduceparallel.push_back(&PARAM_INCLUDE_ONLY_EXTENDABLE);
+    kmerreduceparallel.push_back(&PARAM_INCLUDE_ADJACENCY);
+    kmerreduceparallel.push_back(&PARAM_NUM_ADJACENCY);
+    kmerreduceparallel.push_back(&PARAM_THREADS);
+    kmerreduceparallel.push_back(&PARAM_COMPRESSED);
+    kmerreduceparallel.push_back(&PARAM_V);
+
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
     makepaddedseqdb.push_back(&PARAM_SCORE_BIAS);

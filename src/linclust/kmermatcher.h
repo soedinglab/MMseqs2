@@ -267,6 +267,26 @@ KmerPosition<T, includeAdjacency, IncludeSeqLen> * doComputation(size_t totalKme
 template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
 KmerPosition<T, includeAdjacency, IncludeSeqLen> *initKmerPositionMemory(size_t size);
 
+class SequenceWeights;
+
+// Greedy grouping of the sorted k-mer array into (representative, member) pairs.
+//
+// Declared here so the distributed reduce can call it on one k-mer partition at a
+// time. That is exactly the same call stock makes on one split, and it is correct
+// per partition for the same reason: grouping only ever compares equal k-mers, and
+// equal k-mers always share a partition.
+//
+// On return the entries hold `.kmer` = representative key, `.id` = member key and
+// `.pos` = diagonal, written into writeSeqPair when it is non-NULL and in place
+// otherwise.
+template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
+size_t assignGroup(KmerPosition<T, includeAdjacency, IncludeSeqLen> *hashSeqPair,
+                   KmerPosition<T, false, IncludeSeqLen> *writeSeqPair,
+                   bool includeOnlyExtendable, int covMode, float covThr,
+                   SequenceWeights *sequenceWeights, float weightThr, int threads,
+                   std::vector<size_t> &threadOffsets, BaseMatrix *subMat,
+                   AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
+
 template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
 std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency, IncludeSeqLen> * kmerArray, size_t kmerArraySize, DBReader<DBKeyType> &seqDbr,
                                                  Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
