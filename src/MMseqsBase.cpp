@@ -160,6 +160,18 @@ std::vector<Command> baseCommands = {
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz2]|stdin", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfileStdinAndGeneric },
                                                            {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"createdbparallel",     createdbparallel,     &par.createdbparallel,     COMMAND_DATABASE_CREATION,
+                "Convert FASTA file(s) to a length-ranked sequence DB with many workers",
+                "# Build a sequence DB with sequences ordered longest first and dense keys.\n"
+                "# Every worker runs this identical command line and coordinates through\n"
+                "# <sequenceDB>.coord; workers may join late, die and be restarted.\n"
+                "mmseqs createdbparallel seq.fasta sequenceDB\n\n"
+                "# Run it from several nodes against the same shared filesystem\n"
+                "srun -N 8 mmseqs createdbparallel seq.fasta sequenceDB --chunk-size 1G\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:fastaFile1> ... <i:fastaFileN> <o:sequenceDB>",
+                CITATION_MMSEQS2, {{"fastaFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
+                                                           {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"makepaddedseqdb",               makepaddedseqdb,              &par.makepaddedseqdb,              COMMAND_HIDDEN,
                 "Generate a padded sequence DB",
                 "Generate a padded sequence DB",

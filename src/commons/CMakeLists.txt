@@ -11,6 +11,8 @@ set(commons_header_files
         commons/DBConcat.h
         commons/DBReader.h
         commons/DBWriter.h
+        commons/DenseIndex.h
+        commons/LengthRankedPlan.h
         commons/IntervalArray.h
         commons/Debug.h
         commons/Domain.h
@@ -34,6 +36,7 @@ set(commons_header_files
         commons/ProfileStates.h
         commons/LibraryReader.h
         commons/Parameters.h
+        commons/ParallelCoordination.h
         commons/PatternCompiler.h
         commons/ScoreMatrix.h
         commons/Sequence.h
@@ -57,6 +60,8 @@ set(commons_source_files
         commons/DBConcat.cpp
         commons/DBReader.cpp
         commons/DBWriter.cpp
+        commons/DenseIndex.cpp
+        commons/LengthRankedPlan.cpp
         commons/Debug.cpp
         commons/ExpressionParser.cpp
         commons/FileUtil.cpp
@@ -72,6 +77,7 @@ set(commons_source_files
         commons/NucleotideMatrix.cpp
         commons/Orf.cpp
         commons/Parameters.cpp
+        commons/ParallelCoordination.cpp
         commons/ProfileStates.cpp
         commons/LibraryReader.cpp
         commons/ScoreMatrix.cpp

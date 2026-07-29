@@ -55,6 +55,7 @@ Parameters::Parameters():
         PARAM_SPLIT(PARAM_SPLIT_ID, "--split", "Split database", "Split input into N equally distributed chunks. 0: set the best split automatically", typeid(int), (void *) &split, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID, "--split-mode", "Split mode", "0: split target db; 1: split query db; 2: auto, depending on main memory", typeid(int), (void *) &splitMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_CHUNK_SIZE(PARAM_CHUNK_SIZE_ID, "--chunk-size", "Chunk size", "Input bytes one work item covers. Smaller chunks spread work more evenly and use less memory per thread; larger chunks mean fewer coordination files. E.g. 64M, 256M, 1G", typeid(ByteParser), (void *) &chunkSize, "^([1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -908,6 +909,16 @@ Parameters::Parameters():
     createdb.push_back(&PARAM_MASK_N_REPEAT);
     createdb.push_back(&PARAM_GPU);
     createdb.push_back(&PARAM_V);
+
+    // createdbparallel
+    // No PARAM_WRITE_LOOKUP: .lookup is not emitted yet. It is variable-width and
+    // in key order, so it cannot be written at computed offsets like everything
+    // else; see PARALLEL_LINCLUST_WIP.md for the reconstruction sketch.
+    createdbparallel.push_back(&PARAM_DB_TYPE);
+    createdbparallel.push_back(&PARAM_CHUNK_SIZE);
+    createdbparallel.push_back(&PARAM_THREADS);
+    createdbparallel.push_back(&PARAM_COMPRESSED);
+    createdbparallel.push_back(&PARAM_V);
 
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
@@ -2499,6 +2510,7 @@ void Parameters::setDefaults() {
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
     splitMemoryLimit = 0;
+    chunkSize = 256 * 1024 * 1024;
     diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";
