@@ -56,6 +56,7 @@ Parameters::Parameters():
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID, "--split-mode", "Split mode", "0: split target db; 1: split query db; 2: auto, depending on main memory", typeid(int), (void *) &splitMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_CHUNK_SIZE(PARAM_CHUNK_SIZE_ID, "--chunk-size", "Chunk size", "Input bytes one work item covers. Smaller chunks spread work more evenly and use less memory per thread; larger chunks mean fewer coordination files. E.g. 64M, 256M, 1G", typeid(ByteParser), (void *) &chunkSize, "^([1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SCRATCH_BUDGET(PARAM_SCRATCH_BUDGET_ID, "--scratch-budget", "Scratch budget", "Total scratch the run may occupy. The k-mer extraction wave count and the partition count are derived from this together with --split-memory-limit, rather than set by hand. Default (0) for a single wave. E.g. 100T, 500T", typeid(ByteParser), (void *) &scratchBudget, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -919,6 +920,32 @@ Parameters::Parameters():
     createdbparallel.push_back(&PARAM_THREADS);
     createdbparallel.push_back(&PARAM_COMPRESSED);
     createdbparallel.push_back(&PARAM_V);
+
+    // kmermatcherparallel
+    // Extraction knobs only: this stage stops at the shuffled k-mer buckets, so
+    // the grouping and alignment parameters belong to the reduce that reads them.
+    // No PARAM_ADJUST_KMER_LEN either -- the adjusted length is a property of the
+    // whole database that a worker scanning one key range cannot agree on.
+    kmermatcherparallel.push_back(&PARAM_SUB_MAT);
+    kmermatcherparallel.push_back(&PARAM_ALPH_SIZE);
+    kmermatcherparallel.push_back(&PARAM_MIN_SEQ_ID);
+    kmermatcherparallel.push_back(&PARAM_K);
+    kmermatcherparallel.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcherparallel.push_back(&PARAM_KMER_PER_SEQ_SCALE);
+    kmermatcherparallel.push_back(&PARAM_SPACED_KMER_MODE);
+    kmermatcherparallel.push_back(&PARAM_SPACED_KMER_PATTERN);
+    kmermatcherparallel.push_back(&PARAM_MASK_RESIDUES);
+    kmermatcherparallel.push_back(&PARAM_MASK_PROBABILTY);
+    kmermatcherparallel.push_back(&PARAM_MASK_LOWER_CASE);
+    kmermatcherparallel.push_back(&PARAM_MASK_N_REPEAT);
+    kmermatcherparallel.push_back(&PARAM_MAX_SEQ_LEN);
+    kmermatcherparallel.push_back(&PARAM_HASH_SHIFT);
+    kmermatcherparallel.push_back(&PARAM_IGNORE_MULTI_KMER);
+    kmermatcherparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmermatcherparallel.push_back(&PARAM_SCRATCH_BUDGET);
+    kmermatcherparallel.push_back(&PARAM_THREADS);
+    kmermatcherparallel.push_back(&PARAM_COMPRESSED);
+    kmermatcherparallel.push_back(&PARAM_V);
 
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
@@ -2511,6 +2538,7 @@ void Parameters::setDefaults() {
     splitMode = DETECT_BEST_DB_SPLIT;
     splitMemoryLimit = 0;
     chunkSize = 256 * 1024 * 1024;
+    scratchBudget = 0;
     diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";

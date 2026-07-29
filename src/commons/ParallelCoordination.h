@@ -2,6 +2,8 @@
 #define MMSEQS_PARALLELCOORDINATION_H
 
 #include <cstdint>
+#include <ctime>
+#include <unistd.h>
 #include <mutex>
 #include <string>
 
@@ -128,7 +130,52 @@ public:
     // no item was claimable for stallSeconds, which means the remaining work is
     // held by workers that are gone but whose leases have not yet expired, or
     // that the run is genuinely stuck.
+    //
+    // Prefer drain(): waiting here does not re-claim, so a worker that reaches
+    // this call while a crashed worker's lease is still live will wait for items
+    // that nobody is going to finish.
     bool awaitAll(unsigned int pollSeconds = 5, unsigned int stallSeconds = 0);
+
+    // Claims items and runs body on each until every item in the queue is DONE.
+    //
+    // The loop re-enters claiming after waiting, which is the whole point: when
+    // claim() returns -1 the work is not finished, it merely means every unfinished
+    // item is held under a live lease. If the workers holding them are alive, they
+    // will complete them; if they died, the leases expire and the items become this
+    // worker's to redo. Stopping at the first -1 instead -- claim, then wait for
+    // the rest -- leaves a crashed worker's items unfinished forever, since nobody
+    // is left to complete them and waiting alone never re-claims.
+    //
+    // Returns false if no item completed anywhere in the run for stallSeconds,
+    // which by then means the run really is stuck rather than merely waiting on a
+    // lease.
+    template <typename Body>
+    bool drain(int64_t workerId, Body body, unsigned int pollSeconds = 5,
+               unsigned int stallSeconds = 2 * DEFAULT_LEASE_SECONDS) {
+        int64_t lastDone = -1;
+        int64_t lastProgress = static_cast<int64_t>(time(NULL));
+        while (true) {
+            const int64_t item = claim(workerId);
+            if (item >= 0) {
+                body(static_cast<size_t>(item));
+                complete(item, workerId);
+                continue;
+            }
+            const int64_t done = getDoneCount();
+            if (done >= itemCount) {
+                return true;
+            }
+            if (done != lastDone) {
+                lastDone = done;
+                lastProgress = static_cast<int64_t>(time(NULL));
+            } else if (stallSeconds > 0 &&
+                       static_cast<int64_t>(time(NULL)) - lastProgress >
+                           static_cast<int64_t>(stallSeconds)) {
+                return false;
+            }
+            sleep(pollSeconds);
+        }
+    }
 
     static const int64_t DEFAULT_LEASE_SECONDS = 1800;
 

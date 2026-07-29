@@ -23,11 +23,67 @@ KmerPartitioner::KmerPartitioner(unsigned int partitionCount) : partitionCount(p
                             << " exceeds the 16-bit k-mer hash space (max 65536)\n";
         EXIT(EXIT_FAILURE);
     }
-    unsigned int bits = 0;
-    while ((1u << bits) < partitionCount) {
-        bits++;
+    mask = partitionCount - 1;
+}
+
+namespace {
+
+uint64_t divideRoundingUp(uint64_t value, uint64_t divisor) {
+    return (value + divisor - 1) / divisor;
+}
+
+unsigned int roundUpToPowerOfTwo(uint64_t value) {
+    unsigned int result = 1;
+    while (result < value) {
+        result <<= 1;
     }
-    shift = 16 - bits;
+    return result;
+}
+
+}  // namespace
+
+KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int kmersPerSequence,
+                                          uint64_t scratchBudgetBytes, uint64_t persistentBytes,
+                                          uint64_t workerMemoryBytes) {
+    KmerShuffleSizing sizing;
+    sizing.totalKmerBytes = sequenceCount * kmersPerSequence * sizeof(KmerRecord);
+
+    if (scratchBudgetBytes == 0) {
+        // No budget given: one wave, and let the memory constraint alone pick P.
+        sizing.waveCount = 1;
+    } else {
+        if (persistentBytes >= scratchBudgetBytes) {
+            Debug(Debug::ERROR) << "Scratch budget of " << scratchBudgetBytes
+                                << " bytes is already exhausted by the sequence database and "
+                                << "surviving edges (" << persistentBytes
+                                << " bytes). No wave count can fit the k-mer shuffle.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const uint64_t available = scratchBudgetBytes - persistentBytes;
+        sizing.waveCount = static_cast<unsigned int>(
+            std::max<uint64_t>(divideRoundingUp(sizing.totalKmerBytes, available), 1));
+    }
+    sizing.bytesPerWave = divideRoundingUp(sizing.totalKmerBytes, sizing.waveCount);
+
+    if (workerMemoryBytes == 0) {
+        sizing.partitionCount = 1;
+    } else {
+        sizing.partitionCount =
+            roundUpToPowerOfTwo(divideRoundingUp(sizing.bytesPerWave, workerMemoryBytes));
+    }
+    if (sizing.partitionCount > 65536) {
+        // Above the 16-bit hash space the partitioner cannot tell partitions
+        // apart, so this is a real dead end rather than something to clamp: the
+        // run needs a bigger node, more waves, or a smaller input.
+        Debug(Debug::ERROR) << "A wave holds " << sizing.bytesPerWave << " bytes of k-mers, which "
+                            << "needs more than 65536 partitions to fit " << workerMemoryBytes
+                            << " bytes per worker. The 16-bit k-mer hash cannot address that many. "
+                            << "Increase the per-worker memory or lower the scratch budget so more "
+                            << "waves are used.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    sizing.bytesPerPartition = divideRoundingUp(sizing.bytesPerWave, sizing.partitionCount);
+    return sizing;
 }
 
 std::string KmerBucketWriter::partitionDir(const std::string &dir, unsigned int partition) {
@@ -54,7 +110,8 @@ void KmerBucketWriter::createLayout(const std::string &dir, unsigned int partiti
 
 KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitionCount,
                                    const std::string &shardId, size_t bufferBudgetBytes)
-    : dir(dir), shardId(shardId), partitionCount(partitionCount), recordCount(0) {
+    : dir(dir), shardId(shardId), partitionCount(partitionCount),
+      mutexes(partitionCount) {
     // At least a handful of records per partition even with a tiny budget, so a
     // large partition count degrades to more frequent flushes rather than to
     // one write syscall per k-mer.
@@ -62,6 +119,7 @@ KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitio
     recordsPerBuffer = std::max<size_t>(perPartition, 16);
     buffers.resize(partitionCount);
     files.assign(partitionCount, NULL);
+    recordCounts.assign(partitionCount, 0);
 }
 
 KmerBucketWriter::~KmerBucketWriter() {
@@ -84,22 +142,50 @@ void KmerBucketWriter::flush(unsigned int partition) {
         }
     }
     if (fwrite(buffer.data(), sizeof(KmerRecord), buffer.size(), files[partition]) != buffer.size()) {
-        Debug(Debug::ERROR) << "Cannot write k-mer bucket for partition " << partition << "\n";
+        // Name the reason: a full scratch filesystem is by far the likeliest way
+        // this stage fails, and "cannot write" alone sends you looking for a bug.
+        Debug(Debug::ERROR) << "Cannot write " << buffer.size() << " k-mer records to bucket "
+                            << partition << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
     buffer.clear();
 }
 
 void KmerBucketWriter::append(unsigned int partition, const KmerRecord &record) {
+    std::lock_guard<std::mutex> guard(mutexes[partition]);
     buffers[partition].push_back(record);
     if (buffers[partition].size() >= recordsPerBuffer) {
         flush(partition);
     }
-    recordCount++;
+    // Counted per partition rather than in one shared counter: this runs on every
+    // k-mer, and a single counter would be the one point every thread contends on.
+    recordCounts[partition]++;
+}
+
+uint64_t KmerBucketWriter::getRecordCount() {
+    uint64_t total = 0;
+    for (unsigned int p = 0; p < partitionCount; p++) {
+        std::lock_guard<std::mutex> guard(mutexes[p]);
+        total += recordCounts[p];
+    }
+    return total;
+}
+
+void KmerBucketWriter::flushAll() {
+    for (unsigned int p = 0; p < partitionCount; p++) {
+        std::lock_guard<std::mutex> guard(mutexes[p]);
+        flush(p);
+        if (files[p] != NULL && fflush(files[p]) != 0) {
+            Debug(Debug::ERROR) << "Cannot flush k-mer bucket for partition " << p << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
 }
 
 void KmerBucketWriter::close() {
     for (unsigned int p = 0; p < partitionCount; p++) {
+        std::lock_guard<std::mutex> guard(mutexes[p]);
         flush(p);
         if (files[p] != NULL) {
             if (fclose(files[p]) != 0) {

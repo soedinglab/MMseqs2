@@ -95,7 +95,8 @@ static void testPartitioner() {
 
     // The plan sizes P = 8192 over the 16-bit hash space, i.e. 8 hash values per
     // partition. Verify that is exactly what happens, and that the whole space
-    // maps inside range.
+    // maps inside range. The 8 values a partition owns are strided rather than
+    // contiguous, which is the point -- see the prefix test below.
     std::set<unsigned int> seen;
     bool inRange = true;
     std::map<unsigned int, int> perPartition;
@@ -120,6 +121,27 @@ static void testPartitioner() {
         allZero = allZero && single.partitionOf(static_cast<unsigned short>(score)) == 0;
     }
     check(allZero, "a single partition collects the whole hash space");
+
+    // The property the balance depends on, and the one an earlier high-bits
+    // partitioner failed. Linclust keeps the bottom-scoring k-mers of a sequence,
+    // so the scores that reach a bucket are a *prefix* of the space, not a sample
+    // of all of it. A partitioner that spreads the whole space evenly can still
+    // send an entire prefix to one partition; this checks the prefix itself
+    // spreads. Measured on real data the high-bits version gave partition 0 68% of
+    // 19.9M k-mers at P = 16.
+    KmerPartitioner small(16);
+    std::map<unsigned int, int> prefixCounts;
+    const unsigned int prefixEnd = 4096;  // a plausible per-sequence threshold
+    for (unsigned int score = 0; score < prefixEnd; score++) {
+        prefixCounts[small.partitionOf(static_cast<unsigned short>(score))]++;
+    }
+    check(prefixCounts.size() == 16, "a prefix of the score space reaches every partition");
+    bool prefixBalanced = true;
+    for (std::map<unsigned int, int>::const_iterator it = prefixCounts.begin();
+         it != prefixCounts.end(); ++it) {
+        prefixBalanced = prefixBalanced && it->second == static_cast<int>(prefixEnd) / 16;
+    }
+    check(prefixBalanced, "a prefix of the score space spreads evenly over the partitions");
 }
 
 // The load-bearing test: run a repetitive corpus through the writer, read it
@@ -262,11 +284,64 @@ static void testKmerPositionConversion() {
     check(sameBytes, "KmerPosition converts back into an identical record");
 }
 
+// Pins the derivation to the two scales the project actually targets, because
+// the whole argument for computing P rather than exposing it is that the right
+// answer differs between them.
+static void testShuffleSizing() {
+    const uint64_t TB = 1024ULL * 1024 * 1024 * 1024;
+    const uint64_t GB = 1024ULL * 1024 * 1024;
+
+    // 100B: 1e11 sequences must fit a hard 100 TB budget. Persistent load is the
+    // 25 TB database plus ~7.6 TB of surviving edges.
+    KmerShuffleSizing small = deriveKmerShuffleSizing(100000000000ULL, 21, 100 * TB,
+                                                      33 * TB, 64 * GB);
+    check(small.totalKmerBytes == 100000000000ULL * 21 * 24,
+          "100B k-mer volume follows from 21 records of 24 bytes per sequence");
+    check(small.waveCount == 1, "100B fits the 100 TB budget in a single wave");
+    check(small.bytesPerWave <= 100 * TB - 33 * TB,
+          "100B peak k-mer bytes stay inside the budget after the database and edges");
+    check(small.partitionCount == 1024, "100B derives P = 1024");
+    check(small.bytesPerPartition <= 64 * GB, "100B buckets fit the per-worker memory");
+
+    // 1T: 1e12 sequences, no hard ceiling, so only per-worker memory sets P.
+    KmerShuffleSizing large = deriveKmerShuffleSizing(1000000000000ULL, 21, 0, 0, 64 * GB);
+    check(large.waveCount == 1, "an unlimited budget means a single wave");
+    check(large.partitionCount == 8192, "1T derives P = 8192");
+    check(large.bytesPerPartition <= 64 * GB, "1T buckets fit the per-worker memory");
+    check(large.partitionCount > small.partitionCount,
+          "the two target scales genuinely want different P, which is why it is derived");
+
+    // A budget that cannot hold the whole shuffle at once must split into waves,
+    // and more waves must mean smaller buckets rather than a larger P.
+    KmerShuffleSizing waved = deriveKmerShuffleSizing(1000000000000ULL, 21, 400 * TB,
+                                                      100 * TB, 64 * GB);
+    check(waved.waveCount > 1, "a budget below the k-mer volume forces multiple waves");
+    check(waved.bytesPerWave <= 300 * TB, "each wave stays inside the budget");
+    check(waved.bytesPerPartition <= 64 * GB, "waved buckets still fit the per-worker memory");
+    check(waved.partitionCount <= large.partitionCount,
+          "waves reduce the peak, so no more partitions are needed than without them");
+
+    // P must always be a usable power of two.
+    bool powerOfTwo = true;
+    for (uint64_t seqs = 1000000; seqs <= 100000000000ULL; seqs *= 10) {
+        const KmerShuffleSizing s = deriveKmerShuffleSizing(seqs, 21, 0, 0, 8 * GB);
+        powerOfTwo = powerOfTwo && s.partitionCount > 0 &&
+                     (s.partitionCount & (s.partitionCount - 1)) == 0 &&
+                     s.partitionCount <= 65536;
+    }
+    check(powerOfTwo, "derived P is always a power of two inside the 16-bit hash space");
+
+    KmerShuffleSizing tiny = deriveKmerShuffleSizing(1000, 21, 0, 0, 64 * GB);
+    check(tiny.partitionCount == 1 && tiny.waveCount == 1,
+          "a small input collapses to one partition and one wave");
+}
+
 int main(int, char **) {
     const std::string dir = makeTempDir();
 
     testRecordLayout();
     testPartitioner();
+    testShuffleSizing();
     testKmerPositionConversion();
     testLosslessRoundTrip(dir);
 

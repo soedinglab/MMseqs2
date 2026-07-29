@@ -679,6 +679,18 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <o:prefilterDB>",
                 CITATION_MMSEQS2,{{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"prefilterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::prefilterDb }}},
+        {"kmermatcherparallel",  kmermatcherparallel,  &par.kmermatcherparallel,  COMMAND_PREFILTER,
+                "Shuffle a sequence DB's k-mers into partition buckets with many workers",
+                "# Scan the sequence DB once and write every k-mer into the bucket of its\n"
+                "# partition. Every worker runs this identical command line and coordinates\n"
+                "# through <kmerDir>/coord; workers may join late, die and be restarted.\n"
+                "mmseqs kmermatcherparallel sequenceDB kmerDir\n\n"
+                "# Run it from several nodes against the same shared filesystem\n"
+                "srun -N 8 mmseqs kmermatcherparallel sequenceDB kmerDir --scratch-budget 100T\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <o:kmerDir>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"kmerDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -37,16 +38,27 @@ public:
     unsigned int getPartitionCount() const { return partitionCount; }
 
     // Partition of a k-mer, from the 16-bit hash kmermatcher already computed.
-    // Taking the high bits keeps whole contiguous runs of the score space
-    // together, which is the same space the stock split ranges carve up, so a
-    // partition is directly comparable to a stock split.
+    //
+    // The *low* bits, not the high ones. Linclust keeps the bottom-scoring k-mers
+    // of each sequence (kmermatcher.cpp:318, `score < threshold`), so the selected
+    // scores are not spread over the 16-bit space at all -- they pile up against
+    // zero. Partitioning on the high bits therefore puts almost everything in
+    // partition 0: measured on 1M sequences at P=16 it gave partition 0 68% of all
+    // k-mers and partition 15 0.3%, which would make the reduce's per-partition
+    // memory bound meaningless. The selected scores form a prefix [0, threshold)
+    // of the space, and the low bits of a prefix are uniform, so masking balances
+    // the partitions without needing the hash-distribution pass stock's
+    // setupKmerSplits runs to carve its uneven split ranges.
+    //
+    // Any pure function of the score would be *correct*; only balance picks
+    // between them, since equal k-mers always share a score.
     unsigned int partitionOf(unsigned short score) const {
-        return static_cast<unsigned int>(score) >> shift;
+        return static_cast<unsigned int>(score) & mask;
     }
 
 private:
     unsigned int partitionCount;
-    unsigned int shift;
+    unsigned int mask;
 };
 
 // One k-mer occurrence as stored in a bucket file.
@@ -85,6 +97,42 @@ struct __attribute__((__packed__)) KmerRecord {
     static const uint64_t MAX_ID = (static_cast<uint64_t>(1) << 48) - 1;
 };
 
+// The two numbers that shape the k-mer shuffle, and where they came from.
+struct KmerShuffleSizing {
+    uint64_t totalKmerBytes;     // every k-mer record, summed over all waves
+    unsigned int waveCount;      // extraction passes, so peak scratch stays in budget
+    unsigned int partitionCount; // P
+    uint64_t bytesPerWave;       // peak k-mer bytes on disk at any one time
+    uint64_t bytesPerPartition;  // what one worker loads in the reduce
+};
+
+// Derives the wave count and P from the scratch budget and per-worker memory,
+// rather than making either a knob.
+//
+// Both are over-determined by things already known: the k-mer volume follows
+// from the sequence count at a measured 21 k-mers x 24 B per sequence, the wave
+// count is whatever keeps peak scratch inside the budget, and P is the smallest
+// power of two whose buckets still fit a worker. Exposing them raw invites two
+// failures that only show up deep into a run -- P too small and workers die of
+// memory, P too large and the reduce silently pays P/W sequential re-scans of
+// the whole database for no benefit.
+//
+// The two scales this is sized for pull in opposite directions and land in
+// different places, which is exactly why it should be computed:
+//   100B  50.4 TB of k-mers, P = 1024, ~49 GB buckets, ~2 DB scans at W=500
+//   1T    504  TB of k-mers, P = 8192, ~62 GB buckets, ~17 DB scans at W=500
+//
+// persistentBytes is everything sharing the scratch budget with the k-mer wave:
+// the sequence database, which persists, plus the surviving edges the fused
+// group+align stage accumulates.
+//
+// scratchBudgetBytes == 0 means unlimited, giving a single wave.
+KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount,
+                                          unsigned int kmersPerSequence,
+                                          uint64_t scratchBudgetBytes,
+                                          uint64_t persistentBytes,
+                                          uint64_t workerMemoryBytes);
+
 // Converts a bucket record into the KmerPosition that assignGroup consumes, and
 // back. Templated rather than including kmermatcher.h so this header stays free
 // of the whole DBReader/Parameters chain; the caller instantiates it with the
@@ -119,26 +167,54 @@ void kmerPositionToRecord(KmerPositionT &in, KmerRecord &out) {
 
 // Appends k-mer records into per-partition bucket files.
 //
-// Each writer owns one shard id and writes <dir>/p<partition>/<shard>.kmers, so
-// concurrent writers -- threads within a worker, and workers across nodes --
-// never touch the same file and need no locking at all. Bucket files are laid
-// out one directory per partition because the reduce stage reads exactly one
-// partition, and because a flat directory would hold partitions x shards entries.
+// One writer per worker *process*, shared by all its threads, writing
+// <dir>/p<partition>/<shard>.kmers. Two constraints pick that granularity:
+//
+//   - File count. A writer per thread would leave workers x threads x partitions
+//     shards -- 32 million at 500 workers, 64 threads and P = 1024 -- which no
+//     shared filesystem enjoys. Per process it is workers x partitions, so 0.5 M
+//     at the 100B target and 4 M at 1T, a few hundred files per directory.
+//   - Write size. The buffer budget is split across partitions, so per process a
+//     partition gets budget/P; per thread it would get budget/(threads x P),
+//     which at these partition counts is a few hundred bytes -- the write size
+//     that makes a parallel filesystem collapse.
+//
+// Threads therefore share the per-partition buffers under a per-partition mutex.
+// There are P independent locks and the k-mer hash spreads threads uniformly
+// across them, so the expected contention is threads/P, and the k-mer extraction
+// that produces each record costs far more than the uncontended acquire.
+//
+// Workers still never share a file, so nothing is locked across nodes. Bucket
+// files are laid out one directory per partition because the reduce stage reads
+// exactly one partition, and because a flat directory would hold partitions x
+// shards entries.
 class KmerBucketWriter {
 public:
     // bufferBudgetBytes is split evenly across partitions, so memory is bounded
     // regardless of partition count. Records accumulate per partition and are
     // flushed in large contiguous appends rather than one write per k-mer.
     KmerBucketWriter(const std::string &dir, unsigned int partitionCount,
-                     const std::string &shardId, size_t bufferBudgetBytes = 32 * 1024 * 1024);
+                     const std::string &shardId, size_t bufferBudgetBytes = 1024 * 1024 * 1024);
     ~KmerBucketWriter();
 
+    // Thread-safe.
     void append(unsigned int partition, const KmerRecord &record);
+
+    // Pushes every buffered record out to the operating system.
+    //
+    // Must be called before a work item is marked done. Buffers span items, so
+    // without it an item can be recorded as complete while its k-mers are still
+    // in memory; a worker that then dies loses them, and because the item is
+    // already done nobody redoes it. This is the same durability the work queue
+    // itself has -- both survive the process dying, neither survives the node
+    // going down, which is the level at which the whole stage restarts anyway.
+    void flushAll();
     // Flushes and closes every open bucket. Called by the destructor, but call it
     // explicitly to see write errors before the object goes away.
     void close();
 
-    uint64_t getRecordCount() const { return recordCount; }
+    // Records appended by this writer. Call it when the threads are quiescent.
+    uint64_t getRecordCount();
 
     // Creates the per-partition directories. Safe to call from many workers.
     static void createLayout(const std::string &dir, unsigned int partitionCount);
@@ -148,6 +224,7 @@ private:
     KmerBucketWriter(const KmerBucketWriter &);
     KmerBucketWriter &operator=(const KmerBucketWriter &);
 
+    // Caller must hold mutexes[partition].
     void flush(unsigned int partition);
 
     std::string dir;
@@ -156,7 +233,8 @@ private:
     size_t recordsPerBuffer;
     std::vector<std::vector<KmerRecord> > buffers;
     std::vector<FILE *> files;
-    uint64_t recordCount;
+    std::vector<std::mutex> mutexes;
+    std::vector<uint64_t> recordCounts;
 };
 
 // Reads every shard of one partition back.
@@ -167,6 +245,18 @@ public:
     static uint64_t countRecords(const std::string &dir, unsigned int partition);
 
     // Appends every record of the partition to out.
+    //
+    // The reduce must drop exact duplicate records after sorting. A worker that
+    // dies mid-item has already flushed part of that item into its own shard, and
+    // the worker that redoes the item once the lease expires writes the same
+    // records into a *different* shard, so the partition can legitimately contain
+    // a record twice. Per-item shard files would make the map idempotent instead,
+    // but that is items x partitions files -- 8e9 at 1e12 sequences -- so the
+    // duplicates are removed here rather than prevented there.
+    //
+    // Dropping them is exact, not a heuristic: (kmer, id, pos) identifies one
+    // k-mer occurrence in one sequence, so two byte-identical records can only
+    // come from the same occurrence being written twice.
     static void readPartition(const std::string &dir, unsigned int partition,
                               std::vector<KmerRecord> &out);
 

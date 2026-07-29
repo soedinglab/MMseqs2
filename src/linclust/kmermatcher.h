@@ -4,6 +4,7 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
+#include "KmerPartition.h"
 
 #include <queue>
 #ifndef SIZE_T_MAX
@@ -269,7 +270,14 @@ KmerPosition<T, includeAdjacency, IncludeSeqLen> *initKmerPositionMemory(size_t 
 template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
 std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency, IncludeSeqLen> * kmerArray, size_t kmerArraySize, DBReader<DBKeyType> &seqDbr,
                                                  Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
-                                                 size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
+                                                 size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution,
+                                                 // When set, every selected k-mer is appended to its partition bucket
+                                                 // instead of being filtered down to [hashStartRange, hashEndRange] and
+                                                 // staged into kmerArray. This is what turns the per-split full rescan
+                                                 // into a single scan: nothing extracted is thrown away.
+                                                 // One writer shared by every thread; it is thread-safe.
+                                                 KmerBucketWriter *bucketWriter = NULL,
+                                                 const KmerPartitioner *kmerPartitioner = NULL);
 
 
 void maskSequence(int maskMode, int maskLowerCase,

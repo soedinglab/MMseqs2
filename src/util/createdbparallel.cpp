@@ -400,16 +400,20 @@ void allocateFile(const std::string &path, size_t size) {
 // every process numbers its threads from zero.
 template <typename Body>
 void runQueue(WorkQueue &queue, int threads, int64_t workerId, Body body) {
+    bool stalled = false;
 #pragma omp parallel num_threads(threads)
     {
-        while (true) {
-            const int64_t item = queue.claim(workerId);
-            if (item < 0) {
-                break;
-            }
-            body(static_cast<size_t>(item));
-            queue.complete(item, workerId);
+        // drain() rather than a plain claim loop: it goes back to claiming after
+        // waiting, so items abandoned by a crashed worker are picked up once their
+        // leases expire instead of being waited on by everyone forever.
+        if (queue.drain(workerId, body) == false) {
+#pragma omp critical
+            stalled = true;
         }
+    }
+    if (stalled) {
+        Debug(Debug::ERROR) << "Work queue stalled: work remains but no item is claimable\n";
+        EXIT(EXIT_FAILURE);
     }
 }
 
@@ -464,10 +468,7 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
                                                  chunks[chunkIdx], chunkIdx);
             histogram.write(path);
         });
-        if (scanQueue.awaitAll() == false) {
-            Debug(Debug::ERROR) << "Scan pass stalled: work remains but no item is claimable\n";
-            EXIT(EXIT_FAILURE);
-        }
+
     }
     Debug(Debug::INFO) << "Scan pass done\n";
 
@@ -543,11 +544,6 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             emitChunk(filenames[chunks[chunkIdx].fileIdx], chunks[chunkIdx], plan,
                       seqFd, hdrFd, seqIdxFd, hdrIdxFd);
         });
-        if (emitQueue.awaitAll() == false) {
-            Debug(Debug::ERROR) << "Emit pass stalled: work remains but no item is claimable\n";
-            EXIT(EXIT_FAILURE);
-        }
-
         // fsync before the sentinel, so a worker that finalises after a crash
         // cannot read a partially flushed database.
         fsync(seqFd);

@@ -440,6 +440,7 @@ public:
     int    splitMode;                    // Split by query or target DB
     size_t splitMemoryLimit;             // Maximum memory in bytes a split can use
     size_t chunkSize;                    // Input bytes one createdbparallel work item covers
+    size_t scratchBudget;                // Scratch ceiling the k-mer wave count is derived from
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
@@ -829,6 +830,7 @@ public:
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
     PARAMETER(PARAM_CHUNK_SIZE)
+    PARAMETER(PARAM_SCRATCH_BUDGET)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
@@ -1235,6 +1237,7 @@ public:
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
     std::vector<MMseqsParameter*> createdbparallel;
+    std::vector<MMseqsParameter*> kmermatcherparallel;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
