@@ -514,7 +514,7 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                             // branch below does.
                             if (passesFilterGate(gate, edges[e].getMember(), query, element,
                                                  aligner, matcher, par, swMode,
-                                                 0) == false) {
+                                                 edges[e].diagonal) == false) {
                                 continue;
                             }
                             // The greedy ranks by alignment score, not k-mer count.
