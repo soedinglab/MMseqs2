@@ -1239,6 +1239,7 @@ public:
     std::vector<MMseqsParameter*> createdbparallel;
     std::vector<MMseqsParameter*> kmermatcherparallel;
     std::vector<MMseqsParameter*> kmerreduceparallel;
+    std::vector<MMseqsParameter*> alignparallel;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;

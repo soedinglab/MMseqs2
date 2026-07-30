@@ -203,31 +203,6 @@ static void pushClusterResult(ClusterResult &&clusterResult) {
     }
 }
 
-static float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double targetCov, double targetPrecision) {
-    std::stringstream in(scoreFile);
-    std::string line;
-    int intTargetSeqid = static_cast<int>((targetSeqid + 0.0001) * 100);
-    int seqIdRest = (intTargetSeqid % 5);
-    targetSeqid = static_cast<float>(intTargetSeqid - seqIdRest) / 100;
-    targetCov = static_cast<float>(static_cast<int>((targetCov + 0.0001) * 10)) / 10;
-    
-    while (std::getline(in, line)) {
-        std::vector<std::string> values = Util::split(line, " ");
-        float cov = strtod(values[0].c_str(), NULL);
-        float seqid = strtod(values[1].c_str(), NULL);
-        float scorePerCol = strtod(values[2].c_str(), NULL);
-        float precision = strtod(values[3].c_str(), NULL);
-        if (MathUtil::AreSame(cov, targetCov) && MathUtil::AreSame(seqid, targetSeqid) && precision >= targetPrecision) {
-            return scorePerCol;
-        }
-    }
-    
-    Debug(Debug::WARNING) << "Can not find any score per column for coverage "
-                          << targetCov << " and sequence identity " << targetSeqid 
-                          << ". No hit will be filtered.\n";
-    return 0;
-}
-
 static void writeClustering(DBWriter *dbWriter, const std::pair<DBKeyType, DBKeyType> * results, size_t dbSize) {
     std::string resultString;
     resultString.reserve(1024 * 1024 * 1024);

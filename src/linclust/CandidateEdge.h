@@ -52,6 +52,9 @@ private:
 // One file per partition, written whole, so a partition redone after a crash
 // simply overwrites its file. That makes the reduce idempotent, unlike the map,
 // whose per-worker shards can retain a dead worker's partial output.
+//
+// Used for the reference layout (`--align`, small scale). Production uses
+// EdgeBucketWriter below.
 class EdgeWriter {
 public:
     EdgeWriter(const std::string &path, size_t bufferRecords = 1024 * 1024);
@@ -74,6 +77,59 @@ private:
     FILE *file;
     std::vector<CandidateEdge> buffer;
     size_t bufferRecords;
+    uint64_t edgeCount;
+    bool closed;
+};
+
+
+// Writes edges into buckets by *representative key range*.
+//
+// This is the layout the alignment stage needs, and the reason is not obvious:
+// aligning inside the k-mer partition fails because a partition's pairs are
+// scattered over the whole key space, so every partition ends up re-reading the
+// entire sequence database (measured: 52x amplification, see DESIGN_DECISIONS.md
+// §9). Bucketing by representative key gives each align worker a contiguous slice
+// of sequences instead.
+//
+// Two things fall out for free:
+//   - every copy of a pair produced by different k-mer partitions lands in the
+//     same bucket, so the cross-partition duplicates are removed here rather than
+//     paid for in duplicate alignments;
+//   - having all copies together means the per-(pair, diagonal) score
+//     accumulation stock does in its global merge can be reproduced exactly,
+//     instead of approximated per partition.
+//
+// One file per (worker, bucket), like the k-mer shards, so no locking is needed.
+class EdgeBucketWriter {
+public:
+    EdgeBucketWriter(const std::string &dir, unsigned int bucketCount, const std::string &shardId,
+                     size_t bufferBudgetBytes = 256 * 1024 * 1024);
+    ~EdgeBucketWriter();
+
+    void append(unsigned int bucket, const CandidateEdge &edge);
+    // Pushes buffered edges to the OS. Call before marking a work item done, for
+    // the same reason the k-mer writer does.
+    void flushAll();
+    void close();
+
+    uint64_t getEdgeCount() const { return edgeCount; }
+
+    static void createLayout(const std::string &dir, unsigned int bucketCount);
+    static std::string bucketDir(const std::string &dir, unsigned int bucket);
+    static std::vector<std::string> shardFiles(const std::string &dir, unsigned int bucket);
+
+private:
+    EdgeBucketWriter(const EdgeBucketWriter &);
+    EdgeBucketWriter &operator=(const EdgeBucketWriter &);
+
+    void flush(unsigned int bucket);
+
+    std::string dir;
+    std::string shardId;
+    unsigned int bucketCount;
+    size_t edgesPerBuffer;
+    std::vector<std::vector<CandidateEdge> > buffers;
+    std::vector<FILE *> files;
     uint64_t edgeCount;
     bool closed;
 };

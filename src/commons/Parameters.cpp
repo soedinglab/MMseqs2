@@ -956,11 +956,29 @@ Parameters::Parameters():
     kmerreduceparallel.push_back(&PARAM_C);
     kmerreduceparallel.push_back(&PARAM_COV_MODE);
     kmerreduceparallel.push_back(&PARAM_INCLUDE_ONLY_EXTENDABLE);
+    kmerreduceparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmerreduceparallel.push_back(&PARAM_INCLUDE_ADJACENCY);
     kmerreduceparallel.push_back(&PARAM_NUM_ADJACENCY);
     kmerreduceparallel.push_back(&PARAM_THREADS);
     kmerreduceparallel.push_back(&PARAM_COMPRESSED);
     kmerreduceparallel.push_back(&PARAM_V);
+
+    // alignparallel
+    // Alignment knobs only: the edge buckets and the key ranges are fixed by the
+    // manifest kmerreduceparallel wrote, not re-derived here.
+    alignparallel.push_back(&PARAM_SUB_MAT);
+    alignparallel.push_back(&PARAM_E);
+    alignparallel.push_back(&PARAM_C);
+    alignparallel.push_back(&PARAM_COV_MODE);
+    alignparallel.push_back(&PARAM_MIN_SEQ_ID);
+    alignparallel.push_back(&PARAM_MIN_ALN_LEN);
+    alignparallel.push_back(&PARAM_SEQ_ID_MODE);
+    alignparallel.push_back(&PARAM_GAP_OPEN);
+    alignparallel.push_back(&PARAM_GAP_EXTEND);
+    alignparallel.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    alignparallel.push_back(&PARAM_THREADS);
+    alignparallel.push_back(&PARAM_COMPRESSED);
+    alignparallel.push_back(&PARAM_V);
 
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);

@@ -37,6 +37,10 @@
 #include "Util.h"
 #include "kmermatcher.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 #include <climits>
 #include <algorithm>
 #include <cstring>
@@ -159,14 +163,17 @@ void buildThreadOffsets(KmerPosition<T, true, true> *positions, size_t count, in
 }
 
 
-// Collapses one grouping round's output into (representative, member) edges.
+// Collapses one grouping round's output into (representative, member, diagonal)
+// edges, counting how many k-mers support each diagonal.
 //
-// The same pair is produced once for every k-mer the two sequences share, so
-// emitting them raw duplicates heavily -- measured 4.1 M records for 1.1 M
-// distinct pairs on 1M sequences. Stock collapses them the same way in
-// writeKmerMatcherResult (kmermatcher.cpp:1789): keep the diagonal that the most
-// k-mers agree on, and use that count as the prefilter score. The array is sorted
-// by (rep, member, diagonal), so both runs are contiguous.
+// It deliberately does **not** pick a best diagonal here. Stock chooses the
+// diagonal the most k-mers agree on *globally* (kmermatcher.cpp:1913-1925), and a
+// partition only ever sees a fraction of a pair's k-mers. Collapsing to one
+// diagonal per partition would discard the other diagonals' counts before the
+// align stage can add them up -- measured, that reproduces stock's diagonal for
+// only 98.64% of pairs. Emitting one edge per distinct diagonal keeps the counts
+// intact so the global merge is exact, and costs ~12% more edges because a
+// colinear pair puts all its k-mers on one diagonal anyway.
 template <typename T>
 void collectRoundEdges(KmerPosition<T, false, true> *grouped, size_t writePos, bool isNucleotide,
                        std::vector<CandidateEdge> &edges) {
@@ -175,68 +182,59 @@ void collectRoundEdges(KmerPosition<T, false, true> *grouped, size_t writePos, b
     while (i < writePos && grouped[i].kmer != SIZE_MAX) {
         const size_t repRaw = grouped[i].kmer;
         const DBKeyType member = grouped[i].id;
-        T bestDiagonal = grouped[i].pos;
-        size_t bestCount = 0;
-        T runDiagonal = grouped[i].pos;
-        size_t runCount = 0;
         size_t j = i;
         while (j < writePos && grouped[j].kmer == repRaw && grouped[j].id == member) {
-            if (grouped[j].pos == runDiagonal) {
-                runCount++;
-            } else {
-                runDiagonal = grouped[j].pos;
-                runCount = 1;
+            const T diagonal = grouped[j].pos;
+            size_t count = 0;
+            while (j < writePos && grouped[j].kmer == repRaw && grouped[j].id == member &&
+                   grouped[j].pos == diagonal) {
+                count++;
+                j++;
             }
-            if (runCount > bestCount) {
-                bestCount = runCount;
-                bestDiagonal = runDiagonal;
+            size_t rep = repRaw;
+            // Stock keeps the strand in bit 63 of the representative key; a 48-bit
+            // key has no room for it, so it moves into its own field.
+            edge.reverseStrand = 0;
+            if (isNucleotide) {
+                edge.reverseStrand = BIT_CHECK(rep, 63) == false;
+                rep = BIT_CLEAR(rep, 63);
             }
-            j++;
+            // A sequence being its own representative carries no information: keys
+            // are dense, so any key never appearing as a member is its own
+            // representative by construction.
+            if (static_cast<DBKeyType>(rep) == member) {
+                continue;
+            }
+            edge.setRep(static_cast<uint64_t>(rep));
+            edge.setMember(static_cast<uint64_t>(member));
+            edge.diagonal = static_cast<int16_t>(diagonal);
+            edge.score = static_cast<uint8_t>(std::min<size_t>(count, 255));
+            edges.push_back(edge);
         }
         i = j;
-
-        size_t rep = repRaw;
-        // Stock keeps the strand in bit 63 of the representative key; a 48-bit key
-        // has no room for it, so it moves into its own field.
-        edge.reverseStrand = 0;
-        if (isNucleotide) {
-            edge.reverseStrand = BIT_CHECK(rep, 63) == false;
-            rep = BIT_CLEAR(rep, 63);
-        }
-        // A sequence being its own representative carries no information here:
-        // keys are dense, so any key that never appears as a member is its own
-        // representative by construction, and the final greedy derives singletons
-        // from that rather than from a marker edge.
-        if (static_cast<DBKeyType>(rep) == member) {
-            continue;
-        }
-        edge.setRep(static_cast<uint64_t>(rep));
-        edge.setMember(static_cast<uint64_t>(member));
-        edge.diagonal = static_cast<int16_t>(bestDiagonal);
-        edge.score = static_cast<uint8_t>(std::min<size_t>(bestCount, 255));
-        edges.push_back(edge);
     }
 }
 
-// Orders edges so duplicates of a pair are adjacent, best score first.
+// Orders edges so copies of the same (pair, diagonal) are adjacent.
 bool compareEdge(const CandidateEdge &a, const CandidateEdge &b) {
     const uint64_t ra = a.getRep(), rb = b.getRep();
     if (ra != rb) return ra < rb;
     const uint64_t ma = a.getMember(), mb = b.getMember();
     if (ma != mb) return ma < mb;
-    return a.score > b.score;
+    return a.diagonal < b.diagonal;
 }
+
+
 
 // Groups one partition and writes its edges.
 template <typename T>
-uint64_t reducePartition(const std::string &kmerDir, const std::string &edgeDir,
-                         unsigned int partition, int dbType, Parameters &par, BaseMatrix *subMat) {
+uint64_t reducePartition(const std::string &kmerDir,
+                         unsigned int partition, int dbType, Parameters &par, BaseMatrix *subMat,
+                         EdgeBucketWriter &writer, uint64_t bucketSpan) {
     const bool isNucleotide = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
-    EdgeWriter writer(EdgeWriter::partitionPath(edgeDir, partition));
 
     const uint64_t recordCount = KmerBucketReader::countRecords(kmerDir, partition);
     if (recordCount == 0) {
-        writer.close();
         return 0;
     }
 
@@ -308,17 +306,31 @@ uint64_t reducePartition(const std::string &kmerDir, const std::string &edgeDir,
     // Rounds overlap heavily by construction, so collapse the union here rather
     // than writing the same pair once per round. Keeping the highest score means
     // the round that agreed on the most k-mers wins.
+    // The v2 rounds overlap heavily, so the same (pair, diagonal) is produced by
+    // several of them. Sum the supporting k-mer counts rather than keeping one,
+    // so the count the align stage accumulates globally stays meaningful.
     SORT_PARALLEL(edges.begin(), edges.end(), compareEdge);
+    size_t unique = 0;
     for (size_t i = 0; i < edges.size(); i++) {
-        if (i > 0 && edges[i].getRep() == edges[i - 1].getRep() &&
-            edges[i].getMember() == edges[i - 1].getMember()) {
+        if (unique > 0 && edges[i].getRep() == edges[unique - 1].getRep() &&
+            edges[i].getMember() == edges[unique - 1].getMember() &&
+            edges[i].diagonal == edges[unique - 1].diagonal) {
+            edges[unique - 1].score = static_cast<uint8_t>(
+                std::min<int>(edges[unique - 1].score + edges[i].score, 255));
             continue;
         }
-        writer.append(edges[i]);
+        edges[unique] = edges[i];
+        unique++;
+    }
+    edges.resize(unique);
+
+    // Bucketed by representative key, which is what the align stage needs and
+    // what brings every copy of a pair together (see CandidateEdge.h).
+    for (size_t i = 0; i < edges.size(); i++) {
+        writer.append(static_cast<unsigned int>(edges[i].getRep() / bucketSpan), edges[i]);
     }
 
-    writer.close();
-    return writer.getEdgeCount();
+    return edges.size();
 }
 
 }  // namespace
@@ -378,11 +390,42 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         FileUtil::makeDir(reduceCoordDir.c_str());
     }
 
+    // Edge buckets are ranges of representative key. Sized so one bucket's
+    // sequences are a comfortable slice for the align stage, which loads them
+    // whole; the align workers' memory, not the reduce's, sets this.
+    const uint64_t targetBucketBytes = Util::computeMemory(par.splitMemoryLimit) / 4;
+    unsigned int bucketCount = 1;
+    while (bucketCount < 65536 && info.dataSize / bucketCount > targetBucketBytes) {
+        bucketCount *= 2;
+    }
+    const uint64_t bucketSpan = (info.entryCount + bucketCount - 1) / bucketCount;
+
+    const std::string edgeManifest = reduceCoordDir + "/edge.info";
+    {
+        FileLock lock(reduceCoordDir + "/edge.lock");
+        lock.lock();
+        if (FileUtil::fileExists(edgeManifest.c_str()) == false) {
+            EdgeBucketWriter::createLayout(edgeDir, bucketCount);
+            FILE *f = FileUtil::openAndDelete(edgeManifest.c_str(), "w");
+            fprintf(f, "bucketCount\t%zu\n", (size_t)bucketCount);
+            fprintf(f, "bucketSpan\t%zu\n", (size_t)bucketSpan);
+            fprintf(f, "entryCount\t%zu\n", (size_t)info.entryCount);
+            fclose(f);
+        }
+        lock.unlock();
+    }
+    Debug(Debug::INFO) << "Writing edges into " << bucketCount << " representative-key buckets of "
+                       << bucketSpan << " keys\n";
+
     SharedCounter workerCounter(reduceCoordDir + "/worker.counter");
     const int64_t workerId = workerCounter.fetchAdd();
     Debug(Debug::INFO) << "Worker " << workerId << " joined\n";
 
     BaseMatrix *subMat = createSubstitutionMatrix(par, dbType);
+
+    EdgeBucketWriter *edgeWriter =
+        new EdgeBucketWriter(edgeDir, bucketCount, "w" + SSTR(workerId));
+
     uint64_t edgeCount = 0;
     {
         WorkQueue queue(reduceCoordDir + "/reduce.queue", static_cast<int64_t>(partitionCount));
@@ -390,14 +433,15 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         // partition are already threaded, and a partition is sized to fill a node.
         const bool finished = queue.drain(workerId, [&](size_t partition) {
             if (info.maxSeqLen < SHRT_MAX) {
-                edgeCount += reducePartition<short>(kmerDir, edgeDir,
-                                                    static_cast<unsigned int>(partition), dbType,
-                                                    par, subMat);
+                edgeCount += reducePartition<short>(kmerDir, static_cast<unsigned int>(partition),
+                                                    dbType, par, subMat, *edgeWriter, bucketSpan);
             } else {
-                edgeCount += reducePartition<int>(kmerDir, edgeDir,
-                                                  static_cast<unsigned int>(partition), dbType, par,
-                                                  subMat);
+                edgeCount += reducePartition<int>(kmerDir, static_cast<unsigned int>(partition), dbType,
+                                                  par, subMat, *edgeWriter, bucketSpan);
             }
+            // Before drain() records the bucket done, so a worker that dies never
+            // leaves an item complete whose edges were still buffered.
+            edgeWriter->flushAll();
         });
         if (finished == false) {
             Debug(Debug::ERROR) << "Reduce stage stalled: work remains but no partition is claimable\n";
@@ -405,7 +449,10 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         }
     }
 
-    Debug(Debug::INFO) << "Worker " << workerId << " wrote " << edgeCount << " candidate edges\n";
+    Debug(Debug::INFO) << "Worker " << workerId << " wrote " << edgeCount
+                       << " candidate edges\n";
+    edgeWriter->close();
+    delete edgeWriter;
     delete subMat;
 
     return EXIT_SUCCESS;

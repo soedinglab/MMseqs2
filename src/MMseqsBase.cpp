@@ -704,6 +704,16 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"kmerDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
                                          {"edgeDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"alignparallel",        alignparallel,        &par.alignparallel,        COMMAND_ALIGNMENT,
+                "Align candidate edges bucketed by representative key, with many workers",
+                "# Merge the duplicate copies the k-mer partitions produced, align each pair\n"
+                "# once, and write the survivors. Workers claim representative-key buckets.\n"
+                "mmseqs alignparallel sequenceDB edgeDir alnDir --min-seq-id 0.9 -c 0.8\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:edgeDir> <o:alnDir>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"edgeDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
+                                         {"alnDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,
