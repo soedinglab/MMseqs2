@@ -34,6 +34,7 @@ extern int greedycluster(int argc, const char **argv, const Command& command);
 extern int mergeclusterparallel(int argc, const char **argv, const Command& command);
 extern int createrepdb(int argc, const char **argv, const Command& command);
 extern int translatecluster(int argc, const char **argv, const Command& command);
+extern int translatekeys(int argc, const char **argv, const Command& command);
 extern int makepaddedseqdb(int argc, const char **argv, const Command& command);
 extern int createindex(int argc, const char **argv, const Command& command);
 extern int createlinindex(int argc, const char **argv, const Command& command);

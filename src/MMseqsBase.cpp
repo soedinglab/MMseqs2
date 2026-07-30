@@ -758,6 +758,18 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                          {"keyMap", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                          {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"translatekeys",        translatekeys,        &par.translatekeys,        COMMAND_CLUSTER,
+                "Rewrite a clustering from database keys into accessions",
+                "# The distributed pipeline works in dense keys, so its clusters.tsv holds\n"
+                "# numbers. This joins it against the database's .lookup by streaming: each\n"
+                "# key column is translated in its own bucketed pass, and the lookup is read\n"
+                "# sequentially, so nothing per-key is ever resident.\n"
+                "mmseqs translatekeys clusters.tsv sequenceDB.lookup clusters_named.tsv\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:clusterTsv> <i:lookupFile> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                                            {"lookupFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                                            {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,

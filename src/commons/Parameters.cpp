@@ -1006,6 +1006,11 @@ Parameters::Parameters():
     translatecluster.push_back(&PARAM_THREADS);
     translatecluster.push_back(&PARAM_V);
 
+    // translatekeys
+    translatekeys.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    translatekeys.push_back(&PARAM_THREADS);
+    translatekeys.push_back(&PARAM_V);
+
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
     makepaddedseqdb.push_back(&PARAM_SCORE_BIAS);

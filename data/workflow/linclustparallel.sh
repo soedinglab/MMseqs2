@@ -167,12 +167,32 @@ if notExists "$TMP/clu2.tsv"; then
 fi
 
 # ---- fold pass 2 into pass 1 ------------------------------------------------
-if notExists "$OUT"; then
+# Keys, not accessions: every stage addresses sequences as dense keys, so this is
+# the form the merge produces. It is translated below.
+if notExists "$TMP/clu.keys.tsv"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" mergeclusterparallel "$DB" "$TMP/clu1.tsv" "$TMP/clu2.tsv" "$OUT.tmp" \
+    "$MMSEQS" mergeclusterparallel "$DB" "$TMP/clu1.tsv" "$TMP/clu2.tsv" "$TMP/clu.keys.tsv.tmp" \
         --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
         || fail "mergeclusterparallel died"
-    mv -f "$OUT.tmp" "$OUT"
+    mv -f "$TMP/clu.keys.tsv.tmp" "$TMP/clu.keys.tsv"
+fi
+
+# ---- back to accession space ------------------------------------------------
+# Stock reaches this with createtsv, which needs a result database and a resident
+# id->name table. Here it is a streaming join against the .lookup. Skipped when
+# the database has none (--write-lookup 0), leaving the key-space result as the
+# output rather than failing at the last step.
+if notExists "$OUT"; then
+    if [ -f "$DB.lookup" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" translatekeys "$TMP/clu.keys.tsv" "$DB.lookup" "$OUT.tmp" \
+            --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
+            || fail "translatekeys died"
+        mv -f "$OUT.tmp" "$OUT"
+    else
+        echo "No $DB.lookup; leaving the result in database keys"
+        cp "$TMP/clu.keys.tsv" "$OUT"
+    fi
 fi
 
 echo "Wrote $OUT"

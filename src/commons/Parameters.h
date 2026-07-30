@@ -1248,6 +1248,7 @@ public:
     std::vector<MMseqsParameter*> mergeclusterparallel;
     std::vector<MMseqsParameter*> createrepdb;
     std::vector<MMseqsParameter*> translatecluster;
+    std::vector<MMseqsParameter*> translatekeys;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;

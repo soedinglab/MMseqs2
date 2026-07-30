@@ -7,6 +7,7 @@ set(linclust_source_files
         linclust/mergeclusterparallel.cpp
         linclust/createrepdb.cpp
         linclust/translatecluster.cpp
+        linclust/translatekeys.cpp
         linclust/CandidateEdge.cpp
         linclust/PartitionSequences.cpp
         linclust/KmerPartition.cpp

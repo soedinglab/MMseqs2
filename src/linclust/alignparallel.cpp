@@ -222,12 +222,19 @@ struct FilterGate {
 
 // Runs stock's allpass loop for one candidate member.
 //
-// The member's whole pass-1 cluster must align to the representative, each element
-// on diagonal 0 -- ungapped first, then a full Smith-Waterman if that fails, exactly
-// as Align2clust.cpp:669-726. A singleton pass-1 cluster passes trivially.
+// The member's whole pass-1 cluster must align to the representative -- ungapped
+// first, then a full Smith-Waterman if that fails, exactly as
+// Align2clust.cpp:669-726. A singleton pass-1 cluster passes trivially.
+//
+// `elementDiagonal` is the caller's, because stock's two call sites disagree: the
+// ungapped-accept gate seeds every element with the *candidate pair's* diagonal
+// (`:680`), while the gapped-accept gate uses 0 (`:816`). Using the pair's
+// diagonal for a different sequence reads like an oversight upstream, but parity
+// is the goal, so both are reproduced as they are. Passing 0 in both places is
+// what left 9 of 1,000,000 sequences under a different representative than stock.
 bool passesFilterGate(const FilterGate *gate, uint64_t subMember, Sequence &query,
                       Sequence &element, BlockAligner &aligner, Matcher &matcher,
-                      Parameters &par, unsigned int swMode) {
+                      Parameters &par, unsigned int swMode, short elementDiagonal) {
     if (gate == NULL || subMember >= gate->keymap.size()) {
         return true;
     }
@@ -249,7 +256,6 @@ bool passesFilterGate(const FilterGate *gate, uint64_t subMember, Sequence &quer
         if (Util::canBeCovered(par.covThr, par.covMode, query.L, element.L) == false) {
             return false;
         }
-        const short elementDiagonal = 0;
         BlockAligner::UngappedAln_res ua = aligner.ungappedAlign(&element, elementDiagonal);
         const bool hasEvalue = (ua.eval <= par.evalThr);
         const bool hasAlnLen = (ua.alnLen >= par.alnLenThr);
@@ -503,8 +509,12 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                             seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
 
                         if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
+                            // Stock seeds this gate with the pair's diagonal
+                            // (Align2clust.cpp:680), not with 0 as the gapped
+                            // branch below does.
                             if (passesFilterGate(gate, edges[e].getMember(), query, element,
-                                                 aligner, matcher, par, swMode) == false) {
+                                                 aligner, matcher, par, swMode,
+                                                 0) == false) {
                                 continue;
                             }
                             // The greedy ranks by alignment score, not k-mer count.
@@ -562,8 +572,9 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                         // the reduce, so a representative is never its own member.
                         if (Alignment::checkCriteria(result, false, par.evalThr, par.seqIdThr,
                                                      par.alnLenThr, par.covMode, par.covThr)) {
+                            // 0 here, matching Align2clust.cpp:816.
                             if (passesFilterGate(gate, edges[e].getMember(), query, element,
-                                                 aligner, matcher, par, swMode) == false) {
+                                                 aligner, matcher, par, swMode, 0) == false) {
                                 continue;
                             }
                             edges[e].score =
