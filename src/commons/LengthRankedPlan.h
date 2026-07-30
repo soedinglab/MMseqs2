@@ -47,6 +47,13 @@ public:
         // that DBWriter appends. Summed here because header size cannot be
         // derived from sequence length the way data size can.
         uint64_t headerBytes;
+        // Total bytes of the accessions of those sequences, as
+        // Util::parseFastaHeader extracts them. Only this part of a `.lookup`
+        // line is unknowable without reading the input; the key and the file
+        // index are both decided by the plan, so the planner completes the line
+        // width itself. Recording finished line widths here instead would be
+        // circular -- the keys do not exist yet when pass 1 runs.
+        uint64_t accessionBytes;
     };
 
     uint64_t chunkIdx;
@@ -80,6 +87,13 @@ public:
         uint64_t keyStart;
         uint64_t dataOffset;
         uint64_t hdrOffset;
+        // Where this bucket's `.lookup` lines go, and how many bytes they must
+        // occupy. The width is carried rather than re-derived so pass 2 can check
+        // the text it built against what the planner reserved: an offset scheme
+        // that is wrong by a byte would otherwise corrupt a neighbouring bucket
+        // silently.
+        uint64_t lookupOffset;
+        uint64_t lookupBytes;
     };
 
     uint64_t chunkIdx;
@@ -97,12 +111,14 @@ struct LengthRankedTotals {
     uint64_t seqCount;
     uint64_t dataBytes;
     uint64_t headerBytes;
+    uint64_t lookupBytes;
     uint64_t maxSeqLen;
     uint64_t nuclVotes;
     uint64_t sampleCount;
 
     LengthRankedTotals()
-        : seqCount(0), dataBytes(0), headerBytes(0), maxSeqLen(0), nuclVotes(0), sampleCount(0) {}
+        : seqCount(0), dataBytes(0), headerBytes(0), lookupBytes(0), maxSeqLen(0), nuclVotes(0),
+          sampleCount(0) {}
 };
 
 // Turns the per-chunk histograms into per-chunk placement plans.

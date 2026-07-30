@@ -60,7 +60,14 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
             EXIT(EXIT_FAILURE);
         }
         const uint64_t available = scratchBudgetBytes - persistentBytes;
-        sizing.waveCount = static_cast<unsigned int>(
+        // Rounded up to a power of two so the wave count divides the partition
+        // count exactly. A wave owns a contiguous slice of partitions, so if the
+        // count did not divide P the largest slice would exceed totalKmerBytes /
+        // waveCount and peak scratch would quietly exceed the budget -- and with
+        // P below the wave count, the last waves would own nothing at all while
+        // the first still held everything. At most this doubles the number of
+        // extraction passes; overrunning the scratch filesystem kills the run.
+        sizing.waveCount = roundUpToPowerOfTwo(
             std::max<uint64_t>(divideRoundingUp(sizing.totalKmerBytes, available), 1));
     }
     sizing.bytesPerWave = divideRoundingUp(sizing.totalKmerBytes, sizing.waveCount);
@@ -71,6 +78,8 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
         sizing.partitionCount =
             roundUpToPowerOfTwo(divideRoundingUp(sizing.bytesPerWave, workerMemoryBytes));
     }
+    // Both are powers of two, so this makes the wave count a divisor of P.
+    sizing.partitionCount = std::max(sizing.partitionCount, sizing.waveCount);
     if (sizing.partitionCount > 65536) {
         // Above the 16-bit hash space the partitioner cannot tell partitions
         // apart, so this is a real dead end rather than something to clamp: the
@@ -109,9 +118,11 @@ void KmerBucketWriter::createLayout(const std::string &dir, unsigned int partiti
 }
 
 KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitionCount,
-                                   const std::string &shardId, size_t bufferBudgetBytes)
+                                   const std::string &shardId, size_t bufferBudgetBytes,
+                                   unsigned int partitionFrom, unsigned int partitionTo)
     : dir(dir), shardId(shardId), partitionCount(partitionCount),
-      mutexes(partitionCount) {
+      mutexes(partitionCount), partitionFrom(partitionFrom),
+      partitionTo(partitionTo == 0 ? partitionCount : partitionTo) {
     // At least a handful of records per partition even with a tiny budget, so a
     // large partition count degrades to more frequent flushes rather than to
     // one write syscall per k-mer.
@@ -152,6 +163,10 @@ void KmerBucketWriter::flush(unsigned int partition) {
 }
 
 void KmerBucketWriter::append(unsigned int partition, const KmerRecord &record) {
+    // Outside this wave's slice: another wave re-extracts and writes it.
+    if (partition < partitionFrom || partition >= partitionTo) {
+        return;
+    }
     std::lock_guard<std::mutex> guard(mutexes[partition]);
     buffers[partition].push_back(record);
     if (buffers[partition].size() >= recordsPerBuffer) {

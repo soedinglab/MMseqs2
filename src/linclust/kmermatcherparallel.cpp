@@ -254,11 +254,35 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "K-mer shuffle: " << sizing.partitionCount << " partitions, "
                        << sizing.waveCount << " wave(s), " << sizing.totalKmerBytes
                        << " k-mer bytes, " << sizing.bytesPerPartition << " bytes per partition\n";
+    // Which slice of the partition space this invocation writes. Waves exist
+    // because the whole shuffle need not fit at once: each re-extracts every
+    // k-mer but keeps only its own slice, so peak scratch is divided by the wave
+    // count at the cost of that many extraction passes.
+    unsigned int waveFrom = 0;
+    unsigned int waveTo = sizing.partitionCount;
     if (sizing.waveCount > 1) {
-        Debug(Debug::ERROR) << "The scratch budget of " << par.scratchBudget << " bytes does not "
-                            << "hold the whole k-mer shuffle; it would need " << sizing.waveCount
-                            << " waves, each reduced and deleted before the next is extracted. "
-                            << "Waves are not implemented yet -- raise --scratch-budget.\n";
+        if (par.kmerWave < 0) {
+            Debug(Debug::ERROR) << "The scratch budget of " << par.scratchBudget << " bytes needs "
+                                << sizing.waveCount << " extraction waves. Run waves 0.."
+                                << (sizing.waveCount - 1) << " with --kmer-wave, reducing and "
+                                << "deleting each wave's buckets before starting the next, or "
+                                << "raise --scratch-budget to fit a single wave.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (static_cast<unsigned int>(par.kmerWave) >= sizing.waveCount) {
+            Debug(Debug::ERROR) << "--kmer-wave " << par.kmerWave << " is out of range; this run "
+                                << "has " << sizing.waveCount << " waves\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // Exact: the sizing guarantees the wave count divides P.
+        const unsigned int perWave = sizing.partitionCount / sizing.waveCount;
+        waveFrom = static_cast<unsigned int>(par.kmerWave) * perWave;
+        waveTo = waveFrom + perWave;
+        Debug(Debug::INFO) << "Wave " << par.kmerWave << " of " << sizing.waveCount
+                           << ": partitions [" << waveFrom << ", " << waveTo << ")\n";
+    } else if (par.kmerWave > 0) {
+        Debug(Debug::ERROR) << "--kmer-wave " << par.kmerWave << " given but this run needs only "
+                            << "one wave\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -301,10 +325,12 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
     KmerPartitioner partitioner(sizing.partitionCount);
     // One writer for the whole process, shared by every thread and kept open
     // across items so bucket files are appended to rather than reopened.
-    KmerBucketWriter writer(kmerDir, sizing.partitionCount, "w" + SSTR(workerId));
+    KmerBucketWriter writer(kmerDir, sizing.partitionCount, "w" + SSTR(workerId),
+                            1024 * 1024 * 1024, waveFrom, waveTo);
 
     {
-        WorkQueue queue(coordDir + "/scan.queue", itemCount);
+        WorkQueue queue(coordDir + "/scan." + SSTR(par.kmerWave < 0 ? 0 : par.kmerWave) +
+                            ".queue", itemCount);
         // Claimed one item at a time by the process rather than by each thread:
         // the extraction inside an item is already threaded, and nesting a second
         // parallel region inside a claiming one would oversubscribe the node.

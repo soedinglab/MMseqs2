@@ -63,11 +63,13 @@ static ChunkHistogram makeHistogram(uint64_t chunkIdx, uint64_t fileIdx,
     return histogram;
 }
 
-static ChunkHistogram::Bucket bucket(uint64_t length, uint64_t count, uint64_t headerBytes) {
+static ChunkHistogram::Bucket bucket(uint64_t length, uint64_t count, uint64_t headerBytes,
+                                     uint64_t accessionBytes = 0) {
     ChunkHistogram::Bucket b;
     b.length = length;
     b.count = count;
     b.headerBytes = headerBytes;
+    b.accessionBytes = accessionBytes;
     return b;
 }
 
@@ -76,8 +78,8 @@ static ChunkHistogram::Bucket bucket(uint64_t length, uint64_t count, uint64_t h
 // one pins down that the arithmetic itself is the intended arithmetic.
 static void testWorkedExample() {
     std::vector<ChunkHistogram> histograms;
-    histograms.push_back(makeHistogram(0, 0, {bucket(5, 2, 20), bucket(10, 1, 12)}));
-    histograms.push_back(makeHistogram(1, 0, {bucket(5, 3, 33), bucket(7, 1, 9)}));
+    histograms.push_back(makeHistogram(0, 0, {bucket(5, 2, 20, 12), bucket(10, 1, 12, 7)}));
+    histograms.push_back(makeHistogram(1, 0, {bucket(5, 3, 33, 21), bucket(7, 1, 9, 5)}));
 
     std::vector<ChunkPlan> plans;
     LengthRankedTotals totals = buildLengthRankedPlan(histograms, plans);
@@ -86,6 +88,9 @@ static void testWorkedExample() {
     // 1*(10+2) + 1*(7+2) + 5*(5+2) = 12 + 9 + 35
     check(totals.dataBytes == 56, "worked example totals 56 data bytes");
     check(totals.headerBytes == 74, "worked example totals 74 header bytes");
+    // Per line: the key digits, the accession, one digit of file index, two tabs
+    // and a newline. (7+1+4) + (5+1+4) + (12+2+8) + (21+3+12) = 12 + 10 + 22 + 36.
+    check(totals.lookupBytes == 80, "worked example totals 80 lookup bytes");
     check(totals.maxSeqLen == 10, "worked example reports the longest sequence");
 
     check(plans.size() == 2, "worked example produces one plan per chunk");
@@ -96,6 +101,8 @@ static void testWorkedExample() {
     const ChunkPlan::Entry &c0len10 = plans[0].entries[1];
     check(c0len10.length == 10 && c0len10.keyStart == 0 && c0len10.dataOffset == 0 && c0len10.hdrOffset == 0,
           "longest sequence takes key 0 at offset 0");
+    check(c0len10.lookupOffset == 0 && c0len10.lookupBytes == 12,
+          "longest sequence opens the lookup file");
 
     const ChunkPlan::Entry &c1len7 = plans[1].entries[1];
     check(c1len7.length == 7 && c1len7.keyStart == 1 && c1len7.dataOffset == 12 && c1len7.hdrOffset == 12,
@@ -109,10 +116,12 @@ static void testWorkedExample() {
           "lower chunk index wins a length tie");
     check(c1len5.keyStart == 4 && c1len5.dataOffset == 35 && c1len5.hdrOffset == 41,
           "higher chunk index follows within the same length");
+    check(c0len5.lookupOffset == 22 && c1len5.lookupOffset == 44,
+          "lookup offsets follow the same key order");
 }
 
-// Materialises every (key, length, dataOffset, headerBytes) run the plan implies
-// and checks the runs tile all three address spaces exactly.
+// Materialises every (key, length, dataOffset, headerBytes, lookupOffset) run the
+// plan implies and checks the runs tile all four address spaces exactly.
 static void testTilingInvariants() {
     srand(20260728);
 
@@ -128,7 +137,8 @@ static void testTilingInvariants() {
                     continue;
                 }
                 const uint64_t count = 1 + (rand() % 5);
-                buckets.push_back(bucket(length, count, count * (3 + (rand() % 7))));
+                buckets.push_back(bucket(length, count, count * (3 + (rand() % 7)),
+                                         count * (2 + (rand() % 5))));
             }
             histograms.push_back(makeHistogram(c, c % 3, buckets));
         }
@@ -140,38 +150,59 @@ static void testTilingInvariants() {
         // Flatten the plan into runs ordered by key.
         struct Run {
             uint64_t keyStart, count, length, dataOffset, hdrOffset, hdrBytes;
+            uint64_t lookupOffset, lookupBytes, accBytes, fileIdx;
         };
         std::vector<Run> runs;
         for (size_t i = 0; i < plans.size(); i++) {
             for (size_t e = 0; e < plans[i].entries.size(); e++) {
                 const ChunkPlan::Entry &entry = plans[i].entries[e];
                 uint64_t hdrBytes = 0;
+                uint64_t accBytes = 0;
                 for (size_t b = 0; b < histograms[i].buckets.size(); b++) {
                     if (histograms[i].buckets[b].length == entry.length) {
                         hdrBytes = histograms[i].buckets[b].headerBytes;
+                        accBytes = histograms[i].buckets[b].accessionBytes;
                     }
                 }
                 Run run = {entry.keyStart, entry.count, entry.length,
-                           entry.dataOffset, entry.hdrOffset, hdrBytes};
+                           entry.dataOffset, entry.hdrOffset, hdrBytes,
+                           entry.lookupOffset, entry.lookupBytes, accBytes, plans[i].fileIdx};
                 runs.push_back(run);
             }
         }
         std::sort(runs.begin(), runs.end(),
                   [](const Run &a, const Run &b) { return a.keyStart < b.keyStart; });
 
-        uint64_t expectedKey = 0, expectedData = 0, expectedHdr = 0;
+        uint64_t expectedKey = 0, expectedData = 0, expectedHdr = 0, expectedLookup = 0;
         uint64_t previousLength = UINT64_MAX;
         bool keysTile = true, dataTiles = true, hdrTiles = true, lengthRanked = true;
+        bool lookupTiles = true, lookupWidths = true;
         for (size_t r = 0; r < runs.size(); r++) {
             keysTile = keysTile && runs[r].keyStart == expectedKey;
             dataTiles = dataTiles && runs[r].dataOffset == expectedData;
             hdrTiles = hdrTiles && runs[r].hdrOffset == expectedHdr;
+            lookupTiles = lookupTiles && runs[r].lookupOffset == expectedLookup;
             lengthRanked = lengthRanked && runs[r].length <= previousLength;
+
+            // The planner counts the key digits in closed form because the range
+            // is the whole database. Check it against actually rendering them,
+            // which is the part of the width that is not simply a sum.
+            char rendered[32];
+            uint64_t brute = runs[r].accBytes;
+            for (uint64_t k = 0; k < runs[r].count; k++) {
+                brute += snprintf(rendered, sizeof(rendered), "%llu",
+                                  (unsigned long long)(runs[r].keyStart + k));
+            }
+            brute += runs[r].count *
+                     (snprintf(rendered, sizeof(rendered), "%llu",
+                               (unsigned long long)runs[r].fileIdx) + 3);
+            lookupWidths = lookupWidths && brute == runs[r].lookupBytes;
 
             previousLength = runs[r].length;
             expectedKey += runs[r].count;
             expectedData += runs[r].count * (runs[r].length + 2);
             expectedHdr += runs[r].hdrBytes;
+            expectedLookup += runs[r].lookupBytes;
         }
 
         if (trial == 0) {
@@ -182,9 +213,13 @@ static void testTilingInvariants() {
             check(expectedKey == totals.seqCount, "totals agree with the tiled key count");
             check(expectedData == totals.dataBytes, "totals agree with the tiled data size");
             check(expectedHdr == totals.headerBytes, "totals agree with the tiled header size");
-        } else if (!keysTile || !dataTiles || !hdrTiles || !lengthRanked ||
-                   expectedKey != totals.seqCount || expectedData != totals.dataBytes ||
-                   expectedHdr != totals.headerBytes) {
+            check(lookupTiles, "lookup byte ranges tile the lookup file exactly");
+            check(lookupWidths, "reserved lookup width matches the rendered key digits");
+            check(expectedLookup == totals.lookupBytes, "totals agree with the tiled lookup size");
+        } else if (!keysTile || !dataTiles || !hdrTiles || !lengthRanked || !lookupTiles ||
+                   !lookupWidths || expectedKey != totals.seqCount ||
+                   expectedData != totals.dataBytes || expectedHdr != totals.headerBytes ||
+                   expectedLookup != totals.lookupBytes) {
             check(false, "tiling invariants hold on randomised trial " + std::to_string(trial));
             return;
         }
@@ -202,7 +237,9 @@ static void testTilingInvariants() {
             for (size_t e = 0; identical && e < plans[i].entries.size(); e++) {
                 identical = shuffledPlans[i].entries[e].keyStart == plans[i].entries[e].keyStart &&
                             shuffledPlans[i].entries[e].dataOffset == plans[i].entries[e].dataOffset &&
-                            shuffledPlans[i].entries[e].hdrOffset == plans[i].entries[e].hdrOffset;
+                            shuffledPlans[i].entries[e].hdrOffset == plans[i].entries[e].hdrOffset &&
+                            shuffledPlans[i].entries[e].lookupOffset ==
+                                plans[i].entries[e].lookupOffset;
             }
         }
         if (trial == 0) {
@@ -216,7 +253,7 @@ static void testTilingInvariants() {
 }
 
 static void testRoundTrip(const std::string &dir) {
-    ChunkHistogram histogram = makeHistogram(7, 3, {bucket(4, 9, 40), bucket(11, 2, 18)});
+    ChunkHistogram histogram = makeHistogram(7, 3, {bucket(4, 9, 40, 27), bucket(11, 2, 18, 9)});
     histogram.nuclVotes = 5;
     histogram.sampleCount = 11;
     const std::string histPath = dir + "/chunk7.hist";
@@ -229,7 +266,8 @@ static void testRoundTrip(const std::string &dir) {
     for (size_t i = 0; same && i < loaded.buckets.size(); i++) {
         same = loaded.buckets[i].length == histogram.buckets[i].length &&
                loaded.buckets[i].count == histogram.buckets[i].count &&
-               loaded.buckets[i].headerBytes == histogram.buckets[i].headerBytes;
+               loaded.buckets[i].headerBytes == histogram.buckets[i].headerBytes &&
+               loaded.buckets[i].accessionBytes == histogram.buckets[i].accessionBytes;
     }
     check(same, "chunk histogram survives a write/read round trip");
 
@@ -248,7 +286,9 @@ static void testRoundTrip(const std::string &dir) {
                    loadedPlan.entries[i].count == plans[0].entries[i].count &&
                    loadedPlan.entries[i].keyStart == plans[0].entries[i].keyStart &&
                    loadedPlan.entries[i].dataOffset == plans[0].entries[i].dataOffset &&
-                   loadedPlan.entries[i].hdrOffset == plans[0].entries[i].hdrOffset;
+                   loadedPlan.entries[i].hdrOffset == plans[0].entries[i].hdrOffset &&
+                   loadedPlan.entries[i].lookupOffset == plans[0].entries[i].lookupOffset &&
+                   loadedPlan.entries[i].lookupBytes == plans[0].entries[i].lookupBytes;
     }
     check(planSame, "chunk plan survives a write/read round trip");
 }

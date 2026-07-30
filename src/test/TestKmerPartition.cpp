@@ -321,6 +321,26 @@ static void testShuffleSizing() {
     check(waved.partitionCount <= large.partitionCount,
           "waves reduce the peak, so no more partitions are needed than without them");
 
+    // A wave owns a contiguous slice of partitions, so the slices are only equal
+    // -- and peak scratch only really 1/W of the whole -- if W divides P. Both
+    // being powers of two is how that is guaranteed.
+    bool wavesDivide = true;
+    for (uint64_t budget = 4; budget <= 512; budget *= 2) {
+        // Sweep budgets from far below the k-mer volume to above it. Per-worker
+        // memory is large so nothing but the wave count can raise P, which is the
+        // case where the two used to disagree.
+        const KmerShuffleSizing s =
+            deriveKmerShuffleSizing(1000000000000ULL, 21, budget * TB, 0, 1024 * GB);
+        wavesDivide = wavesDivide && s.waveCount > 0 &&
+                      (s.waveCount & (s.waveCount - 1)) == 0 &&
+                      s.partitionCount >= s.waveCount &&
+                      s.partitionCount % s.waveCount == 0 &&
+                      // the largest slice really is within budget
+                      (s.totalKmerBytes / s.partitionCount) *
+                              (s.partitionCount / s.waveCount) <= budget * TB;
+    }
+    check(wavesDivide, "the wave count is a power of two that divides P at every budget");
+
     // P must always be a usable power of two.
     bool powerOfTwo = true;
     for (uint64_t seqs = 1000000; seqs <= 100000000000ULL; seqs *= 10) {

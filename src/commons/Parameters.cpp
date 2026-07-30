@@ -56,6 +56,8 @@ Parameters::Parameters():
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID, "--split-mode", "Split mode", "0: split target db; 1: split query db; 2: auto, depending on main memory", typeid(int), (void *) &splitMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_CHUNK_SIZE(PARAM_CHUNK_SIZE_ID, "--chunk-size", "Chunk size", "Input bytes one work item covers. Smaller chunks spread work more evenly and use less memory per thread; larger chunks mean fewer coordination files. E.g. 64M, 256M, 1G", typeid(ByteParser), (void *) &chunkSize, "^([1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_KMER_WAVE(PARAM_KMER_WAVE_ID, "--kmer-wave", "K-mer wave", "Which extraction wave to write, when the scratch budget needs more than one. Each wave re-extracts every k-mer but keeps only its own slice of the partition space, so peak scratch is the whole shuffle divided by the wave count. Default -1 requires a single wave. Run waves 0..W-1, reducing each before starting the next.", typeid(int), (void *) &kmerWave, "^-?[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_KEY_MAP(PARAM_KEY_MAP_ID, "--key-map", "Sub-key map", "Maps this database's dense sub-keys back to the original keys, as written by createrepdb. Needed with --filter-cludb-file when the pass runs on a re-keyed representative database.", typeid(std::string), (void *) &keyMapFile, "", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SCRATCH_BUDGET(PARAM_SCRATCH_BUDGET_ID, "--scratch-budget", "Scratch budget", "Total scratch the run may occupy. The k-mer extraction wave count and the partition count are derived from this together with --split-memory-limit, rather than set by hand. Default (0) for a single wave. E.g. 100T, 500T", typeid(ByteParser), (void *) &scratchBudget, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
@@ -912,9 +914,7 @@ Parameters::Parameters():
     createdb.push_back(&PARAM_V);
 
     // createdbparallel
-    // No PARAM_WRITE_LOOKUP: .lookup is not emitted yet. It is variable-width and
-    // in key order, so it cannot be written at computed offsets like everything
-    // else; see PARALLEL_LINCLUST_WIP.md for the reconstruction sketch.
+    createdbparallel.push_back(&PARAM_WRITE_LOOKUP);
     createdbparallel.push_back(&PARAM_DB_TYPE);
     createdbparallel.push_back(&PARAM_CHUNK_SIZE);
     createdbparallel.push_back(&PARAM_THREADS);
@@ -943,6 +943,7 @@ Parameters::Parameters():
     kmermatcherparallel.push_back(&PARAM_IGNORE_MULTI_KMER);
     kmermatcherparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmermatcherparallel.push_back(&PARAM_SCRATCH_BUDGET);
+    kmermatcherparallel.push_back(&PARAM_KMER_WAVE);
     kmermatcherparallel.push_back(&PARAM_THREADS);
     kmermatcherparallel.push_back(&PARAM_COMPRESSED);
     kmermatcherparallel.push_back(&PARAM_V);
@@ -959,6 +960,7 @@ Parameters::Parameters():
     kmerreduceparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmerreduceparallel.push_back(&PARAM_INCLUDE_ADJACENCY);
     kmerreduceparallel.push_back(&PARAM_NUM_ADJACENCY);
+    kmerreduceparallel.push_back(&PARAM_KMER_WAVE);
     kmerreduceparallel.push_back(&PARAM_THREADS);
     kmerreduceparallel.push_back(&PARAM_COMPRESSED);
     kmerreduceparallel.push_back(&PARAM_V);
@@ -976,6 +978,9 @@ Parameters::Parameters():
     alignparallel.push_back(&PARAM_GAP_OPEN);
     alignparallel.push_back(&PARAM_GAP_EXTEND);
     alignparallel.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    alignparallel.push_back(&PARAM_FILTER_CLUDB_FILE);
+    alignparallel.push_back(&PARAM_FILTER_SEQDB_FILE);
+    alignparallel.push_back(&PARAM_KEY_MAP);
     alignparallel.push_back(&PARAM_THREADS);
     alignparallel.push_back(&PARAM_COMPRESSED);
     alignparallel.push_back(&PARAM_V);
@@ -985,6 +990,21 @@ Parameters::Parameters():
     // the only mode the key ordering makes exact in one pass.
     greedycluster.push_back(&PARAM_THREADS);
     greedycluster.push_back(&PARAM_V);
+
+    // mergeclusterparallel
+    mergeclusterparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    mergeclusterparallel.push_back(&PARAM_THREADS);
+    mergeclusterparallel.push_back(&PARAM_V);
+
+    // createrepdb
+    createrepdb.push_back(&PARAM_THREADS);
+    createrepdb.push_back(&PARAM_COMPRESSED);
+    createrepdb.push_back(&PARAM_V);
+
+    // translatecluster
+    translatecluster.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    translatecluster.push_back(&PARAM_THREADS);
+    translatecluster.push_back(&PARAM_V);
 
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
@@ -2577,6 +2597,8 @@ void Parameters::setDefaults() {
     splitMode = DETECT_BEST_DB_SPLIT;
     splitMemoryLimit = 0;
     chunkSize = 256 * 1024 * 1024;
+    kmerWave = -1;
+    keyMapFile = "";
     scratchBudget = 0;
     diskSpaceLimit = 0;
     splitAA = false;

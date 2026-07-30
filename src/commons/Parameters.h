@@ -440,6 +440,8 @@ public:
     int    splitMode;                    // Split by query or target DB
     size_t splitMemoryLimit;             // Maximum memory in bytes a split can use
     size_t chunkSize;                    // Input bytes one createdbparallel work item covers
+    std::string keyMapFile;              // alignparallel: sub-key -> original key for the filter gate
+    int kmerWave;                        // kmermatcherparallel: which extraction wave to write
     size_t scratchBudget;                // Scratch ceiling the k-mer wave count is derived from
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
@@ -830,6 +832,8 @@ public:
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
     PARAMETER(PARAM_CHUNK_SIZE)
+    PARAMETER(PARAM_KMER_WAVE)
+    PARAMETER(PARAM_KEY_MAP)
     PARAMETER(PARAM_SCRATCH_BUDGET)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
@@ -1241,6 +1245,9 @@ public:
     std::vector<MMseqsParameter*> kmerreduceparallel;
     std::vector<MMseqsParameter*> alignparallel;
     std::vector<MMseqsParameter*> greedycluster;
+    std::vector<MMseqsParameter*> mergeclusterparallel;
+    std::vector<MMseqsParameter*> createrepdb;
+    std::vector<MMseqsParameter*> translatecluster;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;

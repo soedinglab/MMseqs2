@@ -725,6 +725,39 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"alnDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
                                          {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"mergeclusterparallel", mergeclusterparallel, &par.mergeclusterparallel, COMMAND_CLUSTER,
+                "Compose the clusterings of successive linclust passes",
+                "# Folds a later clustering into an earlier one by a key-range join, so no\n"
+                "# per-sequence list array is needed (stock keeps 24 B/sequence of empty\n"
+                "# list headers before storing a single member).\n"
+                "mmseqs mergeclusterparallel sequenceDB pass1.tsv pass2.tsv clusters.tsv\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:clusterTsv1> ... <i:clusterTsvN> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfile },
+                                         {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"createrepdb",          createrepdb,          &par.createrepdb,          COMMAND_DATABASE_CREATION,
+                "Build a densely re-keyed representative DB for the next linclust pass",
+                "# Representatives keep length order, so sub-key i is the i-th representative\n"
+                "# and the copy is sequential. Writes <repDB>.keymap (sub-key -> original key)\n"
+                "# so the next pass's clustering can be translated back before merging.\n"
+                "mmseqs createrepdb sequenceDB clusters.tsv repDB\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:clusterTsv> <o:sequenceDB>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                         {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"translatecluster",     translatecluster,     &par.translatecluster,     COMMAND_CLUSTER,
+                "Rewrite a clustering from sub-key space into original keys",
+                "# The pass over a createrepdb sub-database returns sub-keys; this maps them\n"
+                "# back before merging. Each key column is translated in its own bucketed\n"
+                "# pass, so the key map is only ever read in contiguous slices.\n"
+                "mmseqs translatecluster pass2.tsv repDB.keymap pass2_orig.tsv\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:clusterTsv> <i:keyMap> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                         {"keyMap", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                         {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,

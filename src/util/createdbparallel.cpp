@@ -216,6 +216,7 @@ ChunkHistogram scanChunk(const std::string &filename, const Chunk &chunk, size_t
     std::vector<uint64_t> lengthOf;
     std::vector<uint64_t> countOf;
     std::vector<uint64_t> headerBytesOf;
+    std::vector<uint64_t> accessionBytesOf;
 
     KSeqBuffer kseq(buffer.data(), buffer.size());
     std::string header;
@@ -244,12 +245,16 @@ ChunkHistogram scanChunk(const std::string &filename, const Chunk &chunk, size_t
             lengthOf.insert(lengthOf.begin() + slot, length);
             countOf.insert(countOf.begin() + slot, 0);
             headerBytesOf.insert(headerBytesOf.begin() + slot, 0);
+            accessionBytesOf.insert(accessionBytesOf.begin() + slot, 0);
         } else {
             slot--;
         }
         countOf[slot]++;
         // DBWriter appends a NUL after the header text.
         headerBytesOf[slot] += header.length() + 1;
+        // The same extraction the emit pass will do, so the planner's byte count
+        // and the bytes actually written cannot disagree.
+        accessionBytesOf[slot] += Util::parseFastaHeader(header.c_str()).length();
 
         if (sampleCount < testForNucSequence) {
             size_t nucleotideLike = 0;
@@ -280,6 +285,7 @@ ChunkHistogram scanChunk(const std::string &filename, const Chunk &chunk, size_t
         histogram.buckets[i].length = lengthOf[i];
         histogram.buckets[i].count = countOf[i];
         histogram.buckets[i].headerBytes = headerBytesOf[i];
+        histogram.buckets[i].accessionBytes = accessionBytesOf[i];
     }
     return histogram;
 }
@@ -289,6 +295,8 @@ ChunkHistogram scanChunk(const std::string &filename, const Chunk &chunk, size_t
 // a scatter of ~250 byte writes over a parallel filesystem.
 struct BucketOutput {
     uint64_t keyStart;
+    uint64_t lookupOffset;
+    std::string lookupText;
     uint64_t dataOffset;
     uint64_t hdrOffset;
     uint64_t written;
@@ -300,7 +308,7 @@ struct BucketOutput {
 
 // Pass 2: rescan the chunk and write every sequence at its planned position.
 void emitChunk(const std::string &filename, const Chunk &chunk, const ChunkPlan &plan,
-               int seqFd, int hdrFd, int seqIdxFd, int hdrIdxFd) {
+               int seqFd, int hdrFd, int seqIdxFd, int hdrIdxFd, int lookupFd) {
     std::vector<char> buffer;
     readChunk(filename, chunk, buffer);
 
@@ -309,8 +317,10 @@ void emitChunk(const std::string &filename, const Chunk &chunk, const ChunkPlan 
         buckets[i].keyStart = plan.entries[i].keyStart;
         buckets[i].dataOffset = plan.entries[i].dataOffset;
         buckets[i].hdrOffset = plan.entries[i].hdrOffset;
+        buckets[i].lookupOffset = plan.entries[i].lookupOffset;
         buckets[i].written = 0;
     }
+    const std::string fileIdxField = "\t" + SSTR(plan.fileIdx) + "\n";
 
     KSeqBuffer kseq(buffer.data(), buffer.size());
     std::string header;
@@ -354,6 +364,13 @@ void emitChunk(const std::string &filename, const Chunk &chunk, const ChunkPlan 
         bucket.hdrData.insert(bucket.hdrData.end(), header.begin(), header.end());
         bucket.hdrData.push_back('\0');
 
+        // The bucket's keys run from keyStart in the order it consumes them, so
+        // the key of this line is known without any shared counter.
+        bucket.lookupText.append(SSTR(bucket.keyStart + bucket.written));
+        bucket.lookupText.push_back('\t');
+        bucket.lookupText.append(Util::parseFastaHeader(header.c_str()));
+        bucket.lookupText.append(fileIdxField);
+
         bucket.written++;
     }
 
@@ -365,6 +382,13 @@ void emitChunk(const std::string &filename, const Chunk &chunk, const ChunkPlan 
                                 << " but pass 1 counted " << plan.entries[i].count << "\n";
             EXIT(EXIT_FAILURE);
         }
+        if (bucket.lookupText.size() != plan.entries[i].lookupBytes) {
+            Debug(Debug::ERROR) << "Chunk " << plan.chunkIdx << " built "
+                                << bucket.lookupText.size() << " lookup bytes for length "
+                                << plan.entries[i].length << " but the plan reserved "
+                                << plan.entries[i].lookupBytes << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         if (bucket.written == 0) {
             continue;
         }
@@ -374,6 +398,10 @@ void emitChunk(const std::string &filename, const Chunk &chunk, const ChunkPlan 
                 DenseIndex::entryOffset(bucket.keyStart), "sequence index");
         writeAt(hdrIdxFd, bucket.hdrIndex.data(), bucket.hdrIndex.size() * sizeof(DenseIndex::Entry),
                 DenseIndex::entryOffset(bucket.keyStart), "header index");
+        if (lookupFd >= 0) {
+            writeAt(lookupFd, bucket.lookupText.data(), bucket.lookupText.size(),
+                    bucket.lookupOffset, "lookup");
+        }
     }
 }
 
@@ -440,6 +468,7 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
     }
 
     const std::string hdrDataFile = dataFile + "_h";
+    const std::string lookupFile = dataFile + ".lookup";
     // Derived, not passed, so every worker runs a byte-identical command line.
     const std::string coordDir = dataFile + ".coord";
     if (FileUtil::directoryExists(coordDir.c_str()) == false) {
@@ -497,6 +526,9 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
 
             allocateFile(dataFile, totals.dataBytes);
             allocateFile(hdrDataFile, totals.headerBytes);
+            if (par.writeLookup) {
+                allocateFile(lookupFile, totals.lookupBytes);
+            }
             DenseIndex::createEmpty(dataFile, totals.seqCount, 0, totals.dataBytes,
                                     static_cast<uint32_t>(totals.maxSeqLen + 2));
             DenseIndex::createEmpty(hdrDataFile, totals.seqCount, 0, totals.headerBytes, 0);
@@ -537,12 +569,16 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
         const int hdrFd = openForWrite(hdrDataFile);
         const int seqIdxFd = openForWrite(DenseIndex::fileName(dataFile));
         const int hdrIdxFd = openForWrite(DenseIndex::fileName(hdrDataFile));
+        // Off by request only: at 1e12 sequences the lookup is ~30 TB, and the
+        // clustering path never reads it -- keys translate through the header
+        // database, which is addressed by the same dense keys.
+        const int lookupFd = par.writeLookup ? openForWrite(lookupFile) : -1;
 
         WorkQueue emitQueue(coordDir + "/emit.queue", static_cast<int64_t>(chunks.size()));
         runQueue(emitQueue, par.threads, workerId, [&](size_t chunkIdx) {
             const ChunkPlan plan = ChunkPlan::read(chunkPlanPath(coordDir, chunkIdx));
             emitChunk(filenames[chunks[chunkIdx].fileIdx], chunks[chunkIdx], plan,
-                      seqFd, hdrFd, seqIdxFd, hdrIdxFd);
+                      seqFd, hdrFd, seqIdxFd, hdrIdxFd, lookupFd);
         });
         // fsync before the sentinel, so a worker that finalises after a crash
         // cannot read a partially flushed database.
@@ -550,10 +586,16 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
         fsync(hdrFd);
         fsync(seqIdxFd);
         fsync(hdrIdxFd);
+        if (lookupFd >= 0) {
+            fsync(lookupFd);
+        }
         close(seqFd);
         close(hdrFd);
         close(seqIdxFd);
         close(hdrIdxFd);
+        if (lookupFd >= 0) {
+            close(lookupFd);
+        }
     }
     Debug(Debug::INFO) << "Emit pass done\n";
 

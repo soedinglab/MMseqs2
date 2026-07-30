@@ -45,6 +45,30 @@ void writeBlock(const std::string &path, const FileHeader &header,
     FileUtil::move(tmp.c_str(), path.c_str());
 }
 
+uint64_t decimalDigits(uint64_t value) {
+    uint64_t digits = 1;
+    while (value >= 10) {
+        value /= 10;
+        digits++;
+    }
+    return digits;
+}
+
+// Total decimal digits of the numbers 0 .. n-1. A number x has one digit plus
+// one more for every power of ten it reaches, so counting how many numbers below
+// n reach each power gives the sum without iterating over the range -- which
+// matters, since the range is the whole database.
+uint64_t digitsBelow(uint64_t n) {
+    uint64_t total = n;
+    for (uint64_t power = 10; power <= n; power *= 10) {
+        total += n - power;
+        if (power > n / 10) {
+            break;  // the next power would overflow
+        }
+    }
+    return total;
+}
+
 FileHeader readHeader(FILE *file, const std::string &path, uint64_t magic) {
     FileHeader header;
     if (fread(&header, sizeof(FileHeader), 1, file) != 1) {
@@ -160,6 +184,13 @@ LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms
     uint64_t nextKey = 0;
     uint64_t nextDataOffset = 0;
     uint64_t nextHdrOffset = 0;
+    uint64_t nextLookupOffset = 0;
+    // Every chunk's sequences come from one input file, so the file index is the
+    // same on all of that chunk's lookup lines.
+    std::vector<uint64_t> fileIdxDigits(histograms.size());
+    for (size_t i = 0; i < histograms.size(); i++) {
+        fileIdxDigits[i] = decimalDigits(histograms[i].fileIdx);
+    }
 
     for (size_t l = 0; l < lengths.size(); l++) {
         const uint64_t length = lengths[l];
@@ -176,7 +207,17 @@ LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms
             entry.keyStart = nextKey;
             entry.dataOffset = nextDataOffset;
             entry.hdrOffset = nextHdrOffset;
+            entry.lookupOffset = nextLookupOffset;
+            // A `.lookup` line is "key\taccession\tfileIdx\n". The keys of this
+            // bucket are exactly nextKey .. nextKey + count - 1, so their total
+            // width is the difference of two prefix sums; everything else on the
+            // line is either fixed width or already counted in pass 1.
+            entry.lookupBytes = bucket.accessionBytes +
+                                (digitsBelow(nextKey + bucket.count) - digitsBelow(nextKey)) +
+                                bucket.count * (fileIdxDigits[i] + 3);
             plans[i].entries.push_back(entry);
+
+            nextLookupOffset += entry.lookupBytes;
 
             nextKey += bucket.count;
             // A sequence of length L always occupies L + 2 data bytes, so this
@@ -202,6 +243,7 @@ LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms
     totals.seqCount = nextKey;
     totals.dataBytes = nextDataOffset;
     totals.headerBytes = nextHdrOffset;
+    totals.lookupBytes = nextLookupOffset;
     totals.maxSeqLen = lengths.empty() ? 0 : lengths[0];
     return totals;
 }

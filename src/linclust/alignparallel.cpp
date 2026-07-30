@@ -27,6 +27,7 @@
  * sequences come through the dense companion index, addressed by key.
  */
 #include "Alignment.h"
+#include "Matcher.h"
 #include "BlockAligner.h"
 #include "CandidateEdge.h"
 #include "Command.h"
@@ -146,6 +147,138 @@ size_t readBucket(const std::string &edgeDir, unsigned int bucket,
     return out.size();
 }
 
+
+// The pass-2 acceptance gate stock applies with --filter-cludb-file.
+//
+// Before a representative q may take a member t, stock additionally requires that
+// **every sequence of t's pass-1 cluster** also aligns to q (Align2clust.cpp:657-730,
+// the `allpass` loop). It is strictly more conservative than the plain alignment,
+// so leaving it out merges too much: measured, 902,641 clusters against stock's
+// 902,795.
+//
+// t is a pass-1 representative, so it is dense in *sub-key* space -- which makes the
+// lookup a CSR index over sub-keys rather than anything indexed by the full key
+// space: an offset per representative plus one key per sequence.
+struct FilterGate {
+    std::vector<uint64_t> keymap;        // sub-key -> original key
+    std::vector<uint64_t> clusterStart;  // sub-key -> offset into members
+    std::vector<uint64_t> members;       // original keys, grouped by pass-1 cluster
+    PartitionSequences fullSeqs;
+
+    FilterGate(const std::string &fullDb) : fullSeqs(fullDb) {}
+
+    size_t size(uint64_t sub) const { return clusterStart[sub + 1] - clusterStart[sub]; }
+
+    void load(const std::string &keymapFile, const std::string &pass1Tsv) {
+        const size_t bytes = FileUtil::getFileSize(keymapFile);
+        keymap.resize(bytes / sizeof(uint64_t));
+        FILE *m = FileUtil::openFileOrDie(keymapFile.c_str(), "rb", true);
+        if (fread(keymap.data(), sizeof(uint64_t), keymap.size(), m) != keymap.size()) {
+            Debug(Debug::ERROR) << "Cannot read " << keymapFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        fclose(m);
+
+        // Two streaming passes: count, then fill. The representative of a pass-1
+        // cluster is looked up in the ascending key map by binary search.
+        std::vector<uint64_t> counts(keymap.size() + 1, 0);
+        for (int pass = 0; pass < 2; pass++) {
+            FILE *f = FileUtil::openFileOrDie(pass1Tsv.c_str(), "r", true);
+            char *line = NULL;
+            size_t cap = 0;
+            while (getline(&line, &cap, f) > 0) {
+                char *tab = strchr(line, '\t');
+                if (tab == NULL) continue;
+                const uint64_t rep = strtoull(line, NULL, 10);
+                const uint64_t member = strtoull(tab + 1, NULL, 10);
+                const std::vector<uint64_t>::const_iterator it =
+                    std::lower_bound(keymap.begin(), keymap.end(), rep);
+                if (it == keymap.end() || *it != rep) continue;
+                const size_t sub = static_cast<size_t>(it - keymap.begin());
+                if (pass == 0) {
+                    counts[sub]++;
+                } else {
+                    members[clusterStart[sub] + counts[sub]] = member;
+                    counts[sub]++;
+                }
+            }
+            free(line);
+            fclose(f);
+            if (pass == 0) {
+                clusterStart.assign(keymap.size() + 1, 0);
+                uint64_t total = 0;
+                for (size_t i = 0; i < keymap.size(); i++) {
+                    clusterStart[i] = total;
+                    total += counts[i];
+                }
+                clusterStart[keymap.size()] = total;
+                members.assign(total, 0);
+                counts.assign(keymap.size() + 1, 0);
+            }
+        }
+    }
+};
+
+
+// Runs stock's allpass loop for one candidate member.
+//
+// The member's whole pass-1 cluster must align to the representative, each element
+// on diagonal 0 -- ungapped first, then a full Smith-Waterman if that fails, exactly
+// as Align2clust.cpp:669-726. A singleton pass-1 cluster passes trivially.
+bool passesFilterGate(const FilterGate *gate, uint64_t subMember, Sequence &query,
+                      Sequence &element, BlockAligner &aligner, Matcher &matcher,
+                      Parameters &par, unsigned int swMode) {
+    if (gate == NULL || subMember >= gate->keymap.size()) {
+        return true;
+    }
+    if (gate->size(subMember) <= 1) {
+        return true;  // stock only runs the loop when numClu > 1
+    }
+    const uint64_t targetKey = gate->keymap[subMember];
+    for (uint64_t j = gate->clusterStart[subMember]; j < gate->clusterStart[subMember + 1]; j++) {
+        const uint64_t elementKey = gate->members[j];
+        if (elementKey == targetKey) {
+            continue;
+        }
+        unsigned int elementLen = 0;
+        const char *elementSeq = gate->fullSeqs.get(elementKey, &elementLen);
+        if (elementSeq == NULL || elementLen == 0) {
+            return false;
+        }
+        element.mapSequence(0, static_cast<DBKeyType>(elementKey), elementSeq, elementLen);
+        if (Util::canBeCovered(par.covThr, par.covMode, query.L, element.L) == false) {
+            return false;
+        }
+        const short elementDiagonal = 0;
+        BlockAligner::UngappedAln_res ua = aligner.ungappedAlign(&element, elementDiagonal);
+        const bool hasEvalue = (ua.eval <= par.evalThr);
+        const bool hasAlnLen = (ua.alnLen >= par.alnLenThr);
+        const bool hasCoverage = Util::hasCoverage(par.covThr, par.covMode, ua.qcov, ua.tcov);
+        int identical = 0;
+        for (int q = ua.qStart; q <= ua.qEnd; q++) {
+            const char a = query.getSeqData()[q] & static_cast<unsigned char>(~0x20);
+            const char b = elementSeq[ua.tStart + (q - ua.qStart)] & static_cast<unsigned char>(~0x20);
+            identical += (a == b) ? 1 : 0;
+        }
+        const float elementSeqId =
+            Util::computeSeqId(par.seqIdMode, identical, query.L, elementLen, ua.alnLen);
+        const bool hasSeqId =
+            elementSeqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+
+        if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
+            continue;
+        }
+        Matcher::result_t res = matcher.getSWResult(&element, static_cast<int>(elementDiagonal),
+                                                    false, par.covMode, par.covThr, par.evalThr,
+                                                    swMode, par.seqIdMode, false);
+        if (Alignment::checkCriteria(res, false, par.evalThr, par.seqIdThr, par.alnLenThr,
+                                     par.covMode, par.covThr) == false) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 int alignparallel(int argc, const char **argv, const Command &command) {
@@ -158,7 +291,14 @@ int alignparallel(int argc, const char **argv, const Command &command) {
 
     const int dbType = FileUtil::parseDbType(seqDb.c_str());
     if (Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        Debug(Debug::ERROR) << "alignparallel is implemented for amino acid databases only\n";
+        // Not a gap in the port: stock's align2clust, which this stage is the
+        // parallel form of, builds a protein matrix and protein Sequences
+        // unconditionally (Align2clust.cpp:406-520). Nucleotide linclust runs the
+        // v1 path (rescorediagonal) instead, which has no v2 counterpart to port.
+        // Erroring is therefore stricter than stock, which would silently score
+        // DNA with BLOSUM.
+        Debug(Debug::ERROR) << "alignparallel is amino acid only, as stock align2clust is. "
+                            << "Nucleotide linclust uses the v1 alignment path.\n";
         EXIT(EXIT_FAILURE);
     }
     const DenseIndex::Info info = DenseIndex::readInfo(seqDb);
@@ -203,9 +343,30 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                                     ? getCovSeqidQscPercMinDiag()
                                     : getCovSeqidQscPercMinDiagTargetCov();
     const float scorePerColThreshold = parsePrecisionLib(library, par.seqIdThr, par.covThr, 0.99);
-    const unsigned int maxSeqLen = info.maxSeqLen + 1;
+    unsigned int maxSeqLen = info.maxSeqLen + 1;
+    if (par.filterSeqDBFile.empty() == false) {
+        // Stock sizes its aligner buffers with the larger of the two databases
+        // (Align2clust.cpp:502), because the filter gate compares against
+        // sequences drawn from the full database, not the pass-2 one.
+        const DenseIndex::Info full = DenseIndex::readInfo(par.filterSeqDBFile);
+        maxSeqLen = std::max(maxSeqLen, full.maxSeqLen + 1);
+    }
     // Same x-drop as stock (Align2clust.cpp:419, MIN_SIZE 32).
     const int32_t xDrop = 32 * par.gapExtend.values.aminoacid() + par.gapOpen.values.aminoacid();
+    const unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
+
+    // Pass 2 only: stock's --filter-cludb-file gate.
+    FilterGate *gate = NULL;
+    if (par.filterCluDBFile.empty() == false) {
+        if (par.filterSeqDBFile.empty() || par.keyMapFile.empty()) {
+            Debug(Debug::ERROR) << "--filter-cludb-file needs --filter-seqdb-file and --key-map\n";
+            EXIT(EXIT_FAILURE);
+        }
+        gate = new FilterGate(par.filterSeqDBFile);
+        gate->load(par.keyMapFile, par.filterCluDBFile);
+        Debug(Debug::INFO) << "Filter gate: " << gate->keymap.size() << " representatives, "
+                           << gate->members.size() << " pass-1 members\n";
+    }
     Debug(Debug::INFO) << "Aligning " << bucketCount << " edge buckets; score-per-column cutoff "
                        << scorePerColThreshold << "\n";
 
@@ -244,6 +405,22 @@ int alignparallel(int argc, const char **argv, const Command &command) {
             needed.erase(std::unique(needed.begin(), needed.end()), needed.end());
             sequences.load(needed);
 
+            // The gate compares against the pass-1 cluster members of each target,
+            // which live in the *full* database; fetch exactly those, in key order.
+            if (gate != NULL) {
+                std::vector<uint64_t> gateKeys;
+                for (size_t i = 0; i < edges.size(); i++) {
+                    const uint64_t sub = edges[i].getMember();
+                    if (sub >= gate->keymap.size()) continue;
+                    for (uint64_t j = gate->clusterStart[sub]; j < gate->clusterStart[sub + 1]; j++) {
+                        gateKeys.push_back(gate->members[j]);
+                    }
+                }
+                SORT_PARALLEL(gateKeys.begin(), gateKeys.end());
+                gateKeys.erase(std::unique(gateKeys.begin(), gateKeys.end()), gateKeys.end());
+                gate->fullSeqs.load(gateKeys);
+            }
+
             // Edges are sorted by (rep, member), so a representative's edges are
             // contiguous and its query profile is built once.
             std::vector<size_t> repStarts;
@@ -265,6 +442,12 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                                      &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale,
                                      -par.gapOpen.values.aminoacid(),
                                      -par.gapExtend.values.aminoacid());
+                Matcher matcher(Parameters::DBTYPE_AMINO_ACIDS, maxSeqLen, subMat, &evaluer,
+                                par.compBiasCorrection, par.compBiasCorrectionScale,
+                                par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(),
+                                0.0, par.zdrop);
+                Sequence element(maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false,
+                                 par.compBiasCorrection);
 
 #pragma omp for schedule(dynamic, 16)
                 for (size_t g = 0; g < repStarts.size() - 1; g++) {
@@ -277,6 +460,7 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                     }
                     query.mapSequence(0, static_cast<DBKeyType>(edges[from].getRep()), repSeq, repLen);
                     aligner.initQuery(&query);
+                    matcher.initQuery(&query);
 
                     for (size_t e = from; e < to; e++) {
                         unsigned int memberLen = 0;
@@ -319,6 +503,10 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                             seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
 
                         if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
+                            if (passesFilterGate(gate, edges[e].getMember(), query, element,
+                                                 aligner, matcher, par, swMode) == false) {
+                                continue;
+                            }
                             // The greedy ranks by alignment score, not k-mer count.
                             edges[e].score =
                                 static_cast<uint8_t>(std::min(aln.bitScore, 255));
@@ -374,6 +562,10 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                         // the reduce, so a representative is never its own member.
                         if (Alignment::checkCriteria(result, false, par.evalThr, par.seqIdThr,
                                                      par.alnLenThr, par.covMode, par.covThr)) {
+                            if (passesFilterGate(gate, edges[e].getMember(), query, element,
+                                                 aligner, matcher, par, swMode) == false) {
+                                continue;
+                            }
                             edges[e].score =
                                 static_cast<uint8_t>(std::min<uint32_t>(gapped.score1, 255));
                             survives[e] = 1;

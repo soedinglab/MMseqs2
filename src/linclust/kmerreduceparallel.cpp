@@ -41,11 +41,14 @@
 #include <omp.h>
 #endif
 
+#include <cerrno>
 #include <climits>
 #include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
+
+#include <unistd.h>
 
 namespace {
 
@@ -358,6 +361,7 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
     }
     unsigned int partitionCount = 0;
     unsigned int kmerSize = 0;
+    unsigned int waveCount = 1;
     {
         FILE *file = FileUtil::openFileOrDie(manifestPath.c_str(), "r", true);
         char name[64];
@@ -368,12 +372,43 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
                 partitionCount = static_cast<unsigned int>(value);
             } else if (key == "kmerSize") {
                 kmerSize = static_cast<unsigned int>(value);
+            } else if (key == "waveCount") {
+                waveCount = static_cast<unsigned int>(value);
             }
         }
         fclose(file);
     }
     if (partitionCount == 0) {
         Debug(Debug::ERROR) << "Shuffle manifest " << manifestPath << " has no partition count\n";
+        EXIT(EXIT_FAILURE);
+    }
+    // A wave's map wrote only its own slice of partition space, so its reduce
+    // claims exactly that slice. The slicing must be identical to the map's, and
+    // each wave needs its own queue: a shared one would record the whole
+    // partition space done after wave 0 and skip every later wave outright.
+    unsigned int waveFrom = 0;
+    unsigned int waveTo = partitionCount;
+    if (waveCount > 1) {
+        if (par.kmerWave < 0) {
+            Debug(Debug::ERROR) << "This shuffle was written in " << waveCount
+                                << " waves. Reduce each one with --kmer-wave 0.."
+                                << (waveCount - 1) << ", matching the wave its map wrote.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (static_cast<unsigned int>(par.kmerWave) >= waveCount) {
+            Debug(Debug::ERROR) << "--kmer-wave " << par.kmerWave << " is out of range; this "
+                                << "shuffle has " << waveCount << " waves\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // Exact: the sizing guarantees the wave count divides P.
+        const unsigned int perWave = partitionCount / waveCount;
+        waveFrom = static_cast<unsigned int>(par.kmerWave) * perWave;
+        waveTo = waveFrom + perWave;
+        Debug(Debug::INFO) << "Wave " << par.kmerWave << " of " << waveCount << ": partitions ["
+                           << waveFrom << ", " << waveTo << ")\n";
+    } else if (par.kmerWave > 0) {
+        Debug(Debug::ERROR) << "--kmer-wave " << par.kmerWave << " given but this shuffle was "
+                            << "written in one wave\n";
         EXIT(EXIT_FAILURE);
     }
     // The map decided k, so take it from the manifest rather than re-deriving it
@@ -428,10 +463,13 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
 
     uint64_t edgeCount = 0;
     {
-        WorkQueue queue(reduceCoordDir + "/reduce.queue", static_cast<int64_t>(partitionCount));
+        WorkQueue queue(reduceCoordDir + "/reduce." + SSTR(par.kmerWave < 0 ? 0 : par.kmerWave) +
+                            ".queue",
+                        static_cast<int64_t>(waveTo - waveFrom));
         // One partition at a time per process: the sort and the greedy inside a
         // partition are already threaded, and a partition is sized to fill a node.
-        const bool finished = queue.drain(workerId, [&](size_t partition) {
+        const bool finished = queue.drain(workerId, [&](size_t item) {
+            const size_t partition = waveFrom + item;
             if (info.maxSeqLen < SHRT_MAX) {
                 edgeCount += reducePartition<short>(kmerDir, static_cast<unsigned int>(partition),
                                                     dbType, par, subMat, *edgeWriter, bucketSpan);
@@ -447,6 +485,26 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "Reduce stage stalled: work remains but no partition is claimable\n";
             EXIT(EXIT_FAILURE);
         }
+    }
+
+    if (waveCount > 1) {
+        // Waves exist only because scratch cannot hold the whole shuffle at once,
+        // so a reduced wave's buckets have to go before the next wave's map runs.
+        // Safe here because drain() returns only once every partition of the wave
+        // is recorded done, which means no worker is still reading one. Several
+        // workers reach this together, so a file another already unlinked is not
+        // an error.
+        for (unsigned int p = waveFrom; p < waveTo; p++) {
+            const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, p);
+            for (size_t i = 0; i < shards.size(); i++) {
+                if (unlink(shards[i].c_str()) != 0 && errno != ENOENT) {
+                    Debug(Debug::ERROR) << "Cannot remove reduced bucket " << shards[i] << ": "
+                                        << strerror(errno) << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+        }
+        Debug(Debug::INFO) << "Removed the k-mer buckets of wave " << par.kmerWave << "\n";
     }
 
     Debug(Debug::INFO) << "Worker " << workerId << " wrote " << edgeCount

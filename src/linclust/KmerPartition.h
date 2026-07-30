@@ -100,6 +100,9 @@ struct __attribute__((__packed__)) KmerRecord {
 // The two numbers that shape the k-mer shuffle, and where they came from.
 struct KmerShuffleSizing {
     uint64_t totalKmerBytes;     // every k-mer record, summed over all waves
+    // Both powers of two, and waveCount divides partitionCount: a wave owns the
+    // contiguous slice [w * P / W, (w + 1) * P / W) of partition space, and the
+    // slices must be equal for peak scratch to actually be 1 / W of the whole.
     unsigned int waveCount;      // extraction passes, so peak scratch stays in budget
     unsigned int partitionCount; // P
     uint64_t bytesPerWave;       // peak k-mer bytes on disk at any one time
@@ -193,8 +196,14 @@ public:
     // bufferBudgetBytes is split evenly across partitions, so memory is bounded
     // regardless of partition count. Records accumulate per partition and are
     // flushed in large contiguous appends rather than one write per k-mer.
+    // partitionFrom/partitionTo restrict writing to one wave's slice of the
+    // partition space. A wave re-extracts every k-mer but keeps only its own
+    // slice, so peak scratch is the whole shuffle divided by the wave count --
+    // which is what makes 1e12 fit a budget that cannot hold 504 TB at once.
+    // Appends outside the window are dropped; the wave that owns them writes them.
     KmerBucketWriter(const std::string &dir, unsigned int partitionCount,
-                     const std::string &shardId, size_t bufferBudgetBytes = 1024 * 1024 * 1024);
+                     const std::string &shardId, size_t bufferBudgetBytes = 1024 * 1024 * 1024,
+                     unsigned int partitionFrom = 0, unsigned int partitionTo = 0);
     ~KmerBucketWriter();
 
     // Thread-safe.
@@ -235,6 +244,8 @@ private:
     std::vector<FILE *> files;
     std::vector<std::mutex> mutexes;
     std::vector<uint64_t> recordCounts;
+    unsigned int partitionFrom;
+    unsigned int partitionTo;  // exclusive
 };
 
 // Reads every shard of one partition back.
