@@ -109,7 +109,10 @@ void PartitionSequences::load(const std::vector<uint64_t> &sortedKeys) {
     // keys make ascending key mean ascending offset, so this is a forward scan.
     uint64_t total = 0;
     for (size_t k = 0; k < keys.size(); k++) {
-        lengths[k] = entries[k].length > 0 ? entries[k].length - 1 : 0;  // drop the trailing newline
+        // The dense index stores residues + 2: the '\n' and DBWriter's '\0'
+        // (createdbparallel.cpp:344). Both must come off, or the aligner sees the
+        // newline as a residue and every sequence is one too long.
+        lengths[k] = entries[k].length > 2 ? entries[k].length - 2 : 0;
         offsets[k] = total;
         total += lengths[k];
     }

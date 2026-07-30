@@ -714,6 +714,17 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"edgeDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
                                          {"alnDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"greedycluster",        greedycluster,        &par.greedycluster,        COMMAND_CLUSTER,
+                "Greedy clustering over the surviving edges, in one key-ordered sweep",
+                "# Representatives always have lower keys than their members, so a single\n"
+                "# left-to-right sweep is the exact greedy. Needs two bits per key, not the\n"
+                "# eight bytes per sequence stock's fused clustering keeps resident.\n"
+                "mmseqs greedycluster sequenceDB alnDir clusters.tsv\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:alnDir> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"alnDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
+                                         {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,

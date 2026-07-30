@@ -980,6 +980,12 @@ Parameters::Parameters():
     alignparallel.push_back(&PARAM_COMPRESSED);
     alignparallel.push_back(&PARAM_V);
 
+    // greedycluster
+    // No clustering-mode knob: the sweep implements linclust's greedy, which is
+    // the only mode the key ordering makes exact in one pass.
+    greedycluster.push_back(&PARAM_THREADS);
+    greedycluster.push_back(&PARAM_V);
+
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
     makepaddedseqdb.push_back(&PARAM_SCORE_BIAS);

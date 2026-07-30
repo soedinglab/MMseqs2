@@ -26,6 +26,7 @@
  * Neither the k-mer buckets nor a resident sequence index is needed here; the
  * sequences come through the dense companion index, addressed by key.
  */
+#include "Alignment.h"
 #include "BlockAligner.h"
 #include "CandidateEdge.h"
 #include "Command.h"
@@ -203,6 +204,8 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                                     : getCovSeqidQscPercMinDiagTargetCov();
     const float scorePerColThreshold = parsePrecisionLib(library, par.seqIdThr, par.covThr, 0.99);
     const unsigned int maxSeqLen = info.maxSeqLen + 1;
+    // Same x-drop as stock (Align2clust.cpp:419, MIN_SIZE 32).
+    const int32_t xDrop = 32 * par.gapExtend.values.aminoacid() + par.gapOpen.values.aminoacid();
     Debug(Debug::INFO) << "Aligning " << bucketCount << " edge buckets; score-per-column cutoff "
                        << scorePerColThreshold << "\n";
 
@@ -288,31 +291,93 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                         target.mapSequence(0, static_cast<DBKeyType>(edges[e].getMember()),
                                            memberSeq, memberLen);
 
-                        // Same predicates as stock align2clust (Align2clust.cpp:660-678).
+                        // Stock's two-stage acceptance (Align2clust.cpp:660-792): an
+                        // ungapped alignment on the k-mer diagonal, and if that
+                        // fails, a gapped banded alignment seeded from a
+                        // three-residue exact match. Leaving the second stage out
+                        // silently drops every pair that needs gaps to align.
                         BlockAligner::UngappedAln_res aln =
                             aligner.ungappedAlign(&target, edges[e].diagonal);
-                        if (aln.eval > par.evalThr) continue;
-                        if (aln.alnLen < par.alnLenThr) continue;
-                        if (Util::hasCoverage(par.covThr, par.covMode, aln.qcov, aln.tcov) == false) continue;
 
-                        int identical = 0;
-                        for (int q = aln.qStart; q <= aln.qEnd; q++) {
-                            const char a = repSeq[q] & static_cast<unsigned char>(~0x20);
-                            const char b = memberSeq[aln.tStart + (q - aln.qStart)] &
-                                           static_cast<unsigned char>(~0x20);
-                            identical += (a == b) ? 1 : 0;
+                        const bool hasEvalue = (aln.eval <= par.evalThr);
+                        const bool hasAlnLen = (aln.alnLen >= par.alnLenThr);
+                        const bool hasCoverage =
+                            Util::hasCoverage(par.covThr, par.covMode, aln.qcov, aln.tcov);
+                        float seqId = 0;
+                        if (hasEvalue) {
+                            int identical = 0;
+                            for (int q = aln.qStart; q <= aln.qEnd; q++) {
+                                const char a = repSeq[q] & static_cast<unsigned char>(~0x20);
+                                const char b = memberSeq[aln.tStart + (q - aln.qStart)] &
+                                               static_cast<unsigned char>(~0x20);
+                                identical += (a == b) ? 1 : 0;
+                            }
+                            seqId = Util::computeSeqId(par.seqIdMode, identical, query.L, target.L,
+                                                       aln.alnLen);
                         }
-                        const float seqId = Util::computeSeqId(par.seqIdMode, identical, query.L,
-                                                               target.L, aln.alnLen);
-                        if (seqId < par.seqIdThr - std::numeric_limits<float>::epsilon()) continue;
-                        if (aln.diagonalLen > 0 &&
+                        const bool hasSeqId =
+                            seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+
+                        if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
+                            // The greedy ranks by alignment score, not k-mer count.
+                            edges[e].score =
+                                static_cast<uint8_t>(std::min(aln.bitScore, 255));
+                            survives[e] = 1;
+                            continue;
+                        }
+
+                        // Ungapped failed. score-per-column is the gate on paying
+                        // for a gapped alignment -- it is *not* a filter on hits the
+                        // ungapped stage already accepted.
+                        if (aln.diagonalLen <= 0 ||
                             static_cast<float>(aln.score) / static_cast<float>(aln.diagonalLen) <
                                 scorePerColThreshold) {
                             continue;
                         }
-                        // The greedy ranks by alignment score, not by k-mer count.
-                        edges[e].score = static_cast<uint8_t>(std::min(aln.bitScore, 255));
-                        survives[e] = 1;
+                        if (aln.qStart == -1 || aln.tStart == -1 || aln.alnLen < 3) {
+                            continue;
+                        }
+                        // Seed the band on the first three consecutive identities,
+                        // starting one past it, exactly as stock does.
+                        int seedQuery = static_cast<int>(aln.qStart);
+                        int seedTarget = static_cast<int>(aln.tStart);
+                        bool foundSeed = false;
+                        for (int b = 0; b <= aln.alnLen - 3; b++) {
+                            const int qp = static_cast<int>(aln.qStart) + b;
+                            const int tp = static_cast<int>(aln.tStart) + b;
+                            if (repSeq[qp] == memberSeq[tp] && repSeq[qp + 1] == memberSeq[tp + 1] &&
+                                repSeq[qp + 2] == memberSeq[tp + 2]) {
+                                seedQuery = qp + 1;
+                                seedTarget = tp + 1;
+                                foundSeed = true;
+                                break;
+                            }
+                        }
+                        if (foundSeed == false) {
+                            continue;
+                        }
+
+                        std::string backtrace;
+                        s_align gapped = aligner.bandedalign(&target, seedQuery, seedTarget,
+                                                             backtrace, xDrop, par.covThr,
+                                                             par.covMode);
+                        const unsigned int gappedLen = backtrace.size();
+                        const double gappedSeqId =
+                            Util::computeSeqId(par.seqIdMode, gapped.identicalAACnt, query.L,
+                                               memberLen, gappedLen);
+                        Matcher::result_t result(
+                            static_cast<DBKeyType>(edges[e].getMember()), gapped.score1,
+                            gapped.qCov, gapped.tCov, gappedSeqId, gapped.evalue, gappedLen,
+                            gapped.qStartPos1, gapped.qEndPos1, query.L, gapped.dbStartPos1,
+                            gapped.dbEndPos1, memberLen, backtrace);
+                        // isIdentity is always false here: self-edges are dropped in
+                        // the reduce, so a representative is never its own member.
+                        if (Alignment::checkCriteria(result, false, par.evalThr, par.seqIdThr,
+                                                     par.alnLenThr, par.covMode, par.covThr)) {
+                            edges[e].score =
+                                static_cast<uint8_t>(std::min<uint32_t>(gapped.score1, 255));
+                            survives[e] = 1;
+                        }
                     }
                 }
             }

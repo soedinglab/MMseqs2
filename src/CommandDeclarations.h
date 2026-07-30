@@ -30,6 +30,7 @@ extern int createdbparallel(int argc, const char **argv, const Command& command)
 extern int kmermatcherparallel(int argc, const char **argv, const Command& command);
 extern int kmerreduceparallel(int argc, const char **argv, const Command& command);
 extern int alignparallel(int argc, const char **argv, const Command& command);
+extern int greedycluster(int argc, const char **argv, const Command& command);
 extern int makepaddedseqdb(int argc, const char **argv, const Command& command);
 extern int createindex(int argc, const char **argv, const Command& command);
 extern int createlinindex(int argc, const char **argv, const Command& command);
