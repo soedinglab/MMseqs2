@@ -35,6 +35,20 @@
 #include <string>
 #include <vector>
 
+// fwrite that fails loudly. Every caller here is building a final result file that
+// the workflow renames into place on success; a short write that goes unnoticed
+// becomes a truncated clustering the next restart treats as finished.
+static void writeAllOrDie(const void *data, size_t bytes, FILE *file, const std::string &path) {
+    if (bytes == 0) {
+        return;
+    }
+    if (fwrite(data, 1, bytes, file) != bytes) {
+        Debug(Debug::ERROR) << "Cannot write " << bytes << " bytes to " << path << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 namespace {
 
 // (key, value) as written to a bucket: for the later clustering the key is the
@@ -206,7 +220,7 @@ void compose(const std::string &earlier, const std::string &later, const std::st
             const uint64_t mapped = remap[static_cast<size_t>(rep - lo)];
             appendPair(buffer, mapped == INVALID ? rep : mapped, earlierPairs[i].value);
             if (buffer.size() > 32 * 1024 * 1024) {
-                fwrite(buffer.data(), 1, buffer.size(), result);
+                writeAllOrDie(buffer.data(), buffer.size(), result, out);
                 buffer.clear();
             }
         }
@@ -214,7 +228,7 @@ void compose(const std::string &earlier, const std::string &later, const std::st
         FileUtil::remove(BucketWriter::path(tmpPrefix + ".earlier", b).c_str());
     }
     if (buffer.empty() == false) {
-        fwrite(buffer.data(), 1, buffer.size(), result);
+        writeAllOrDie(buffer.data(), buffer.size(), result, out);
     }
     if (fclose(result) != 0) {
         Debug(Debug::ERROR) << "Cannot close " << out << "\n";

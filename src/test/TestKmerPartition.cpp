@@ -300,13 +300,18 @@ static void testShuffleSizing() {
     check(small.waveCount == 1, "100B fits the 100 TB budget in a single wave");
     check(small.bytesPerWave <= 100 * TB - 33 * TB,
           "100B peak k-mer bytes stay inside the budget after the database and edges");
-    check(small.partitionCount == 1024, "100B derives P = 1024");
+    check(small.partitionCount == 4096, "100B derives P = 4096");
+    // P bounds the reduce's RESIDENT set, which is ~1.9x the bucket's on-disk
+    // bytes before candidate edges; the factor of 3 is what keeps a partition
+    // inside a worker rather than 1.9x outside it.
+    check(small.bytesPerPartition * 3 <= 64 * GB, "100B partitions fit worker memory when expanded");
     check(small.bytesPerPartition <= 64 * GB, "100B buckets fit the per-worker memory");
 
     // 1T: 1e12 sequences, no hard ceiling, so only per-worker memory sets P.
     KmerShuffleSizing large = deriveKmerShuffleSizing(1000000000000ULL, 21, 0, 0, 64 * GB);
     check(large.waveCount == 1, "an unlimited budget means a single wave");
-    check(large.partitionCount == 8192, "1T derives P = 8192");
+    check(large.partitionCount == 32768, "1T derives P = 32768");
+    check(large.bytesPerPartition * 3 <= 64 * GB, "1T partitions fit worker memory when expanded");
     check(large.bytesPerPartition <= 64 * GB, "1T buckets fit the per-worker memory");
     check(large.partitionCount > small.partitionCount,
           "the two target scales genuinely want different P, which is why it is derived");
@@ -325,7 +330,9 @@ static void testShuffleSizing() {
     // -- and peak scratch only really 1/W of the whole -- if W divides P. Both
     // being powers of two is how that is guaranteed.
     bool wavesDivide = true;
-    for (uint64_t budget = 4; budget <= 512; budget *= 2) {
+    // From 8 TB up: below that, 504 TB of k-mers needs more than the 64 waves
+    // deriveKmerShuffleSizing now refuses as a misconfigured budget.
+    for (uint64_t budget = 16; budget <= 512; budget *= 2) {
         // Sweep budgets from far below the k-mer volume to above it. Per-worker
         // memory is large so nothing but the wave count can raise P, which is the
         // case where the two used to disagree.

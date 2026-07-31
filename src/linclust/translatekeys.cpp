@@ -36,6 +36,24 @@
 #include <string>
 #include <vector>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
+// fwrite that fails loudly. Every caller here is building a final result file that
+// the workflow renames into place on success; a short write that goes unnoticed
+// becomes a truncated clustering the next restart treats as finished.
+static void writeAllOrDie(const void *data, size_t bytes, FILE *file, const std::string &path) {
+    if (bytes == 0) {
+        return;
+    }
+    if (fwrite(data, 1, bytes, file) != bytes) {
+        Debug(Debug::ERROR) << "Cannot write " << bytes << " bytes to " << path << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 namespace {
 
 // Spill file holding (key, payload) records whose payload is a key too.
@@ -216,8 +234,12 @@ private:
 // detects by finding an empty accession.
 class LookupCursor {
 public:
-    explicit LookupCursor(const std::string &path) : line(NULL), cap(0), pending(false), pendingKey(0) {
+    explicit LookupCursor(const std::string &path, uint64_t startOffset = 0)
+        : line(NULL), cap(0), pending(false), pendingKey(0) {
         file = FileUtil::openFileOrDie(path.c_str(), "r", true);
+        if (startOffset > 0) {
+            fseeko(file, static_cast<off_t>(startOffset), SEEK_SET);
+        }
     }
     ~LookupCursor() {
         free(line);
@@ -256,8 +278,44 @@ private:
     std::string pendingAccession;
 };
 
+// Byte offset in the lookup where each bucket's key range begins.
+//
+// The lookup is variable-width text, so a bucket cannot seek to its own keys --
+// which is why the three passes below used to share one forward cursor and run
+// strictly one bucket at a time. One sequential scan recording `buckets` offsets
+// (a few KB) makes every bucket independent, and the passes become parallel.
+static std::vector<uint64_t> indexLookup(const std::string &path, uint64_t span,
+                                         unsigned int buckets) {
+    std::vector<uint64_t> at(buckets, UINT64_MAX);
+    FILE *f = FileUtil::openFileOrDie(path.c_str(), "r", true);
+    char *line = NULL;
+    size_t cap = 0;
+    ssize_t len;
+    uint64_t offset = 0;
+    while ((len = getline(&line, &cap, f)) > 0) {
+        const uint64_t key = strtoull(line, NULL, 10);
+        const unsigned int b = static_cast<unsigned int>(key / span);
+        if (b < buckets && at[b] == UINT64_MAX) {
+            at[b] = offset;
+        }
+        offset += static_cast<uint64_t>(len);
+    }
+    free(line);
+    fclose(f);
+    return at;
+}
+
 const std::string &accessionOf(const std::vector<std::string> &slice, uint64_t key, uint64_t lo,
                                const std::string &lookupFile) {
+    // Checked before indexing, not after. A clustering naming a key the lookup
+    // does not have is exactly the case the message below describes, and reading
+    // slice[key - lo] first would go out of bounds before it could be printed.
+    if (key < lo || key - lo >= slice.size()) {
+        Debug(Debug::ERROR) << "Key " << key << " of the clustering is outside the range the "
+                            << "lookup " << lookupFile << " covers. The clustering and the lookup "
+                            << "are from different databases.\n";
+        EXIT(EXIT_FAILURE);
+    }
     const std::string &name = slice[static_cast<size_t>(key - lo)];
     if (name.empty()) {
         Debug(Debug::ERROR) << "Key " << key << " of the clustering has no entry in " << lookupFile
@@ -276,6 +334,7 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     const std::string inTsv = par.db1;
     const std::string lookupFile = par.db2;
     const std::string outTsv = par.db3;
+    const int threads = std::max(1, par.threads);
 
     // Sized so one slice of accessions fits the memory budget. An accession is
     // ~30 bytes plus the std::string that holds it, so 64 bytes per key is a safe
@@ -321,6 +380,13 @@ int translatekeys(int argc, const char **argv, const Command &command) {
             if (tab == NULL) continue;
             const uint64_t rep = strtoull(line, NULL, 10);
             const uint64_t member = strtoull(tab + 1, NULL, 10);
+            if (member / span >= buckets || rep / span >= buckets) {
+                Debug(Debug::ERROR) << "Clustering names key " << std::max(member, rep)
+                                    << ", beyond the " << keyCount << " keys in " << lookupFile
+                                    << ". The clustering and the lookup are from different "
+                                    << "databases.\n";
+                EXIT(EXIT_FAILURE);
+            }
             byMember.append(static_cast<unsigned int>(member / span), member, rep);
         }
         free(line);
@@ -328,57 +394,115 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     }
 
     // Pass 2: translate the member, re-bucket on the representative.
+    //
+    // Parallel over buckets, each thread seeking straight to its own key range.
+    // Its output goes to a thread-private set of representative buckets, so no
+    // two threads share a writer; pass 3 reads all shards of a bucket.
+    const std::vector<uint64_t> lookupAt = indexLookup(lookupFile, span, buckets);
     {
-        LookupCursor cursor(lookupFile);
-        TextBuckets byRep(tmpB, buckets);
-        std::vector<std::string> slice;
-        for (unsigned int b = 0; b < buckets; b++) {
-            const uint64_t lo = b * span;
-            if (lo >= keyCount) break;
-            const uint64_t hi = std::min(lo + span, keyCount);
-            cursor.slice(lo, hi, slice);
-            const std::vector<KeyPair> pairs = KeyBuckets::read(tmpA, b);
-            for (size_t i = 0; i < pairs.size(); i++) {
-                const std::string &name = accessionOf(slice, pairs[i].key, lo, lookupFile);
-                byRep.append(static_cast<unsigned int>(pairs[i].other / span), pairs[i].other,
-                             name.c_str(), name.size());
+        std::vector<TextBuckets *> writers(threads, NULL);
+        for (int t = 0; t < threads; t++) {
+            writers[t] = new TextBuckets(tmpB + ".t" + SSTR(t), buckets);
+        }
+#pragma omp parallel num_threads(threads)
+        {
+            int tid = 0;
+#ifdef OPENMP
+            tid = omp_get_thread_num();
+#endif
+            std::vector<std::string> slice;
+#pragma omp for schedule(dynamic, 1)
+            for (int64_t bi = 0; bi < static_cast<int64_t>(buckets); bi++) {
+                const unsigned int b = static_cast<unsigned int>(bi);
+                const uint64_t lo = b * span;
+                if (lo >= keyCount || lookupAt[b] == UINT64_MAX) {
+                    continue;
+                }
+                const uint64_t hi = std::min(lo + span, keyCount);
+                LookupCursor cursor(lookupFile, lookupAt[b]);
+                cursor.slice(lo, hi, slice);
+                const std::vector<KeyPair> pairs = KeyBuckets::read(tmpA, b);
+                for (size_t i = 0; i < pairs.size(); i++) {
+                    const std::string &name = accessionOf(slice, pairs[i].key, lo, lookupFile);
+                    writers[tid]->append(static_cast<unsigned int>(pairs[i].other / span),
+                                         pairs[i].other, name.c_str(), name.size());
+                }
+                FileUtil::remove(KeyBuckets::path(tmpA, b).c_str());
             }
-            FileUtil::remove(KeyBuckets::path(tmpA, b).c_str());
+        }
+        for (int t = 0; t < threads; t++) {
+            delete writers[t];
         }
     }
 
     // Pass 3: translate the representative and emit.
-    LookupCursor cursor(lookupFile);
-    FILE *out = FileUtil::openAndDelete(outTsv.c_str(), "w");
-    std::string buffer;
-    buffer.reserve(64 * 1024 * 1024);
-    std::vector<std::string> slice;
-    std::vector<std::pair<uint64_t, std::string> > entries;
+    //
+    // Also parallel over buckets, each writing its own piece; the pieces are then
+    // concatenated in bucket order, so the output is exactly what the sequential
+    // version produced.
     uint64_t written = 0;
-    for (unsigned int b = 0; b < buckets; b++) {
-        const uint64_t lo = b * span;
-        if (lo >= keyCount) break;
-        const uint64_t hi = std::min(lo + span, keyCount);
-        cursor.slice(lo, hi, slice);
-        TextBuckets::read(tmpB, b, entries);
-        for (size_t i = 0; i < entries.size(); i++) {
-            const std::string &repName = accessionOf(slice, entries[i].first, lo, lookupFile);
-            buffer.append(repName);
-            buffer.push_back('\t');
-            buffer.append(entries[i].second);
-            buffer.push_back('\n');
-            written++;
-            if (buffer.size() > 32 * 1024 * 1024) {
-                fwrite(buffer.data(), 1, buffer.size(), out);
+    {
+#pragma omp parallel num_threads(threads) reduction(+ : written)
+        {
+            std::vector<std::string> slice;
+            std::vector<std::pair<uint64_t, std::string> > entries;
+            std::string buffer;
+#pragma omp for schedule(dynamic, 1)
+            for (int64_t bi = 0; bi < static_cast<int64_t>(buckets); bi++) {
+                const unsigned int b = static_cast<unsigned int>(bi);
+                const uint64_t lo = b * span;
+                if (lo >= keyCount || lookupAt[b] == UINT64_MAX) {
+                    continue;
+                }
+                const uint64_t hi = std::min(lo + span, keyCount);
+                LookupCursor cursor(lookupFile, lookupAt[b]);
+                cursor.slice(lo, hi, slice);
                 buffer.clear();
+                for (int t = 0; t < threads; t++) {
+                    TextBuckets::read(tmpB + ".t" + SSTR(t), b, entries);
+                    for (size_t i = 0; i < entries.size(); i++) {
+                        const std::string &repName =
+                            accessionOf(slice, entries[i].first, lo, lookupFile);
+                        buffer.append(repName);
+                        buffer.push_back('\t');
+                        buffer.append(entries[i].second);
+                        buffer.push_back('\n');
+                        written++;
+                    }
+                    // A (thread, bucket) shard exists only if that thread wrote
+                    // to that bucket, which is sparse.
+                    const std::string shard = TextBuckets::path(tmpB + ".t" + SSTR(t), b);
+                    if (FileUtil::fileExists(shard.c_str())) {
+                        FileUtil::remove(shard.c_str());
+                    }
+                }
+                FILE *piece = FileUtil::openAndDelete((outTsv + ".p" + SSTR(b)).c_str(), "w");
+                writeAllOrDie(buffer.data(), buffer.size(), piece, outTsv);
+                if (fclose(piece) != 0) {
+                    Debug(Debug::ERROR) << "Cannot close " << outTsv << ".p" << b << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
             }
         }
-        FileUtil::remove(TextBuckets::path(tmpB, b).c_str());
-    }
-    if (buffer.empty() == false) fwrite(buffer.data(), 1, buffer.size(), out);
-    if (fclose(out) != 0) {
-        Debug(Debug::ERROR) << "Cannot close " << outTsv << "\n";
-        EXIT(EXIT_FAILURE);
+        FILE *out = FileUtil::openAndDelete(outTsv.c_str(), "w");
+        std::vector<char> copy(8 << 20);
+        for (unsigned int b = 0; b < buckets; b++) {
+            const std::string piecePath = outTsv + ".p" + SSTR(b);
+            if (FileUtil::fileExists(piecePath.c_str()) == false) {
+                continue;
+            }
+            FILE *piece = FileUtil::openFileOrDie(piecePath.c_str(), "rb", true);
+            size_t got;
+            while ((got = fread(copy.data(), 1, copy.size(), piece)) > 0) {
+                writeAllOrDie(copy.data(), got, out, outTsv);
+            }
+            fclose(piece);
+            FileUtil::remove(piecePath.c_str());
+        }
+        if (fclose(out) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << outTsv << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     Debug(Debug::INFO) << "Translated " << written << " assignments into " << outTsv << "\n";

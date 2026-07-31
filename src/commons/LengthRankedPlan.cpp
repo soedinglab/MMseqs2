@@ -3,6 +3,8 @@
 #include "Debug.h"
 #include "FileUtil.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstdio>
 
@@ -28,7 +30,11 @@ void writeBlock(const std::string &path, const FileHeader &header,
                 const void *entries, size_t entryBytes) {
     // Write to a temporary and rename, so a worker that dies mid-write leaves no
     // truncated file that a later reader would mistake for a complete one.
-    std::string tmp = path + ".tmp";
+    // Tagged with the pid: two workers redoing the same chunk would otherwise
+    // both open the same .tmp, and one could truncate the other's in-flight write
+    // before renaming the hole-ridden result into place. The rename itself is
+    // atomic, so a private temp makes the whole publish atomic.
+    std::string tmp = path + ".tmp." + SSTR(getpid());
     FILE *file = FileUtil::openAndDelete(tmp.c_str(), "wb");
     if (fwrite(&header, sizeof(FileHeader), 1, file) != 1) {
         Debug(Debug::ERROR) << "Cannot write header to " << tmp << "\n";

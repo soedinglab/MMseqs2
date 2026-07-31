@@ -30,6 +30,20 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// fwrite that fails loudly. Every caller here is building a final result file that
+// the workflow renames into place on success; a short write that goes unnoticed
+// becomes a truncated clustering the next restart treats as finished.
+static void writeAllOrDie(const void *data, size_t bytes, FILE *file, const std::string &path) {
+    if (bytes == 0) {
+        return;
+    }
+    if (fwrite(data, 1, bytes, file) != bytes) {
+        Debug(Debug::ERROR) << "Cannot write " << bytes << " bytes to " << path << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 namespace {
 
 struct __attribute__((__packed__)) Pair {
@@ -201,6 +215,11 @@ int translatecluster(int argc, const char **argv, const Command &command) {
             const std::vector<uint64_t> slice = mapSlice(mapFd, lo, hi);
             const std::vector<Pair> pairs = Buckets::read(tmpA, b);
             for (size_t i = 0; i < pairs.size(); i++) {
+                if (pairs[i].key < lo || pairs[i].key - lo >= slice.size()) {
+                    Debug(Debug::ERROR) << "Sub-key " << pairs[i].key << " is outside the key map "
+                                        << mapFile << ", which holds " << subCount << " keys\n";
+                    EXIT(EXIT_FAILURE);
+                }
                 const uint64_t origMember = slice[static_cast<size_t>(pairs[i].key - lo)];
                 // Re-bucket on the representative sub-key for the second pass.
                 byRep.append(static_cast<unsigned int>(pairs[i].other / span), pairs[i].other,
@@ -222,16 +241,21 @@ int translatecluster(int argc, const char **argv, const Command &command) {
         const std::vector<uint64_t> slice = mapSlice(mapFd, lo, hi);
         const std::vector<Pair> pairs = Buckets::read(tmpB, b);
         for (size_t i = 0; i < pairs.size(); i++) {
+            if (pairs[i].key < lo || pairs[i].key - lo >= slice.size()) {
+                Debug(Debug::ERROR) << "Sub-key " << pairs[i].key << " is outside the key map "
+                                    << mapFile << ", which holds " << subCount << " keys\n";
+                EXIT(EXIT_FAILURE);
+            }
             appendPair(buffer, slice[static_cast<size_t>(pairs[i].key - lo)], pairs[i].other);
             written++;
             if (buffer.size() > 32 * 1024 * 1024) {
-                fwrite(buffer.data(), 1, buffer.size(), out);
+                writeAllOrDie(buffer.data(), buffer.size(), out, outTsv);
                 buffer.clear();
             }
         }
         FileUtil::remove(Buckets::path(tmpB, b).c_str());
     }
-    if (buffer.empty() == false) fwrite(buffer.data(), 1, buffer.size(), out);
+    if (buffer.empty() == false) writeAllOrDie(buffer.data(), buffer.size(), out, outTsv);
     if (fclose(out) != 0) {
         Debug(Debug::ERROR) << "Cannot close " << outTsv << "\n";
         EXIT(EXIT_FAILURE);

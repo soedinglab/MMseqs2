@@ -46,6 +46,25 @@
 notExists() { [ ! -f "$1" ]; }
 fail() { echo "Error: $1"; exit 1; }
 
+# Bytes currently sitting on the scratch filesystem for this run.
+#
+# The wave count has to be derived against what is actually free, not against the
+# whole budget: pass 2 runs with all of pass 1's surviving output still on disk,
+# and sizing it as though the filesystem were empty is what made a 1e11 run derive
+# a single wave and then peak at ~1.9x its ceiling. Measuring beats modelling here
+# -- it needs no per-stage accounting and stays right when the pipeline changes.
+scratchUsed() {
+    du -sb "$TMP" "$DB" 2>/dev/null | awk '{s += $1} END {print s + 0 "B"}'
+}
+
+# Deletes an intermediate whose consumers have all finished. Nothing downstream
+# reopens these, and they are the bulk of peak scratch: at 100M the candidate
+# edges alone are 21 GB and the pass-1 alignments 3 GB.
+dropIntermediate() {
+    [ -n "$KEEP_INTERMEDIATE" ] && return 0
+    rm -rf "$@"
+}
+
 # Extraction waves. A wave re-extracts every k-mer but keeps only its own slice of
 # partition space, so peak scratch is the whole shuffle divided by the wave count,
 # paid for with that many passes over the sequences. How many are needed follows
@@ -64,7 +83,10 @@ mapReduceWaves() {
     # $1 sequence DB, $2 k-mer dir, $3 edge dir, $4... extra map arguments
     _db="$1"; _kmer="$2"; _edges="$3"; shift 3
     # shellcheck disable=SC2086
+    _used=$(scratchUsed)
+    # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" kmermatcherparallel "$_db" "$_kmer" $KMER_COMMON "$@" --kmer-wave 0 \
+        --scratch-used "$_used" \
         || fail "kmermatcherparallel died"
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" kmerreduceparallel "$_db" "$_kmer" "$_edges" $REDUCE_PAR --kmer-wave 0 \
@@ -76,6 +98,7 @@ mapReduceWaves() {
         echo "--- extraction wave $_w of $_waves ---"
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" kmermatcherparallel "$_db" "$_kmer" $KMER_COMMON "$@" --kmer-wave $_w \
+            --scratch-used "$_used" \
             || fail "kmermatcherparallel (wave $_w) died"
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" kmerreduceparallel "$_db" "$_kmer" "$_edges" $REDUCE_PAR --kmer-wave $_w \
@@ -106,7 +129,10 @@ ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c 
 DB="$INPUT"
 if notExists "$INPUT.dbtype"; then
     DB="$TMP/db"
-    if notExists "$DB.dbtype"; then
+    # Guarded on the finalize sentinel, not on .dbtype: createdbparallel writes
+    # .dbtype before the text indices, so a death in that window leaves a database
+    # that looks complete and is not. The sentinel is written last.
+    if notExists "$DB.coord/finalize.done"; then
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" createdbparallel "$INPUT" "$DB" --threads $THREADS \
             || fail "createdbparallel died"
@@ -129,6 +155,9 @@ if notExists "$TMP/clu1.tsv"; then
         || fail "greedycluster (pass 1) died"
     mv -f "$TMP/clu1.tsv.tmp" "$TMP/clu1.tsv"
 fi
+# Both are dead once clu1.tsv exists, and together they are the largest thing pass
+# 1 leaves behind for pass 2 to be sized around.
+dropIntermediate "$TMP/edges1" "$TMP/aln1"
 
 # ---- pass 2, over the representatives --------------------------------------
 # Re-keyed densely rather than sub-set, because every stage addresses keys as
@@ -157,6 +186,7 @@ if notExists "$TMP/clu2_sub.tsv"; then
         || fail "greedycluster (pass 2) died"
     mv -f "$TMP/clu2_sub.tsv.tmp" "$TMP/clu2_sub.tsv"
 fi
+dropIntermediate "$TMP/edges2" "$TMP/aln2" "$TMP/kmer2"
 
 if notExists "$TMP/clu2.tsv"; then
     # shellcheck disable=SC2086

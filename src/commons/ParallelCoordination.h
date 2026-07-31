@@ -5,7 +5,9 @@
 #include <ctime>
 #include <unistd.h>
 #include <mutex>
+#include <atomic>
 #include <string>
+#include <thread>
 
 // Shared-filesystem coordination for multi-node MMseqs2 stages.
 //
@@ -126,6 +128,9 @@ public:
     int64_t getDoneCount();
     bool allDone();
 
+    // True while some item is held under an unexpired lease.
+    bool hasLiveClaim();
+
     // Polls until every item is DONE. Returns false if no progress was made and
     // no item was claimable for stallSeconds, which means the remaining work is
     // held by workers that are gone but whose leases have not yet expired, or
@@ -157,7 +162,30 @@ public:
         while (true) {
             const int64_t item = claim(workerId);
             if (item >= 0) {
+                // Heartbeat for the duration of the item. Without it any item
+                // taking longer than the lease -- which at 1e11 is every reduce
+                // partition and every align bucket, both hours of work -- looks
+                // abandoned, gets re-claimed, and is then run by two workers at
+                // once. The stage's output is not written per worker, so that is
+                // silent corruption rather than merely wasted effort.
+                std::atomic<bool> running(true);
+                std::thread heartbeat([this, item, workerId, &running]() {
+                    const int64_t every = DEFAULT_LEASE_SECONDS / 3;
+                    int64_t slept = 0;
+                    while (running.load()) {
+                        sleep(1);
+                        if (++slept < every) {
+                            continue;
+                        }
+                        slept = 0;
+                        if (running.load()) {
+                            renew(item, workerId);
+                        }
+                    }
+                });
                 body(static_cast<size_t>(item));
+                running.store(false);
+                heartbeat.join();
                 complete(item, workerId);
                 continue;
             }
@@ -168,6 +196,10 @@ public:
             if (done != lastDone) {
                 lastDone = done;
                 lastProgress = static_cast<int64_t>(time(NULL));
+            } else if (hasLiveClaim()) {
+                // Someone is still working, and heartbeating to say so. A stage
+                // whose last item takes hours must not be declared stalled.
+                lastProgress = static_cast<int64_t>(time(NULL));
             } else if (stallSeconds > 0 &&
                        static_cast<int64_t>(time(NULL)) - lastProgress >
                            static_cast<int64_t>(stallSeconds)) {
@@ -177,7 +209,12 @@ public:
         }
     }
 
-    static const int64_t DEFAULT_LEASE_SECONDS = 1800;
+    // Bounded by how long a dead worker's item should stay unclaimable, not by
+    // how long an item takes: drain() heartbeats every DEFAULT_LEASE_SECONDS/3
+    // for as long as the item runs, so a live holder never lets its lease lapse.
+    // At 1800 s a single killed worker idled an entire measured run for 30
+    // minutes before anyone could redo its item.
+    static const int64_t DEFAULT_LEASE_SECONDS = 300;
 
 private:
     // On-disk layout. Both structs are written and read verbatim; sizes are

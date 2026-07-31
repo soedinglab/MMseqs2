@@ -10,7 +10,7 @@
 //
 // Packed binary rather than a prefilter DB. A `pref` DB stores each hit as ASCII
 // with a per-representative index entry, and at 1e11 sequences the index alone is
-// per-key state no single node can hold. 15 bytes per edge is also ~4x smaller
+// per-key state no single node can hold. 17 bytes per edge is also ~4x smaller
 // than the text form, which matters directly: this is the largest intermediate
 // the pipeline writes.
 struct __attribute__((__packed__)) CandidateEdge {
@@ -22,9 +22,19 @@ struct __attribute__((__packed__)) CandidateEdge {
     // Nucleotide strand. Stock carries it in bit 63 of the representative key,
     // which a 48-bit key has no room for.
     uint8_t reverseStrand;
-    // How many k-mers put this pair on this diagonal, saturating at 255. Stock's
-    // prefilter score, used downstream to rank and filter candidates.
-    uint8_t score;
+    // How many k-mers put this pair on this diagonal. Stock's prefilter score,
+    // and the value the align stage ranks diagonals by.
+    //
+    // 16 bits, not 8. The align stage picks a pair's diagonal by comparing these
+    // counts, so a ceiling low enough to be reached turns a comparison into a tie
+    // and hands the decision to a tie-break stock does not have. Pass 1 extracts
+    // 21 k-mers per sequence and never came close; pass 2 uses
+    // --kmer-per-seq-scale aa:0.100, so a long sequence contributes thousands, and
+    // at 255 this saturated on 199 of 4.9M records, which gave 23 pairs a
+    // different diagonal than stock and moved 31 of 1,000,000 sequences into a
+    // different cluster; widening it here took that residual to 8. The bound is kmersPerSeq(65535) x rounds ~= 26k, which
+    // fits 16 bits; stock accumulates in an int and has no ceiling at all.
+    uint16_t score;
 
     uint64_t getRep() const { return get(repBytes); }
     uint64_t getMember() const { return get(memberBytes); }
@@ -74,6 +84,7 @@ private:
     void flush();
 
     std::string path;
+    std::string tmpPath;
     FILE *file;
     std::vector<CandidateEdge> buffer;
     size_t bufferRecords;

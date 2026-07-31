@@ -1,4 +1,6 @@
 #include "Parameters.h"
+
+#include <cerrno>
 #include "Util.h"
 #include "DistanceCalculator.h"
 #include "Debug.h"
@@ -59,6 +61,7 @@ Parameters::Parameters():
         PARAM_KMER_WAVE(PARAM_KMER_WAVE_ID, "--kmer-wave", "K-mer wave", "Which extraction wave to write, when the scratch budget needs more than one. Each wave re-extracts every k-mer but keeps only its own slice of the partition space, so peak scratch is the whole shuffle divided by the wave count. Default -1 requires a single wave. Run waves 0..W-1, reducing each before starting the next.", typeid(int), (void *) &kmerWave, "^-?[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_KEY_MAP(PARAM_KEY_MAP_ID, "--key-map", "Sub-key map", "Maps this database's dense sub-keys back to the original keys, as written by createrepdb. Needed with --filter-cludb-file when the pass runs on a re-keyed representative database.", typeid(std::string), (void *) &keyMapFile, "", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SCRATCH_BUDGET(PARAM_SCRATCH_BUDGET_ID, "--scratch-budget", "Scratch budget", "Total scratch the run may occupy. The k-mer extraction wave count and the partition count are derived from this together with --split-memory-limit, rather than set by hand. Default (0) for a single wave. E.g. 100T, 500T", typeid(ByteParser), (void *) &scratchBudget, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SCRATCH_USED(PARAM_SCRATCH_USED_ID, "--scratch-used", "Scratch already used", "Bytes of --scratch-budget already occupied when this stage starts. The workflow measures it, so a later pass accounts for what earlier passes left on disk. 0 derives it from the input database alone.", typeid(ByteParser), (void *) &scratchUsed, "^([1-9]{1}[0-9]*(B|K|M|G|T)?)|0$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -943,6 +946,7 @@ Parameters::Parameters():
     kmermatcherparallel.push_back(&PARAM_IGNORE_MULTI_KMER);
     kmermatcherparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmermatcherparallel.push_back(&PARAM_SCRATCH_BUDGET);
+    kmermatcherparallel.push_back(&PARAM_SCRATCH_USED);
     kmermatcherparallel.push_back(&PARAM_KMER_WAVE);
     kmermatcherparallel.push_back(&PARAM_THREADS);
     kmermatcherparallel.push_back(&PARAM_COMPRESSED);
@@ -2485,9 +2489,18 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, int argc, const 
         } else if (db.accessMode == db.ACCESS_MODE_OUTPUT) {
             if (db.validator == &DbValidator::directory) {
                 if (FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
-                    if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false) {
+                    // Racing workers may both reach this. makeDir is a bare mkdir,
+                    // so the loser gets EEXIST and would exit -- which, with a
+                    // Slurm array starting every worker at once, is nearly every
+                    // launch of the shared-filesystem stages. Only a failure that
+                    // also leaves no directory behind is real. Same rule the
+                    // linclust modules already apply (KmerPartition.cpp,
+                    // CandidateEdge.cpp).
+                    if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false &&
+                        FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
                         printParameters(command.cmd, argc, argv, *command.params);
-                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[fileIdx] << "\n";
+                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[fileIdx]
+                                            << ": " << strerror(errno) << "\n";
                         EXIT(EXIT_FAILURE);
                     } else {
                         Debug(Debug::INFO) << "Create directory " << filenames[fileIdx] << "\n";
@@ -2605,6 +2618,7 @@ void Parameters::setDefaults() {
     kmerWave = -1;
     keyMapFile = "";
     scratchBudget = 0;
+    scratchUsed = 0;
     diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";

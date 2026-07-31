@@ -4,6 +4,8 @@
 #include "FileUtil.h"
 #include "Util.h"
 
+#include <unistd.h>
+
 #include <cerrno>
 #include <algorithm>
 #include <cstring>
@@ -29,9 +31,18 @@ void EdgeWriter::flush() {
         return;
     }
     if (file == NULL) {
-        file = fopen(path.c_str(), "wb");
+        // Written under a per-worker temporary name and renamed on close. The
+        // output of this stage is named by bucket alone, so two workers that end
+        // up holding the same bucket -- which a lease expiry can still cause --
+        // would otherwise interleave into one file, and the result would stay a
+        // whole number of records and pass every downstream integrity check.
+        // rename(2) is atomic, so the loser simply replaces the winner with an
+        // equally complete file.
+        tmpPath = path + ".w" + SSTR(getpid());
+        file = fopen(tmpPath.c_str(), "wb");
         if (file == NULL) {
-            Debug(Debug::ERROR) << "Cannot open edge file " << path << ": " << strerror(errno) << "\n";
+            Debug(Debug::ERROR) << "Cannot open edge file " << tmpPath << ": " << strerror(errno)
+                                << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -64,17 +75,29 @@ void EdgeWriter::close() {
         // can tell "this partition was reduced and had nothing" from "this
         // partition was never reduced".
         if (fclose(file) != 0) {
-            Debug(Debug::ERROR) << "Cannot close edge file " << path << ": " << strerror(errno) << "\n";
+            Debug(Debug::ERROR) << "Cannot close edge file " << tmpPath << ": " << strerror(errno)
+                                << "\n";
             EXIT(EXIT_FAILURE);
         }
         file = NULL;
-    } else {
-        FILE *empty = fopen(path.c_str(), "wb");
-        if (empty == NULL) {
-            Debug(Debug::ERROR) << "Cannot create edge file " << path << ": " << strerror(errno) << "\n";
+        if (rename(tmpPath.c_str(), path.c_str()) != 0) {
+            Debug(Debug::ERROR) << "Cannot rename " << tmpPath << " to " << path << ": "
+                                << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
-        fclose(empty);
+    } else {
+        const std::string tmp = path + ".w" + SSTR(getpid());
+        FILE *empty = fopen(tmp.c_str(), "wb");
+        if (empty == NULL) {
+            Debug(Debug::ERROR) << "Cannot create edge file " << tmp << ": " << strerror(errno)
+                                << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fclose(empty) != 0 || rename(tmp.c_str(), path.c_str()) != 0) {
+            Debug(Debug::ERROR) << "Cannot publish empty edge file " << path << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 }
 
@@ -122,7 +145,9 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
         // Opened lazily: a worker whose partitions produced nothing for a bucket
         // should not cost a descriptor or an empty file.
         const std::string path = bucketDir(dir, bucket) + "/" + shardId + ".edges";
-        files[bucket] = fopen(path.c_str(), "wb");
+        // Append-and-close per flush, for the same reason as KmerBucketWriter:
+        // one descriptor per bucket would need up to 65536 of them.
+        files[bucket] = fopen(path.c_str(), "ab");
         if (files[bucket] == NULL) {
             Debug(Debug::ERROR) << "Cannot open edge bucket " << path << ": " << strerror(errno)
                                 << "\n";

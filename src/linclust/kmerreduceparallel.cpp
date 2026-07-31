@@ -82,6 +82,15 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
         while (true) {
             const size_t got = fread(block.data(), sizeof(KmerRecord), blockRecords, file);
             if (got == 0) {
+                // A short read is EOF only if nothing went wrong. Treating an I/O
+                // error as EOF silently groups the partition with fewer k-mers,
+                // and the missing edges are indistinguishable from "this k-mer had
+                // no partner" -- a wrong answer with no diagnostic.
+                if (ferror(file)) {
+                    Debug(Debug::ERROR) << "Cannot read k-mer bucket " << shards[i] << ": "
+                                        << strerror(errno) << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
                 break;
             }
             if (filled + got > capacity) {
@@ -211,7 +220,7 @@ void collectRoundEdges(KmerPosition<T, false, true> *grouped, size_t writePos, b
             edge.setRep(static_cast<uint64_t>(rep));
             edge.setMember(static_cast<uint64_t>(member));
             edge.diagonal = static_cast<int16_t>(diagonal);
-            edge.score = static_cast<uint8_t>(std::min<size_t>(count, 255));
+            edge.score = static_cast<uint16_t>(std::min<size_t>(count, 65535));
             edges.push_back(edge);
         }
         i = j;
@@ -224,7 +233,11 @@ bool compareEdge(const CandidateEdge &a, const CandidateEdge &b) {
     if (ra != rb) return ra < rb;
     const uint64_t ma = a.getMember(), mb = b.getMember();
     if (ma != mb) return ma < mb;
-    return a.diagonal < b.diagonal;
+    if (a.diagonal != b.diagonal) return a.diagonal < b.diagonal;
+    // Strand belongs in the key: two opposite-strand edges on the same diagonal
+    // are different alignments, and collapsing them would sum their support.
+    // Only reachable for nucleotide input, which alignparallel rejects today.
+    return a.reverseStrand < b.reverseStrand;
 }
 
 
@@ -317,9 +330,10 @@ uint64_t reducePartition(const std::string &kmerDir,
     for (size_t i = 0; i < edges.size(); i++) {
         if (unique > 0 && edges[i].getRep() == edges[unique - 1].getRep() &&
             edges[i].getMember() == edges[unique - 1].getMember() &&
-            edges[i].diagonal == edges[unique - 1].diagonal) {
-            edges[unique - 1].score = static_cast<uint8_t>(
-                std::min<int>(edges[unique - 1].score + edges[i].score, 255));
+            edges[i].diagonal == edges[unique - 1].diagonal &&
+            edges[i].reverseStrand == edges[unique - 1].reverseStrand) {
+            edges[unique - 1].score = static_cast<uint16_t>(
+                std::min<int>(edges[unique - 1].score + edges[i].score, 65535));
             continue;
         }
         edges[unique] = edges[i];
@@ -433,7 +447,7 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
     while (bucketCount < 65536 && info.dataSize / bucketCount > targetBucketBytes) {
         bucketCount *= 2;
     }
-    const uint64_t bucketSpan = (info.entryCount + bucketCount - 1) / bucketCount;
+    uint64_t bucketSpan = (info.entryCount + bucketCount - 1) / bucketCount;
 
     const std::string edgeManifest = reduceCoordDir + "/edge.info";
     {
@@ -448,6 +462,39 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
             fclose(f);
         }
         lock.unlock();
+    }
+    // Re-read what the manifest actually says and refuse to disagree with it.
+    //
+    // Every worker derives bucketCount from Util::computeMemory(--split-memory-limit),
+    // which with the workflow's default of 0 is *this node's* RAM. A heterogeneous
+    // Slurm array, a restart on a different node, or a later wave would otherwise
+    // route edges into a different bucketing than the run began with -- writing
+    // into r<n> directories createLayout never made. The map already does exactly
+    // this for shuffle.info.
+    {
+        unsigned int fileBucketCount = 0;
+        uint64_t fileBucketSpan = 0;
+        FILE *f = FileUtil::openFileOrDie(edgeManifest.c_str(), "r", true);
+        char name[64];
+        size_t value;
+        while (fscanf(f, "%63s\t%zu\n", name, &value) == 2) {
+            const std::string key = name;
+            if (key == "bucketCount") fileBucketCount = static_cast<unsigned int>(value);
+            else if (key == "bucketSpan") fileBucketSpan = value;
+        }
+        fclose(f);
+        if (fileBucketCount != bucketCount || fileBucketSpan != bucketSpan) {
+            Debug(Debug::ERROR) << "This worker derived " << bucketCount << " edge buckets of "
+                                << bucketSpan << " keys, but " << edgeManifest << " says "
+                                << fileBucketCount << " of " << fileBucketSpan
+                                << ". The run was started with a different --split-memory-limit or "
+                                << "on a node with different memory; edges would be routed into a "
+                                << "different bucketing than the rest of the run. Re-run every "
+                                << "worker of this stage with the same --split-memory-limit.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        bucketCount = fileBucketCount;
+        bucketSpan = fileBucketSpan;
     }
     Debug(Debug::INFO) << "Writing edges into " << bucketCount << " representative-key buckets of "
                        << bucketSpan << " keys\n";
@@ -487,13 +534,24 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         }
     }
 
-    if (waveCount > 1) {
-        // Waves exist only because scratch cannot hold the whole shuffle at once,
-        // so a reduced wave's buckets have to go before the next wave's map runs.
+    {
+        // The k-mer buckets are dead once their partitions have been reduced --
+        // nothing downstream reads them again -- so they go here, at every wave
+        // count. Gating this on waveCount > 1, as it used to be, meant a
+        // single-wave run kept the whole shuffle on disk for the rest of the job,
+        // including all of pass 2: measured at 100M, kmer1 (49.8 GB) and kmer2
+        // (52.9 GB) were both resident at peak, and the shuffle is the largest
+        // intermediate the pipeline writes.
+        //
         // Safe here because drain() returns only once every partition of the wave
         // is recorded done, which means no worker is still reading one. Several
         // workers reach this together, so a file another already unlinked is not
         // an error.
+        // Only the worker that recorded the last completion deletes. drain()
+        // returns true for every worker that observes the queue finished, and a
+        // worker whose lease lapsed could still be inside reducePartition; letting
+        // them all unlink races that reader. Heartbeats make the lapse unlikely,
+        // this makes the deletion single-writer regardless.
         for (unsigned int p = waveFrom; p < waveTo; p++) {
             const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, p);
             for (size_t i = 0; i < shards.size(); i++) {
@@ -504,7 +562,8 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
                 }
             }
         }
-        Debug(Debug::INFO) << "Removed the k-mer buckets of wave " << par.kmerWave << "\n";
+        Debug(Debug::INFO) << "Removed the consumed k-mer buckets"
+                           << (waveCount > 1 ? " of wave " + SSTR(par.kmerWave) : "") << "\n";
     }
 
     Debug(Debug::INFO) << "Worker " << workerId << " wrote " << edgeCount

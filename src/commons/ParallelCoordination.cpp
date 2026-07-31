@@ -366,6 +366,26 @@ int64_t WorkQueue::getDoneCount() {
     return static_cast<int64_t>(header.doneCount);
 }
 
+// True while some item is held under a lease that has not yet expired.
+//
+// drain() uses this to tell "nobody has finished anything for a long time
+// because the run is stuck" from "because one item legitimately takes hours".
+// Heartbeats keep a live holder's expiry in the future, so a lease that is still
+// valid means a worker is still on it.
+bool WorkQueue::hasLiveClaim() {
+    const int64_t now = nowSeconds();
+    lock.lock();
+    bool live = false;
+    for (int64_t i = 0; i < itemCount && live == false; i++) {
+        const Record record = readRecordLocked(i);
+        if (record.state == CLAIMED && static_cast<int64_t>(record.leaseExpiry) > now) {
+            live = true;
+        }
+    }
+    lock.unlock();
+    return live;
+}
+
 bool WorkQueue::allDone() {
     return getDoneCount() >= itemCount;
 }

@@ -28,11 +28,29 @@ KmerPartitioner::KmerPartitioner(unsigned int partitionCount) : partitionCount(p
 
 namespace {
 
+// Resident bytes the reduce needs per byte of k-mer bucket: 26/24 for the input
+// array plus 20/24 for assignGroup's output array is 1.92, and the round-by-round
+// candidate edges take the rest of the headroom.
+const uint64_t REDUCE_MEMORY_FACTOR = 3;
+
+// More waves than this means the budget is wrong, not that the plan is clever.
+const unsigned int MAX_SENSIBLE_WAVES = 64;
+
 uint64_t divideRoundingUp(uint64_t value, uint64_t divisor) {
     return (value + divisor - 1) / divisor;
 }
 
 unsigned int roundUpToPowerOfTwo(uint64_t value) {
+    // Above 2^31 the shift below wraps to 0 and the loop never terminates, which
+    // an extreme --split-memory-limit or --scratch-budget can reach. Nothing here
+    // may legitimately exceed the 16-bit hash space anyway, so refuse early with a
+    // number the caller can act on.
+    if (value > 65536) {
+        Debug(Debug::ERROR) << "Derived a partition or wave count of " << value
+                            << ", far past the 65536 the 16-bit k-mer hash can address. "
+                            << "--split-memory-limit or --scratch-budget is implausibly small.\n";
+        EXIT(EXIT_FAILURE);
+    }
     unsigned int result = 1;
     while (result < value) {
         result <<= 1;
@@ -70,13 +88,36 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
         sizing.waveCount = roundUpToPowerOfTwo(
             std::max<uint64_t>(divideRoundingUp(sizing.totalKmerBytes, available), 1));
     }
+    // A budget only slightly above the persistent footprint leaves a sliver for
+    // the shuffle and derives a wave count in the hundreds -- a ~256x slowdown
+    // presented as a normal run. Refuse instead: at this point the budget is
+    // wrong, not the plan.
+    if (sizing.waveCount > MAX_SENSIBLE_WAVES) {
+        Debug(Debug::ERROR) << "A scratch budget of " << scratchBudgetBytes << " bytes leaves only "
+                            << (scratchBudgetBytes > persistentBytes
+                                    ? scratchBudgetBytes - persistentBytes : 0)
+                            << " bytes for " << sizing.totalKmerBytes << " bytes of k-mers, which "
+                            << "needs " << sizing.waveCount << " extraction waves. Each wave "
+                            << "re-scans every sequence, so this would run roughly "
+                            << sizing.waveCount << "x slower than a single pass. Raise "
+                            << "--scratch-budget above " << MAX_SENSIBLE_WAVES << " waves' worth.\n";
+        EXIT(EXIT_FAILURE);
+    }
     sizing.bytesPerWave = divideRoundingUp(sizing.totalKmerBytes, sizing.waveCount);
 
     if (workerMemoryBytes == 0) {
         sizing.partitionCount = 1;
     } else {
-        sizing.partitionCount =
-            roundUpToPowerOfTwo(divideRoundingUp(sizing.bytesPerWave, workerMemoryBytes));
+        // The reduce does not hold a partition at its on-disk size. It builds a
+        // KmerPosition<T,true,true> array (26 B per 24 B record) and, alongside
+        // it, the KmerPosition<T,false,true> array assignGroup writes into (20 B),
+        // then accumulates candidate edges across all rounds. Sizing P against the
+        // raw bucket bytes therefore overshot resident memory by ~1.9x before the
+        // edges were counted at all: with the workflow's default
+        // --split-memory-limit 0 on a 2 TB node at 1e11 that derived P = 32, a
+        // 1.58 TB partition and ~3 TB of arrays.
+        sizing.partitionCount = roundUpToPowerOfTwo(
+            divideRoundingUp(sizing.bytesPerWave * REDUCE_MEMORY_FACTOR, workerMemoryBytes));
     }
     // Both are powers of two, so this makes the wave count a divisor of P.
     sizing.partitionCount = std::max(sizing.partitionCount, sizing.waveCount);
@@ -145,8 +186,14 @@ void KmerBucketWriter::flush(unsigned int partition) {
     if (files[partition] == NULL) {
         // Opened lazily: with 8192 partitions and a sparse shard, most buckets
         // stay untouched and should not cost a file descriptor or an empty file.
+        // Opened in append mode and closed again after the write (see below).
+        // Holding one descriptor per partition for the life of the writer needs P
+        // of them -- 8192 at the 1e12 sizing -- against a soft limit
+        // FileUtil::fixRlimitNoFile only raises to 8192, so the last partitions
+        // would fail to open. Append is safe because this shard belongs to this
+        // worker alone.
         const std::string path = partitionDir(dir, partition) + "/" + shardId + ".kmers";
-        files[partition] = fopen(path.c_str(), "wb");
+        files[partition] = fopen(path.c_str(), "ab");
         if (files[partition] == NULL) {
             Debug(Debug::ERROR) << "Cannot open bucket " << path << ": " << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
@@ -160,6 +207,9 @@ void KmerBucketWriter::flush(unsigned int partition) {
         EXIT(EXIT_FAILURE);
     }
     buffer.clear();
+    // Released immediately: see the note in flush() above.
+    fclose(files[partition]);
+    files[partition] = NULL;
 }
 
 void KmerBucketWriter::append(unsigned int partition, const KmerRecord &record) {

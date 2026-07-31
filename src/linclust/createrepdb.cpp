@@ -157,6 +157,7 @@ CopyResult copyFlagged(const std::string &srcDb, const std::string &dstDb, const
 #pragma omp parallel num_threads(threads)
     {
         std::vector<char> buf;
+        std::vector<char> span;
         std::vector<DenseIndex::Entry> idxBuf;
         const uint64_t chunk = 4096;
 #pragma omp for schedule(dynamic, 1)
@@ -166,10 +167,42 @@ CopyResult copyFlagged(const std::string &srcDb, const std::string &dstDb, const
             buf.resize(static_cast<size_t>(bytes));
             idxBuf.resize(static_cast<size_t>(stop - start));
             for (uint64_t i = start; i < stop; i++) {
-                readAt(srcData, buf.data() + (offsets[i] - offsets[start]), lengths[i],
-                       srcEntries[i].offset, "source data");
                 idxBuf[i - start].offset = offsets[i];
                 idxBuf[i - start].length = lengths[i];
+            }
+            // Coalesced reads. Representatives are a *subset* of the source, so
+            // one pread per entry meant 353M random reads at 1e9 and made this
+            // stage 4x stock's createsubdb. Consecutive representatives are only a
+            // couple of sequence lengths apart, so a run of them is fetched in one
+            // read and the wanted pieces copied out.
+            //
+            // The run is closed when the bytes read would exceed twice the bytes
+            // actually wanted: coalescing across a sparse region reads the skipped
+            // sequences too, and without a cap a database whose representatives
+            // are thinly spread would read the whole file. That bounds the waste
+            // at 2x while still collapsing dense regions into single reads.
+            uint64_t i = start;
+            while (i < stop) {
+                const uint64_t from = srcEntries[i].offset;
+                uint64_t to = from + lengths[i];
+                uint64_t wanted = lengths[i];
+                uint64_t j = i + 1;
+                while (j < stop) {
+                    const uint64_t end = srcEntries[j].offset + lengths[j];
+                    if (end - from > 2 * (wanted + lengths[j])) {
+                        break;
+                    }
+                    to = end;
+                    wanted += lengths[j];
+                    j++;
+                }
+                span.resize(static_cast<size_t>(to - from));
+                readAt(srcData, span.data(), static_cast<size_t>(to - from), from, "source data");
+                for (uint64_t k = i; k < j; k++) {
+                    memcpy(buf.data() + (offsets[k] - offsets[start]),
+                           span.data() + (srcEntries[k].offset - from), lengths[k]);
+                }
+                i = j;
             }
             writeAt(dstData, buf.data(), static_cast<size_t>(bytes), offsets[start], "database");
             writeAt(dstIdx, idxBuf.data(), idxBuf.size() * sizeof(DenseIndex::Entry),
@@ -228,12 +261,27 @@ int createrepdb(int argc, const char **argv, const Command &command) {
     // subkey -> original key, dense in the sub-key space and in ascending order,
     // so the translation back is a sequential read rather than a lookup structure.
     const std::string mapFile = repDb + ".keymap";
-    FILE *m = FileUtil::openAndDelete(mapFile.c_str(), "wb");
+    const std::string keymapTmp = mapFile + ".tmp";
+    FILE *m = FileUtil::openAndDelete(keymapTmp.c_str(), "wb");
     if (fwrite(keyMap.data(), sizeof(uint64_t), keyMap.size(), m) != keyMap.size()) {
-        Debug(Debug::ERROR) << "Cannot write " << mapFile << "\n";
+        Debug(Debug::ERROR) << "Cannot write " << keymapTmp << "\n";
         EXIT(EXIT_FAILURE);
     }
-    fclose(m);
+    if (fclose(m) != 0) {
+
+        Debug(Debug::ERROR) << "Cannot close " << keymapTmp << ": " << strerror(errno) << "\n";
+
+        EXIT(EXIT_FAILURE);
+
+    }
+
+    // Renamed only once complete: the pass-2 filter gate sizes itself from this
+
+    // file's length, so a truncated one would silently be used as a short,
+
+    // wrong sub-key to original-key map.
+
+    FileUtil::move(keymapTmp.c_str(), mapFile.c_str());
 
     const int dbType = FileUtil::parseDbType(seqDb.c_str());
     FileUtil::writeFile(repDb + ".dbtype", reinterpret_cast<const unsigned char *>(&dbType),

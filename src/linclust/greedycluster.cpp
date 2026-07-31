@@ -56,6 +56,20 @@
 
 #ifdef OPENMP
 #include <omp.h>
+
+// fwrite that fails loudly. Every caller here is building a final result file that
+// the workflow renames into place on success; a short write that goes unnoticed
+// becomes a truncated clustering the next restart treats as finished.
+static void writeAllOrDie(const void *data, size_t bytes, FILE *file, const std::string &path) {
+    if (bytes == 0) {
+        return;
+    }
+    if (fwrite(data, 1, bytes, file) != bytes) {
+        Debug(Debug::ERROR) << "Cannot write " << bytes << " bytes to " << path << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
 #endif
 
 namespace {
@@ -253,13 +267,13 @@ int greedycluster(int argc, const char **argv, const Command &command) {
                 assignedCount++;
             }
             if (buffer.size() > 32 * 1024 * 1024) {
-                fwrite(buffer.data(), 1, buffer.size(), out);
+                writeAllOrDie(buffer.data(), buffer.size(), out, outFile);
                 buffer.clear();
             }
         }
     }
     if (buffer.empty() == false) {
-        fwrite(buffer.data(), 1, buffer.size(), out);
+        writeAllOrDie(buffer.data(), buffer.size(), out, outFile);
         buffer.clear();
     }
 

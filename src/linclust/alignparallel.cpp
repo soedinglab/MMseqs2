@@ -112,7 +112,7 @@ size_t mergePairCopies(std::vector<CandidateEdge> &edges) {
         edges[out] = edges[i];
         edges[out].diagonal = bestDiagonal;
         edges[out].reverseStrand = bestStrand;
-        edges[out].score = static_cast<uint8_t>(std::min(bestTotal, 255));
+        edges[out].score = static_cast<uint16_t>(std::min(bestTotal, 65535));
         out++;
         i = j;
     }
@@ -519,7 +519,7 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                             }
                             // The greedy ranks by alignment score, not k-mer count.
                             edges[e].score =
-                                static_cast<uint8_t>(std::min(aln.bitScore, 255));
+                                static_cast<uint16_t>(std::min(aln.bitScore, 65535));
                             survives[e] = 1;
                             continue;
                         }
@@ -578,7 +578,7 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                                 continue;
                             }
                             edges[e].score =
-                                static_cast<uint8_t>(std::min<uint32_t>(gapped.score1, 255));
+                                static_cast<uint16_t>(std::min<uint32_t>(gapped.score1, 65535));
                             survives[e] = 1;
                         }
                     }

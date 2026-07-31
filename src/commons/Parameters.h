@@ -442,7 +442,8 @@ public:
     size_t chunkSize;                    // Input bytes one createdbparallel work item covers
     std::string keyMapFile;              // alignparallel: sub-key -> original key for the filter gate
     int kmerWave;                        // kmermatcherparallel: which extraction wave to write
-    size_t scratchBudget;                // Scratch ceiling the k-mer wave count is derived from
+    size_t scratchBudget;
+    size_t scratchUsed;                  // Bytes of the budget already occupied when a stage starts
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
@@ -835,6 +836,7 @@ public:
     PARAMETER(PARAM_KMER_WAVE)
     PARAMETER(PARAM_KEY_MAP)
     PARAMETER(PARAM_SCRATCH_BUDGET)
+    PARAMETER(PARAM_SCRATCH_USED)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)

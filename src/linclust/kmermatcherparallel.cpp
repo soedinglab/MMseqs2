@@ -26,6 +26,7 @@
 #include "DBReader.h"
 #include "DenseIndex.h"
 #include "FileUtil.h"
+#include "CandidateEdge.h"
 #include "KmerPartition.h"
 #include "NucleotideMatrix.h"
 #include "ParallelCoordination.h"
@@ -41,6 +42,23 @@
 #include <string>
 
 namespace {
+
+// Every file a sequence database actually occupies, not just its data file.
+// createdbparallel writes the data, the dense index, the text index, the headers
+// with their own two indices, .lookup and .source; sizing against the data file
+// alone undercounts by ~1.64x on real data.
+static uint64_t databaseFootprint(const std::string &db) {
+    static const char *suffixes[] = {"", ".index", ".index.bin", ".dbtype", ".lookup", ".source",
+                                     "_h", "_h.index", "_h.index.bin", "_h.dbtype"};
+    uint64_t total = 0;
+    for (size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
+        const std::string path = db + suffixes[i];
+        if (FileUtil::fileExists(path.c_str())) {
+            total += FileUtil::getFileSize(path);
+        }
+    }
+    return total;
+}
 
 // Work items are contiguous key ranges, so an item is also one contiguous read
 // of the data file. Their size is derived rather than fixed: a fixed size that
@@ -246,11 +264,39 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
 
     const unsigned int kmersPerSequence =
         estimateKmersPerSequence(par, dbType, residues, info.entryCount);
-    // The sequence database shares the scratch budget with the k-mer buckets and
-    // outlives them, so it is not space the shuffle can use.
+
+    // What the shuffle may NOT use, which is everything that is on the scratch
+    // filesystem while it runs and outlives it.
+    //
+    // This used to be `info.dataSize` -- the sequence *data file* alone. Measured
+    // on MGnify, the real database footprint is 1.64x that once the dense index,
+    // the text index, the headers, .lookup and .source are counted, and none of
+    // the pipeline's own output was counted at all. The result was that a 1e11 run
+    // handed the true 100 TB ceiling derived a single wave and peaked at ~186 TB.
+    //
+    // Two corrections. First, prefer a *measured* occupied figure passed by the
+    // caller (--scratch-used): the workflow knows what is already on disk, which
+    // is the only way pass 2 can account for what pass 1 left behind, and is why
+    // one budget knob can now size both passes. Second, reserve the candidate
+    // edges this stage's own reduce will write. Their volume is bounded, not
+    // guessed: a candidate edge needs a k-mer to have found it, so there can be no
+    // more edge records than k-mer records, and each is sizeof(CandidateEdge)
+    // against sizeof(KmerRecord).
+    const uint64_t totalKmerBytes =
+        static_cast<uint64_t>(info.entryCount) * kmersPerSequence * sizeof(KmerRecord);
+    const uint64_t projectedEdgeBytes =
+        totalKmerBytes / sizeof(KmerRecord) * sizeof(CandidateEdge);
+    uint64_t occupied = par.scratchUsed > 0 ? static_cast<uint64_t>(par.scratchUsed)
+                                            : databaseFootprint(seqDb);
+    const uint64_t persistentBytes = occupied + projectedEdgeBytes;
+    if (par.scratchBudget > 0) {
+        Debug(Debug::INFO) << "Scratch budget " << par.scratchBudget << " B; already occupied "
+                           << occupied << " B; reserving " << projectedEdgeBytes
+                           << " B for candidate edges\n";
+    }
     const KmerShuffleSizing sizing =
-        deriveKmerShuffleSizing(info.entryCount, kmersPerSequence, par.scratchBudget, info.dataSize,
-                                Util::computeMemory(par.splitMemoryLimit));
+        deriveKmerShuffleSizing(info.entryCount, kmersPerSequence, par.scratchBudget,
+                                persistentBytes, Util::computeMemory(par.splitMemoryLimit));
     Debug(Debug::INFO) << "K-mer shuffle: " << sizing.partitionCount << " partitions, "
                        << sizing.waveCount << " wave(s), " << sizing.totalKmerBytes
                        << " k-mer bytes, " << sizing.bytesPerPartition << " bytes per partition\n";
