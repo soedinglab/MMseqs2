@@ -251,9 +251,16 @@ static void testLosslessRoundTrip(const std::string &dir) {
 static void testKmerPositionConversion() {
     typedef KmerPosition<short, true, true> Position;
 
+    // The widest id that survives *both* the record's 48-bit field and DBKeyType.
+    // A hardcoded 48-bit constant silently truncates in the default build, where
+    // MMSEQS_INT64_IDS is 0 and DBKeyType is uint32_t, so this check has to be
+    // written against the key width the build actually has.
+    const uint64_t wideId =
+        std::min<uint64_t>(KmerRecord::MAX_ID, static_cast<uint64_t>(DB_KEY_INVALID) - 1);
+
     KmerRecord record;
     record.kmer = 0x0123456789ABCDEFULL;
-    record.setId(999999999999ULL);
+    record.setId(wideId);
     record.pos = 517;
     record.seqLen = 30000;
     for (int i = 0; i < 6; i++) {
@@ -267,7 +274,7 @@ static void testKmerPositionConversion() {
     for (int i = 0; i < 6; i++) {
         adjacencyKept = adjacencyKept && position.getAdjacentSeq(i) == static_cast<unsigned char>(i * 3 + 1);
     }
-    check(position.kmer == record.kmer && static_cast<uint64_t>(position.id) == 999999999999ULL &&
+    check(position.kmer == record.kmer && static_cast<uint64_t>(position.id) == wideId &&
               position.pos == 517,
           "record converts into the KmerPosition assignGroup consumes");
     check(position.getSeqLen() == 30000,

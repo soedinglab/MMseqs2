@@ -56,10 +56,14 @@
 
 #ifdef OPENMP
 #include <omp.h>
+#endif
 
 // fwrite that fails loudly. Every caller here is building a final result file that
 // the workflow renames into place on success; a short write that goes unnoticed
 // becomes a truncated clustering the next restart treats as finished.
+//
+// Outside the OPENMP guard: the callers are not, so a -DREQUIRE_OPENMP=0 build
+// (the "Old compilers" CI task) would not compile with it inside.
 static void writeAllOrDie(const void *data, size_t bytes, FILE *file, const std::string &path) {
     if (bytes == 0) {
         return;
@@ -70,7 +74,6 @@ static void writeAllOrDie(const void *data, size_t bytes, FILE *file, const std:
         EXIT(EXIT_FAILURE);
     }
 }
-#endif
 
 namespace {
 
