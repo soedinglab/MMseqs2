@@ -154,8 +154,19 @@ std::vector<Pair> readBucket(const std::string &prefix, unsigned int bucket) {
         return out;
     }
     const size_t bytes = FileUtil::getFileSize(p);
-    if (bytes == 0 || bytes % sizeof(Pair) != 0) {
+    if (bytes == 0) {
         return out;
+    }
+    if (bytes % sizeof(Pair) != 0) {
+        // Not silently skipped. These buckets are written by this same command a
+        // moment earlier, in whole Pair units, so a partial one means a failed
+        // write or a truncated filesystem -- not something the input can cause.
+        // Returning empty dropped every cluster in the bucket's key range from the
+        // merged output, which is a smaller clustering that still looks valid.
+        Debug(Debug::ERROR) << "Bucket " << p << " is " << bytes << " bytes, not a whole number of "
+                            << sizeof(Pair) << "-byte pairs. It was truncated after this stage "
+                            << "wrote it; remove the working directory and re-run the merge.\n";
+        EXIT(EXIT_FAILURE);
     }
     out.resize(bytes / sizeof(Pair));
     FILE *f = FileUtil::openFileOrDie(p.c_str(), "rb", true);

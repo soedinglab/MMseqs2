@@ -353,9 +353,18 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     const std::string outTsv = par.db3;
     const int threads = std::max(1, par.threads);
 
-    // Sized so one slice of accessions fits the memory budget. An accession is
-    // ~30 bytes plus the std::string that holds it, so 64 bytes per key is a safe
-    // working figure; being wrong only changes how many buckets are used.
+    // Sized so all threads' resident state together fits the memory budget.
+    //
+    // Every thread works a bucket of its own and holds that bucket's accession
+    // slice, so the budget has to be divided by the thread count -- sizing one
+    // slice against the whole budget, as this used to, overran it by exactly the
+    // thread count and turned a 64-thread run into ~18x its --split-memory-limit.
+    //
+    // 192 bytes per key, not 64: an accession is ~30 bytes plus the std::string
+    // that holds it, and pass 3 keeps three of these alive at once -- the slice,
+    // the sorted TranslatedRow vector (which carries the member accession), and
+    // the output buffer being assembled. Being wrong only changes how many buckets
+    // are used.
     uint64_t keyCount = 0;
     {
         LookupCursor probe(lookupFile);
@@ -375,8 +384,11 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     }
     const uint64_t targetBytes =
         std::max<uint64_t>(Util::computeMemory(par.splitMemoryLimit) / 8, 1ULL * 1024 * 1024);
+    const uint64_t bytesPerKey = 192;
+    const uint64_t perThreadBudget =
+        std::max<uint64_t>(targetBytes / static_cast<uint64_t>(threads), 1ULL * 1024 * 1024);
     unsigned int buckets = 1;
-    while (buckets < 65536 && (keyCount / buckets) * 64 > targetBytes) {
+    while (buckets < 65536 && (keyCount / buckets) * bytesPerKey > perThreadBudget) {
         buckets *= 2;
     }
     const uint64_t span = (keyCount + buckets - 1) / buckets;
