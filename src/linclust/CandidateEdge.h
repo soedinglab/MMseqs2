@@ -93,23 +93,6 @@ private:
 };
 
 
-// Writes edges into buckets by *representative key range*.
-//
-// This is the layout the alignment stage needs, and the reason is not obvious:
-// aligning inside the k-mer partition fails because a partition's pairs are
-// scattered over the whole key space, so every partition ends up re-reading the
-// entire sequence database (measured: 52x amplification, see DESIGN_DECISIONS.md
-// §9). Bucketing by representative key gives each align worker a contiguous slice
-// of sequences instead.
-//
-// Two things fall out for free:
-//   - every copy of a pair produced by different k-mer partitions lands in the
-//     same bucket, so the cross-partition duplicates are removed here rather than
-//     paid for in duplicate alignments;
-//   - having all copies together means the per-(pair, diagonal) score
-//     accumulation stock does in its global merge can be reproduced exactly,
-//     instead of approximated per partition.
-//
 // Framing for one flushed run of edges, so a record can be traced to the k-mer
 // partition and the worker that produced it.
 //
@@ -135,6 +118,23 @@ struct __attribute__((__packed__)) EdgeBlockHeader {
     static const uint32_t MAGIC = 0x45444745;  // "EDGE"
 };
 
+// Writes edges into buckets by *representative key range*.
+//
+// This is the layout the alignment stage needs, and the reason is not obvious:
+// aligning inside the k-mer partition fails because a partition's pairs are
+// scattered over the whole key space, so every partition ends up re-reading the
+// entire sequence database (measured: 52x amplification, see DESIGN_DECISIONS.md
+// §9). Bucketing by representative key gives each align worker a contiguous slice
+// of sequences instead.
+//
+// Two things fall out for free:
+//   - every copy of a pair produced by different k-mer partitions lands in the
+//     same bucket, so the cross-partition duplicates are removed here rather than
+//     paid for in duplicate alignments;
+//   - having all copies together means the per-(pair, diagonal) score
+//     accumulation stock does in its global merge can be reproduced exactly,
+//     instead of approximated per partition.
+//
 // One file per (worker, bucket), like the k-mer shards, so no locking is needed.
 class EdgeBucketWriter {
 public:

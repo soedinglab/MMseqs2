@@ -21,6 +21,7 @@
 // The parameter surface is deliberately narrower than `linclust`'s. See the
 // comment on linclustparallelworkflow in Parameters.cpp for why, and the header
 // of data/workflow/linclustparallel.sh for what the stages are.
+
 // A ByteParser value the stages will parse back. `0` means "unset" to every one
 // of them and has no unit; anything else carries an explicit B so it is not read
 // as megabytes.

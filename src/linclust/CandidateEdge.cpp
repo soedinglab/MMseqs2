@@ -158,10 +158,17 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
     // Header then records, as one write each. The header names the producer so a
     // crashed worker's superseded copy can be told apart from a second partition
     // that legitimately produced the same edges (see EdgeBlockHeader).
+    if (currentWorker < 0) {
+        // Refused rather than stamped with a placeholder: worker 0 is a real id,
+        // so an unattributed block would be kept or dropped by coincidence.
+        Debug(Debug::ERROR) << "Edges were appended to " << dir << " before beginPartition() named "
+                            << "the partition and worker producing them.\n";
+        EXIT(EXIT_FAILURE);
+    }
     EdgeBlockHeader header;
     header.magic = EdgeBlockHeader::MAGIC;
     header.partition = currentPartition;
-    header.worker = static_cast<uint32_t>(currentWorker < 0 ? 0 : currentWorker);
+    header.worker = static_cast<uint32_t>(currentWorker);
     header.recordCount = static_cast<uint32_t>(buffer.size());
     if (fwrite(&header, sizeof(EdgeBlockHeader), 1, files[bucket]) != 1) {
         Debug(Debug::ERROR) << "Cannot write the block header of bucket " << bucket << " of " << dir
@@ -254,7 +261,13 @@ size_t EdgeBucketReader::readShard(const std::string &path, const std::vector<in
     while (offset + sizeof(EdgeBlockHeader) <= bytes) {
         EdgeBlockHeader header;
         if (fread(&header, sizeof(EdgeBlockHeader), 1, file) != 1) {
-            break;
+            // The loop only enters with a whole header's worth of bytes left, so
+            // a short read here is an I/O error rather than the end. Treating it
+            // as the end would silently drop the rest of the shard's edges, and
+            // missing edges are indistinguishable from pairs that never matched.
+            Debug(Debug::ERROR) << "Cannot read the block header at byte " << offset << " of edge "
+                                << "shard " << path << ": " << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
         }
         offset += sizeof(EdgeBlockHeader);
         const size_t blockBytes = static_cast<size_t>(header.recordCount) * sizeof(CandidateEdge);
