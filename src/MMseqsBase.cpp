@@ -168,7 +168,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs createdbparallel seq.fasta sequenceDB\n\n"
                 "# Run it from several nodes against the same shared filesystem\n"
                 "srun -N 8 mmseqs createdbparallel seq.fasta sequenceDB --chunk-size 1G\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:fastaFile1> ... <i:fastaFileN> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"fastaFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
                                                            {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
@@ -706,7 +706,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs kmermatcherparallel sequenceDB kmerDir\n\n"
                 "# Run it from several nodes against the same shared filesystem\n"
                 "srun -N 8 mmseqs kmermatcherparallel sequenceDB kmerDir --scratch-budget 100T\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:sequenceDB> <o:kmerDir>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"kmerDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
@@ -718,7 +718,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs kmerreduceparallel sequenceDB kmerDir edgeDir\n\n"
                 "# Run it from several nodes against the same shared filesystem\n"
                 "srun -N 8 mmseqs kmerreduceparallel sequenceDB kmerDir edgeDir\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:sequenceDB> <i:kmerDir> <o:edgeDir>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"kmerDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
@@ -728,7 +728,7 @@ std::vector<Command> baseCommands = {
                 "# Merge the duplicate copies the k-mer partitions produced, align each pair\n"
                 "# once, and write the survivors. Workers claim representative-key buckets.\n"
                 "mmseqs alignparallel sequenceDB edgeDir alnDir --min-seq-id 0.9 -c 0.8\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:sequenceDB> <i:edgeDir> <o:alnDir>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"edgeDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
@@ -739,7 +739,7 @@ std::vector<Command> baseCommands = {
                 "# left-to-right sweep is the exact greedy. Needs two bits per key, not the\n"
                 "# eight bytes per sequence stock's fused clustering keeps resident.\n"
                 "mmseqs greedycluster sequenceDB alnDir clusters.tsv\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:sequenceDB> <i:alnDir> <o:clusterTsv>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"alnDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
@@ -750,19 +750,22 @@ std::vector<Command> baseCommands = {
                 "# per-sequence list array is needed (stock keeps 24 B/sequence of empty\n"
                 "# list headers before storing a single member).\n"
                 "mmseqs mergeclusterparallel sequenceDB pass1.tsv pass2.tsv clusters.tsv\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:sequenceDB> <i:clusterTsv1> ... <i:clusterTsvN> <o:clusterTsv>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfile },
                                          {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
-        {"createrepdb",          createrepdb,          &par.createrepdb,          COMMAND_DATABASE_CREATION,
+        {"createrepdb",          createrepdb,          &par.createrepdb,          COMMAND_HIDDEN,
                 "Build a densely re-keyed representative DB for the next linclust pass",
+                "# An internal stage of linclustparallel, not a general database builder: the\n"
+                "# output carries a dense companion index instead of the usual .index/.lookup,\n"
+                "# so only the parallel linclust stages can read it.\n"
                 "# Representatives keep length order, so sub-key i is the i-th representative\n"
                 "# and the copy is sequential. Writes <repDB>.keymap (sub-key -> original key)\n"
                 "# so the next pass's clustering can be translated back before merging.\n"
                 "mmseqs createrepdb sequenceDB clusters.tsv repDB\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
-                "<i:sequenceDB> <i:clusterTsv> <o:sequenceDB>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <i:clusterTsv> <o:denseSequenceDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                          {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
@@ -772,7 +775,7 @@ std::vector<Command> baseCommands = {
                 "# back before merging. Each key column is translated in its own bucketed\n"
                 "# pass, so the key map is only ever read in contiguous slices.\n"
                 "mmseqs translatecluster pass2.tsv repDB.keymap pass2_orig.tsv\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:clusterTsv> <i:keyMap> <o:clusterTsv>",
                 CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                          {"keyMap", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
@@ -784,7 +787,7 @@ std::vector<Command> baseCommands = {
                 "# key column is translated in its own bucketed pass, and the lookup is read\n"
                 "# sequentially, so nothing per-key is ever resident.\n"
                 "mmseqs translatekeys clusters.tsv sequenceDB.lookup clusters_named.tsv\n",
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:clusterTsv> <i:lookupFile> <o:clusterTsv>",
                 CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                             {"lookupFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },

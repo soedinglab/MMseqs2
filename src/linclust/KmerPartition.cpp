@@ -290,10 +290,16 @@ uint64_t KmerBucketReader::countRecords(const std::string &dir, unsigned int par
     for (size_t i = 0; i < shards.size(); i++) {
         const size_t bytes = FileUtil::getFileSize(shards[i]);
         if (bytes % sizeof(KmerRecord) != 0) {
-            Debug(Debug::ERROR) << "Bucket " << shards[i] << " is " << bytes
-                                << " bytes, not a whole number of k-mer records. "
-                                << "It was probably written by an interrupted worker.\n";
-            EXIT(EXIT_FAILURE);
+            // Counted down to the last whole record rather than refused. A torn
+            // tail is exactly what an interrupted worker leaves, and the map
+            // redoes that item into a *different* shard, so the records are not
+            // lost -- but the torn shard stays on disk, and making it fatal meant
+            // every later reduce of that partition died on it forever, with no
+            // recovery but deleting the file by hand. readPartitionAsPositions
+            // already stops at the last whole record for the same reason.
+            Debug(Debug::WARNING) << "Bucket " << shards[i] << " ends mid-record at " << bytes
+                                  << " bytes, as an interrupted worker leaves it; reading the "
+                                  << (bytes / sizeof(KmerRecord)) << " whole records it holds.\n";
         }
         total += bytes / sizeof(KmerRecord);
     }

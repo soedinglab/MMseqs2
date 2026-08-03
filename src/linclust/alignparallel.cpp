@@ -120,13 +120,6 @@ size_t mergePairCopies(std::vector<CandidateEdge> &edges) {
     return out;
 }
 
-// Which worker's edges count for each k-mer partition.
-//
-// The reduce's work queue is the authority: complete() keeps the first worker to
-// record an item done, so exactly one is named per partition, and any block from
-// another worker is a copy left by one that died before recording it. One queue
-// per extraction wave, and wave w holds the partitions after all earlier waves',
-// so appending them in wave order indexes by partition directly.
 // Which worker's edges count, per k-mer partition.
 //
 // A partition redone after a crash leaves the dead worker's edges on disk as well
@@ -408,7 +401,7 @@ int alignparallel(int argc, const char **argv, const Command &command) {
             readBucket(edgeDir, static_cast<unsigned int>(bucket), reduceAuthority, edges);
             const size_t raw = edges.size();
             if (raw == 0) {
-                EdgeWriter empty(EdgeWriter::partitionPath(alnDir, static_cast<unsigned int>(bucket)));
+                EdgeWriter empty(EdgeWriter::partitionPath(alnDir, static_cast<unsigned int>(bucket)), workerId);
                 empty.close();
                 return;
             }
@@ -603,7 +596,7 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                 }
             }
 
-            EdgeWriter writer(EdgeWriter::partitionPath(alnDir, static_cast<unsigned int>(bucket)));
+            EdgeWriter writer(EdgeWriter::partitionPath(alnDir, static_cast<unsigned int>(bucket)), workerId);
             size_t kept = 0;
             for (size_t i = 0; i < edges.size(); i++) {
                 if (survives[i]) {

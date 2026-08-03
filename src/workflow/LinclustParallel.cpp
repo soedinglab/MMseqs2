@@ -34,12 +34,32 @@ void setLinclustParallelWorkflowDefaults(Parameters *p) {
     p->covMode = Parameters::COV_MODE_TARGET;
     p->evalThr = 0.001;
     p->seqIdThr = 0.9;
+    // As linclust does (Linclust.cpp:18). Without it the alignment downgrades to
+    // SCORE_COV at --min-seq-id 0, where stock stays SCORE_COV_SEQID.
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
 }
 
 int linclustparallel(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinclustParallelWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, 0);
+
+    // Only the coverage modes whose clustering this pipeline actually implements.
+    //
+    // For a symmetric --cov-mode, linclust switches to SET_COVER *and* enables the
+    // count table's extra grouping rounds (Linclust.cpp:91-109). greedycluster
+    // implements only the length-ordered greedy and the reduce runs no count-table
+    // rounds, so accepting mode 0 would apply this pipeline's thresholds to a
+    // different algorithm and return a silently different clustering -- measured
+    // at 101 clusters against stock's 117 on a 389-sequence input, exit 0.
+    if (par.covMode != Parameters::COV_MODE_TARGET && par.covMode != Parameters::COV_MODE_QUERY) {
+        Debug(Debug::ERROR) << "--cov-mode " << par.covMode << " is not supported.\n"
+                            << "linclust selects SET_COVER clustering and the count-table grouping "
+                            << "rounds for symmetric coverage modes; this pipeline implements "
+                            << "neither, so the result would differ from linclust without saying "
+                            << "so. Use --cov-mode 1 (target) or 2 (query).\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     std::string tmpDir = par.db3;
     std::string hash =
@@ -52,9 +72,13 @@ int linclustparallel(int argc, const char **argv, const Command &command) {
     par.filenames.push_back(tmpDir);
 
     CommandCaller cmd;
-    // --runner, not --mpi-runner: this only has to start one worker per node, and
-    // the workers coordinate through files rather than communicating.
-    cmd.addVariable("RUNNER", par.workerRunner.c_str());
+    // WORKER_RUNNER, not RUNNER: ten existing workflows set RUNNER from the *MPI*
+    // --mpi-runner, and Parameters.cpp seeds par.runner from getenv("RUNNER"), so
+    // reusing the name would hand every stage sub-process an MPI runner it never
+    // asked for. --runner itself is separate from --mpi-runner because it only has
+    // to start one worker per node; the workers coordinate through files.
+    cmd.addVariable("WORKER_RUNNER", par.workerRunner.c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("THREADS", SSTR(par.threads).c_str());
     cmd.addVariable("MIN_SEQ_ID", SSTR(par.seqIdThr).c_str());
     cmd.addVariable("COV", SSTR(par.covThr).c_str());

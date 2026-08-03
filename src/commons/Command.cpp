@@ -55,8 +55,11 @@ std::vector<int> DbValidator::nuclAaDb = {Parameters::DBTYPE_NUCLEOTIDES, Parame
 std::vector<int> DbValidator::alignmentDb = {Parameters::DBTYPE_ALIGNMENT_RES};
 std::vector<int> DbValidator::directory = {Parameters::DBTYPE_DIRECTORY};
 std::vector<int> DbValidator::flatfile = {Parameters::DBTYPE_FLATFILE};
-std::vector<int> DbValidator::flatfileAndSequenceDb = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_INDEX_DB,
-                                                      Parameters::DBTYPE_NUCLEOTIDES, Parameters::DBTYPE_HMM_PROFILE,
+// A FASTA to build from, or an amino-acid database already built. Deliberately not
+// index or profile databases, which the parallel linclust stages cannot read, and
+// not nucleotides, which its align stage rejects -- advertising those only moves
+// the failure later into the run.
+std::vector<int> DbValidator::flatfileAndSequenceDb = {Parameters::DBTYPE_FLATFILE,
                                                       Parameters::DBTYPE_AMINO_ACIDS};
 std::vector<int> DbValidator::flatfileAndStdin = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_STDIN};
 std::vector<int> DbValidator::flatfileStdinAndGeneric = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_STDIN, Parameters::DBTYPE_GENERIC_DB};

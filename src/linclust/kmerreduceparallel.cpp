@@ -78,7 +78,19 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
     std::vector<KmerRecord> block(blockRecords);
     size_t filled = 0;
     for (size_t i = 0; i < shards.size(); i++) {
-        FILE *file = FileUtil::openFileOrDie(shards[i].c_str(), "rb", true);
+        // Not openFileOrDie: a worker whose lease lapsed can still be here while
+        // the workers that finished the wave unlink its shards. Its results are
+        // discarded by block header regardless, so the shard vanishing under it is
+        // a race it should survive rather than a reason to fail the whole stage.
+        FILE *file = fopen(shards[i].c_str(), "rb");
+        if (file == NULL) {
+            if (errno == ENOENT) {
+                continue;
+            }
+            Debug(Debug::ERROR) << "Cannot open k-mer bucket " << shards[i] << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         while (true) {
             const size_t got = fread(block.data(), sizeof(KmerRecord), blockRecords, file);
             if (got == 0) {
@@ -553,12 +565,12 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         // one. Every worker that observes the queue finished reaches this and
         // unlinks, hence the ENOENT tolerance below.
         //
-        // The one reader this does not account for is a worker whose lease lapsed
-        // while it was still inside reducePartition: its item was redone and
-        // recorded by someone else, so the queue reads finished while it is still
-        // opening shards. Its own edges are already discarded by block header, so
-        // the outcome is a spurious open failure rather than a wrong answer, and
-        // the heartbeat makes a lapse unlikely to begin with.
+        // A worker whose lease lapsed while still inside reducePartition can be
+        // reading a shard as another unlinks it. That costs nothing: its item was
+        // redone and recorded by someone else, so its edges are discarded by block
+        // header anyway. What it must not do is turn into a stage failure, so
+        // readPartitionAsPositions treats a shard that disappears under it as
+        // empty rather than as an error.
         for (unsigned int p = waveFrom; p < waveTo; p++) {
             const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, p);
             for (size_t i = 0; i < shards.size(); i++) {

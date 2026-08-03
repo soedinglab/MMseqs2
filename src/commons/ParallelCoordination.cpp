@@ -195,21 +195,42 @@ void WorkQueue::initialiseLocked() {
                                 << ". Remove the coordination directory to start over.\n";
             EXIT(EXIT_FAILURE);
         }
+        // The records, not the counter, are the truth. completeLocked marks an item
+        // DONE and then increments doneCount as two separate writes, so a node lost
+        // between them leaves the count one short -- and since nothing is then
+        // claimable and allDone() never becomes true, drain() would report the stage
+        // stalled on every restart, permanently. Recounting once per open costs a
+        // single bulk read and makes that unreachable.
+        std::vector<Record> records;
+        readRecordsLocked(records);
+        uint64_t done = 0;
+        for (size_t i = 0; i < records.size(); i++) {
+            if (records[i].state == DONE) {
+                done++;
+            }
+        }
+        if (done != header.doneCount) {
+            Debug(Debug::WARNING) << "Work queue " << path << " recorded " << header.doneCount
+                                  << " completed items but holds " << done
+                                  << "; repairing the count from the records.\n";
+            header.doneCount = done;
+            writeHeaderLocked(header);
+            fsync(lock.getFd());
+        }
         return;
     }
-
-    Header fresh;
-    memset(&fresh, 0, sizeof(fresh));
-    fresh.magic = MAGIC;
-    fresh.version = VERSION;
-    fresh.itemCount = static_cast<uint64_t>(itemCount);
-    fresh.doneCount = 0;
-    fresh.nextHint = 0;
-    writeHeaderLocked(fresh);
 
     // Zero-fill the record array so every later access is a plain offset read
     // rather than a short read off the end of a sparse file. PENDING is state 0,
     // so zeroing is also the correct initial state.
+    //
+    // Records first, header last. The header is what makes the file look like a
+    // queue, so writing it first meant a death during the zero-fill left a file
+    // that passed the magic and itemCount checks above over a record array that
+    // was still short -- every later claim() then read past EOF and exited, for
+    // every worker, forever, with no recovery but deleting the directory by hand.
+    // The window is one pwrite for the linclust queues but ~100 for
+    // createdbparallel at 1e11.
     const size_t batchSize = 65536;
     Record *blank = new Record[batchSize];
     memset(blank, 0, batchSize * sizeof(Record));
@@ -223,6 +244,16 @@ void WorkQueue::initialiseLocked() {
         }
     }
     delete[] blank;
+    fsync(lock.getFd());
+
+    Header fresh;
+    memset(&fresh, 0, sizeof(fresh));
+    fresh.magic = MAGIC;
+    fresh.version = VERSION;
+    fresh.itemCount = static_cast<uint64_t>(itemCount);
+    fresh.doneCount = 0;
+    fresh.nextHint = 0;
+    writeHeaderLocked(fresh);
     fsync(lock.getFd());
 }
 
@@ -253,6 +284,19 @@ WorkQueue::Record WorkQueue::readRecordLocked(int64_t index) {
     return record;
 }
 
+void WorkQueue::readRecordsLocked(std::vector<Record> &out) {
+    out.resize(static_cast<size_t>(itemCount));
+    if (itemCount == 0) {
+        return;
+    }
+    const size_t bytes = static_cast<size_t>(itemCount) * sizeof(Record);
+    if (preadFully(lock.getFd(), &out[0], bytes, recordOffset(0)) != static_cast<ssize_t>(bytes)) {
+        Debug(Debug::ERROR) << "Could not read the " << itemCount << " records of work queue "
+                            << path << ": " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 void WorkQueue::writeRecordLocked(int64_t index, const Record &record) {
     if (pwriteFully(lock.getFd(), &record, sizeof(record), recordOffset(index)) < 0) {
         Debug(Debug::ERROR) << "Could not write work queue record " << index << " in " << path
@@ -267,9 +311,12 @@ int64_t WorkQueue::claim(int64_t workerId, int64_t leaseSeconds) {
     Header header = readHeaderLocked();
     const int64_t now = nowSeconds();
 
+    std::vector<Record> records;
+    readRecordsLocked(records);
+
     int64_t firstUnfinished = -1;
     for (int64_t index = static_cast<int64_t>(header.nextHint); index < itemCount; index++) {
-        Record record = readRecordLocked(index);
+        Record record = records[static_cast<size_t>(index)];
         if (record.state == DONE) {
             continue;
         }
@@ -375,9 +422,11 @@ int64_t WorkQueue::getDoneCount() {
 bool WorkQueue::hasLiveClaim() {
     const int64_t now = nowSeconds();
     lock.lock();
+    std::vector<Record> records;
+    readRecordsLocked(records);
     bool live = false;
     for (int64_t i = 0; i < itemCount && live == false; i++) {
-        const Record record = readRecordLocked(i);
+        const Record &record = records[static_cast<size_t>(i)];
         if (record.state == CLAIMED && static_cast<int64_t>(record.leaseExpiry) > now) {
             live = true;
         }

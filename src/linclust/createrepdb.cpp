@@ -275,20 +275,24 @@ int createrepdb(int argc, const char **argv, const Command &command) {
 
     }
 
-    // Renamed only once complete: the pass-2 filter gate sizes itself from this
-
-    // file's length, so a truncated one would silently be used as a short,
-
-    // wrong sub-key to original-key map.
-
-    FileUtil::move(keymapTmp.c_str(), mapFile.c_str());
-
     const int dbType = FileUtil::parseDbType(seqDb.c_str());
     FileUtil::writeFile(repDb + ".dbtype", reinterpret_cast<const unsigned char *>(&dbType),
                         sizeof(int));
     const int hdrType = Parameters::DBTYPE_GENERIC_DB;
     FileUtil::writeFile(repDb + "_h.dbtype", reinterpret_cast<const unsigned char *>(&hdrType),
                         sizeof(int));
+
+    // The key map is renamed last, after the .dbtype files, because the workflow
+    // guards this whole stage on its existence. Publishing it first meant a death
+    // in the window before the .dbtype files were written left a marker saying the
+    // stage was finished over a database that could not be opened -- and every
+    // restart then skipped the stage and failed in the map, permanently. This is
+    // the same last-write-wins sentinel rule createdbparallel uses.
+    //
+    // The rename is also what makes the map itself safe to publish: the pass-2
+    // filter gate sizes itself from this file's length, so a truncated one would
+    // silently be used as a short, wrong sub-key to original-key map.
+    FileUtil::move(keymapTmp.c_str(), mapFile.c_str());
 
     Debug(Debug::INFO) << "Wrote " << repDb << ": " << repCount << " sequences, " << seq.dataBytes
                        << " data bytes, longest " << seq.maxLen << "\n";

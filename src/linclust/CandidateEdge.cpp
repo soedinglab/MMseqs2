@@ -11,14 +11,40 @@
 #include <cstring>
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+
+namespace {
+
+// Makes a rename durable. Renaming into place is atomic against other readers but
+// not against losing the node: the directory entry lives in the parent, so without
+// this the file can come back missing or empty after a crash the work queue has
+// already recorded as a completed item.
+void syncParentDirectory(const std::string &path) {
+    const size_t slash = path.find_last_of('/');
+    const std::string dir = slash == std::string::npos ? std::string(".") : path.substr(0, slash);
+    const int fd = open(dir.c_str(), O_RDONLY);
+    if (fd < 0) {
+        Debug(Debug::ERROR) << "Cannot open " << dir << " to flush it: " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (fsync(fd) != 0) {
+        Debug(Debug::ERROR) << "Cannot flush " << dir << ": " << strerror(errno) << "\n";
+        close(fd);
+        EXIT(EXIT_FAILURE);
+    }
+    close(fd);
+}
+
+}  // namespace
 
 std::string EdgeWriter::partitionPath(const std::string &dir, unsigned int partition) {
     return dir + "/p" + SSTR(partition) + ".edges";
 }
 
-EdgeWriter::EdgeWriter(const std::string &path, size_t bufferRecords)
-    : path(path), file(NULL), bufferRecords(bufferRecords), edgeCount(0), closed(false) {
+EdgeWriter::EdgeWriter(const std::string &path, int64_t workerId, size_t bufferRecords)
+    : path(path), workerId(workerId), file(NULL), bufferRecords(bufferRecords), edgeCount(0),
+      closed(false) {
     buffer.reserve(bufferRecords);
 }
 
@@ -38,7 +64,14 @@ void EdgeWriter::flush() {
         // whole number of records and pass every downstream integrity check.
         // rename(2) is atomic, so the loser simply replaces the winner with an
         // equally complete file.
-        tmpPath = path + ".w" + SSTR(getpid());
+        //
+        // The worker id, not getpid(): pids are unique per node, and this path is
+        // on a shared filesystem. Two workers on two nodes drawing the same pid --
+        // routine across a homogeneous allocation -- would open the same "wb" path
+        // and truncate each other, publishing a file with a hole of zero-filled
+        // edges that every downstream size check still accepts. The bucket writers
+        // alongside this one already key their shards on the worker id.
+        tmpPath = path + ".w" + SSTR(workerId);
         file = fopen(tmpPath.c_str(), "wb");
         if (file == NULL) {
             Debug(Debug::ERROR) << "Cannot open edge file " << tmpPath << ": " << strerror(errno)
@@ -74,6 +107,18 @@ void EdgeWriter::close() {
         // A partition that produced no edge still gets an empty file, so a reader
         // can tell "this partition was reduced and had nothing" from "this
         // partition was never reduced".
+        //
+        // fsync before the rename, and the directory after it, because the work
+        // queue that vouches for this file *is* fsynced when the item is completed.
+        // Without this the durability runs the wrong way round: a node lost after
+        // the rename can replay the metadata without the data extents, leaving a
+        // zero-filled bucket that the queue records as DONE, so nobody redoes it
+        // and greedycluster reads it as "no edges" in silence.
+        if (fflush(file) != 0 || fsync(fileno(file)) != 0) {
+            Debug(Debug::ERROR) << "Cannot flush edge file " << tmpPath << ": " << strerror(errno)
+                                << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         if (fclose(file) != 0) {
             Debug(Debug::ERROR) << "Cannot close edge file " << tmpPath << ": " << strerror(errno)
                                 << "\n";
@@ -85,8 +130,9 @@ void EdgeWriter::close() {
                                 << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
+        syncParentDirectory(path);
     } else {
-        const std::string tmp = path + ".w" + SSTR(getpid());
+        const std::string tmp = path + ".w" + SSTR(workerId);
         FILE *empty = fopen(tmp.c_str(), "wb");
         if (empty == NULL) {
             Debug(Debug::ERROR) << "Cannot create edge file " << tmp << ": " << strerror(errno)
@@ -98,6 +144,7 @@ void EdgeWriter::close() {
                                 << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
+        syncParentDirectory(path);
     }
 }
 
@@ -131,10 +178,15 @@ EdgeBucketWriter::EdgeBucketWriter(const std::string &dir, unsigned int bucketCo
     edgesPerBuffer = std::max<size_t>(perBucket, 64);
     buffers.resize(bucketCount);
     files.assign(bucketCount, NULL);
+    written.assign(bucketCount, false);
 }
 
 EdgeBucketWriter::~EdgeBucketWriter() {
     close();
+}
+
+std::string EdgeBucketWriter::shardPath(unsigned int bucket) const {
+    return bucketDir(dir, bucket) + "/" + shardId + ".edges";
 }
 
 void EdgeBucketWriter::flush(unsigned int bucket) {
@@ -145,7 +197,7 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
     if (files[bucket] == NULL) {
         // Opened lazily: a worker whose partitions produced nothing for a bucket
         // should not cost a descriptor or an empty file.
-        const std::string path = bucketDir(dir, bucket) + "/" + shardId + ".edges";
+        const std::string path = shardPath(bucket);
         // Append-and-close per flush, for the same reason as KmerBucketWriter:
         // one descriptor per bucket would need up to 65536 of them.
         files[bucket] = fopen(path.c_str(), "ab");
@@ -180,6 +232,17 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
                             << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
+    // Closed here, not held until close(): with up to 65536 buckets against the
+    // 8192 descriptors fixRlimitNoFile raises to, keeping one open per bucket runs
+    // the process out of descriptors partway through the reduce. This is what the
+    // comment above the open has always claimed; only the fclose was missing.
+    if (fclose(files[bucket]) != 0) {
+        Debug(Debug::ERROR) << "Cannot close edge bucket " << bucket << " of " << dir << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    files[bucket] = NULL;
+    written[bucket] = true;
     buffer.clear();
 }
 
@@ -206,10 +269,33 @@ void EdgeBucketWriter::append(unsigned int bucket, const CandidateEdge &edge) {
 void EdgeBucketWriter::flushAll() {
     for (unsigned int b = 0; b < bucketCount; b++) {
         flush(b);
-        if (files[b] != NULL && fflush(files[b]) != 0) {
-            Debug(Debug::ERROR) << "Cannot flush edge bucket " << b << ": " << strerror(errno) << "\n";
+    }
+    // Then make what was written durable, before the caller marks the work item
+    // done. The queue fsyncs its own completion record, so without this the record
+    // that an item finished outlives the data it vouches for: a node lost here
+    // brings the shard back short or zero-filled, and because the item reads DONE
+    // nobody redoes it.
+    //
+    // Once per item rather than once per flush -- a flush is a few hundred KB at
+    // large bucket counts, and syncing each would dominate the stage.
+    for (unsigned int b = 0; b < bucketCount; b++) {
+        if (written[b] == false) {
+            continue;
+        }
+        const std::string path = shardPath(b);
+        const int fd = ::open(path.c_str(), O_WRONLY | O_APPEND);
+        if (fd < 0 || fsync(fd) != 0) {
+            Debug(Debug::ERROR) << "Cannot flush edge bucket " << path << " to disk: "
+                                << strerror(errno) << "\n";
+            if (fd >= 0) {
+                ::close(fd);
+            }
             EXIT(EXIT_FAILURE);
         }
+        ::close(fd);
+        // The shard's own directory, because a shard created during this item is
+        // only reachable once its directory entry is durable too.
+        syncParentDirectory(path);
     }
 }
 
@@ -220,13 +306,6 @@ void EdgeBucketWriter::close() {
     closed = true;
     for (unsigned int b = 0; b < bucketCount; b++) {
         flush(b);
-        if (files[b] != NULL) {
-            if (fclose(files[b]) != 0) {
-                Debug(Debug::ERROR) << "Cannot close edge bucket " << b << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            files[b] = NULL;
-        }
     }
 }
 

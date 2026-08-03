@@ -31,6 +31,7 @@
 #include "FastSort.h"
 #include "FileUtil.h"
 #include "KSeqWrapper.h"
+#include "KmerPartition.h"
 #include "LengthRankedPlan.h"
 #include "ParallelCoordination.h"
 #include "Parameters.h"
@@ -421,20 +422,33 @@ void allocateFile(const std::string &path, size_t size) {
 // Runs a queue to completion with every thread of this worker claiming its own
 // items. Leases mean a worker that dies mid-item only delays that item; another
 // worker picks it up once the lease expires.
-// The claim is recorded against the *process*, not the thread, because that is
-// the unit that dies: if this worker is killed, every item its threads held must
-// become re-claimable together once the lease expires. Passing a thread index
-// here instead would also make identities collide across worker processes, since
-// every process numbers its threads from zero.
+//
+// Every thread drains the queue, so each needs an id of its own.
+//
+// claim()'s lease-expiry test and renew()'s ownership test are both keyed on
+// (item, worker). With one id shared by all threads of a process, a thread whose
+// lease lapsed could have its item re-claimed by a *sibling* thread, and the first
+// thread's heartbeat would then keep renewing a record the sibling now owns --
+// both running the same item with the queue providing no exclusion at all. Only
+// the idempotence of the bodies here made that harmless, which is not a property
+// to rely on silently.
+//
+// workerId * threads + threadNum is unique across the run because worker ids come
+// from a shared counter and every process uses the same thread count.
 template <typename Body>
 void runQueue(WorkQueue &queue, int threads, int64_t workerId, Body body) {
     bool stalled = false;
 #pragma omp parallel num_threads(threads)
     {
+        int threadNum = 0;
+#ifdef OPENMP
+        threadNum = omp_get_thread_num();
+#endif
+        const int64_t threadWorkerId = workerId * static_cast<int64_t>(threads) + threadNum;
         // drain() rather than a plain claim loop: it goes back to claiming after
         // waiting, so items abandoned by a crashed worker are picked up once their
         // leases expire instead of being waited on by everyone forever.
-        if (queue.drain(workerId, body) == false) {
+        if (queue.drain(threadWorkerId, body) == false) {
 #pragma omp critical
             stalled = true;
         }
@@ -464,6 +478,27 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
         if (FileUtil::directoryExists(filenames[i].c_str()) == true) {
             Debug(Debug::ERROR) << "File " << filenames[i] << " is a directory\n";
             EXIT(EXIT_FAILURE);
+        }
+        // Named here rather than left to the planner. Compressed input is read as
+        // plain text, finds no '>' and plans zero sequences, so the run used to die
+        // several stages later with "The input files have no entry" -- true, and
+        // useless. createdb decompresses; this cannot, because both passes address
+        // the file by byte offset and a gzip stream has no seekable record
+        // boundaries.
+        unsigned char magic[2] = {0, 0};
+        FILE *probe = fopen(filenames[i].c_str(), "rb");
+        if (probe != NULL) {
+            const size_t got = fread(magic, 1, sizeof(magic), probe);
+            fclose(probe);
+            if (got == sizeof(magic)
+                    && ((magic[0] == 0x1f && magic[1] == 0x8b)
+                        || (magic[0] == 'B' && magic[1] == 'Z'))) {
+                Debug(Debug::ERROR) << filenames[i] << " is compressed, which this command cannot "
+                                    << "read: both passes address the input by byte offset, and a "
+                                    << "compressed stream has no seekable record boundaries. "
+                                    << "Decompress it first.\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
     }
 
@@ -518,6 +553,26 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             const LengthRankedTotals totals = buildLengthRankedPlan(histograms, plans);
             if (totals.seqCount == 0) {
                 Debug(Debug::ERROR) << "The input files have no entry\n";
+                EXIT(EXIT_FAILURE);
+            }
+            // Refused rather than wrapped. Keys are dense, so the last one is
+            // seqCount - 1, and two ceilings apply: DBKeyType, which is a uint32_t
+            // unless the build sets MMSEQS_INT64_IDS -- the CMake default is 0 --
+            // and the 48-bit id field of KmerRecord. Past either, distinct
+            // sequences alias to one key and the reduce groups unrelated sequences
+            // together, silently. The 32-bit ceiling bites three orders of
+            // magnitude below the scale this command exists for, so it is worth
+            // saying which limit was hit.
+            const uint64_t keyCeiling =
+                std::min<uint64_t>(KmerRecord::MAX_ID, static_cast<uint64_t>(DB_KEY_INVALID) - 1);
+            if (totals.seqCount - 1 > keyCeiling) {
+                Debug(Debug::ERROR)
+                    << "The input holds " << totals.seqCount << " sequences, past the "
+                    << (keyCeiling + 1) << " this build can key.\n"
+                    << (static_cast<uint64_t>(DB_KEY_INVALID) - 1 < KmerRecord::MAX_ID
+                            ? "Rebuild with -DMMSEQS_INT64_IDS=1; the default build uses 32-bit "
+                              "database keys.\n"
+                            : "The k-mer record carries a 48-bit id, which is the hard limit.\n");
                 EXIT(EXIT_FAILURE);
             }
             for (size_t i = 0; i < plans.size(); i++) {

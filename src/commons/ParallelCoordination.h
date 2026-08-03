@@ -258,6 +258,12 @@ private:
     Header readHeaderLocked();
     void writeHeaderLocked(const Header &header);
     Record readRecordLocked(int64_t index);
+    // The whole record array in one read, for the scans that would otherwise issue
+    // itemCount separate 16-byte preads while holding the lock. On a shared
+    // filesystem each of those is a cross-node round trip, and at P = 8192 with
+    // every idle worker polling every 5 s they crowd out the heartbeat renewals
+    // that keep live workers' leases from lapsing.
+    void readRecordsLocked(std::vector<Record> &out);
     void writeRecordLocked(int64_t index, const Record &record);
     void completeLocked(int64_t index, int64_t workerId);
 

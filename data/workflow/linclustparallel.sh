@@ -7,7 +7,7 @@
 # stage maps onto a Slurm array job and workers may join late, die, or be
 # restarted.
 #
-#   RUNNER="srun -n 64" ./linclustparallel.sh input.fasta clusters.tsv tmp
+#   WORKER_RUNNER="srun -n 64" ./linclustparallel.sh input.fasta clusters.tsv tmp
 #
 # Two things about this script are load-bearing and should not be "simplified":
 #
@@ -34,8 +34,11 @@
 #     half-written file is never mistaken for a finished one. Redoing one costs
 #     about an hour at 1e11, comfortably inside a 24 h walltime.
 [ -z "$MMSEQS" ] && MMSEQS=mmseqs
-[ -z "$RUNNER" ] && RUNNER=""
-[ -z "$THREADS" ] && THREADS=$(nproc 2>/dev/null || echo 8)
+# WORKER_RUNNER, not RUNNER: RUNNER already means the MPI runner to ten other
+# workflows and to Parameters.cpp, which seeds par.runner from it.
+[ -z "$WORKER_RUNNER" ] && WORKER_RUNNER=""
+# getconf, not nproc: nproc is GNU-only and absent on macOS/BSD.
+[ -z "$THREADS" ] && THREADS=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8)
 [ -z "$MIN_SEQ_ID" ] && MIN_SEQ_ID=0.9
 [ -z "$COV" ] && COV=0.8
 [ -z "$COV_MODE" ] && COV_MODE=1
@@ -53,13 +56,25 @@ fail() { echo "Error: $1"; exit 1; }
 # and sizing it as though the filesystem were empty is what made a 1e11 run derive
 # a single wave and then peak at ~1.9x its ceiling. Measuring beats modelling here
 # -- it needs no per-stage accounting and stays right when the pipeline changes.
+#
+# du -sk rather than -sb: -b is GNU-only. Kibibytes are ample precision against a
+# budget in terabytes. "$DB"* rather than "$DB" so the index, .index.bin, .lookup
+# and headers are counted -- $DB is a prefix, not a path, and at 1e11 the index
+# alone is over a terabyte of what this is meant to measure. printf "%.0f" keeps
+# awk from rendering large sums in scientific notation, which --scratch-used
+# would reject.
 scratchUsed() {
-    du -sb "$TMP" "$DB" 2>/dev/null | awk '{s += $1} END {print s + 0 "B"}'
+    du -sk "$TMP" "$DB"* 2>/dev/null \
+        | awk '{s += $1} END {printf "%.0fB\n", s * 1024}'
 }
 
 # Deletes an intermediate whose consumers have all finished. Nothing downstream
 # reopens these, and they are the bulk of peak scratch: at 100M the candidate
 # edges alone are 21 GB and the pass-1 alignments 3 GB.
+#
+# KEEP_INTERMEDIATE=1 suppresses it. Env-only and deliberately not a parameter:
+# it exists to inspect a run's intermediates while debugging, and keeping them
+# breaks the scratch budget the run was sized against.
 dropIntermediate() {
     [ -n "$KEEP_INTERMEDIATE" ] && return 0
     rm -rf "$@"
@@ -77,7 +92,10 @@ dropIntermediate() {
 # The alignment does *not* run per wave. Waves partition k-mer space while edges
 # are bucketed by representative, so every wave's surviving edges land in the same
 # buckets and the align runs once, afterwards, over their union.
-waveCount() { awk '$1 == "waveCount" { print $2 }' "$1/coord/shuffle.info"; }
+# `|| true` so a missing or unreadable manifest reaches the check below rather than
+# aborting the script under `sh -e` with awk's own error, which is what used to
+# happen and made the friendly message unreachable.
+waveCount() { awk '$1 == "waveCount" { print $2 }' "$1/coord/shuffle.info" 2>/dev/null || true; }
 
 mapReduceWaves() {
     # $1 sequence DB, $2 k-mer dir, $3 edge dir, $4... extra map arguments
@@ -85,11 +103,11 @@ mapReduceWaves() {
     # shellcheck disable=SC2086
     _used=$(scratchUsed)
     # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" kmermatcherparallel "$_db" "$_kmer" $KMER_COMMON "$@" --kmer-wave 0 \
+    $WORKER_RUNNER "$MMSEQS" kmermatcherparallel "$_db" "$_kmer" $KMER_COMMON "$@" --kmer-wave 0 \
         --scratch-used "$_used" \
         || fail "kmermatcherparallel died"
     # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" kmerreduceparallel "$_db" "$_kmer" "$_edges" $REDUCE_PAR --kmer-wave 0 \
+    $WORKER_RUNNER "$MMSEQS" kmerreduceparallel "$_db" "$_kmer" "$_edges" $REDUCE_PAR --kmer-wave 0 \
         || fail "kmerreduceparallel died"
     _waves=$(waveCount "$_kmer")
     [ -z "$_waves" ] && fail "no wave count in $_kmer/coord/shuffle.info"
@@ -97,20 +115,25 @@ mapReduceWaves() {
     while [ "$_w" -lt "$_waves" ]; do
         echo "--- extraction wave $_w of $_waves ---"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" kmermatcherparallel "$_db" "$_kmer" $KMER_COMMON "$@" --kmer-wave $_w \
+        $WORKER_RUNNER "$MMSEQS" kmermatcherparallel "$_db" "$_kmer" $KMER_COMMON "$@" --kmer-wave $_w \
             --scratch-used "$_used" \
             || fail "kmermatcherparallel (wave $_w) died"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" kmerreduceparallel "$_db" "$_kmer" "$_edges" $REDUCE_PAR --kmer-wave $_w \
+        $WORKER_RUNNER "$MMSEQS" kmerreduceparallel "$_db" "$_kmer" "$_edges" $REDUCE_PAR --kmer-wave $_w \
             || fail "kmerreduceparallel (wave $_w) died"
         _w=$((_w + 1))
     done
 }
 
-[ "$#" -ne 3 ] && { echo "usage: [RUNNER=\"srun -n N\"] $0 <i:fasta|sequenceDB> <o:clusterTsv> <tmpDir>"; exit 1; }
+[ "$#" -ne 3 ] && { echo "usage: [WORKER_RUNNER=\"srun -n N\"] $0 <i:fasta|sequenceDB> <o:clusterTsv> <tmpDir>"; exit 1; }
 INPUT="$1"
 OUT="$2"
 TMP="$3"
+# Refused rather than skipped, as linclust.sh:13 does. Guarding the final write on
+# `notExists "$OUT"` instead meant a stale file survived a full run and the script
+# still reported success, so the user believed they had clustered and had not.
+# Resume is keyed on state under $TMP, never on $OUT.
+[ -f "$OUT" ] && fail "$OUT exists already"
 mkdir -p "$TMP"
 
 # Shared by both passes. --min-seq-id belongs here because it selects the k-mer
@@ -146,29 +169,48 @@ if notExists "$INPUT.dbtype"; then
     # that looks complete and is not. The sentinel is written last.
     if notExists "$DB.coord/finalize.done"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" createdbparallel "$INPUT" "$DB" --threads $THREADS \
+        $WORKER_RUNNER "$MMSEQS" createdbparallel "$INPUT" "$DB" $VERBOSITY --threads $THREADS \
             || fail "createdbparallel died"
     fi
 fi
 
-# ---- pass 1, over the whole database --------------------------------------
-mapReduceWaves "$DB" "$TMP/kmer1" "$TMP/edges1" \
-    --spaced-kmer-mode 0 --kmer-per-seq-scale aa:0.000,nucl:0.200
+# Checked here, not by alignparallel, which is where it used to surface. That is
+# the far end of pass 1, so a nucleotide input paid createdbparallel plus the whole
+# map and reduce -- hours and the entire k-mer shuffle on scratch -- before being
+# told it was never supported. Stock routes nucleotides to linclust v1, which has
+# no v2 counterpart to port.
+case "$("$MMSEQS" dbtype "$DB" 2>/dev/null || echo unknown)" in
+    *Nucleotide*)
+        fail "$DB holds nucleotide sequences, which this pipeline does not support.
+linclust clusters nucleotides with its v1 path (rescorediagonal), and this is the
+parallel form of the v2 path, which is protein-only upstream."
+        ;;
+esac
 
-# shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" alignparallel "$DB" "$TMP/edges1" "$TMP/aln1" $ALIGN_PAR \
+# ---- pass 1, over the whole database --------------------------------------
+# Guarded as a whole on clu1.tsv. The stages inside are individually resumable, but
+# the pass is not re-enterable once its k-mer buckets have been consumed and its
+# intermediates dropped: the reduce would then run over an empty shuffle, emit zero
+# edges and exit 0, and a greedycluster over that produces a clustering of
+# singletons rather than an error.
+if notExists "$TMP/clu1.tsv"; then
+    mapReduceWaves "$DB" "$TMP/kmer1" "$TMP/edges1" \
+        --spaced-kmer-mode 0 --kmer-per-seq-scale aa:0.000,nucl:0.200
+
+    # shellcheck disable=SC2086
+    $WORKER_RUNNER "$MMSEQS" alignparallel "$DB" "$TMP/edges1" "$TMP/aln1" $ALIGN_PAR $VERBOSITY \
         || fail "alignparallel (pass 1) died"
 
-# Single node from here to the end of the pass: the greedy sweep is sequential by
-# necessity, which is what makes it exact.
-if notExists "$TMP/clu1.tsv"; then
+    # Single node from here to the end of the pass: the greedy sweep is sequential
+    # by necessity, which is what makes it exact.
     # shellcheck disable=SC2086
-    "$MMSEQS" greedycluster "$DB" "$TMP/aln1" "$TMP/clu1.tsv.tmp" --threads $THREADS \
+    "$MMSEQS" greedycluster "$DB" "$TMP/aln1" "$TMP/clu1.tsv.tmp" $VERBOSITY --threads $THREADS \
         || fail "greedycluster (pass 1) died"
     mv -f "$TMP/clu1.tsv.tmp" "$TMP/clu1.tsv"
 fi
-# Both are dead once clu1.tsv exists, and together they are the largest thing pass
-# 1 leaves behind for pass 2 to be sized around.
+# Dead once clu1.tsv exists, and together the largest thing pass 1 leaves behind
+# for pass 2 to be sized around. kmer1 is already gone: the reduce unlinks each
+# wave's buckets as it consumes them.
 dropIntermediate "$TMP/edges1" "$TMP/aln1"
 
 # ---- pass 2, over the representatives --------------------------------------
@@ -176,25 +218,28 @@ dropIntermediate "$TMP/edges1" "$TMP/aln1"
 # array offsets. The key map translates the result back below.
 if notExists "$TMP/rep.keymap"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createrepdb "$DB" "$TMP/clu1.tsv" "$TMP/rep" --threads $THREADS \
+    "$MMSEQS" createrepdb "$DB" "$TMP/clu1.tsv" "$TMP/rep" $VERBOSITY --threads $THREADS \
         || fail "createrepdb died"
 fi
 
-mapReduceWaves "$TMP/rep" "$TMP/kmer2" "$TMP/edges2" \
-    --spaced-kmer-mode 1 --kmer-per-seq-scale aa:0.100,nucl:0.100
+# Guarded as a whole, for the same reason as pass 1.
+if notExists "$TMP/clu2_sub.tsv"; then
+    mapReduceWaves "$TMP/rep" "$TMP/kmer2" "$TMP/edges2" \
+        --spaced-kmer-mode 1 --kmer-per-seq-scale aa:0.100,nucl:0.100
 
-# The filter gate: a representative may only take a member if every sequence of
-# that member's pass-1 cluster also aligns to it. Needs the original database and
-# the key map, since the clustering it consults is in original keys.
-# shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" alignparallel "$TMP/rep" "$TMP/edges2" "$TMP/aln2" $ALIGN_PAR \
+    # The filter gate: a representative may only take a member if every sequence of
+    # that member's pass-1 cluster also aligns to it. Needs the original database
+    # and the key map, since the clustering it consults is in original keys.
+    # shellcheck disable=SC2086
+    $WORKER_RUNNER "$MMSEQS" alignparallel "$TMP/rep" "$TMP/edges2" "$TMP/aln2" $ALIGN_PAR \
+        $VERBOSITY \
         --filter-cludb-file "$TMP/clu1.tsv" --filter-seqdb-file "$DB" \
         --key-map "$TMP/rep.keymap" \
         || fail "alignparallel (pass 2) died"
 
-if notExists "$TMP/clu2_sub.tsv"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" greedycluster "$TMP/rep" "$TMP/aln2" "$TMP/clu2_sub.tsv.tmp" --threads $THREADS \
+    "$MMSEQS" greedycluster "$TMP/rep" "$TMP/aln2" "$TMP/clu2_sub.tsv.tmp" $VERBOSITY \
+        --threads $THREADS \
         || fail "greedycluster (pass 2) died"
     mv -f "$TMP/clu2_sub.tsv.tmp" "$TMP/clu2_sub.tsv"
 fi
@@ -203,7 +248,7 @@ dropIntermediate "$TMP/edges2" "$TMP/aln2" "$TMP/kmer2"
 if notExists "$TMP/clu2.tsv"; then
     # shellcheck disable=SC2086
     "$MMSEQS" translatecluster "$TMP/clu2_sub.tsv" "$TMP/rep.keymap" "$TMP/clu2.tsv.tmp" \
-        --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
+        $VERBOSITY --split-memory-limit $SPLIT_MEMORY_LIMIT \
         || fail "translatecluster died"
     mv -f "$TMP/clu2.tsv.tmp" "$TMP/clu2.tsv"
 fi
@@ -214,7 +259,7 @@ fi
 if notExists "$TMP/clu.keys.tsv"; then
     # shellcheck disable=SC2086
     "$MMSEQS" mergeclusterparallel "$DB" "$TMP/clu1.tsv" "$TMP/clu2.tsv" "$TMP/clu.keys.tsv.tmp" \
-        --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
+        $VERBOSITY --split-memory-limit $SPLIT_MEMORY_LIMIT \
         || fail "mergeclusterparallel died"
     mv -f "$TMP/clu.keys.tsv.tmp" "$TMP/clu.keys.tsv"
 fi
@@ -224,25 +269,32 @@ fi
 # id->name table. Here it is a streaming join against the .lookup. Skipped when
 # the database has none (--write-lookup 0), leaving the key-space result as the
 # output rather than failing at the last step.
-if notExists "$OUT"; then
-    if [ -f "$DB.lookup" ]; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" translatekeys "$TMP/clu.keys.tsv" "$DB.lookup" "$OUT.tmp" \
-            --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
-            || fail "translatekeys died"
-        mv -f "$OUT.tmp" "$OUT"
-    else
-        echo "No $DB.lookup; leaving the result in database keys"
-        cp "$TMP/clu.keys.tsv" "$OUT"
-    fi
+if [ -f "$DB.lookup" ]; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" translatekeys "$TMP/clu.keys.tsv" "$DB.lookup" "$OUT.tmp" $VERBOSITY \
+        --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
+        || fail "translatekeys died"
+    mv -f "$OUT.tmp" "$OUT"
+else
+    echo "No $DB.lookup; leaving the result in database keys"
+    # Copied to a temporary name and renamed, like every other output here: an
+    # interrupted cp straight onto $OUT leaves a truncated file behind.
+    cp "$TMP/clu.keys.tsv" "$OUT.tmp" || fail "cannot copy the key-space result"
+    mv -f "$OUT.tmp" "$OUT"
 fi
 
-# Only on success, and only the whole directory: the per-stage intermediates are
-# already dropped as they die (dropIntermediate above), which is what keeps the
-# run inside --scratch-budget. This is the stock --remove-tmp-files contract.
+# Only on success, and only the run's own intermediates. The hashed directory
+# itself and its `latest` symlink are left in place, as every other workflow does,
+# so --force-reuse still resolves; `rm -rf "$TMP"` used to leave `latest` dangling.
+# The per-stage intermediates are already dropped as they die (dropIntermediate
+# above), which is what keeps the run inside --scratch-budget.
 if [ -n "$REMOVE_TMP" ]; then
     echo "Removing temporary files"
-    rm -rf "$TMP"
+    rm -rf "$TMP/kmer1" "$TMP/kmer2" "$TMP/edges1" "$TMP/edges2" "$TMP/aln1" "$TMP/aln2"
+    rm -f "$TMP/clu1.tsv" "$TMP/clu2.tsv" "$TMP/clu2_sub.tsv" "$TMP/clu.keys.tsv"
+    rm -f "$TMP/rep" "$TMP/rep".* "$TMP/rep_h" "$TMP/rep_h".*
+    rm -rf "$TMP/db.coord"
+    rm -f "$TMP/db" "$TMP/db".* "$TMP/db_h" "$TMP/db_h".*
 fi
 
 echo "Wrote $OUT"

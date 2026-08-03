@@ -71,7 +71,10 @@ private:
 // unlike EdgeBucketWriter below, whose output several producers share.
 class EdgeWriter {
 public:
-    EdgeWriter(const std::string &path, size_t bufferRecords = 1024 * 1024);
+    // workerId names the temporary file this writes before renaming. It has to be
+    // the globally unique worker id rather than a pid, because the path is on the
+    // shared filesystem and pids collide across nodes.
+    EdgeWriter(const std::string &path, int64_t workerId, size_t bufferRecords = 1024 * 1024);
     ~EdgeWriter();
 
     void append(const CandidateEdge &edge);
@@ -88,6 +91,7 @@ private:
     void flush();
 
     std::string path;
+    int64_t workerId;
     std::string tmpPath;
     FILE *file;
     std::vector<CandidateEdge> buffer;
@@ -168,6 +172,7 @@ private:
     EdgeBucketWriter &operator=(const EdgeBucketWriter &);
 
     void flush(unsigned int bucket);
+    std::string shardPath(unsigned int bucket) const;
 
     std::string dir;
     std::string shardId;
@@ -175,6 +180,9 @@ private:
     size_t edgesPerBuffer;
     std::vector<std::vector<CandidateEdge> > buffers;
     std::vector<FILE *> files;
+    // Which buckets this writer has actually appended to, so flushAll() syncs only
+    // those rather than opening all bucketCount of them.
+    std::vector<bool> written;
     uint64_t edgeCount;
     bool closed;
     unsigned int currentPartition;

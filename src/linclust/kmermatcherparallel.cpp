@@ -137,20 +137,6 @@ struct ShuffleManifest {
         return manifest;
     }
 
-    void requireMatches(const ShuffleManifest &other, const std::string &path) const {
-        if (entryCount != other.entryCount || partitionCount != other.partitionCount ||
-            waveCount != other.waveCount || kmerSize != other.kmerSize) {
-            Debug(Debug::ERROR)
-                << "This worker derived a different k-mer shuffle than the one already in "
-                << "progress (" << path << "): " << partitionCount << " partitions, "
-                << waveCount << " waves, k=" << kmerSize << " over " << entryCount
-                << " sequences, against " << other.partitionCount << " partitions, "
-                << other.waveCount << " waves, k=" << other.kmerSize << " over "
-                << other.entryCount << " sequences.\n"
-                << "Every worker must run the same command line on the same database.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
 };
 
 BaseMatrix *createSubstitutionMatrix(Parameters &par, int dbType) {
@@ -294,9 +280,75 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
                            << occupied << " B; reserving " << projectedEdgeBytes
                            << " B for candidate edges\n";
     }
-    const KmerShuffleSizing sizing =
-        deriveKmerShuffleSizing(info.entryCount, kmersPerSequence, par.scratchBudget,
-                                persistentBytes, Util::computeMemory(par.splitMemoryLimit));
+    if (FileUtil::directoryExists(kmerDir.c_str()) == false) {
+        FileUtil::makeDir(kmerDir.c_str());
+    }
+    // Derived rather than passed, so every worker runs a byte-identical command line.
+    const std::string coordDir = kmerDir + "/coord";
+    if (FileUtil::directoryExists(coordDir.c_str()) == false) {
+        FileUtil::makeDir(coordDir.c_str());
+    }
+    const std::string manifestPath = coordDir + "/shuffle.info";
+
+    // The manifest is authoritative once it exists; the sizing is derived only to
+    // create it.
+    //
+    // The derivation reads how much scratch is already occupied, which by
+    // definition grows as the run proceeds -- a restart part-way through a waved
+    // pass sees a wave of k-mers and the edges written so far, derives a larger
+    // wave count from the smaller remaining budget, and every worker then fails
+    // requireMatches against the manifest wave 0 wrote. That made any run with a
+    // --scratch-budget unresumable, which is exactly the configuration waves exist
+    // for. Adopting the recorded sizing keeps the partitioning fixed for the life
+    // of the shuffle, which is the property that has to hold anyway: a partition
+    // is only self-contained if every wave agrees on P.
+    KmerShuffleSizing sizing;
+    {
+        FileLock manifestLock(coordDir + "/shuffle.lock");
+        manifestLock.lock();
+        if (FileUtil::fileExists(manifestPath.c_str()) == true) {
+            const ShuffleManifest existing = ShuffleManifest::read(manifestPath);
+            // Still checked, because these describe the *input* rather than the
+            // filesystem: a different database or k-mer length means the workers
+            // are not running the same job at all.
+            if (existing.entryCount != info.entryCount ||
+                existing.kmerSize != static_cast<uint64_t>(par.kmerSize)) {
+                Debug(Debug::ERROR)
+                    << "The shuffle already in progress (" << manifestPath << ") covers "
+                    << existing.entryCount << " sequences at k=" << existing.kmerSize
+                    << ", but this worker was given " << info.entryCount << " sequences at k="
+                    << par.kmerSize << ".\n"
+                    << "Every worker must run the same command line on the same database.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            // Assembled from the manifest rather than derived. deriveKmerShuffleSizing
+            // must not even be *called* here: by the time a run is resumed the
+            // occupied scratch can exceed the budget on its own -- the k-mers and
+            // edges already written are what fills it -- and the derivation treats
+            // that as fatal. The recorded layout is the answer, not something to
+            // check the derivation against.
+            sizing.totalKmerBytes =
+                info.entryCount * kmersPerSequence * sizeof(KmerRecord);
+            sizing.partitionCount = static_cast<unsigned int>(existing.partitionCount);
+            sizing.waveCount = static_cast<unsigned int>(existing.waveCount);
+            sizing.bytesPerWave =
+                (sizing.totalKmerBytes + sizing.waveCount - 1) / sizing.waveCount;
+            sizing.bytesPerPartition =
+                (sizing.bytesPerWave + sizing.partitionCount - 1) / sizing.partitionCount;
+        } else {
+            sizing = deriveKmerShuffleSizing(info.entryCount, kmersPerSequence, par.scratchBudget,
+                                             persistentBytes,
+                                             Util::computeMemory(par.splitMemoryLimit));
+            ShuffleManifest manifest;
+            manifest.entryCount = info.entryCount;
+            manifest.partitionCount = sizing.partitionCount;
+            manifest.waveCount = sizing.waveCount;
+            manifest.kmerSize = static_cast<uint64_t>(par.kmerSize);
+            KmerBucketWriter::createLayout(kmerDir, sizing.partitionCount);
+            manifest.write(manifestPath);
+        }
+        manifestLock.unlock();
+    }
     Debug(Debug::INFO) << "K-mer shuffle: " << sizing.partitionCount << " partitions, "
                        << sizing.waveCount << " wave(s), " << sizing.totalKmerBytes
                        << " k-mer bytes, " << sizing.bytesPerPartition << " bytes per partition\n";
@@ -330,33 +382,6 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "--kmer-wave " << par.kmerWave << " given but this run needs only "
                             << "one wave\n";
         EXIT(EXIT_FAILURE);
-    }
-
-    if (FileUtil::directoryExists(kmerDir.c_str()) == false) {
-        FileUtil::makeDir(kmerDir.c_str());
-    }
-    // Derived rather than passed, so every worker runs a byte-identical command line.
-    const std::string coordDir = kmerDir + "/coord";
-    if (FileUtil::directoryExists(coordDir.c_str()) == false) {
-        FileUtil::makeDir(coordDir.c_str());
-    }
-
-    ShuffleManifest manifest;
-    manifest.entryCount = info.entryCount;
-    manifest.partitionCount = sizing.partitionCount;
-    manifest.waveCount = sizing.waveCount;
-    manifest.kmerSize = static_cast<uint64_t>(par.kmerSize);
-    const std::string manifestPath = coordDir + "/shuffle.info";
-    {
-        FileLock manifestLock(coordDir + "/shuffle.lock");
-        manifestLock.lock();
-        if (FileUtil::fileExists(manifestPath.c_str()) == true) {
-            manifest.requireMatches(ShuffleManifest::read(manifestPath), manifestPath);
-        } else {
-            KmerBucketWriter::createLayout(kmerDir, sizing.partitionCount);
-            manifest.write(manifestPath);
-        }
-        manifestLock.unlock();
     }
 
     SharedCounter workerCounter(coordDir + "/worker.counter");
