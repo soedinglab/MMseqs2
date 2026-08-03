@@ -323,7 +323,7 @@ std::vector<Command> baseCommands = {
                 "    --runner \"srun -n 64\" --scratch-budget 100T --split-memory-limit 700G\n\n"
                 "# Output is representative<TAB>member in accessions, not a cluster DB:\n"
                 "# a per-key index is state no single node can hold at this scale.\n",
-                "Bjoern Buschkaemper <bjoern.buschkaemper@gmail.com>",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
                 "<i:fastaFile|sequenceDB> <o:clusterTsv> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile|sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfileAndSequenceDb },
                                                            {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
