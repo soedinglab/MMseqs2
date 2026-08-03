@@ -127,6 +127,18 @@ ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c 
 # 0. Sequence database with dense, length-ranked keys. Every later stage depends
 #    on that ordering: it is what makes the greedy a single forward sweep.
 DB="$INPUT"
+if [ -f "$INPUT.dbtype" ] && notExists "$INPUT.index.bin"; then
+    # Checked here rather than left to the first stage. Reaching for `createdb`
+    # first is the natural thing to do, and its databases are not dense or
+    # length-ranked, which every stage below assumes. The stage does say so, but
+    # under a runner that message lands in one worker's log after the run has
+    # already started; this fails before anything is launched.
+    fail "$INPUT was not built by createdbparallel: no $INPUT.index.bin.
+Every stage addresses sequences as dense, length-ranked keys, which is what makes
+the greedy a single forward sweep, and a createdb database has neither. Either
+pass the FASTA and let this build the database, or build it with
+'mmseqs createdbparallel'."
+fi
 if notExists "$INPUT.dbtype"; then
     DB="$TMP/db"
     # Guarded on the finalize sentinel, not on .dbtype: createdbparallel writes
@@ -223,6 +235,14 @@ if notExists "$OUT"; then
         echo "No $DB.lookup; leaving the result in database keys"
         cp "$TMP/clu.keys.tsv" "$OUT"
     fi
+fi
+
+# Only on success, and only the whole directory: the per-stage intermediates are
+# already dropped as they die (dropIntermediate above), which is what keeps the
+# run inside --scratch-budget. This is the stock --remove-tmp-files contract.
+if [ -n "$REMOVE_TMP" ]; then
+    echo "Removing temporary files"
+    rm -rf "$TMP"
 fi
 
 echo "Wrote $OUT"

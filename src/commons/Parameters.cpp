@@ -185,6 +185,7 @@ Parameters::Parameters():
         PARAM_CLUSTER_VERSION(PARAM_CLUSTER_VERSION_ID, "--cluster-version", "Cluster version", "Cluster version: 1: Cluster1, 2: Cluster2", typeid(int), (void *) &clusterVersion, "^[1-2]$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "MPI runner", "Use MPI on compute cluster with this MPI command (e.g. \"mpirun -np 42\")", typeid(std::string), (void *) &runner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WORKER_RUNNER(PARAM_WORKER_RUNNER_ID, "--runner", "Worker runner", "Command that starts one worker process per node (e.g. \"srun -n 64\"). The workers coordinate through files and never communicate, so this only has to start them; no MPI is involved", typeid(std::string), (void *) &workerRunner, "", MMseqsParameter::COMMAND_COMMON),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart with latest tmp", "Reuse tmp filse in tmp/latest folder ignoring parameters and version changes", typeid(bool), (void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Search iterations", "Number of iterative profile search iterations", typeid(int), (void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
@@ -1618,6 +1619,25 @@ Parameters::Parameters():
     linclustworkflow.push_back(&PARAM_REUSELATEST);
     linclustworkflow.push_back(&PARAM_RUNNER);
 
+    // linclustparallelworkflow
+    // Deliberately small. Everything the stages need beyond this is either fixed
+    // by the algorithm (the k-mer length and alphabet follow from --min-seq-id,
+    // the extraction settings are the two passes' defaults) or derived from
+    // --scratch-budget and --split-memory-limit. Exposing the individual stages'
+    // knobs here would let a run be given parameters its stages disagree on,
+    // which produces a different clustering rather than an error.
+    linclustparallelworkflow.push_back(&PARAM_MIN_SEQ_ID);
+    linclustparallelworkflow.push_back(&PARAM_C);
+    linclustparallelworkflow.push_back(&PARAM_COV_MODE);
+    linclustparallelworkflow.push_back(&PARAM_E);
+    linclustparallelworkflow.push_back(&PARAM_SCRATCH_BUDGET);
+    linclustparallelworkflow.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    linclustparallelworkflow.push_back(&PARAM_THREADS);
+    linclustparallelworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    linclustparallelworkflow.push_back(&PARAM_REUSELATEST);
+    linclustparallelworkflow.push_back(&PARAM_WORKER_RUNNER);
+    linclustparallelworkflow.push_back(&PARAM_V);
+
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
 
@@ -2719,6 +2739,10 @@ void Parameters::setDefaults() {
     } else {
         runner = "";
     }
+    // Not seeded from $RUNNER: the parallel workflow *sets* that variable for the
+    // driver it execs, so inheriting it here would make a nested invocation
+    // silently launch its own workers.
+    workerRunner = "";
     reuseLatest = false;
     // Clustering workflow
     removeTmpFiles = false;
@@ -3110,8 +3134,8 @@ size_t Parameters::hashParameter(const std::vector<DbType> &dbtypes, const std::
 std::string Parameters::createParameterString(const std::vector<MMseqsParameter*> &par, bool wasSet) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {
-        // Never pass the MPI parameters along, they are passed by the environment
-        if (par[i]->uniqid == PARAM_RUNNER_ID) {
+        // Never pass the runner parameters along, they are passed by the environment
+        if (par[i]->uniqid == PARAM_RUNNER_ID || par[i]->uniqid == PARAM_WORKER_RUNNER_ID) {
             continue;
         }
         if(wasSet == true){

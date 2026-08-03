@@ -84,6 +84,7 @@ extern int lca(int argc, const char **argv, const Command& command);
 extern int lcaalign(int argc, const char **argv, const Command& command);
 extern int taxonomyreport(int argc, const char **argv, const Command& command);
 extern int linclust(int argc, const char **argv, const Command& command);
+extern int linclustparallel(int argc, const char **argv, const Command& command);
 extern int map(int argc, const char **argv, const Command& command);
 extern int renamedbkeys(int argc, const char **argv, const Command& command);
 extern int majoritylca(int argc, const char **argv, const Command& command);

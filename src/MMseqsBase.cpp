@@ -309,6 +309,25 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"linclustparallel",  linclustparallel,  &par.linclustparallelworkflow,   COMMAND_MAIN,
+                "Linclust across many nodes over a shared filesystem",
+                "# Same clustering as linclust, computed by many independent worker\n"
+                "# processes that coordinate only through files: no MPI, no rank argument,\n"
+                "# and no node-to-node communication. Every worker of a stage runs the\n"
+                "# identical command line, so a stage maps onto a Slurm array job and\n"
+                "# workers may join late, die, or be restarted. Re-running resumes.\n\n"
+                "# On one node\n"
+                "mmseqs linclustparallel sequenceDB clusters.tsv tmp\n\n"
+                "# Across 64 nodes, bounding scratch at 100 TB\n"
+                "mmseqs linclustparallel sequenceDB clusters.tsv tmp \\\n"
+                "    --runner \"srun -n 64\" --scratch-budget 100T --split-memory-limit 700G\n\n"
+                "# Output is representative<TAB>member in accessions, not a cluster DB:\n"
+                "# a per-key index is state no single node can hold at this scale.\n",
+                "Bjoern Buschkaemper <bjoern.buschkaemper@gmail.com>",
+                "<i:fastaFile|sequenceDB> <o:clusterTsv> <tmpDir>",
+                CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile|sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfileAndSequenceDb },
+                                                           {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                                           {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"cluster",              clusteringworkflow,   &par.clusterworkflow,      COMMAND_MAIN,
                 "Slower, sensitive clustering",
                 "# Cascaded clustering of FASTA file\n"

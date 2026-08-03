@@ -480,6 +480,10 @@ public:
 
     // workflow
     std::string runner;
+    // Separate from `runner` on purpose. That one is MPI's, and renaming it would
+    // break every existing --mpi-runner invocation; this one launches independent
+    // worker processes that never communicate.
+    std::string workerRunner;
     bool reuseLatest;
 
     // CLUSTERING
@@ -976,6 +980,7 @@ public:
 
     // workflow
     PARAMETER(PARAM_RUNNER)
+    PARAMETER(PARAM_WORKER_RUNNER)
     PARAMETER(PARAM_REUSELATEST)
 
     // search workflow
@@ -1264,6 +1269,7 @@ public:
     std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
+    std::vector<MMseqsParameter*> linclustparallelworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;
     std::vector<MMseqsParameter*> linsearchworkflow;
