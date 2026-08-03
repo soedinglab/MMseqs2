@@ -25,15 +25,19 @@ struct __attribute__((__packed__)) CandidateEdge {
     // How many k-mers put this pair on this diagonal. Stock's prefilter score,
     // and the value the align stage ranks diagonals by.
     //
-    // 16 bits, not 8. The align stage picks a pair's diagonal by comparing these
-    // counts, so a ceiling low enough to be reached turns a comparison into a tie
-    // and hands the decision to a tie-break stock does not have. Pass 1 extracts
-    // 21 k-mers per sequence and never came close; pass 2 uses
-    // --kmer-per-seq-scale aa:0.100, so a long sequence contributes thousands, and
-    // at 255 this saturated on 199 of 4.9M records, which gave 23 pairs a
-    // different diagonal than stock and moved 31 of 1,000,000 sequences into a
-    // different cluster; widening it here took that residual to 8. The bound is kmersPerSeq(65535) x rounds ~= 26k, which
-    // fits 16 bits; stock accumulates in an int and has no ceiling at all.
+    // 16 bits, not 8. At 8 bits this saturated on 199 of 4.9M pass-2 records
+    // (pass 2 uses --kmer-per-seq-scale aa:0.100, so a long sequence contributes
+    // thousands), which turned a diagonal comparison into a tie and moved 31 of
+    // 1,000,000 sequences; widening it took that residual to 8. The bound is
+    // kmersPerSeq(65535) x rounds ~= 26k, which fits.
+    //
+    // Note this is not bit-for-bit stock behaviour, in either width. Stock's
+    // KmerEntry::score is an unsigned char assigned from an int
+    // (kmermatcher.h:188, kmermatcher.cpp:2048), so a single entry above 255
+    // *wraps* rather than saturating, and the wrapped value is then summed into a
+    // wider accumulator. Saturating is the more defensible reading of "how many
+    // k-mers agree on this diagonal" and measured closer to stock, but the two
+    // can still disagree on a pair whose per-entry count exceeds 255.
     uint16_t score;
 
     uint64_t getRep() const { return get(repBytes); }

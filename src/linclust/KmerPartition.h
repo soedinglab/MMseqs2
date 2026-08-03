@@ -120,14 +120,15 @@ struct KmerShuffleSizing {
 // memory, P too large and the reduce silently pays P/W sequential re-scans of
 // the whole database for no benefit.
 //
-// The two scales this is sized for pull in opposite directions and land in
-// different places, which is exactly why it should be computed:
-//   100B  50.4 TB of k-mers, P = 1024, ~49 GB buckets, ~2 DB scans at W=500
-//   1T    504  TB of k-mers, P = 8192, ~62 GB buckets, ~17 DB scans at W=500
+// The two scales this is sized for pull in opposite directions, which is exactly
+// why it should be computed: 50.4 TB of k-mers at 100B against 504 TB at 1T. Note
+// that P follows from workerMemoryBytes as much as from the budget, so a target
+// scale alone does not pin it.
 //
 // persistentBytes is everything sharing the scratch budget with the k-mer wave:
-// the sequence database, which persists, plus the surviving edges the fused
-// group+align stage accumulates.
+// what is already on disk (the caller passes a measured figure, so pass 2 can
+// account for what pass 1 left behind) plus the candidate edges this stage's own
+// reduce will write.
 //
 // scratchBudgetBytes == 0 means unlimited, giving a single wave.
 KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount,

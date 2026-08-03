@@ -127,6 +127,17 @@ size_t mergePairCopies(std::vector<CandidateEdge> &edges) {
 // another worker is a copy left by one that died before recording it. One queue
 // per extraction wave, and wave w holds the partitions after all earlier waves',
 // so appending them in wave order indexes by partition directly.
+// Which worker's edges count, per k-mer partition.
+//
+// A partition redone after a crash leaves the dead worker's edges on disk as well
+// as the redo's, and mergePairCopies sums matching (pair, diagonal) records, so
+// keeping both inflates a diagonal's support. The queue named exactly one
+// producer per item -- complete() keeps the first worker to record it -- so
+// reading it back says which copy is authoritative.
+//
+// Waves are concatenated in order because each has its own queue over its own
+// contiguous slice of partition space, so wave w's items are partitions
+// [w * P / W, (w + 1) * P / W) and appending lands each at its own index.
 std::vector<int64_t> readReduceAuthority(const std::string &edgeDir) {
     std::vector<int64_t> authority;
     for (unsigned int wave = 0;; wave++) {
@@ -153,7 +164,6 @@ size_t readBucket(const std::string &edgeDir, unsigned int bucket,
     }
     return out.size();
 }
-
 
 // The pass-2 acceptance gate stock applies with --filter-cludb-file.
 //

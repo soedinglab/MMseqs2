@@ -549,14 +549,16 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         // intermediate the pipeline writes.
         //
         // Safe here because drain() returns only once every partition of the wave
-        // is recorded done, which means no worker is still reading one. Several
-        // workers reach this together, so a file another already unlinked is not
-        // an error.
-        // Only the worker that recorded the last completion deletes. drain()
-        // returns true for every worker that observes the queue finished, and a
-        // worker whose lease lapsed could still be inside reducePartition; letting
-        // them all unlink races that reader. Heartbeats make the lapse unlikely,
-        // this makes the deletion single-writer regardless.
+        // is recorded done, so no worker holding a live lease is still reading
+        // one. Every worker that observes the queue finished reaches this and
+        // unlinks, hence the ENOENT tolerance below.
+        //
+        // The one reader this does not account for is a worker whose lease lapsed
+        // while it was still inside reducePartition: its item was redone and
+        // recorded by someone else, so the queue reads finished while it is still
+        // opening shards. Its own edges are already discarded by block header, so
+        // the outcome is a spurious open failure rather than a wrong answer, and
+        // the heartbeat makes a lapse unlikely to begin with.
         for (unsigned int p = waveFrom; p < waveTo; p++) {
             const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, p);
             for (size_t i = 0; i < shards.size(); i++) {
