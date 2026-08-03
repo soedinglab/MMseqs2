@@ -277,6 +277,36 @@ static void testResumeKeepsProgress(const std::string &dir) {
     }
 }
 
+// The reduce names one authoritative producer per item so the align stage can
+// drop a crashed worker's superseded output. That rests on complete() keeping the
+// *first* worker to record an item, and on those records being readable without
+// knowing the item count.
+static void testCompletedWorkersNamesOneProducer(const std::string &dir) {
+    const std::string queuePath = dir + "/authority_queue";
+    std::vector<int64_t> workers;
+    check(WorkQueue::readCompletedWorkers(queuePath + "_missing", workers) == false,
+          "a queue that does not exist reads as absent");
+
+    WorkQueue queue(queuePath, 3);
+    check(queue.claim(7, 60) == 0, "worker 7 takes item 0");
+    queue.complete(0, 7);
+
+    // Item 1 is claimed with a lease that lapses, redone by another worker, and
+    // then also completed by the original -- exactly the race the filter exists
+    // for. The first worker to record it must stay the authority.
+    check(queue.claim(8, 1) == 1, "worker 8 takes item 1");
+    sleep(2);
+    check(queue.claim(9, 60) == 1, "the lapsed item is handed to worker 9");
+    queue.complete(1, 9);
+    queue.complete(1, 8);
+
+    check(WorkQueue::readCompletedWorkers(queuePath, workers), "the queue reads back");
+    check(workers.size() == 3, "one entry per item");
+    check(workers[0] == 7, "item 0 names its producer");
+    check(workers[1] == 9, "a redone item names the worker that recorded it first");
+    check(workers[2] == -1, "an unfinished item names nobody");
+}
+
 int main(int, const char**) {
     std::string dir = makeTempDir();
 
@@ -287,6 +317,7 @@ int main(int, const char**) {
     testLeaseExpiryRecovers(dir);
     testReleaseRequeues(dir);
     testResumeKeepsProgress(dir);
+    testCompletedWorkersNamesOneProducer(dir);
 
     removeTempDir(dir);
 

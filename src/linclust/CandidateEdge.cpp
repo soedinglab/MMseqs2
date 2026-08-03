@@ -125,7 +125,8 @@ void EdgeBucketWriter::createLayout(const std::string &dir, unsigned int bucketC
 
 EdgeBucketWriter::EdgeBucketWriter(const std::string &dir, unsigned int bucketCount,
                                    const std::string &shardId, size_t bufferBudgetBytes)
-    : dir(dir), shardId(shardId), bucketCount(bucketCount), edgeCount(0), closed(false) {
+    : dir(dir), shardId(shardId), bucketCount(bucketCount), edgeCount(0), closed(false),
+      currentPartition(0), currentWorker(-1) {
     const size_t perBucket = bufferBudgetBytes / (bucketCount * sizeof(CandidateEdge));
     edgesPerBuffer = std::max<size_t>(perBucket, 64);
     buffers.resize(bucketCount);
@@ -154,12 +155,37 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
             EXIT(EXIT_FAILURE);
         }
     }
+    // Header then records, as one write each. The header names the producer so a
+    // crashed worker's superseded copy can be told apart from a second partition
+    // that legitimately produced the same edges (see EdgeBlockHeader).
+    EdgeBlockHeader header;
+    header.magic = EdgeBlockHeader::MAGIC;
+    header.partition = currentPartition;
+    header.worker = static_cast<uint32_t>(currentWorker < 0 ? 0 : currentWorker);
+    header.recordCount = static_cast<uint32_t>(buffer.size());
+    if (fwrite(&header, sizeof(EdgeBlockHeader), 1, files[bucket]) != 1) {
+        Debug(Debug::ERROR) << "Cannot write the block header of bucket " << bucket << " of " << dir
+                            << ": " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     if (fwrite(buffer.data(), sizeof(CandidateEdge), buffer.size(), files[bucket]) != buffer.size()) {
         Debug(Debug::ERROR) << "Cannot write " << buffer.size() << " edges to bucket " << bucket
                             << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
     buffer.clear();
+}
+
+void EdgeBucketWriter::beginPartition(unsigned int partition, int64_t worker) {
+    if (currentWorker >= 0 && (partition != currentPartition || worker != currentWorker)) {
+        // A block must belong to exactly one partition, or the filter cannot
+        // decide it. Anything still buffered is the previous one's.
+        for (unsigned int b = 0; b < bucketCount; b++) {
+            flush(b);
+        }
+    }
+    currentPartition = partition;
+    currentWorker = worker;
 }
 
 void EdgeBucketWriter::append(unsigned int bucket, const CandidateEdge &edge) {
@@ -214,4 +240,59 @@ std::vector<std::string> EdgeBucketWriter::shardFiles(const std::string &dir, un
     closedir(handle);
     std::sort(shards.begin(), shards.end());
     return shards;
+}
+
+size_t EdgeBucketReader::readShard(const std::string &path, const std::vector<int64_t> &authority,
+                                   std::vector<CandidateEdge> &out) {
+    const size_t bytes = FileUtil::getFileSize(path);
+    if (bytes == 0) {
+        return 0;
+    }
+    FILE *file = FileUtil::openFileOrDie(path.c_str(), "rb", true);
+    size_t offset = 0;
+    size_t kept = 0;
+    while (offset + sizeof(EdgeBlockHeader) <= bytes) {
+        EdgeBlockHeader header;
+        if (fread(&header, sizeof(EdgeBlockHeader), 1, file) != 1) {
+            break;
+        }
+        offset += sizeof(EdgeBlockHeader);
+        const size_t blockBytes = static_cast<size_t>(header.recordCount) * sizeof(CandidateEdge);
+        // A worker killed mid-write leaves a partial block, always at the end of
+        // its own shard: it appends, and a restarted worker takes a new id and so
+        // a new shard. Stopping here discards exactly that tail. The partition it
+        // belonged to is redone by another worker, whose copy is complete.
+        if (header.magic != EdgeBlockHeader::MAGIC || offset + blockBytes > bytes) {
+            Debug(Debug::WARNING) << "Edge shard " << path << " ends in a partial block at byte "
+                                  << offset << "; it was written by an interrupted worker and the "
+                                  << "partition it held was redone.\n";
+            break;
+        }
+        const bool wanted =
+            authority.empty() || header.partition >= authority.size() ||
+            authority[header.partition] == static_cast<int64_t>(header.worker);
+        if (wanted == false) {
+            // A superseded copy: this worker did not record the partition done, so
+            // another redid it and its edges are the ones that count.
+            if (fseek(file, static_cast<long>(blockBytes), SEEK_CUR) != 0) {
+                Debug(Debug::ERROR) << "Cannot skip a superseded block in " << path << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            offset += blockBytes;
+            continue;
+        }
+        if (header.recordCount > 0) {
+            const size_t at = out.size();
+            out.resize(at + header.recordCount);
+            if (fread(out.data() + at, sizeof(CandidateEdge), header.recordCount, file) !=
+                header.recordCount) {
+                Debug(Debug::ERROR) << "Cannot read a block of edge shard " << path << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            kept += header.recordCount;
+        }
+        offset += blockBytes;
+    }
+    fclose(file);
+    return kept;
 }

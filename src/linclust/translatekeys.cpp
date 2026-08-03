@@ -62,8 +62,23 @@ struct __attribute__((__packed__)) KeyPair {
     uint64_t other;  // the column carried through untouched
 };
 
-// Spill file holding (key, text) records. Needed for the second pass, where the
-// column carried through has already become an accession and so varies in width.
+// One row after its member has been translated: the representative still a key,
+// the member already an accession. The member's key is carried alongside purely
+// to order the output (see the sort in pass 3).
+struct TranslatedRow {
+    uint64_t repKey;
+    uint64_t memberKey;
+    std::string memberAccession;
+};
+
+bool byRepThenMember(const TranslatedRow &a, const TranslatedRow &b) {
+    if (a.repKey != b.repKey) return a.repKey < b.repKey;
+    return a.memberKey < b.memberKey;
+}
+
+// Spill file holding (key, key, text) records. Needed for the second pass, where
+// the column carried through has already become an accession and so varies in
+// width.
 class TextBuckets {
 public:
     TextBuckets(const std::string &prefix, unsigned int count, size_t flushBytes = 8 << 20)
@@ -73,10 +88,11 @@ public:
     }
     ~TextBuckets() { close(); }
 
-    void append(unsigned int b, uint64_t key, const char *text, size_t length) {
+    void append(unsigned int b, uint64_t key, uint64_t other, const char *text, size_t length) {
         std::string &buf = buffers[b];
         const uint32_t len = static_cast<uint32_t>(length);
         buf.append(reinterpret_cast<const char *>(&key), sizeof(key));
+        buf.append(reinterpret_cast<const char *>(&other), sizeof(other));
         buf.append(reinterpret_cast<const char *>(&len), sizeof(len));
         buf.append(text, length);
         if (buf.size() >= flushBytes) {
@@ -97,10 +113,8 @@ public:
         return prefix + "." + SSTR(b);
     }
 
-    // Reads one bucket back as (key, accession) pairs.
-    static void read(const std::string &prefix, unsigned int b,
-                     std::vector<std::pair<uint64_t, std::string> > &out) {
-        out.clear();
+    // Appends one bucket's rows to out, which the caller accumulates across shards.
+    static void read(const std::string &prefix, unsigned int b, std::vector<TranslatedRow> &out) {
         const std::string p = path(prefix, b);
         if (FileUtil::fileExists(p.c_str()) == false) return;
         const size_t bytes = FileUtil::getFileSize(p);
@@ -113,15 +127,18 @@ public:
         }
         fclose(f);
         size_t at = 0;
-        while (at + sizeof(uint64_t) + sizeof(uint32_t) <= bytes) {
-            uint64_t key;
+        while (at + 2 * sizeof(uint64_t) + sizeof(uint32_t) <= bytes) {
+            TranslatedRow row;
             uint32_t len;
-            memcpy(&key, blob.data() + at, sizeof(key));
-            at += sizeof(key);
+            memcpy(&row.repKey, blob.data() + at, sizeof(row.repKey));
+            at += sizeof(row.repKey);
+            memcpy(&row.memberKey, blob.data() + at, sizeof(row.memberKey));
+            at += sizeof(row.memberKey);
             memcpy(&len, blob.data() + at, sizeof(len));
             at += sizeof(len);
-            out.push_back(std::make_pair(key, blob.substr(at, len)));
+            row.memberAccession.assign(blob.data() + at, len);
             at += len;
+            out.push_back(row);
         }
     }
 
@@ -425,7 +442,7 @@ int translatekeys(int argc, const char **argv, const Command &command) {
                 for (size_t i = 0; i < pairs.size(); i++) {
                     const std::string &name = accessionOf(slice, pairs[i].key, lo, lookupFile);
                     writers[tid]->append(static_cast<unsigned int>(pairs[i].other / span),
-                                         pairs[i].other, name.c_str(), name.size());
+                                         pairs[i].other, pairs[i].key, name.c_str(), name.size());
                 }
                 FileUtil::remove(KeyBuckets::path(tmpA, b).c_str());
             }
@@ -438,14 +455,23 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     // Pass 3: translate the representative and emit.
     //
     // Also parallel over buckets, each writing its own piece; the pieces are then
-    // concatenated in bucket order, so the output is exactly what the sequential
-    // version produced.
+    // concatenated in bucket order.
+    //
+    // Each bucket's rows are sorted by (representative key, member key) before
+    // they are written, which is what makes the output reproducible. Pass 2 spills
+    // to thread-private shards, so which shard a row lands in depends on which
+    // thread happened to take its source bucket -- and with `schedule(dynamic)`
+    // that varies between two runs of the same binary on the same input, not just
+    // between thread counts. Sorting on the keys, which are a property of the data
+    // alone, removes the schedule from the result entirely. Keys rather than
+    // accessions because the comparison is then an integer one, and because it
+    // makes the output order match the key-space clustering this translates.
     uint64_t written = 0;
     {
 #pragma omp parallel num_threads(threads) reduction(+ : written)
         {
             std::vector<std::string> slice;
-            std::vector<std::pair<uint64_t, std::string> > entries;
+            std::vector<TranslatedRow> entries;
             std::string buffer;
 #pragma omp for schedule(dynamic, 1)
             for (int64_t bi = 0; bi < static_cast<int64_t>(buckets); bi++) {
@@ -458,23 +484,27 @@ int translatekeys(int argc, const char **argv, const Command &command) {
                 LookupCursor cursor(lookupFile, lookupAt[b]);
                 cursor.slice(lo, hi, slice);
                 buffer.clear();
+                entries.clear();
                 for (int t = 0; t < threads; t++) {
                     TextBuckets::read(tmpB + ".t" + SSTR(t), b, entries);
-                    for (size_t i = 0; i < entries.size(); i++) {
-                        const std::string &repName =
-                            accessionOf(slice, entries[i].first, lo, lookupFile);
-                        buffer.append(repName);
-                        buffer.push_back('\t');
-                        buffer.append(entries[i].second);
-                        buffer.push_back('\n');
-                        written++;
-                    }
                     // A (thread, bucket) shard exists only if that thread wrote
                     // to that bucket, which is sparse.
                     const std::string shard = TextBuckets::path(tmpB + ".t" + SSTR(t), b);
                     if (FileUtil::fileExists(shard.c_str())) {
                         FileUtil::remove(shard.c_str());
                     }
+                }
+                // std::sort, not SORT_PARALLEL: this already runs inside the
+                // parallel region, one bucket per thread.
+                std::sort(entries.begin(), entries.end(), byRepThenMember);
+                for (size_t i = 0; i < entries.size(); i++) {
+                    const std::string &repName =
+                        accessionOf(slice, entries[i].repKey, lo, lookupFile);
+                    buffer.append(repName);
+                    buffer.push_back('\t');
+                    buffer.append(entries[i].memberAccession);
+                    buffer.push_back('\n');
+                    written++;
                 }
                 FILE *piece = FileUtil::openAndDelete((outTsv + ".p" + SSTR(b)).c_str(), "w");
                 writeAllOrDie(buffer.data(), buffer.size(), piece, outTsv);

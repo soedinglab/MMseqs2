@@ -390,6 +390,40 @@ bool WorkQueue::allDone() {
     return getDoneCount() >= itemCount;
 }
 
+bool WorkQueue::readCompletedWorkers(const std::string &path, std::vector<int64_t> &workers) {
+    workers.clear();
+    const int fd = open(path.c_str(), O_RDONLY);
+    if (fd < 0) {
+        return false;
+    }
+    Header header;
+    if (preadFully(fd, &header, sizeof(Header), 0) != static_cast<ssize_t>(sizeof(Header))) {
+        close(fd);
+        Debug(Debug::ERROR) << "Cannot read the header of work queue " << path << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (header.magic != MAGIC || header.version != VERSION) {
+        close(fd);
+        Debug(Debug::ERROR) << "File " << path << " is not a work queue\n";
+        EXIT(EXIT_FAILURE);
+    }
+    workers.assign(static_cast<size_t>(header.itemCount), -1);
+    for (uint64_t i = 0; i < header.itemCount; i++) {
+        Record record;
+        if (preadFully(fd, &record, sizeof(Record), recordOffset(static_cast<int64_t>(i))) !=
+            static_cast<ssize_t>(sizeof(Record))) {
+            close(fd);
+            Debug(Debug::ERROR) << "Cannot read record " << i << " of work queue " << path << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (record.state == DONE) {
+            workers[static_cast<size_t>(i)] = static_cast<int64_t>(record.worker);
+        }
+    }
+    close(fd);
+    return true;
+}
+
 bool WorkQueue::awaitAll(unsigned int pollSeconds, unsigned int stallSeconds) {
     int64_t lastDone = -1;
     int64_t lastProgress = nowSeconds();

@@ -110,12 +110,42 @@ private:
 //     accumulation stock does in its global merge can be reproduced exactly,
 //     instead of approximated per partition.
 //
+// Framing for one flushed run of edges, so a record can be traced to the k-mer
+// partition and the worker that produced it.
+//
+// This is what makes the reduce idempotent across a crash. A worker that flushes
+// a partition's edges and dies before the queue records the item leaves that data
+// on disk; the item is then re-claimed and redone by another worker, whose edges
+// land in *its* shard. Both copies are present, and the align stage sums the
+// support of matching (pair, diagonal) records, so the redone pair would count
+// twice and can win a diagonal it should not.
+//
+// The duplicates cannot be recognised from the records alone: unlike a k-mer
+// record, where (kmer, id, pos) names one occurrence, two different partitions
+// may legitimately emit byte-identical edges that must both be summed. Naming the
+// producer in the frame is what separates "the same partition written twice" from
+// "two partitions that agree".
+struct __attribute__((__packed__)) EdgeBlockHeader {
+    // Distinguishes a real header from the tail of a torn write.
+    uint32_t magic;
+    uint32_t partition;
+    uint32_t worker;
+    uint32_t recordCount;
+
+    static const uint32_t MAGIC = 0x45444745;  // "EDGE"
+};
+
 // One file per (worker, bucket), like the k-mer shards, so no locking is needed.
 class EdgeBucketWriter {
 public:
     EdgeBucketWriter(const std::string &dir, unsigned int bucketCount, const std::string &shardId,
                      size_t bufferBudgetBytes = 256 * 1024 * 1024);
     ~EdgeBucketWriter();
+
+    // Names the partition every subsequent append belongs to, and the worker
+    // doing the work. Flushes anything still buffered for the previous partition
+    // first, so a block never spans two of them.
+    void beginPartition(unsigned int partition, int64_t worker);
 
     void append(unsigned int bucket, const CandidateEdge &edge);
     // Pushes buffered edges to the OS. Call before marking a work item done, for
@@ -143,6 +173,21 @@ private:
     std::vector<FILE *> files;
     uint64_t edgeCount;
     bool closed;
+    unsigned int currentPartition;
+    int64_t currentWorker;
+};
+
+// Reads the blocks EdgeBucketWriter wrote, keeping only those whose producer the
+// reduce's work queue recorded as the one that completed the partition.
+//
+// `authority[partition]` is that worker (see WorkQueue::readCompletedWorkers). A
+// block naming any other worker is a dead worker's copy of an item that was
+// redone, and is skipped. An empty authority disables filtering, for callers that
+// have no queue to consult.
+class EdgeBucketReader {
+public:
+    static size_t readShard(const std::string &path, const std::vector<int64_t> &authority,
+                            std::vector<CandidateEdge> &out);
 };
 
 #endif

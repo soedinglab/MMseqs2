@@ -8,6 +8,7 @@
 #include <atomic>
 #include <string>
 #include <thread>
+#include <vector>
 
 // Shared-filesystem coordination for multi-node MMseqs2 stages.
 //
@@ -127,6 +128,16 @@ public:
     int64_t getItemCount() const { return itemCount; }
     int64_t getDoneCount();
     bool allDone();
+
+    // Reads a finished queue's completion records without opening it as a queue,
+    // which would create it and needs an itemCount the caller does not know.
+    //
+    // workers[i] is the worker that recorded item i DONE, or -1 if it never was.
+    // Exactly one worker is named per completed item -- complete() is idempotent
+    // and keeps the first recorded worker -- which makes this usable as the
+    // authority on whose output for an item counts, when an item may have been
+    // run more than once. Returns false if the queue file does not exist.
+    static bool readCompletedWorkers(const std::string &path, std::vector<int64_t> &workers);
 
     // True while some item is held under an unexpired lease.
     bool hasLiveClaim();

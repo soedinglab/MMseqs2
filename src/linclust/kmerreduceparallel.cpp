@@ -517,6 +517,11 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         // partition are already threaded, and a partition is sized to fill a node.
         const bool finished = queue.drain(workerId, [&](size_t item) {
             const size_t partition = waveFrom + item;
+            // Stamps every block this partition writes with (partition, worker).
+            // If this worker dies before the queue records the item done, another
+            // redoes it and the align stage drops these blocks in favour of the
+            // redo's -- without which both copies would be summed.
+            edgeWriter->beginPartition(static_cast<unsigned int>(partition), workerId);
             if (info.maxSeqLen < SHRT_MAX) {
                 edgeCount += reducePartition<short>(kmerDir, static_cast<unsigned int>(partition),
                                                     dbType, par, subMat, *edgeWriter, bucketSpan);

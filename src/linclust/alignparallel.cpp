@@ -120,29 +120,36 @@ size_t mergePairCopies(std::vector<CandidateEdge> &edges) {
     return out;
 }
 
+// Which worker's edges count for each k-mer partition.
+//
+// The reduce's work queue is the authority: complete() keeps the first worker to
+// record an item done, so exactly one is named per partition, and any block from
+// another worker is a copy left by one that died before recording it. One queue
+// per extraction wave, and wave w holds the partitions after all earlier waves',
+// so appending them in wave order indexes by partition directly.
+std::vector<int64_t> readReduceAuthority(const std::string &edgeDir) {
+    std::vector<int64_t> authority;
+    for (unsigned int wave = 0;; wave++) {
+        std::vector<int64_t> workers;
+        const std::string path = edgeDir + "/coord/reduce." + SSTR(wave) + ".queue";
+        if (WorkQueue::readCompletedWorkers(path, workers) == false) {
+            break;
+        }
+        authority.insert(authority.end(), workers.begin(), workers.end());
+    }
+    if (authority.empty()) {
+        Debug(Debug::WARNING) << "No reduce work queue under " << edgeDir
+                              << "/coord; cannot tell a crashed worker's superseded edges from a "
+                              << "second partition's. Duplicate support would be summed.\n";
+    }
+    return authority;
+}
+
 size_t readBucket(const std::string &edgeDir, unsigned int bucket,
-                  std::vector<CandidateEdge> &out) {
+                  const std::vector<int64_t> &authority, std::vector<CandidateEdge> &out) {
     const std::vector<std::string> shards = EdgeBucketWriter::shardFiles(edgeDir, bucket);
     for (size_t i = 0; i < shards.size(); i++) {
-        const size_t bytes = FileUtil::getFileSize(shards[i]);
-        if (bytes % sizeof(CandidateEdge) != 0) {
-            Debug(Debug::ERROR) << "Edge shard " << shards[i] << " is " << bytes
-                                << " bytes, not a whole number of edges. It was probably written "
-                                << "by an interrupted worker.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        const size_t count = bytes / sizeof(CandidateEdge);
-        if (count == 0) {
-            continue;
-        }
-        FILE *file = FileUtil::openFileOrDie(shards[i].c_str(), "rb", true);
-        const size_t offset = out.size();
-        out.resize(offset + count);
-        if (fread(out.data() + offset, sizeof(CandidateEdge), count, file) != count) {
-            Debug(Debug::ERROR) << "Cannot read edge shard " << shards[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(file);
+        EdgeBucketReader::readShard(shards[i], authority, out);
     }
     return out.size();
 }
@@ -382,12 +389,13 @@ int alignparallel(int argc, const char **argv, const Command &command) {
 
     PartitionSequences sequences(seqDb);
     uint64_t survivorCount = 0;
+    const std::vector<int64_t> reduceAuthority = readReduceAuthority(edgeDir);
 
     {
         WorkQueue queue(coordDir + "/align.queue", static_cast<int64_t>(bucketCount));
         const bool finished = queue.drain(workerId, [&](size_t bucket) {
             std::vector<CandidateEdge> edges;
-            readBucket(edgeDir, static_cast<unsigned int>(bucket), edges);
+            readBucket(edgeDir, static_cast<unsigned int>(bucket), reduceAuthority, edges);
             const size_t raw = edges.size();
             if (raw == 0) {
                 EdgeWriter empty(EdgeWriter::partitionPath(alnDir, static_cast<unsigned int>(bucket)));
