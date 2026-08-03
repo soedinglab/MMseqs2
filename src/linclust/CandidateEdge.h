@@ -180,9 +180,6 @@ private:
     size_t edgesPerBuffer;
     std::vector<std::vector<CandidateEdge> > buffers;
     std::vector<FILE *> files;
-    // Which buckets this writer has actually appended to, so flushAll() syncs only
-    // those rather than opening all bucketCount of them.
-    std::vector<bool> written;
     uint64_t edgeCount;
     bool closed;
     unsigned int currentPartition;

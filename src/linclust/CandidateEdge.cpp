@@ -11,32 +11,7 @@
 #include <cstring>
 
 #include <dirent.h>
-#include <fcntl.h>
 #include <sys/stat.h>
-
-namespace {
-
-// Makes a rename durable. Renaming into place is atomic against other readers but
-// not against losing the node: the directory entry lives in the parent, so without
-// this the file can come back missing or empty after a crash the work queue has
-// already recorded as a completed item.
-void syncParentDirectory(const std::string &path) {
-    const size_t slash = path.find_last_of('/');
-    const std::string dir = slash == std::string::npos ? std::string(".") : path.substr(0, slash);
-    const int fd = open(dir.c_str(), O_RDONLY);
-    if (fd < 0) {
-        Debug(Debug::ERROR) << "Cannot open " << dir << " to flush it: " << strerror(errno) << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (fsync(fd) != 0) {
-        Debug(Debug::ERROR) << "Cannot flush " << dir << ": " << strerror(errno) << "\n";
-        close(fd);
-        EXIT(EXIT_FAILURE);
-    }
-    close(fd);
-}
-
-}  // namespace
 
 std::string EdgeWriter::partitionPath(const std::string &dir, unsigned int partition) {
     return dir + "/p" + SSTR(partition) + ".edges";
@@ -108,17 +83,9 @@ void EdgeWriter::close() {
         // can tell "this partition was reduced and had nothing" from "this
         // partition was never reduced".
         //
-        // fsync before the rename, and the directory after it, because the work
-        // queue that vouches for this file *is* fsynced when the item is completed.
-        // Without this the durability runs the wrong way round: a node lost after
-        // the rename can replay the metadata without the data extents, leaving a
-        // zero-filled bucket that the queue records as DONE, so nobody redoes it
-        // and greedycluster reads it as "no edges" in silence.
-        if (fflush(file) != 0 || fsync(fileno(file)) != 0) {
-            Debug(Debug::ERROR) << "Cannot flush edge file " << tmpPath << ": " << strerror(errno)
-                                << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+        // Not fsynced. Losing the node mid-stage is out of scope: the pipeline
+        // resumes between stages, not within one, so a stage interrupted that way
+        // is re-run from its start rather than trusted from its work queue.
         if (fclose(file) != 0) {
             Debug(Debug::ERROR) << "Cannot close edge file " << tmpPath << ": " << strerror(errno)
                                 << "\n";
@@ -130,7 +97,6 @@ void EdgeWriter::close() {
                                 << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
-        syncParentDirectory(path);
     } else {
         const std::string tmp = path + ".w" + SSTR(workerId);
         FILE *empty = fopen(tmp.c_str(), "wb");
@@ -144,7 +110,6 @@ void EdgeWriter::close() {
                                 << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
-        syncParentDirectory(path);
     }
 }
 
@@ -178,7 +143,6 @@ EdgeBucketWriter::EdgeBucketWriter(const std::string &dir, unsigned int bucketCo
     edgesPerBuffer = std::max<size_t>(perBucket, 64);
     buffers.resize(bucketCount);
     files.assign(bucketCount, NULL);
-    written.assign(bucketCount, false);
 }
 
 EdgeBucketWriter::~EdgeBucketWriter() {
@@ -242,7 +206,6 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
         EXIT(EXIT_FAILURE);
     }
     files[bucket] = NULL;
-    written[bucket] = true;
     buffer.clear();
 }
 
@@ -266,36 +229,16 @@ void EdgeBucketWriter::append(unsigned int bucket, const CandidateEdge &edge) {
     edgeCount++;
 }
 
+// Pushes every buffered edge to the OS before the caller marks the work item done.
+//
+// Deliberately not fsynced. That would make the data durable against losing the
+// node, which the queue's own completion record already is -- but resume here is
+// between stages, not within one, so an interrupted stage is re-run from its start
+// rather than trusted item by item. Syncing each touched shard once per item cost
+// real traffic on a parallel filesystem for a guarantee nothing consumes.
 void EdgeBucketWriter::flushAll() {
     for (unsigned int b = 0; b < bucketCount; b++) {
         flush(b);
-    }
-    // Then make what was written durable, before the caller marks the work item
-    // done. The queue fsyncs its own completion record, so without this the record
-    // that an item finished outlives the data it vouches for: a node lost here
-    // brings the shard back short or zero-filled, and because the item reads DONE
-    // nobody redoes it.
-    //
-    // Once per item rather than once per flush -- a flush is a few hundred KB at
-    // large bucket counts, and syncing each would dominate the stage.
-    for (unsigned int b = 0; b < bucketCount; b++) {
-        if (written[b] == false) {
-            continue;
-        }
-        const std::string path = shardPath(b);
-        const int fd = ::open(path.c_str(), O_WRONLY | O_APPEND);
-        if (fd < 0 || fsync(fd) != 0) {
-            Debug(Debug::ERROR) << "Cannot flush edge bucket " << path << " to disk: "
-                                << strerror(errno) << "\n";
-            if (fd >= 0) {
-                ::close(fd);
-            }
-            EXIT(EXIT_FAILURE);
-        }
-        ::close(fd);
-        // The shard's own directory, because a shard created during this item is
-        // only reachable once its directory entry is durable too.
-        syncParentDirectory(path);
     }
 }
 
