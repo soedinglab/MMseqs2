@@ -57,14 +57,14 @@ private:
     }
 };
 
-// Buffered writer for one partition's edge file.
+// Buffered writer for one bucket's edge file, used for the *alignment* output:
+// alignparallel writes one of these per bucket and greedycluster reads them back.
 //
-// One file per partition, written whole, so a partition redone after a crash
-// simply overwrites its file. That makes the reduce idempotent, unlike the map,
-// whose per-worker shards can retain a dead worker's partial output.
-//
-// Used for the reference layout (`--align`, small scale). Production uses
-// EdgeBucketWriter below.
+// One file per bucket, written under a per-process temporary name and renamed on
+// close. The rename is atomic, so a bucket redone after a crash -- or run twice
+// because a lease lapsed -- replaces the earlier file with an equally complete
+// one rather than appending to it. That is why this stage needs no block framing,
+// unlike EdgeBucketWriter below, whose output several producers share.
 class EdgeWriter {
 public:
     EdgeWriter(const std::string &path, size_t bufferRecords = 1024 * 1024);
