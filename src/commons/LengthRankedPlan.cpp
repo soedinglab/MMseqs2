@@ -6,7 +6,11 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
 
 namespace {
 
@@ -29,13 +33,30 @@ struct FileHeader {
 void writeBlock(const std::string &path, const FileHeader &header,
                 const void *entries, size_t entryBytes) {
     // Write to a temporary and rename, so a worker that dies mid-write leaves no
-    // truncated file that a later reader would mistake for a complete one.
-    // Tagged with the pid: two workers redoing the same chunk would otherwise
-    // both open the same .tmp, and one could truncate the other's in-flight write
-    // before renaming the hole-ridden result into place. The rename itself is
-    // atomic, so a private temp makes the whole publish atomic.
-    std::string tmp = path + ".tmp." + SSTR(getpid());
-    FILE *file = FileUtil::openAndDelete(tmp.c_str(), "wb");
+    // truncated file that a later reader would mistake for a complete one. Two
+    // workers redoing the same chunk must not share the temporary path, or one
+    // can truncate the other's in-flight write and then rename the hole-ridden
+    // result into place. The rename itself is atomic, so a private temp makes the
+    // whole publish atomic.
+    //
+    // mkstemp, not getpid(): this path is on the shared filesystem and pids are
+    // node-local, so two workers on different nodes drawing the same pid -- which
+    // a homogeneous allocation makes routine -- would collide on the same name.
+    std::string tmp = path + ".tmp.XXXXXX";
+    std::vector<char> tmpName(tmp.begin(), tmp.end());
+    tmpName.push_back('\0');
+    const int tmpFd = mkstemp(&tmpName[0]);
+    if (tmpFd < 0) {
+        Debug(Debug::ERROR) << "Cannot create a temporary next to " << path << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    tmp.assign(&tmpName[0]);
+    FILE *file = fdopen(tmpFd, "wb");
+    if (file == NULL) {
+        Debug(Debug::ERROR) << "Cannot open " << tmp << ": " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     if (fwrite(&header, sizeof(FileHeader), 1, file) != 1) {
         Debug(Debug::ERROR) << "Cannot write header to " << tmp << "\n";
         EXIT(EXIT_FAILURE);

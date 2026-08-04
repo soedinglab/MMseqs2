@@ -36,6 +36,8 @@
 #include <string>
 #include <vector>
 
+#include <dirent.h>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -71,6 +73,33 @@ struct TranslatedRow {
     std::string memberAccession;
 };
 
+// Removes every spill file belonging to a prefix, regardless of the thread and
+// bucket counts the previous attempt used.
+//
+// Needed because a rerun only truncates the shards it happens to touch: pass 2
+// spills under <prefix>.t<thread>.<bucket> and assigns source buckets with
+// schedule(dynamic), so a different schedule -- or a different --threads -- leaves
+// shards from the earlier attempt on disk, and pass 3 reads every shard it finds.
+// Both attempts' rows would then be emitted.
+void removeSpillFiles(const std::string &prefix) {
+    const size_t slash = prefix.find_last_of('/');
+    const std::string dir = slash == std::string::npos ? std::string(".") : prefix.substr(0, slash);
+    const std::string base = slash == std::string::npos ? prefix : prefix.substr(slash + 1);
+    DIR *handle = opendir(dir.c_str());
+    if (handle == NULL) {
+        return;  // nothing written yet
+    }
+    struct dirent *entry;
+    while ((entry = readdir(handle)) != NULL) {
+        const std::string name = entry->d_name;
+        if (name.size() > base.size() && name.compare(0, base.size(), base) == 0) {
+            FileUtil::remove((dir + "/" + name).c_str());
+        }
+    }
+    closedir(handle);
+}
+
+
 bool byRepThenMember(const TranslatedRow &a, const TranslatedRow &b) {
     if (a.repKey != b.repKey) return a.repKey < b.repKey;
     return a.memberKey < b.memberKey;
@@ -83,7 +112,7 @@ class TextBuckets {
 public:
     TextBuckets(const std::string &prefix, unsigned int count, size_t flushBytes = 8 << 20)
         : prefix(prefix), count(count), flushBytes(flushBytes), closed(false) {
-        files.assign(count, NULL);
+        opened.assign(count, false);
         buffers.resize(count);
     }
     ~TextBuckets() { close(); }
@@ -105,7 +134,6 @@ public:
         closed = true;
         for (unsigned int b = 0; b < count; b++) {
             flush(b);
-            if (files[b] != NULL) { fclose(files[b]); files[b] = NULL; }
         }
     }
 
@@ -143,18 +171,30 @@ public:
     }
 
 private:
+    // Append-and-close per flush, as the k-mer and edge bucket writers do. Holding
+    // one descriptor per bucket until close needed up to 65536 of them against the
+    // 8192 FileUtil::fixRlimitNoFile raises to, so translation hit EMFILE at
+    // exactly the scale it exists for. The first flush truncates, later ones
+    // append.
     void flush(unsigned int b) {
         if (buffers[b].empty()) return;
-        if (files[b] == NULL) {
-            files[b] = fopen(path(prefix, b).c_str(), "wb");
-            if (files[b] == NULL) {
-                Debug(Debug::ERROR) << "Cannot open " << path(prefix, b) << ": " << strerror(errno)
-                                    << "\n";
-                EXIT(EXIT_FAILURE);
-            }
+        FILE *file = fopen(path(prefix, b).c_str(), opened[b] ? "ab" : "wb");
+        if (file == NULL) {
+            Debug(Debug::ERROR) << "Cannot open " << path(prefix, b) << ": " << strerror(errno)
+                                << "\n";
+            EXIT(EXIT_FAILURE);
         }
-        if (fwrite(buffers[b].data(), 1, buffers[b].size(), files[b]) != buffers[b].size()) {
+        opened[b] = true;
+        if (fwrite(buffers[b].data(), 1, buffers[b].size(), file) != buffers[b].size()) {
             Debug(Debug::ERROR) << "Cannot write bucket " << b << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // Checked: on a buffered or remote filesystem this is where ENOSPC and
+        // quota failures first surface, and a lost record here is invisible
+        // downstream because whole rows keep the file self-consistent.
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << path(prefix, b) << ": " << strerror(errno)
+                                << "\n";
             EXIT(EXIT_FAILURE);
         }
         buffers[b].clear();
@@ -164,7 +204,7 @@ private:
     unsigned int count;
     size_t flushBytes;
     std::vector<std::string> buffers;
-    std::vector<FILE *> files;
+    std::vector<bool> opened;
     bool closed;
 };
 
@@ -173,7 +213,7 @@ class KeyBuckets {
 public:
     KeyBuckets(const std::string &prefix, unsigned int count, size_t bufferPairs = 1 << 16)
         : prefix(prefix), count(count), bufferPairs(bufferPairs), closed(false) {
-        files.assign(count, NULL);
+        opened.assign(count, false);
         buffers.resize(count);
     }
     ~KeyBuckets() { close(); }
@@ -191,7 +231,6 @@ public:
         closed = true;
         for (unsigned int b = 0; b < count; b++) {
             flush(b);
-            if (files[b] != NULL) { fclose(files[b]); files[b] = NULL; }
         }
     }
 
@@ -216,19 +255,24 @@ public:
     }
 
 private:
+    // Append-and-close per flush; see the note on TextBuckets::flush.
     void flush(unsigned int b) {
         if (buffers[b].empty()) return;
-        if (files[b] == NULL) {
-            files[b] = fopen(path(prefix, b).c_str(), "wb");
-            if (files[b] == NULL) {
-                Debug(Debug::ERROR) << "Cannot open " << path(prefix, b) << ": " << strerror(errno)
-                                    << "\n";
-                EXIT(EXIT_FAILURE);
-            }
+        FILE *file = fopen(path(prefix, b).c_str(), opened[b] ? "ab" : "wb");
+        if (file == NULL) {
+            Debug(Debug::ERROR) << "Cannot open " << path(prefix, b) << ": " << strerror(errno)
+                                << "\n";
+            EXIT(EXIT_FAILURE);
         }
-        if (fwrite(buffers[b].data(), sizeof(KeyPair), buffers[b].size(), files[b]) !=
+        opened[b] = true;
+        if (fwrite(buffers[b].data(), sizeof(KeyPair), buffers[b].size(), file) !=
             buffers[b].size()) {
             Debug(Debug::ERROR) << "Cannot write bucket " << b << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << path(prefix, b) << ": " << strerror(errno)
+                                << "\n";
             EXIT(EXIT_FAILURE);
         }
         buffers[b].clear();
@@ -238,7 +282,7 @@ private:
     unsigned int count;
     size_t bufferPairs;
     std::vector<std::vector<KeyPair> > buffers;
-    std::vector<FILE *> files;
+    std::vector<bool> opened;
     bool closed;
 };
 
@@ -397,6 +441,12 @@ int translatekeys(int argc, const char **argv, const Command &command) {
 
     const std::string tmpA = outTsv + ".bymember";
     const std::string tmpB = outTsv + ".byrep";
+    // Clear anything an interrupted earlier attempt left behind. A rerun only
+    // truncates the shards it happens to touch, and pass 2's thread/bucket
+    // assignment is dynamic, so shards from the previous attempt would otherwise
+    // survive and pass 3 would emit both attempts' rows.
+    removeSpillFiles(tmpA);
+    removeSpillFiles(tmpB);
 
     // Pass 1: bucket by member key.
     {

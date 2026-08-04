@@ -105,6 +105,19 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
     }
     sizing.bytesPerWave = divideRoundingUp(sizing.totalKmerBytes, sizing.waveCount);
 
+    // Sized against totalKmerBytes, NOT bytesPerWave.
+    //
+    // A wave re-extracts every k-mer and keeps only its own contiguous slice of
+    // partition space, so a partition that a wave owns receives *all* of its
+    // k-mers -- there is no such thing as a partial partition. A partition
+    // therefore holds totalKmerBytes / P regardless of the wave count; what waves
+    // divide is how many partitions are on disk at once, which is why
+    // bytesPerWave is still the right figure for the scratch budget.
+    //
+    // Deriving P from bytesPerWave made P a factor of waveCount too small and
+    // reported a per-partition size the same factor too low, so a reduce worker
+    // held waveCount times the memory the limit allowed. Measured at 100M with
+    // two waves: reported 1.575 GB per partition against an actual 3.15 GB.
     if (workerMemoryBytes == 0) {
         sizing.partitionCount = 1;
     } else {
@@ -117,7 +130,7 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
         // --split-memory-limit 0 on a 2 TB node at 1e11 that derived P = 32, a
         // 1.58 TB partition and ~3 TB of arrays.
         sizing.partitionCount = roundUpToPowerOfTwo(
-            divideRoundingUp(sizing.bytesPerWave * REDUCE_MEMORY_FACTOR, workerMemoryBytes));
+            divideRoundingUp(sizing.totalKmerBytes * REDUCE_MEMORY_FACTOR, workerMemoryBytes));
     }
     // Both are powers of two, so this makes the wave count a divisor of P.
     sizing.partitionCount = std::max(sizing.partitionCount, sizing.waveCount);
@@ -132,7 +145,7 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
                             << "waves are used.\n";
         EXIT(EXIT_FAILURE);
     }
-    sizing.bytesPerPartition = divideRoundingUp(sizing.bytesPerWave, sizing.partitionCount);
+    sizing.bytesPerPartition = divideRoundingUp(sizing.totalKmerBytes, sizing.partitionCount);
     return sizing;
 }
 
@@ -206,10 +219,18 @@ void KmerBucketWriter::flush(unsigned int partition) {
                             << partition << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    buffer.clear();
-    // Released immediately: see the note in flush() above.
-    fclose(files[partition]);
+    // Checked, and before the buffer is dropped: buffered I/O can report ENOSPC,
+    // a quota, or a remote filesystem error only at close, and the queue marks the
+    // item done straight after flushAll(). An unchecked close here let an item be
+    // recorded complete with k-mers missing, which the reduce then reads as "this
+    // k-mer had no partner" -- a wrong clustering with no diagnostic.
+    if (fclose(files[partition]) != 0) {
+        Debug(Debug::ERROR) << "Cannot close k-mer bucket " << partition << " of " << dir << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     files[partition] = NULL;
+    buffer.clear();
 }
 
 void KmerBucketWriter::append(unsigned int partition, const KmerRecord &record) {
@@ -265,12 +286,21 @@ void KmerBucketWriter::close() {
 std::vector<std::string> KmerBucketReader::shardFiles(const std::string &dir, unsigned int partition) {
     const std::string path = KmerBucketWriter::partitionDir(dir, partition);
     std::vector<std::string> shards;
+    // createLayout pre-creates every partition/bucket directory, so a directory
+    // that cannot be opened is a real failure, not a legitimately empty one --
+    // treating it as empty let a worker record the item done having read nothing,
+    // silently dropping every record in it. An empty partition is an *existing*,
+    // readable directory holding no shards.
     DIR *handle = opendir(path.c_str());
     if (handle == NULL) {
-        // A partition no worker wrote to is empty, not an error.
-        return shards;
+        // errno captured before the Debug chain, which does its own I/O and would
+        // otherwise overwrite it.
+        const int err = errno;
+        Debug(Debug::ERROR) << "Cannot open k-mer partition directory " << path << ": " << strerror(err) << "\n";
+        EXIT(EXIT_FAILURE);
     }
     struct dirent *entry;
+    errno = 0;
     while ((entry = readdir(handle)) != NULL) {
         const std::string name = entry->d_name;
         if (name.size() > 6 && name.compare(name.size() - 6, 6, ".kmers") == 0) {

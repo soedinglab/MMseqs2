@@ -129,7 +129,10 @@ static void testCounterAcrossThreads(const std::string &dir) {
     std::vector<std::vector<int64_t> > perThreadValues(threadCount);
     std::vector<std::thread> threads;
     for (int t = 0; t < threadCount; t++) {
-        threads.push_back(std::thread([&counter, &perThreadValues, t, perThread]() {
+        // perThread is a const int and so usable without capturing it; naming it
+        // here trips -Wunused-lambda-capture under clang, which the aarch64 CI
+        // task builds with -Werror.
+        threads.push_back(std::thread([&counter, &perThreadValues, t]() {
             for (int i = 0; i < perThread; i++) {
                 perThreadValues[t].push_back(counter.fetchAdd(1));
             }

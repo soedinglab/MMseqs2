@@ -255,18 +255,37 @@ void EdgeBucketWriter::close() {
 std::vector<std::string> EdgeBucketWriter::shardFiles(const std::string &dir, unsigned int bucket) {
     const std::string path = bucketDir(dir, bucket);
     std::vector<std::string> shards;
+    // createLayout pre-creates every partition/bucket directory, so a directory
+    // that cannot be opened is a real failure, not a legitimately empty one --
+    // treating it as empty let a worker record the item done having read nothing,
+    // silently dropping every record in it. An empty partition is an *existing*,
+    // readable directory holding no shards.
     DIR *handle = opendir(path.c_str());
     if (handle == NULL) {
-        return shards;  // a bucket nothing was written to is empty, not an error
+        // errno captured before the Debug chain, which does its own I/O and would
+        // otherwise overwrite it.
+        const int err = errno;
+        Debug(Debug::ERROR) << "Cannot open edge bucket directory " << path << ": " << strerror(err) << "\n";
+        EXIT(EXIT_FAILURE);
     }
     struct dirent *entry;
+    errno = 0;
     while ((entry = readdir(handle)) != NULL) {
         const std::string name = entry->d_name;
         if (name.size() > 6 && name.compare(name.size() - 6, 6, ".edges") == 0) {
             shards.push_back(path + "/" + name);
         }
     }
-    closedir(handle);
+    const int readErr = errno;
+    if (readErr != 0) {
+        Debug(Debug::ERROR) << "Cannot read " << path << ": " << strerror(readErr) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (closedir(handle) != 0) {
+        const int closeErr = errno;
+        Debug(Debug::ERROR) << "Cannot close " << path << ": " << strerror(closeErr) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     std::sort(shards.begin(), shards.end());
     return shards;
 }

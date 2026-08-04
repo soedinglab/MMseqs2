@@ -308,7 +308,7 @@ int greedycluster(int argc, const char **argv, const Command &command) {
             }
             for (int t = 0; t < par.threads; t++) {
                 if (threadBuffers[t].empty() == false) {
-                    fwrite(threadBuffers[t].data(), 1, threadBuffers[t].size(), out);
+                    writeAllOrDie(threadBuffers[t].data(), threadBuffers[t].size(), out, outFile);
                 }
             }
             singletonCount += blockSingletons;

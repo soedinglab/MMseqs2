@@ -55,7 +55,7 @@ class Buckets {
 public:
     Buckets(const std::string &prefix, unsigned int count, size_t bufferPairs = 1 << 16)
         : prefix(prefix), count(count), bufferPairs(bufferPairs), closed(false) {
-        files.assign(count, NULL);
+        opened.assign(count, false);
         buffers.resize(count);
     }
     ~Buckets() { close(); }
@@ -73,7 +73,6 @@ public:
         closed = true;
         for (unsigned int b = 0; b < count; b++) {
             flush(b);
-            if (files[b] != NULL) { fclose(files[b]); files[b] = NULL; }
         }
     }
 
@@ -100,17 +99,25 @@ public:
 private:
     void flush(unsigned int b) {
         if (buffers[b].empty()) return;
-        if (files[b] == NULL) {
-            files[b] = fopen(path(prefix, b).c_str(), "wb");
-            if (files[b] == NULL) {
-                Debug(Debug::ERROR) << "Cannot open " << path(prefix, b) << ": "
-                                    << strerror(errno) << "\n";
-                EXIT(EXIT_FAILURE);
-            }
+        // Append-and-close per flush: one descriptor per bucket can reach the
+        // derived bucket count, and the close is where a buffered or remote
+        // filesystem first reports ENOSPC or a quota. Losing whole records keeps
+        // the file record-aligned, so downstream never notices the truncation.
+        FILE *file = fopen(path(prefix, b).c_str(), opened[b] ? "ab" : "wb");
+        if (file == NULL) {
+            Debug(Debug::ERROR) << "Cannot open " << path(prefix, b) << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
         }
-        if (fwrite(buffers[b].data(), sizeof(Pair), buffers[b].size(), files[b]) !=
+        opened[b] = true;
+        if (fwrite(buffers[b].data(), sizeof(Pair), buffers[b].size(), file) !=
             buffers[b].size()) {
             Debug(Debug::ERROR) << "Cannot write bucket " << b << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << path(prefix, b) << ": " << strerror(errno)
+                                << "\n";
             EXIT(EXIT_FAILURE);
         }
         buffers[b].clear();
@@ -120,7 +127,7 @@ private:
     unsigned int count;
     size_t bufferPairs;
     std::vector<std::vector<Pair> > buffers;
-    std::vector<FILE *> files;
+    std::vector<bool> opened;
     bool closed;
 };
 

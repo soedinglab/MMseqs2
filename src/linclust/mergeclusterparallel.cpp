@@ -64,7 +64,7 @@ class BucketWriter {
 public:
     BucketWriter(const std::string &prefix, unsigned int buckets, size_t bufferPairs = 1 << 16)
         : prefix(prefix), buckets(buckets), bufferPairs(bufferPairs), closed(false) {
-        files.assign(buckets, NULL);
+        opened.assign(buckets, false);
         this->buffers.resize(buckets);
     }
     ~BucketWriter() { close(); }
@@ -86,10 +86,6 @@ public:
         closed = true;
         for (unsigned int b = 0; b < buckets; b++) {
             flush(b);
-            if (files[b] != NULL) {
-                fclose(files[b]);
-                files[b] = NULL;
-            }
         }
     }
 
@@ -102,17 +98,25 @@ private:
         if (buffers[bucket].empty()) {
             return;
         }
-        if (files[bucket] == NULL) {
-            files[bucket] = fopen(path(prefix, bucket).c_str(), "wb");
-            if (files[bucket] == NULL) {
-                Debug(Debug::ERROR) << "Cannot open " << path(prefix, bucket) << ": "
-                                    << strerror(errno) << "\n";
-                EXIT(EXIT_FAILURE);
-            }
+        // Append-and-close per flush: one descriptor per bucket can reach the
+        // derived bucket count, and the close is where a buffered or remote
+        // filesystem first reports ENOSPC or a quota. Losing whole records keeps
+        // the file record-aligned, so downstream never notices the truncation.
+        FILE *file = fopen(path(prefix, bucket).c_str(), opened[bucket] ? "ab" : "wb");
+        if (file == NULL) {
+            Debug(Debug::ERROR) << "Cannot open " << path(prefix, bucket) << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
         }
-        if (fwrite(buffers[bucket].data(), sizeof(Pair), buffers[bucket].size(), files[bucket]) !=
+        opened[bucket] = true;
+        if (fwrite(buffers[bucket].data(), sizeof(Pair), buffers[bucket].size(), file) !=
             buffers[bucket].size()) {
             Debug(Debug::ERROR) << "Cannot write bucket " << bucket << ": " << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << path(prefix, bucket) << ": "
+                                << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
         buffers[bucket].clear();
@@ -122,7 +126,7 @@ private:
     unsigned int buckets;
     size_t bufferPairs;
     std::vector<std::vector<Pair> > buffers;
-    std::vector<FILE *> files;
+    std::vector<bool> opened;
     bool closed;
 };
 

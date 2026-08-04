@@ -238,9 +238,16 @@ static void testLosslessRoundTrip(const std::string &dir) {
     check(sameMultiset,
           "grouping partition by partition sees exactly the same k-mer/sequence pairs as the whole input");
 
+    // A legitimately empty partition is one createLayout made and no worker wrote
+    // to -- an *existing*, readable directory with no shards in it. A directory
+    // that cannot be opened is a failure, not an empty partition, because the map
+    // always creates the layout before the reduce runs; treating the two the same
+    // let a worker record an item done having silently read nothing.
+    const std::string emptyDir = bucketDir + "_empty";
+    KmerBucketWriter::createLayout(emptyDir, 1);
     std::vector<KmerRecord> empty;
-    KmerBucketReader::readPartition(bucketDir + "_missing", 0, empty);
-    check(empty.empty() && KmerBucketReader::countRecords(bucketDir + "_missing", 0) == 0,
+    KmerBucketReader::readPartition(emptyDir, 0, empty);
+    check(empty.empty() && KmerBucketReader::countRecords(emptyDir, 0) == 0,
           "a partition nothing was written to reads back empty rather than failing");
 }
 
