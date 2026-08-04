@@ -14,8 +14,31 @@ std::string DenseIndex::fileName(const std::string &dbName) {
     return dbName + ".index.bin";
 }
 
+// Validated, not merely present.
+//
+// build() and createEmpty() used to write straight to the final path, so a worker
+// killed part-way left a file that exists() accepted and every reader then failed
+// on -- a zero header, a truncated entry array, or both. They now publish by
+// atomic rename, but a database built by an older build (or by a killed run of
+// one) can still be sitting there, so this checks what it is looking at: the
+// magic, the version, and that the file is exactly as long as its own entry count
+// says it should be.
 bool DenseIndex::exists(const std::string &dbName) {
-    return FileUtil::fileExists(fileName(dbName).c_str());
+    const std::string path = fileName(dbName);
+    if (FileUtil::fileExists(path.c_str()) == false) {
+        return false;
+    }
+    FILE *file = fopen(path.c_str(), "rb");
+    if (file == NULL) {
+        return false;
+    }
+    Header header;
+    const bool readHeader = fread(&header, sizeof(header), 1, file) == 1;
+    fclose(file);
+    if (readHeader == false || header.magic != MAGIC || header.version != VERSION) {
+        return false;
+    }
+    return FileUtil::getFileSize(path) == entryOffset(header.entryCount);
 }
 
 void DenseIndex::build(const std::string &dbName) {
@@ -27,9 +50,14 @@ void DenseIndex::build(const std::string &dbName) {
     }
 
     const std::string outputName = fileName(dbName);
-    FILE *out = fopen(outputName.c_str(), "wb");
+    // Written to a private sibling and renamed on success. Writing the final path
+    // directly meant an interrupted build left a file that exists() accepted --
+    // header zeroed, because the real header is only written at the end -- and no
+    // restart could repair, since the path was there.
+    const std::string tmpName = outputName + ".tmp." + SSTR(getpid());
+    FILE *out = fopen(tmpName.c_str(), "wb");
     if (out == NULL) {
-        Debug(Debug::ERROR) << "Cannot write dense index " << outputName << ": "
+        Debug(Debug::ERROR) << "Cannot write dense index " << tmpName << ": "
                             << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -110,7 +138,12 @@ void DenseIndex::build(const std::string &dbName) {
         EXIT(EXIT_FAILURE);
     }
     if (fclose(out) != 0) {
-        Debug(Debug::ERROR) << "Cannot close dense index " << outputName << "\n";
+        Debug(Debug::ERROR) << "Cannot close dense index " << tmpName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (rename(tmpName.c_str(), outputName.c_str()) != 0) {
+        Debug(Debug::ERROR) << "Cannot publish dense index " << outputName << ": "
+                            << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -185,8 +218,11 @@ DBReader<DBKeyType>::Index *DenseIndex::loadRange(const std::string &dbName, DBK
     size_t done = 0;
     while (done < count) {
         const size_t batch = std::min(bufferCapacity, count - done);
-        const long offset = static_cast<long>(sizeof(Header) + (rowFrom + done) * sizeof(Entry));
-        if (fseek(file, offset, SEEK_SET) != 0
+        // fseeko/off_t, not fseek/long. A 32-bit long caps the seek at 2 GB, which
+        // a dense index passes at 180M entries -- three orders of magnitude below
+        // what this exists for -- and the overflow is silent.
+        const off_t offset = static_cast<off_t>(sizeof(Header) + (rowFrom + done) * sizeof(Entry));
+        if (fseeko(file, offset, SEEK_SET) != 0
                 || fread(buffer, sizeof(Entry), batch, file) != batch) {
             Debug(Debug::ERROR) << "Cannot read dense index " << path << " at row "
                                 << (rowFrom + done) << "\n";
@@ -262,13 +298,18 @@ void DenseIndex::writeTextIndex(const std::string &dbName) {
         Debug(Debug::ERROR) << "Cannot open dense index " << path << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    if (fseek(in, static_cast<long>(entryOffset(0)), SEEK_SET) != 0) {
+    if (fseeko(in, static_cast<off_t>(entryOffset(0)), SEEK_SET) != 0) {
         Debug(Debug::ERROR) << "Cannot seek dense index " << path << "\n";
         EXIT(EXIT_FAILURE);
     }
 
+    // Same publish-by-rename rule as build(). This one runs for hours at scale and
+    // is the last thing a build does, so an interrupted run leaving a half-written
+    // `.index` where a stock tool would read it is the likeliest way to get a
+    // silently short database.
     const std::string textIndexName = dbName + ".index";
-    FILE *out = FileUtil::openAndDelete(textIndexName.c_str(), "w");
+    const std::string textTmpName = textIndexName + ".tmp." + SSTR(getpid());
+    FILE *out = FileUtil::openAndDelete(textTmpName.c_str(), "w");
     setvbuf(out, NULL, _IOFBF, 1024 * 1024 * 4);
 
     const size_t bufferCapacity = 65536;
@@ -287,7 +328,7 @@ void DenseIndex::writeTextIndex(const std::string &dbName) {
                                          (unsigned long long) buffer[i].offset,
                                          buffer[i].length);
             if (fwrite(line, 1, static_cast<size_t>(written), out) != static_cast<size_t>(written)) {
-                Debug(Debug::ERROR) << "Cannot write index " << textIndexName << "\n";
+                Debug(Debug::ERROR) << "Cannot write index " << textTmpName << "\n";
                 EXIT(EXIT_FAILURE);
             }
         }
@@ -296,7 +337,12 @@ void DenseIndex::writeTextIndex(const std::string &dbName) {
     delete[] buffer;
     fclose(in);
     if (fclose(out) != 0) {
-        Debug(Debug::ERROR) << "Cannot close index " << textIndexName << "\n";
+        Debug(Debug::ERROR) << "Cannot close index " << textTmpName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (rename(textTmpName.c_str(), textIndexName.c_str()) != 0) {
+        Debug(Debug::ERROR) << "Cannot publish index " << textIndexName << ": " << strerror(errno)
+                            << "\n";
         EXIT(EXIT_FAILURE);
     }
 }

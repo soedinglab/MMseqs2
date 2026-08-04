@@ -36,10 +36,14 @@
 #include "Util.h"
 #include "kmermatcher.h"
 
+#include <cerrno>
 #include <climits>
 #include <cstdint>
+#include <cstring>
 #include <cmath>
 #include <string>
+
+#include <unistd.h>
 
 namespace {
 
@@ -99,15 +103,49 @@ struct ShuffleManifest {
     uint64_t partitionCount;
     uint64_t waveCount;
     uint64_t kmerSize;
+    // Carried for the same reason as kmerSize, and it is the same class of bug.
+    //
+    // setKmerLengthAndAlphabet picks *both* from --min-seq-id when -k is 0
+    // (kmermatcher.cpp:2098-2110): 14/21 at >= 0.99, 14/13 at >= 0.9. The map runs
+    // it; the reduce cannot, because it has no sequence database to size it from,
+    // so it used to take kmerSize from here and leave the alphabet at
+    // setLinearFilterDefault's CLUST_LINEAR_DEFAULT_ALPH_SIZE of 13.
+    //
+    // At >= 0.99 that is a real disagreement: the map encodes
+    // KmerRecord::adjacent[] with the 21-letter aa2num, and the reduce would score
+    // those codes through a ReducedMatrix(13) whose rows 13..20 are never filled by
+    // generateSubMatrix. assignGroup's adjacency rounds consume exactly that, so
+    // the re-centring is scored against zeros. At 0.9 the two agreed only because
+    // both independently landed on 13.
+    //
+    // Recording it removes the whole class: anything the map derives that the
+    // reduce needs belongs in the manifest, not in a flag both sides must be
+    // passed identically.
+    uint64_t alphabetSizeAa;
+    uint64_t alphabetSizeNucl;
 
     void write(const std::string &path) const {
-        FILE *file = FileUtil::openAndDelete(path.c_str(), "w");
+        // Written to a private temporary and renamed, never opened at the
+        // authoritative path. Existence of shuffle.info is what every later worker
+        // takes as proof the shuffle was laid out, so a worker killed between the
+        // open (which truncates) and the close left an empty or half-written
+        // manifest that all of them then read as authoritative -- and no restart
+        // could repair it, because the path existed. rename(2) is atomic, so the
+        // file either is not there or is complete.
+        const std::string tmp = path + ".tmp." + SSTR(getpid());
+        FILE *file = FileUtil::openAndDelete(tmp.c_str(), "w");
         fprintf(file, "entryCount\t%zu\n", (size_t)entryCount);
         fprintf(file, "partitionCount\t%zu\n", (size_t)partitionCount);
         fprintf(file, "waveCount\t%zu\n", (size_t)waveCount);
         fprintf(file, "kmerSize\t%zu\n", (size_t)kmerSize);
+        fprintf(file, "alphabetSizeAa\t%zu\n", (size_t)alphabetSizeAa);
+        fprintf(file, "alphabetSizeNucl\t%zu\n", (size_t)alphabetSizeNucl);
         if (fclose(file) != 0) {
-            Debug(Debug::ERROR) << "Cannot close " << path << "\n";
+            Debug(Debug::ERROR) << "Cannot close " << tmp << ": " << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (rename(tmp.c_str(), path.c_str()) != 0) {
+            Debug(Debug::ERROR) << "Cannot publish " << path << ": " << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -121,6 +159,8 @@ struct ShuffleManifest {
         manifest.partitionCount = 0;
         manifest.waveCount = 0;
         manifest.kmerSize = 0;
+        manifest.alphabetSizeAa = 0;
+        manifest.alphabetSizeNucl = 0;
         while (fscanf(file, "%63s\t%zu\n", name, &value) == 2) {
             const std::string key = name;
             if (key == "entryCount") {
@@ -131,6 +171,10 @@ struct ShuffleManifest {
                 manifest.waveCount = value;
             } else if (key == "kmerSize") {
                 manifest.kmerSize = value;
+            } else if (key == "alphabetSizeAa") {
+                manifest.alphabetSizeAa = value;
+            } else if (key == "alphabetSizeNucl") {
+                manifest.alphabetSizeNucl = value;
             }
         }
         fclose(file);
@@ -312,12 +356,16 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
             // filesystem: a different database or k-mer length means the workers
             // are not running the same job at all.
             if (existing.entryCount != info.entryCount ||
-                existing.kmerSize != static_cast<uint64_t>(par.kmerSize)) {
+                existing.kmerSize != static_cast<uint64_t>(par.kmerSize) ||
+                existing.alphabetSizeAa !=
+                    static_cast<uint64_t>(par.alphabetSize.values.aminoacid())) {
                 Debug(Debug::ERROR)
                     << "The shuffle already in progress (" << manifestPath << ") covers "
                     << existing.entryCount << " sequences at k=" << existing.kmerSize
+                    << ", alphabet " << existing.alphabetSizeAa
                     << ", but this worker was given " << info.entryCount << " sequences at k="
-                    << par.kmerSize << ".\n"
+                    << par.kmerSize << ", alphabet " << par.alphabetSize.values.aminoacid()
+                    << ".\n"
                     << "Every worker must run the same command line on the same database.\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -333,8 +381,15 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
             sizing.waveCount = static_cast<unsigned int>(existing.waveCount);
             sizing.bytesPerWave =
                 (sizing.totalKmerBytes + sizing.waveCount - 1) / sizing.waveCount;
+            // From totalKmerBytes, not bytesPerWave -- the same distinction
+            // KmerPartition.cpp:108-120 spells out for the derivation path. A wave
+            // keeps *whole* partitions, so a partition always holds
+            // totalKmerBytes / P however many waves there are; dividing the wave's
+            // share again reported a figure waveCount times too small. Only a
+            // diagnostic today, but it is the number anything sizing itself
+            // against a partition would reach for.
             sizing.bytesPerPartition =
-                (sizing.bytesPerWave + sizing.partitionCount - 1) / sizing.partitionCount;
+                (sizing.totalKmerBytes + sizing.partitionCount - 1) / sizing.partitionCount;
         } else {
             sizing = deriveKmerShuffleSizing(info.entryCount, kmersPerSequence, par.scratchBudget,
                                              persistentBytes,
@@ -344,6 +399,12 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
             manifest.partitionCount = sizing.partitionCount;
             manifest.waveCount = sizing.waveCount;
             manifest.kmerSize = static_cast<uint64_t>(par.kmerSize);
+            // Recorded after setKmerLengthAndAlphabet has run, so this is the
+            // alphabet the k-mers in the buckets were actually encoded with.
+            manifest.alphabetSizeAa =
+                static_cast<uint64_t>(par.alphabetSize.values.aminoacid());
+            manifest.alphabetSizeNucl =
+                static_cast<uint64_t>(par.alphabetSize.values.nucleotide());
             KmerBucketWriter::createLayout(kmerDir, sizing.partitionCount);
             manifest.write(manifestPath);
         }

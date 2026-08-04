@@ -44,6 +44,7 @@
 #include <vector>
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #ifdef OPENMP
@@ -59,12 +60,39 @@ struct Chunk {
     size_t end;
 };
 
+// Per-chunk coordination files live in a subdirectory of 1000, not all in one.
+//
+// At 1e12 sequences the input is ~350 TB, which is 1.37e6 chunks at the 256 MB
+// default and therefore 2.74e6 entries -- a histogram and a plan each -- in a
+// single directory. That is a directory no shared filesystem enjoys creating,
+// listing or removing. Grouping them keeps any one directory at a thousand files
+// while the path stays a pure function of the chunk index, which is what every
+// worker relies on.
+const size_t COORD_FILES_PER_DIR = 1000;
+
+std::string chunkGroupDir(const std::string &coordDir, size_t chunkIdx) {
+    return coordDir + "/c" + SSTR(chunkIdx / COORD_FILES_PER_DIR);
+}
+
+// Racing workers may both create it; only a failure that also leaves no directory
+// behind is real.
+void ensureChunkGroupDir(const std::string &coordDir, size_t chunkIdx) {
+    const std::string path = chunkGroupDir(coordDir, chunkIdx);
+    if (FileUtil::directoryExists(path.c_str()) == true) {
+        return;
+    }
+    if (mkdir(path.c_str(), 0777) != 0 && FileUtil::directoryExists(path.c_str()) == false) {
+        Debug(Debug::ERROR) << "Cannot create " << path << ": " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 std::string chunkHistPath(const std::string &coordDir, size_t chunkIdx) {
-    return coordDir + "/chunk." + SSTR(chunkIdx) + ".hist";
+    return chunkGroupDir(coordDir, chunkIdx) + "/chunk." + SSTR(chunkIdx) + ".hist";
 }
 
 std::string chunkPlanPath(const std::string &coordDir, size_t chunkIdx) {
-    return coordDir + "/chunk." + SSTR(chunkIdx) + ".plan";
+    return chunkGroupDir(coordDir, chunkIdx) + "/chunk." + SSTR(chunkIdx) + ".plan";
 }
 
 void writeAt(int fd, const void *data, size_t length, size_t offset, const char *what) {
@@ -134,38 +162,106 @@ size_t findRecordStart(int fd, size_t from, size_t fileSize) {
     return fileSize;
 }
 
-// Splits every input file into chunk-size pieces aligned to record boundaries.
-// Computed identically and independently by every worker, so the chunk numbering
-// -- and therefore the key assignment that breaks length ties by chunk index --
-// never depends on who is running.
-std::vector<Chunk> planChunks(const std::vector<std::string> &filenames, size_t chunkSize) {
-    std::vector<Chunk> chunks;
+// How many chunks each input file is cut into, and where each file's chunks start
+// in the global numbering. No I/O at all: a chunk is the piece of the fixed
+// `chunkSize` grid it sits on, so the count follows from the file size.
+//
+// This replaces a planner that resolved *every* chunk boundary up front, in every
+// worker, with a 64 KB pread each. At 1e12 (350 TB at the 256 MB default) that is
+// 1.37e6 preads -- ~90 GB per worker and ~730 TB across 8192 of them -- paid
+// before any worker starts work, every time the stage is entered.
+//
+// The numbering is still a pure function of (input, chunkSize) and still runs in
+// file order, which is what the key assignment's tie-break depends on: ties go to
+// the lower chunk index and then to position within the chunk, i.e. input order.
+// The grid can leave a chunk empty where one record spans a whole boundary
+// region; an empty chunk contributes nothing to the ordering, so the keys are
+// unchanged.
+struct ChunkLayout {
+    std::vector<size_t> countPerFile;
+    std::vector<size_t> firstChunkOfFile;
+    size_t total;
+
+    ChunkLayout() : total(0) {}
+};
+
+ChunkLayout planChunkLayout(const std::vector<std::string> &filenames, size_t chunkSize) {
+    ChunkLayout layout;
+    layout.countPerFile.assign(filenames.size(), 0);
+    layout.firstChunkOfFile.assign(filenames.size(), 0);
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         const size_t fileSize = FileUtil::getFileSize(filenames[fileIdx]);
-        if (fileSize == 0) {
-            continue;
-        }
-        const int fd = open(filenames[fileIdx].c_str(), O_RDONLY);
-        if (fd < 0) {
-            Debug(Debug::ERROR) << "Cannot open " << filenames[fileIdx] << ": " << strerror(errno) << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        size_t begin = 0;
-        while (begin < fileSize) {
-            const size_t nominalEnd = std::min(begin + chunkSize, fileSize);
-            const size_t end = findRecordStart(fd, nominalEnd, fileSize);
-            if (end > begin) {
-                Chunk chunk = {fileIdx, begin, end};
-                chunks.push_back(chunk);
-            }
-            if (end <= begin) {
-                break;
-            }
-            begin = end;
-        }
-        close(fd);
+        layout.firstChunkOfFile[fileIdx] = layout.total;
+        layout.countPerFile[fileIdx] = (fileSize + chunkSize - 1) / chunkSize;
+        layout.total += layout.countPerFile[fileIdx];
     }
-    return chunks;
+    return layout;
+}
+
+size_t fileOfChunk(const ChunkLayout &layout, size_t chunkIdx) {
+    // Few input files in practice, and this runs once per work item.
+    for (size_t fileIdx = layout.countPerFile.size(); fileIdx > 0; fileIdx--) {
+        if (chunkIdx >= layout.firstChunkOfFile[fileIdx - 1]
+                && layout.countPerFile[fileIdx - 1] > 0) {
+            return fileIdx - 1;
+        }
+    }
+    return 0;
+}
+
+// Resolves one chunk's byte range: two preads, in the worker that owns it.
+Chunk resolveChunk(const std::vector<std::string> &filenames, const ChunkLayout &layout,
+                   size_t chunkSize, size_t chunkIdx) {
+    const size_t fileIdx = fileOfChunk(layout, chunkIdx);
+    const size_t local = chunkIdx - layout.firstChunkOfFile[fileIdx];
+    const size_t fileSize = FileUtil::getFileSize(filenames[fileIdx]);
+    const int fd = open(filenames[fileIdx].c_str(), O_RDONLY);
+    if (fd < 0) {
+        Debug(Debug::ERROR) << "Cannot open " << filenames[fileIdx] << ": " << strerror(errno)
+                            << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    Chunk chunk;
+    chunk.fileIdx = fileIdx;
+    chunk.begin = findRecordStart(fd, local * chunkSize, fileSize);
+    chunk.end = findRecordStart(fd, std::min((local + 1) * chunkSize, fileSize), fileSize);
+    close(fd);
+    if (chunk.end < chunk.begin) {
+        chunk.end = chunk.begin;
+    }
+    return chunk;
+}
+
+// Keeps the chunk count within reach of the coordination machinery.
+//
+// The default 256 MB is right for the sizes this is usually run at, but at 1e12
+// (350 TB) it derives 1.37e6 chunks -- two work queues of that size, 2.74e6
+// coordination files, and a planner sweep that holds every histogram and plan
+// resident (~550 GB) while it runs single-threaded on one node. Scaling the chunk
+// size so the count lands near TARGET_CHUNKS makes most of that go away for free
+// and costs only a larger per-item buffer, which is bounded by --chunk-size times
+// the thread count either way.
+//
+// Only ever *raises* it: a user who asked for a specific --chunk-size gets it, and
+// small inputs keep small chunks so a second worker still has something to claim.
+const size_t TARGET_CHUNKS = 100000;
+
+size_t deriveChunkSize(const std::vector<std::string> &filenames, size_t requested,
+                       bool userSupplied) {
+    if (userSupplied) {
+        return requested;
+    }
+    uint64_t totalBytes = 0;
+    for (size_t i = 0; i < filenames.size(); i++) {
+        totalBytes += FileUtil::getFileSize(filenames[i]);
+    }
+    const uint64_t wanted = totalBytes / TARGET_CHUNKS;
+    if (wanted <= requested) {
+        return requested;
+    }
+    // Rounded up to a whole number of the requested unit, so the derived value
+    // stays a recognisable multiple of the documented default.
+    return static_cast<size_t>((wanted + requested - 1) / requested) * requested;
 }
 
 // Reads a chunk's bytes so they can be handed to the FASTA parser in one piece.
@@ -510,26 +606,41 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
         FileUtil::makeDir(coordDir.c_str());
     }
 
-    const std::vector<Chunk> chunks = planChunks(filenames, par.chunkSize);
-    if (chunks.empty()) {
+    // Derived once and recorded, so every worker of the run -- including one that
+    // joins after a restart -- cuts the input on the same grid. A different chunk
+    // size is a different chunk numbering, and the numbering is what breaks length
+    // ties when keys are assigned.
+    const size_t chunkSize =
+        deriveChunkSize(filenames, par.chunkSize, par.PARAM_CHUNK_SIZE.wasSet);
+    const ChunkLayout layout = planChunkLayout(filenames, chunkSize);
+    if (layout.total == 0) {
         Debug(Debug::ERROR) << "The input files have no entry\n";
         EXIT(EXIT_FAILURE);
+    }
+    if (chunkSize != par.chunkSize) {
+        Debug(Debug::INFO) << "Using a chunk size of " << chunkSize << " B so the input is "
+                           << layout.total << " chunks rather than "
+                           << "one work item per " << par.chunkSize << " B\n";
     }
 
     SharedCounter workerCounter(coordDir + "/worker.counter");
     const int64_t workerId = workerCounter.fetchAdd();
-    Debug(Debug::INFO) << "Worker " << workerId << " joined, " << chunks.size() << " chunks\n";
+    Debug(Debug::INFO) << "Worker " << workerId << " joined, " << layout.total << " chunks\n";
 
     // Pass 1: histogram every chunk.
     {
-        WorkQueue scanQueue(coordDir + "/scan.queue", static_cast<int64_t>(chunks.size()));
+        WorkQueue scanQueue(coordDir + "/scan.queue", static_cast<int64_t>(layout.total));
         runQueue(scanQueue, par.threads, workerId, [&](size_t chunkIdx) {
             const std::string path = chunkHistPath(coordDir, chunkIdx);
             if (FileUtil::fileExists(path.c_str()) == true) {
                 return;
             }
-            ChunkHistogram histogram = scanChunk(filenames[chunks[chunkIdx].fileIdx],
-                                                 chunks[chunkIdx], chunkIdx);
+            // Boundaries resolved here, by the chunk's own owner, rather than for
+            // every chunk in every worker before the stage starts.
+            const Chunk chunk = resolveChunk(filenames, layout, chunkSize, chunkIdx);
+            ChunkHistogram histogram = scanChunk(filenames[chunk.fileIdx], chunk, chunkIdx);
+            histogram.fileIdx = chunk.fileIdx;
+            ensureChunkGroupDir(coordDir, chunkIdx);
             histogram.write(path);
         });
 
@@ -544,8 +655,8 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
         planLock.lock();
         if (FileUtil::fileExists(planDone.c_str()) == false) {
             std::vector<ChunkHistogram> histograms;
-            histograms.reserve(chunks.size());
-            for (size_t i = 0; i < chunks.size(); i++) {
+            histograms.reserve(layout.total);
+            for (size_t i = 0; i < layout.total; i++) {
                 histograms.push_back(ChunkHistogram::read(chunkHistPath(coordDir, i)));
             }
 
@@ -576,6 +687,7 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
                 EXIT(EXIT_FAILURE);
             }
             for (size_t i = 0; i < plans.size(); i++) {
+                ensureChunkGroupDir(coordDir, plans[i].chunkIdx);
                 plans[i].write(chunkPlanPath(coordDir, plans[i].chunkIdx));
             }
 
@@ -629,27 +741,40 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
         // database, which is addressed by the same dense keys.
         const int lookupFd = par.writeLookup ? openForWrite(lookupFile) : -1;
 
-        WorkQueue emitQueue(coordDir + "/emit.queue", static_cast<int64_t>(chunks.size()));
+        WorkQueue emitQueue(coordDir + "/emit.queue", static_cast<int64_t>(layout.total));
         runQueue(emitQueue, par.threads, workerId, [&](size_t chunkIdx) {
             const ChunkPlan plan = ChunkPlan::read(chunkPlanPath(coordDir, chunkIdx));
-            emitChunk(filenames[chunks[chunkIdx].fileIdx], chunks[chunkIdx], plan,
+            const Chunk chunk = resolveChunk(filenames, layout, chunkSize, chunkIdx);
+            emitChunk(filenames[chunk.fileIdx], chunk, plan,
                       seqFd, hdrFd, seqIdxFd, hdrIdxFd, lookupFd);
         });
         // fsync before the sentinel, so a worker that finalises after a crash
         // cannot read a partially flushed database.
-        fsync(seqFd);
-        fsync(hdrFd);
-        fsync(seqIdxFd);
-        fsync(hdrIdxFd);
-        if (lookupFd >= 0) {
-            fsync(lookupFd);
-        }
-        close(seqFd);
-        close(hdrFd);
-        close(seqIdxFd);
-        close(hdrIdxFd);
-        if (lookupFd >= 0) {
-            close(lookupFd);
+        //
+        // Both the fsync and the close are checked. A delayed ENOSPC, an exhausted
+        // quota or a shared-filesystem EIO surfaces at exactly these two calls and
+        // nowhere earlier, and ignoring them let this worker go on to write
+        // finalize.done over a database with holes in it -- which every later run
+        // then treats as finished.
+        static const char *names[] = {"sequence data", "header data", "sequence index",
+                                      "header index", "lookup"};
+        const int fds[] = {seqFd, hdrFd, seqIdxFd, hdrIdxFd, lookupFd};
+        for (size_t i = 0; i < sizeof(fds) / sizeof(fds[0]); i++) {
+            if (fds[i] < 0) {
+                continue;
+            }
+            if (fsync(fds[i]) != 0) {
+                const int err = errno;
+                Debug(Debug::ERROR) << "Cannot flush the " << names[i] << " of " << dataFile << ": "
+                                    << strerror(err) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (close(fds[i]) != 0) {
+                const int err = errno;
+                Debug(Debug::ERROR) << "Cannot close the " << names[i] << " of " << dataFile << ": "
+                                    << strerror(err) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
     }
     Debug(Debug::INFO) << "Emit pass done\n";
@@ -669,10 +794,28 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             }
             fclose(typeFile);
 
-            DBWriter::writeDbtypeFile(dataFile.c_str(), dbType, par.compressed);
-            DBWriter::writeDbtypeFile(hdrDataFile.c_str(), Parameters::DBTYPE_GENERIC_DB, par.compressed);
-            DenseIndex::writeTextIndex(dataFile);
-            DenseIndex::writeTextIndex(hdrDataFile);
+            // Never compressed. emitChunk pwrites raw bytes at offsets a plan
+            // derived from uncompressed lengths fixed, so nothing here compresses
+            // anything; passing par.compressed through only *labelled* those raw
+            // files as compressed, and readers then tried to decode them. See the
+            // note beside createdbparallel's parameter list.
+            DBWriter::writeDbtypeFile(dataFile.c_str(), dbType, false);
+            DBWriter::writeDbtypeFile(hdrDataFile.c_str(), Parameters::DBTYPE_GENERIC_DB, false);
+            // Opt-in. No stage of this pipeline reads a text index -- they all
+            // address entries through the dense .index.bin -- and it exists only so
+            // stock MMseqs2 tools can open the database. Measured, the snprintf and
+            // fwrite loop costs 177 ns per line writing to /dev/null, so at 1e12
+            // sequences the two databases are 2e12 lines: ~98 h single-threaded on
+            // one node, holding the finalize lock, plus ~36 TB of a 1 PB scratch
+            // budget for output nothing in the run consumes.
+            if (par.writeTextIndex) {
+                DenseIndex::writeTextIndex(dataFile);
+                DenseIndex::writeTextIndex(hdrDataFile);
+            } else {
+                Debug(Debug::INFO) << "Skipping the stock-compatible text indices "
+                                   << "(--write-text-index 0); the dense .index.bin is what the "
+                                   << "distributed stages read\n";
+            }
 
             Debug(Debug::INFO) << "Database type: " << Parameters::getDbTypeName(dbType) << "\n";
             FILE *sentinel = FileUtil::openAndDelete(finalizeDone.c_str(), "w");

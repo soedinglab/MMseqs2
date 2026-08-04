@@ -47,7 +47,10 @@
 [ -z "$SCRATCH_BUDGET" ] && SCRATCH_BUDGET=0
 
 notExists() { [ ! -f "$1" ]; }
-fail() { echo "Error: $1"; exit 1; }
+# To stderr, not stdout: scratchUsed() runs inside a command substitution, so a
+# failure message written to stdout would be captured as the measurement instead
+# of being shown, and the run would die with no explanation at all.
+fail() { echo "Error: $1" >&2; exit 1; }
 
 # Bytes currently sitting on the scratch filesystem for this run.
 #
@@ -58,14 +61,46 @@ fail() { echo "Error: $1"; exit 1; }
 # -- it needs no per-stage accounting and stays right when the pipeline changes.
 #
 # du -sk rather than -sb: -b is GNU-only. Kibibytes are ample precision against a
-# budget in terabytes. "$DB"* rather than "$DB" so the index, .index.bin, .lookup
-# and headers are counted -- $DB is a prefix, not a path, and at 1e11 the index
-# alone is over a terabyte of what this is meant to measure. printf "%.0f" keeps
-# awk from rendering large sums in scientific notation, which --scratch-used
-# would reject.
+# budget in terabytes. printf "%.0f" keeps awk from rendering large sums in
+# scientific notation, which --scratch-used would reject.
+#
+# Fails closed. This used to be one `du ... | awk ...` pipeline without pipefail:
+# when du failed -- an unreadable path, a vanished directory, a stale mount -- awk
+# still succeeded and printed "0B", so the caller derived its wave count as though
+# the filesystem were empty and planned a run that could not fit. Reproduced with a
+# missing path: exit status 0, used=0B. So du runs on its own, its status is
+# checked, and a partial measurement is refused rather than rounded down to zero.
+#
+# $DB is a prefix, not a path, so the index, .index.bin, .lookup and headers have
+# to be counted too -- at 1e11 the index alone is over a terabyte of what this
+# measures. When $DB lives under $TMP (the usual case: the workflow builds it at
+# $TMP/db) only $TMP is passed: GNU du de-duplicates repeated paths, but BSD/macOS
+# du counts the database twice, and the surrounding code is otherwise careful to
+# stay portable.
 scratchUsed() {
-    du -sk "$TMP" "$DB"* 2>/dev/null \
-        | awk '{s += $1} END {printf "%.0fB\n", s * 1024}'
+    # The path list is built in the positional parameters rather than in a string,
+    # so a directory with a space in it is one argument and not two.
+    set -- "$TMP"
+    case "$DB" in
+        "$TMP"/*) ;;  # already inside $TMP; passing it again double-counts on BSD du
+        *)
+            for _p in "$DB"*; do
+                if [ -e "$_p" ]; then set -- "$@" "$_p"; fi
+            done
+            ;;
+    esac
+    # `|| _du=""` rather than testing $? afterwards: under `sh -e` a command
+    # substitution that exits non-zero aborts the script at the assignment, so the
+    # check would never run. Discarding a partial measurement is the point --
+    # anything less than a complete figure has to be refused, not rounded down.
+    _du=$(du -sk "$@" 2>/dev/null) || _du=""
+    if [ -z "$_du" ]; then
+        fail "cannot measure the scratch already in use under $TMP.
+--scratch-budget is a hard ceiling on this run, and a measurement that silently
+returned zero would let the k-mer shuffle be planned as though the filesystem were
+empty. Check that $TMP and $DB* are readable."
+    fi
+    printf '%s\n' "$_du" | awk '{s += $1} END {printf "%.0fB\n", s * 1024}'
 }
 
 # Deletes an intermediate whose consumers have all finished. Nothing downstream
@@ -169,7 +204,15 @@ if notExists "$INPUT.dbtype"; then
     # that looks complete and is not. The sentinel is written last.
     if notExists "$DB.coord/finalize.done"; then
         # shellcheck disable=SC2086
+        # --write-text-index 0: no stage of this pipeline reads a text .index --
+        # they all address entries through the dense .index.bin -- and generating
+        # it is one snprintf and one buffered write per entry, single-threaded, for
+        # both the sequence and the header database. Measured at 177 ns per line,
+        # that is ~98 h and ~36 TB at 1e12 for output nothing here consumes. Build
+        # the database with `mmseqs createdbparallel --write-text-index 1` if a
+        # stock MMseqs2 tool has to open it afterwards.
         $WORKER_RUNNER "$MMSEQS" createdbparallel "$INPUT" "$DB" $VERBOSITY --threads $THREADS \
+            --write-text-index 0 \
             || fail "createdbparallel died"
     fi
 fi
@@ -219,6 +262,7 @@ dropIntermediate "$TMP/edges1" "$TMP/aln1"
 if notExists "$TMP/rep.keymap"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createrepdb "$DB" "$TMP/clu1.tsv" "$TMP/rep" $VERBOSITY --threads $THREADS \
+        --split-memory-limit $SPLIT_MEMORY_LIMIT \
         || fail "createrepdb died"
 fi
 
@@ -271,8 +315,14 @@ fi
 # output rather than failing at the last step.
 if [ -f "$DB.lookup" ]; then
     # shellcheck disable=SC2086
+    # --spill-prefix under $TMP. translatekeys derives its spill files from the
+    # output path when it is not told otherwise, which puts every intermediate it
+    # writes -- at 1e11 the first fixed-width spill alone is ~1.6 TB -- on the
+    # *output* filesystem, outside everything --scratch-budget accounts for. Only
+    # the finished file is published next to $OUT, by the rename below.
     "$MMSEQS" translatekeys "$TMP/clu.keys.tsv" "$DB.lookup" "$OUT.tmp" $VERBOSITY \
         --threads $THREADS --split-memory-limit $SPLIT_MEMORY_LIMIT \
+        --spill-prefix "$TMP/translatekeys" \
         || fail "translatekeys died"
     mv -f "$OUT.tmp" "$OUT"
 else

@@ -45,10 +45,14 @@
 #include "Util.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
+
+#include <fcntl.h>
+#include <unistd.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -131,20 +135,44 @@ size_t mergePairCopies(std::vector<CandidateEdge> &edges) {
 // Waves are concatenated in order because each has its own queue over its own
 // contiguous slice of partition space, so wave w's items are partitions
 // [w * P / W, (w + 1) * P / W) and appending lands each at its own index.
-std::vector<int64_t> readReduceAuthority(const std::string &edgeDir) {
+std::vector<int64_t> readReduceAuthority(const std::string &edgeDir, unsigned int expectedWaves,
+                                        unsigned int expectedPartitions) {
     std::vector<int64_t> authority;
-    for (unsigned int wave = 0;; wave++) {
+    // Every wave, by count, not "until one is missing".
+    //
+    // This used to stop at the first absent reduce.<w>.queue and accept whatever
+    // it had. Starting the align before the last wave had run therefore produced a
+    // short authority vector that looked complete: every edge block naming a
+    // partition past its end was kept (see EdgeBucketReader::readShard), the
+    // missing partitions' edges simply were not there, and the result was a
+    // successful but incomplete clustering that a restart would then preserve,
+    // because the align output now looked finished too.
+    for (unsigned int wave = 0; wave < expectedWaves; wave++) {
         std::vector<int64_t> workers;
         const std::string path = edgeDir + "/coord/reduce." + SSTR(wave) + ".queue";
         if (WorkQueue::readCompletedWorkers(path, workers) == false) {
-            break;
+            Debug(Debug::ERROR) << "The reduce recorded " << expectedWaves << " waves in "
+                                << edgeDir << "/coord/edge.info, but " << path
+                                << " does not exist. Run kmerreduceparallel for every wave "
+                                << "before aligning.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        for (size_t i = 0; i < workers.size(); i++) {
+            if (workers[i] < 0) {
+                Debug(Debug::ERROR) << "Partition " << (authority.size() + i) << " of " << path
+                                    << " was never completed. The reduce is unfinished; re-run it "
+                                    << "before aligning.\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         authority.insert(authority.end(), workers.begin(), workers.end());
     }
-    if (authority.empty()) {
-        Debug(Debug::WARNING) << "No reduce work queue under " << edgeDir
-                              << "/coord; cannot tell a crashed worker's superseded edges from a "
-                              << "second partition's. Duplicate support would be summed.\n";
+    if (authority.size() != expectedPartitions) {
+        Debug(Debug::ERROR) << "The reduce queues under " << edgeDir << "/coord cover "
+                            << authority.size() << " partitions, but edge.info records "
+                            << expectedPartitions << ". The edge directory mixes output from two "
+                            << "different runs.\n";
+        EXIT(EXIT_FAILURE);
     }
     return authority;
 }
@@ -167,65 +195,185 @@ size_t readBucket(const std::string &edgeDir, unsigned int bucket,
 // 902,795.
 //
 // t is a pass-1 representative, so it is dense in *sub-key* space -- which makes the
-// lookup a CSR index over sub-keys rather than anything indexed by the full key
-// space: an offset per representative plus one key per sequence.
+// lookup a CSR index over sub-keys: an offset per representative plus one key per
+// sequence.
+//
+// That CSR is built once by createrepdb and *paged*, not loaded. Every align
+// worker used to build it for itself -- the whole key map (8 B x R), an offset per
+// representative (8 B x R) and every pass-1 member key (8 B x N) -- by streaming
+// the pass-1 TSV twice with a binary search per line. At 1e11 with R/N = 0.4 that
+// is ~1.44 TB resident per worker on a 2 TB node, before the bucket's own edges
+// and sequence arena, and ~14.4 TB at 1e12; the two TSV passes were themselves
+// 2 x 1e11 cache-missing probes into a 320 GB array, in every worker, over a
+// ~2.8 TB file.
+//
+// Now a worker reads only the slice its current bucket refers to. Resident cost is
+// O(bucket), and the whole thing is one sequential pread per contiguous run of
+// sub-keys because the bucket's member sub-keys are already sorted.
 struct FilterGate {
-    std::vector<uint64_t> keymap;        // sub-key -> original key
-    std::vector<uint64_t> clusterStart;  // sub-key -> offset into members
-    std::vector<uint64_t> members;       // original keys, grouped by pass-1 cluster
+    // The bucket's slice, rebuilt per bucket by loadSlice().
+    std::vector<uint64_t> subs;      // sorted, distinct member sub-keys of this bucket
+    std::vector<uint64_t> selfKey;   // keymap[sub], parallel to subs
+    std::vector<uint64_t> start;     // index into `members`, parallel to subs
+    std::vector<uint64_t> count;     // cluster size, parallel to subs
+    std::vector<uint64_t> members;   // the original keys of those clusters, concatenated
     PartitionSequences fullSeqs;
 
-    FilterGate(const std::string &fullDb) : fullSeqs(fullDb) {}
+    uint64_t repCount;      // sub-keys the gate covers
+    uint64_t memberCount;   // rows in the members file
+    int keymapFd;
+    int offsetsFd;
+    int membersFd;
 
-    size_t size(uint64_t sub) const { return clusterStart[sub + 1] - clusterStart[sub]; }
+    FilterGate(const std::string &fullDb)
+        : fullSeqs(fullDb), repCount(0), memberCount(0), keymapFd(-1), offsetsFd(-1),
+          membersFd(-1) {}
 
-    void load(const std::string &keymapFile, const std::string &pass1Tsv) {
-        const size_t bytes = FileUtil::getFileSize(keymapFile);
-        keymap.resize(bytes / sizeof(uint64_t));
-        FILE *m = FileUtil::openFileOrDie(keymapFile.c_str(), "rb", true);
-        if (fread(keymap.data(), sizeof(uint64_t), keymap.size(), m) != keymap.size()) {
-            Debug(Debug::ERROR) << "Cannot read " << keymapFile << "\n";
+    ~FilterGate() {
+        if (keymapFd >= 0) close(keymapFd);
+        if (offsetsFd >= 0) close(offsetsFd);
+        if (membersFd >= 0) close(membersFd);
+    }
+
+    static int openReadOnly(const std::string &path) {
+        const int fd = ::open(path.c_str(), O_RDONLY);
+        if (fd < 0) {
+            Debug(Debug::ERROR) << "Cannot open " << path << ": " << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
-        fclose(m);
+        return fd;
+    }
 
-        // Two streaming passes: count, then fill. The representative of a pass-1
-        // cluster is looked up in the ascending key map by binary search.
-        std::vector<uint64_t> counts(keymap.size() + 1, 0);
-        for (int pass = 0; pass < 2; pass++) {
-            FILE *f = FileUtil::openFileOrDie(pass1Tsv.c_str(), "r", true);
-            char *line = NULL;
-            size_t cap = 0;
-            while (getline(&line, &cap, f) > 0) {
-                char *tab = strchr(line, '\t');
-                if (tab == NULL) continue;
-                const uint64_t rep = strtoull(line, NULL, 10);
-                const uint64_t member = strtoull(tab + 1, NULL, 10);
-                const std::vector<uint64_t>::const_iterator it =
-                    std::lower_bound(keymap.begin(), keymap.end(), rep);
-                if (it == keymap.end() || *it != rep) continue;
-                const size_t sub = static_cast<size_t>(it - keymap.begin());
-                if (pass == 0) {
-                    counts[sub]++;
-                } else {
-                    members[clusterStart[sub] + counts[sub]] = member;
-                    counts[sub]++;
-                }
+    static void readAt(int fd, void *dst, size_t bytes, size_t offset, const std::string &what) {
+        char *p = static_cast<char *>(dst);
+        size_t done = 0;
+        while (done < bytes) {
+            const ssize_t got = pread(fd, p + done, bytes - done, static_cast<off_t>(offset + done));
+            if (got <= 0) {
+                if (got < 0 && errno == EINTR) continue;
+                Debug(Debug::ERROR) << "Cannot read " << what << ": "
+                                    << (got < 0 ? strerror(errno) : "unexpected end of file")
+                                    << "\n";
+                EXIT(EXIT_FAILURE);
             }
-            free(line);
-            fclose(f);
-            if (pass == 0) {
-                clusterStart.assign(keymap.size() + 1, 0);
-                uint64_t total = 0;
-                for (size_t i = 0; i < keymap.size(); i++) {
-                    clusterStart[i] = total;
-                    total += counts[i];
-                }
-                clusterStart[keymap.size()] = total;
-                members.assign(total, 0);
-                counts.assign(keymap.size() + 1, 0);
-            }
+            done += static_cast<size_t>(got);
         }
+    }
+
+    // Opens the CSR and validates it against the key map, without reading either.
+    void open(const std::string &keymapFile, const std::string &repDb) {
+        const std::string offsetsPath = repDb + ".gate.offsets";
+        const std::string membersPath = repDb + ".gate.members";
+        if (FileUtil::fileExists(offsetsPath.c_str()) == false) {
+            Debug(Debug::ERROR) << "No filter gate next to " << repDb << " (" << offsetsPath
+                                << " is missing). It is built by createrepdb; re-run that stage "
+                                << "with this build.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const size_t keymapBytes = FileUtil::getFileSize(keymapFile);
+        repCount = keymapBytes / sizeof(uint64_t);
+        const size_t offsetBytes = FileUtil::getFileSize(offsetsPath);
+        if (offsetBytes != (repCount + 1) * sizeof(uint64_t)) {
+            Debug(Debug::ERROR) << offsetsPath << " holds " << (offsetBytes / sizeof(uint64_t))
+                                << " offsets but " << keymapFile << " holds " << repCount
+                                << " representatives. They are from different runs of "
+                                << "createrepdb.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        memberCount = FileUtil::getFileSize(membersPath) / sizeof(uint64_t);
+        keymapFd = openReadOnly(keymapFile);
+        offsetsFd = openReadOnly(offsetsPath);
+        membersFd = openReadOnly(membersPath);
+    }
+
+    // Fetches the clusters of `wanted` (sorted, distinct sub-keys) and reports the
+    // original keys they contain, so the caller can prefetch those sequences.
+    void loadSlice(const std::vector<uint64_t> &wanted, std::vector<uint64_t> &memberKeysOut) {
+        subs = wanted;
+        selfKey.assign(subs.size(), 0);
+        start.assign(subs.size(), 0);
+        count.assign(subs.size(), 0);
+        members.clear();
+        memberKeysOut.clear();
+        if (subs.empty()) {
+            return;
+        }
+
+        // Offsets and key map, in coalesced ascending runs. Both are fixed width
+        // and indexed by sub-key, so a run of nearby sub-keys is one pread.
+        const size_t coalesce = 64 * 1024 / sizeof(uint64_t);
+        std::vector<uint64_t> block;
+        size_t i = 0;
+        while (i < subs.size()) {
+            size_t j = i;
+            while (j + 1 < subs.size() && subs[j + 1] - subs[i] < coalesce) {
+                j++;
+            }
+            // One past the last, because a cluster needs offsets[s] and offsets[s+1].
+            const uint64_t from = subs[i];
+            const uint64_t to = subs[j] + 2;
+            block.resize(static_cast<size_t>(to - from));
+            readAt(offsetsFd, block.data(), block.size() * sizeof(uint64_t),
+                   static_cast<size_t>(from) * sizeof(uint64_t), "the filter gate offsets");
+            for (size_t k = i; k <= j; k++) {
+                const size_t at = static_cast<size_t>(subs[k] - from);
+                start[k] = block[at];
+                count[k] = block[at + 1] - block[at];
+            }
+            block.resize(static_cast<size_t>(subs[j] - subs[i] + 1));
+            readAt(keymapFd, block.data(), block.size() * sizeof(uint64_t),
+                   static_cast<size_t>(subs[i]) * sizeof(uint64_t), "the sub-key map");
+            for (size_t k = i; k <= j; k++) {
+                selfKey[k] = block[static_cast<size_t>(subs[k] - subs[i])];
+            }
+            i = j + 1;
+        }
+
+        // The member keys themselves. Clusters of ascending sub-keys occupy
+        // ascending, mostly contiguous ranges of the members file, so this is a
+        // forward scan; runs that are actually adjacent become one read.
+        uint64_t total = 0;
+        for (size_t k = 0; k < subs.size(); k++) {
+            total += count[k];
+        }
+        members.resize(static_cast<size_t>(total));
+        uint64_t at = 0;
+        i = 0;
+        while (i < subs.size()) {
+            size_t j = i;
+            while (j + 1 < subs.size() && start[j + 1] == start[j] + count[j]) {
+                j++;
+            }
+            uint64_t run = 0;
+            for (size_t k = i; k <= j; k++) {
+                run += count[k];
+            }
+            if (run > 0) {
+                readAt(membersFd, members.data() + at, static_cast<size_t>(run) * sizeof(uint64_t),
+                       static_cast<size_t>(start[i]) * sizeof(uint64_t), "the filter gate members");
+            }
+            // start[] is rewritten as an index into the local arena.
+            uint64_t local = at;
+            for (size_t k = i; k <= j; k++) {
+                start[k] = local;
+                local += count[k];
+            }
+            at += run;
+            i = j + 1;
+        }
+
+        memberKeysOut.assign(members.begin(), members.end());
+    }
+
+    // Index into the loaded slice for a sub-key, or -1 when the bucket did not ask
+    // for it.
+    int64_t find(uint64_t sub) const {
+        const std::vector<uint64_t>::const_iterator it =
+            std::lower_bound(subs.begin(), subs.end(), sub);
+        if (it == subs.end() || *it != sub) {
+            return -1;
+        }
+        return static_cast<int64_t>(it - subs.begin());
     }
 };
 
@@ -245,14 +393,23 @@ struct FilterGate {
 bool passesFilterGate(const FilterGate *gate, uint64_t subMember, Sequence &query,
                       Sequence &element, BlockAligner &aligner, Matcher &matcher,
                       Parameters &par, unsigned int swMode, short elementDiagonal) {
-    if (gate == NULL || subMember >= gate->keymap.size()) {
+    if (gate == NULL || subMember >= gate->repCount) {
         return true;
     }
-    if (gate->size(subMember) <= 1) {
+    const int64_t slot = gate->find(subMember);
+    if (slot < 0) {
+        // Not in this bucket's slice. The slice is built from exactly the member
+        // sub-keys of the bucket's edges, so this is only reachable for a sub-key
+        // no edge named -- for which the gate is never consulted.
+        return true;
+    }
+    if (gate->count[static_cast<size_t>(slot)] <= 1) {
         return true;  // stock only runs the loop when numClu > 1
     }
-    const uint64_t targetKey = gate->keymap[subMember];
-    for (uint64_t j = gate->clusterStart[subMember]; j < gate->clusterStart[subMember + 1]; j++) {
+    const uint64_t targetKey = gate->selfKey[static_cast<size_t>(slot)];
+    const uint64_t from = gate->start[static_cast<size_t>(slot)];
+    const uint64_t to = from + gate->count[static_cast<size_t>(slot)];
+    for (uint64_t j = from; j < to; j++) {
         const uint64_t elementKey = gate->members[j];
         if (elementKey == targetKey) {
             continue;
@@ -326,19 +483,31 @@ int alignparallel(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
     unsigned int bucketCount = 0;
+    uint64_t bucketSpan = 0;
+    unsigned int partitionCount = 0;
+    unsigned int waveCount = 0;
     {
         FILE *file = FileUtil::openFileOrDie(manifestPath.c_str(), "r", true);
         char name[64];
         size_t value;
         while (fscanf(file, "%63s\t%zu\n", name, &value) == 2) {
-            if (std::string(name) == "bucketCount") {
-                bucketCount = static_cast<unsigned int>(value);
-            }
+            const std::string key = name;
+            if (key == "bucketCount") bucketCount = static_cast<unsigned int>(value);
+            else if (key == "bucketSpan") bucketSpan = value;
+            else if (key == "partitionCount") partitionCount = static_cast<unsigned int>(value);
+            else if (key == "waveCount") waveCount = static_cast<unsigned int>(value);
         }
         fclose(file);
     }
     if (bucketCount == 0) {
         Debug(Debug::ERROR) << "Edge manifest " << manifestPath << " has no bucket count\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (partitionCount == 0 || waveCount == 0) {
+        Debug(Debug::ERROR) << "Edge manifest " << manifestPath << " does not record how many "
+                            << "partitions and waves the reduce covered, so this stage cannot "
+                            << "tell a finished reduce from a partial one. It was written by an "
+                            << "older build; re-run kmerreduceparallel with this one.\n";
         EXIT(EXIT_FAILURE);
     }
     par.printParameters(command.cmd, argc, argv, *command.params);
@@ -379,9 +548,14 @@ int alignparallel(int argc, const char **argv, const Command &command) {
             EXIT(EXIT_FAILURE);
         }
         gate = new FilterGate(par.filterSeqDBFile);
-        gate->load(par.keyMapFile, par.filterCluDBFile);
-        Debug(Debug::INFO) << "Filter gate: " << gate->keymap.size() << " representatives, "
-                           << gate->members.size() << " pass-1 members\n";
+        // seqDb is the re-keyed representative database this pass runs on, which
+        // is where createrepdb put the CSR. --filter-cludb-file is no longer read
+        // here at all: it is the input the CSR was built from, kept as a parameter
+        // so the stage still states which clustering it is gating against.
+        gate->open(par.keyMapFile, seqDb);
+        Debug(Debug::INFO) << "Filter gate: " << gate->repCount << " representatives, "
+                           << gate->memberCount << " pass-1 members, paged from "
+                           << seqDb << ".gate.*\n";
     }
     Debug(Debug::INFO) << "Aligning " << bucketCount << " edge buckets; score-per-column cutoff "
                        << scorePerColThreshold << "\n";
@@ -392,7 +566,33 @@ int alignparallel(int argc, const char **argv, const Command &command) {
 
     PartitionSequences sequences(seqDb);
     uint64_t survivorCount = 0;
-    const std::vector<int64_t> reduceAuthority = readReduceAuthority(edgeDir);
+    const std::vector<int64_t> reduceAuthority =
+        readReduceAuthority(edgeDir, waveCount, partitionCount);
+
+    // The layout the greedy sweep must consume, recorded next to the output rather
+    // than rediscovered from it. greedycluster used to infer the bucket count by
+    // counting consecutive p<n>.edges files, so an align that had only produced a
+    // prefix read as a complete, smaller layout -- and it recomputed bucketSpan
+    // from that smaller count, silently sweeping the wrong key ranges.
+    {
+        FileLock layoutLock(coordDir + "/align.lock");
+        layoutLock.lock();
+        const std::string layoutPath = coordDir + "/align.info";
+        if (FileUtil::fileExists(layoutPath.c_str()) == false) {
+            const std::string tmp = layoutPath + ".tmp." + SSTR(getpid());
+            FILE *f = FileUtil::openAndDelete(tmp.c_str(), "w");
+            fprintf(f, "bucketCount\t%zu\n", (size_t)bucketCount);
+            fprintf(f, "bucketSpan\t%zu\n", (size_t)bucketSpan);
+            fprintf(f, "entryCount\t%zu\n", (size_t)info.entryCount);
+            if (fclose(f) != 0 || rename(tmp.c_str(), layoutPath.c_str()) != 0) {
+                Debug(Debug::ERROR) << "Cannot publish " << layoutPath << ": " << strerror(errno)
+                                    << "\n";
+                layoutLock.unlock();
+                EXIT(EXIT_FAILURE);
+            }
+        }
+        layoutLock.unlock();
+    }
 
     {
         WorkQueue queue(coordDir + "/align.queue", static_cast<int64_t>(bucketCount));
@@ -425,14 +625,24 @@ int alignparallel(int argc, const char **argv, const Command &command) {
             // The gate compares against the pass-1 cluster members of each target,
             // which live in the *full* database; fetch exactly those, in key order.
             if (gate != NULL) {
-                std::vector<uint64_t> gateKeys;
+                // The bucket's member sub-keys, deduplicated *before* their
+                // clusters are expanded. Expanding first and deduplicating after
+                // -- which is what this used to do -- materialised one key per
+                // (edge, cluster member) pair, so a bucket referring to a few
+                // large pass-1 clusters many times over held far more than the
+                // clusters themselves.
+                std::vector<uint64_t> wanted;
+                wanted.reserve(edges.size());
                 for (size_t i = 0; i < edges.size(); i++) {
                     const uint64_t sub = edges[i].getMember();
-                    if (sub >= gate->keymap.size()) continue;
-                    for (uint64_t j = gate->clusterStart[sub]; j < gate->clusterStart[sub + 1]; j++) {
-                        gateKeys.push_back(gate->members[j]);
+                    if (sub < gate->repCount) {
+                        wanted.push_back(sub);
                     }
                 }
+                SORT_PARALLEL(wanted.begin(), wanted.end());
+                wanted.erase(std::unique(wanted.begin(), wanted.end()), wanted.end());
+                std::vector<uint64_t> gateKeys;
+                gate->loadSlice(wanted, gateKeys);
                 SORT_PARALLEL(gateKeys.begin(), gateKeys.end());
                 gateKeys.erase(std::unique(gateKeys.begin(), gateKeys.end()), gateKeys.end());
                 gate->fullSeqs.load(gateKeys);

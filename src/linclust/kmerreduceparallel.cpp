@@ -388,6 +388,8 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
     unsigned int partitionCount = 0;
     unsigned int kmerSize = 0;
     unsigned int waveCount = 1;
+    unsigned int alphabetSizeAa = 0;
+    unsigned int alphabetSizeNucl = 0;
     {
         FILE *file = FileUtil::openFileOrDie(manifestPath.c_str(), "r", true);
         char name[64];
@@ -400,12 +402,23 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
                 kmerSize = static_cast<unsigned int>(value);
             } else if (key == "waveCount") {
                 waveCount = static_cast<unsigned int>(value);
+            } else if (key == "alphabetSizeAa") {
+                alphabetSizeAa = static_cast<unsigned int>(value);
+            } else if (key == "alphabetSizeNucl") {
+                alphabetSizeNucl = static_cast<unsigned int>(value);
             }
         }
         fclose(file);
     }
     if (partitionCount == 0) {
         Debug(Debug::ERROR) << "Shuffle manifest " << manifestPath << " has no partition count\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (alphabetSizeAa == 0) {
+        Debug(Debug::ERROR) << "Shuffle manifest " << manifestPath << " has no alphabet size. It "
+                            << "was written by an older build, whose reduce scored the k-mers with "
+                            << "a different alphabet than the map encoded them in. Re-run the map "
+                            << "for this shuffle with this build.\n";
         EXIT(EXIT_FAILURE);
     }
     // A wave's map wrote only its own slice of partition space, so its reduce
@@ -437,9 +450,20 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
                             << "written in one wave\n";
         EXIT(EXIT_FAILURE);
     }
-    // The map decided k, so take it from the manifest rather than re-deriving it
-    // here: the two must agree, and the map's value is the one on disk.
+    // The map decided k *and* the alphabet, so both come from the manifest rather
+    // than being re-derived or re-passed here. setKmerLengthAndAlphabet picks them
+    // together from --min-seq-id (kmermatcher.cpp:2098-2110), and this command
+    // cannot run it -- it has no sequence database to size it from. Taking only k
+    // and leaving the alphabet at setLinearFilterDefault's 13 meant that at
+    // --min-seq-id >= 0.99 the map encoded adjacent residues with the 21-letter
+    // aa2num while the reduce scored them through a ReducedMatrix(13) whose rows
+    // 13..20 are zero. The alphabet is a property of the k-mers on disk, so the
+    // manifest is where it belongs.
     par.kmerSize = static_cast<int>(kmerSize);
+    par.alphabetSize.values.aminoacid(static_cast<int>(alphabetSizeAa));
+    if (alphabetSizeNucl > 0) {
+        par.alphabetSize.values.nucleotide(static_cast<int>(alphabetSizeNucl));
+    }
     par.printParameters(command.cmd, argc, argv, *command.params);
     Debug(Debug::INFO) << "Reducing " << partitionCount << " partitions of " << kmerDir << "\n";
 
@@ -461,31 +485,54 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
     }
     uint64_t bucketSpan = (info.entryCount + bucketCount - 1) / bucketCount;
 
+    // The manifest is authoritative once it exists; the derivation above only
+    // creates it. This is the same rule the map applies to shuffle.info, and it is
+    // load-bearing for the same reason: bucketCount comes from
+    // Util::computeMemory(--split-memory-limit), which with the workflow default
+    // of 0 is *this node's* physical RAM (and ignores cgroup limits besides).
+    //
+    // Refusing to run when the two disagree -- which is what this used to do --
+    // meant one differently-sized node in a Slurm array, a restart on another
+    // partition, or a container memory limit killed the whole stage. Adopting the
+    // recorded layout instead is both safer and correct: the bucketing has to be
+    // fixed for the life of the edge directory, and the run that created it is the
+    // one that decided.
     const std::string edgeManifest = reduceCoordDir + "/edge.info";
     {
         FileLock lock(reduceCoordDir + "/edge.lock");
         lock.lock();
         if (FileUtil::fileExists(edgeManifest.c_str()) == false) {
             EdgeBucketWriter::createLayout(edgeDir, bucketCount);
-            FILE *f = FileUtil::openAndDelete(edgeManifest.c_str(), "w");
+            // Private temporary then rename, so a worker killed mid-write cannot
+            // leave an empty manifest that every later worker reads as
+            // authoritative and no restart can repair.
+            const std::string tmp = edgeManifest + ".tmp." + SSTR(getpid());
+            FILE *f = FileUtil::openAndDelete(tmp.c_str(), "w");
             fprintf(f, "bucketCount\t%zu\n", (size_t)bucketCount);
             fprintf(f, "bucketSpan\t%zu\n", (size_t)bucketSpan);
             fprintf(f, "entryCount\t%zu\n", (size_t)info.entryCount);
-            fclose(f);
+            // The shape of the reduce itself, so the align stage can tell "every
+            // partition has been reduced" from "the queues I happened to find were
+            // complete". Without it, starting the align before the last wave
+            // existed produced a short authority vector that looked finished.
+            fprintf(f, "partitionCount\t%zu\n", (size_t)partitionCount);
+            fprintf(f, "waveCount\t%zu\n", (size_t)waveCount);
+            if (fclose(f) != 0) {
+                Debug(Debug::ERROR) << "Cannot close " << tmp << ": " << strerror(errno) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (rename(tmp.c_str(), edgeManifest.c_str()) != 0) {
+                Debug(Debug::ERROR) << "Cannot publish " << edgeManifest << ": " << strerror(errno)
+                                    << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         lock.unlock();
     }
-    // Re-read what the manifest actually says and refuse to disagree with it.
-    //
-    // Every worker derives bucketCount from Util::computeMemory(--split-memory-limit),
-    // which with the workflow's default of 0 is *this node's* RAM. A heterogeneous
-    // Slurm array, a restart on a different node, or a later wave would otherwise
-    // route edges into a different bucketing than the run began with -- writing
-    // into r<n> directories createLayout never made. The map already does exactly
-    // this for shuffle.info.
     {
         unsigned int fileBucketCount = 0;
         uint64_t fileBucketSpan = 0;
+        uint64_t fileEntryCount = 0;
         FILE *f = FileUtil::openFileOrDie(edgeManifest.c_str(), "r", true);
         char name[64];
         size_t value;
@@ -493,17 +540,30 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
             const std::string key = name;
             if (key == "bucketCount") fileBucketCount = static_cast<unsigned int>(value);
             else if (key == "bucketSpan") fileBucketSpan = value;
+            else if (key == "entryCount") fileEntryCount = value;
         }
         fclose(f);
-        if (fileBucketCount != bucketCount || fileBucketSpan != bucketSpan) {
-            Debug(Debug::ERROR) << "This worker derived " << bucketCount << " edge buckets of "
-                                << bucketSpan << " keys, but " << edgeManifest << " says "
-                                << fileBucketCount << " of " << fileBucketSpan
-                                << ". The run was started with a different --split-memory-limit or "
-                                << "on a node with different memory; edges would be routed into a "
-                                << "different bucketing than the rest of the run. Re-run every "
-                                << "worker of this stage with the same --split-memory-limit.\n";
+        if (fileBucketCount == 0 || fileBucketSpan == 0) {
+            Debug(Debug::ERROR) << "Edge manifest " << edgeManifest << " has no bucket layout\n";
             EXIT(EXIT_FAILURE);
+        }
+        // entryCount still *is* checked, because unlike the bucketing it describes
+        // the input rather than the node: a different database means these workers
+        // are not running the same job at all, and the key ranges would not line up.
+        if (fileEntryCount != info.entryCount) {
+            Debug(Debug::ERROR) << "The edge buckets at " << edgeDir << " were laid out for "
+                                << fileEntryCount << " sequences, but this worker was given "
+                                << info.entryCount << ". Every worker must run on the same "
+                                << "database.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fileBucketCount != bucketCount || fileBucketSpan != bucketSpan) {
+            Debug(Debug::WARNING) << "This worker would have derived " << bucketCount
+                                  << " edge buckets of " << bucketSpan << " keys from its own "
+                                  << "memory, but " << edgeManifest << " says " << fileBucketCount
+                                  << " of " << fileBucketSpan
+                                  << "; using the recorded layout. This is expected on a "
+                                  << "heterogeneous allocation or under a cgroup memory limit.\n";
         }
         bucketCount = fileBucketCount;
         bucketSpan = fileBucketSpan;
@@ -561,28 +621,55 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         // intermediate the pipeline writes.
         //
         // Safe here because drain() returns only once every partition of the wave
-        // is recorded done, so no worker holding a live lease is still reading
-        // one. Every worker that observes the queue finished reaches this and
-        // unlinks, hence the ENOENT tolerance below.
+        // is recorded done, so no worker holding a live lease is still reading one
+        // -- and, just as importantly, so that a worker cannot delete an item's
+        // input before the item is recorded complete. Deleting inside the work
+        // item would be cheaper still, but a worker that unlinked and then died
+        // before completing would leave the redo to read an empty partition, emit
+        // no edges, and record *that* as success.
+        //
+        // Done by exactly one worker, under a lock and behind a sentinel. Every
+        // worker used to walk every partition of the wave and unlink every shard:
+        // at 1e12 that is 8192 workers x 1024 partitions x 8192 shards, roughly
+        // 7e10 unlink syscalls of which all but 1/8192 return ENOENT, plus 8.4e6
+        // opendir calls per worker. The others block only for as long as the one
+        // sweep takes, which is work they were all doing anyway.
+        //
+        // The sentinel rather than a counter, so an interrupted sweep is redone by
+        // the next run of the stage instead of being remembered as finished.
         //
         // A worker whose lease lapsed while still inside reducePartition can be
-        // reading a shard as another unlinks it. That costs nothing: its item was
-        // redone and recorded by someone else, so its edges are discarded by block
-        // header anyway. What it must not do is turn into a stage failure, so
+        // reading a shard as the sweeper unlinks it. That costs nothing: its item
+        // was redone and recorded by someone else, so its edges are discarded by
+        // block header anyway. What it must not do is turn into a stage failure, so
         // readPartitionAsPositions treats a shard that disappears under it as
         // empty rather than as an error.
-        for (unsigned int p = waveFrom; p < waveTo; p++) {
-            const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, p);
-            for (size_t i = 0; i < shards.size(); i++) {
-                if (unlink(shards[i].c_str()) != 0 && errno != ENOENT) {
-                    Debug(Debug::ERROR) << "Cannot remove reduced bucket " << shards[i] << ": "
-                                        << strerror(errno) << "\n";
-                    EXIT(EXIT_FAILURE);
+        const std::string waveTag = SSTR(par.kmerWave < 0 ? 0 : par.kmerWave);
+        const std::string cleanupDone = reduceCoordDir + "/cleanup." + waveTag + ".done";
+        FileLock cleanupLock(reduceCoordDir + "/cleanup." + waveTag + ".lock");
+        cleanupLock.lock();
+        if (FileUtil::fileExists(cleanupDone.c_str()) == false) {
+            for (unsigned int p = waveFrom; p < waveTo; p++) {
+                const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, p);
+                for (size_t i = 0; i < shards.size(); i++) {
+                    if (unlink(shards[i].c_str()) != 0 && errno != ENOENT) {
+                        Debug(Debug::ERROR) << "Cannot remove reduced bucket " << shards[i] << ": "
+                                            << strerror(errno) << "\n";
+                        cleanupLock.unlock();
+                        EXIT(EXIT_FAILURE);
+                    }
                 }
             }
+            FILE *sentinel = FileUtil::openAndDelete(cleanupDone.c_str(), "w");
+            if (fclose(sentinel) != 0) {
+                Debug(Debug::ERROR) << "Cannot close " << cleanupDone << "\n";
+                cleanupLock.unlock();
+                EXIT(EXIT_FAILURE);
+            }
+            Debug(Debug::INFO) << "Removed the consumed k-mer buckets"
+                               << (waveCount > 1 ? " of wave " + SSTR(par.kmerWave) : "") << "\n";
         }
-        Debug(Debug::INFO) << "Removed the consumed k-mer buckets"
-                           << (waveCount > 1 ? " of wave " + SSTR(par.kmerWave) : "") << "\n";
+        cleanupLock.unlock();
     }
 
     Debug(Debug::INFO) << "Worker " << workerId << " wrote " << edgeCount

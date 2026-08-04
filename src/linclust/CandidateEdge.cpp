@@ -11,7 +11,24 @@
 #include <cstring>
 
 #include <dirent.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
+
+namespace {
+// See deriveDescriptorBudget in KmerPartition.cpp: bucket descriptors are kept
+// open across flushes up to a bounded set, so the common case (a bucket count
+// well inside the descriptor limit) costs one open per bucket per stage rather
+// than one per flush, while a 65536-bucket run still cannot exhaust descriptors.
+size_t deriveEdgeDescriptorBudget(unsigned int bucketCount) {
+    size_t allowed = 256;
+    struct rlimit limit;
+    if (getrlimit(RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur != RLIM_INFINITY
+            && limit.rlim_cur > 64) {
+        allowed = static_cast<size_t>(limit.rlim_cur) / 2;
+    }
+    return std::min<size_t>(std::max<size_t>(allowed, 16), std::max<unsigned int>(bucketCount, 1));
+}
+}  // namespace
 
 std::string EdgeWriter::partitionPath(const std::string &dir, unsigned int partition) {
     return dir + "/p" + SSTR(partition) + ".edges";
@@ -142,7 +159,14 @@ EdgeBucketWriter::EdgeBucketWriter(const std::string &dir, unsigned int bucketCo
     const size_t perBucket = bufferBudgetBytes / (bucketCount * sizeof(CandidateEdge));
     edgesPerBuffer = std::max<size_t>(perBucket, 64);
     buffers.resize(bucketCount);
+    // Reserved up front, so a std::vector's geometric growth cannot leave the
+    // buffers holding twice the budget once they settle at edgesPerBuffer.
+    for (unsigned int b = 0; b < bucketCount; b++) {
+        buffers[b].reserve(edgesPerBuffer);
+    }
     files.assign(bucketCount, NULL);
+    descriptorBudget = deriveEdgeDescriptorBudget(bucketCount);
+    openFiles = 0;
 }
 
 EdgeBucketWriter::~EdgeBucketWriter() {
@@ -162,14 +186,13 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
         // Opened lazily: a worker whose partitions produced nothing for a bucket
         // should not cost a descriptor or an empty file.
         const std::string path = shardPath(bucket);
-        // Append-and-close per flush, for the same reason as KmerBucketWriter:
-        // one descriptor per bucket would need up to 65536 of them.
         files[bucket] = fopen(path.c_str(), "ab");
         if (files[bucket] == NULL) {
             Debug(Debug::ERROR) << "Cannot open edge bucket " << path << ": " << strerror(errno)
                                 << "\n";
             EXIT(EXIT_FAILURE);
         }
+        openFiles++;
     }
     // Header then records, as one write each. The header names the producer so a
     // crashed worker's superseded copy can be told apart from a second partition
@@ -196,17 +219,32 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
                             << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    // Closed here, not held until close(): with up to 65536 buckets against the
-    // 8192 descriptors fixRlimitNoFile raises to, keeping one open per bucket runs
-    // the process out of descriptors partway through the reduce. This is what the
-    // comment above the open has always claimed; only the fclose was missing.
-    if (fclose(files[bucket]) != 0) {
+    // Held open while the descriptor budget allows, and closed past it. With up to
+    // 65536 buckets against the 8192 descriptors fixRlimitNoFile raises to, keeping
+    // one open per bucket unconditionally would run the process out of them
+    // partway through the reduce; closing on every flush instead made the stage
+    // issue an open and a close per buffer, which is what a metadata server
+    // notices at 1e12.
+    if (openFiles > descriptorBudget) {
+        closeFile(bucket);
+    }
+    buffer.clear();
+}
+
+void EdgeBucketWriter::closeFile(unsigned int bucket) {
+    if (files[bucket] == NULL) {
+        return;
+    }
+    FILE *file = files[bucket];
+    files[bucket] = NULL;
+    openFiles--;
+    // Checked: a buffered or remote filesystem reports ENOSPC and quota failures
+    // here, and the queue marks the partition done right after flushAll().
+    if (fclose(file) != 0) {
         Debug(Debug::ERROR) << "Cannot close edge bucket " << bucket << " of " << dir << ": "
                             << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    files[bucket] = NULL;
-    buffer.clear();
 }
 
 void EdgeBucketWriter::beginPartition(unsigned int partition, int64_t worker) {
@@ -239,6 +277,14 @@ void EdgeBucketWriter::append(unsigned int bucket, const CandidateEdge &edge) {
 void EdgeBucketWriter::flushAll() {
     for (unsigned int b = 0; b < bucketCount; b++) {
         flush(b);
+        // Descriptors that survive a flush hold the block in a stdio buffer, so
+        // getting it to the OS -- what this call owes its caller before the item
+        // is marked done -- now takes an explicit, checked fflush.
+        if (files[b] != NULL && fflush(files[b]) != 0) {
+            Debug(Debug::ERROR) << "Cannot flush edge bucket " << b << " of " << dir << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 }
 
@@ -249,6 +295,7 @@ void EdgeBucketWriter::close() {
     closed = true;
     for (unsigned int b = 0; b < bucketCount; b++) {
         flush(b);
+        closeFile(b);
     }
 }
 
@@ -322,9 +369,21 @@ size_t EdgeBucketReader::readShard(const std::string &path, const std::vector<in
                                   << "partition it held was redone.\n";
             break;
         }
+        // Out of range is an error, not "keep it". With a non-empty authority the
+        // vector covers every partition of the run, so a block naming a partition
+        // past its end cannot be attributed to anyone -- it is a block from a
+        // differently-partitioned run, or from a run whose queues are not all
+        // present. Treating it as wanted silently kept stale or superseded blocks
+        // and double-counted their edge support.
+        if (authority.empty() == false && header.partition >= authority.size()) {
+            Debug(Debug::ERROR) << "Edge shard " << path << " holds a block from partition "
+                                << header.partition << ", but the reduce covered only "
+                                << authority.size() << " partitions. The edge directory holds "
+                                << "output from a run with a different partitioning.\n";
+            EXIT(EXIT_FAILURE);
+        }
         const bool wanted =
-            authority.empty() || header.partition >= authority.size() ||
-            authority[header.partition] == static_cast<int64_t>(header.worker);
+            authority.empty() || authority[header.partition] == static_cast<int64_t>(header.worker);
         if (wanted == false) {
             // A superseded copy: this worker did not record the partition done, so
             // another redid it and its edges are the ones that count.

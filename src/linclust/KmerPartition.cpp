@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include <dirent.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 
 KmerPartitioner::KmerPartitioner(unsigned int partitionCount) : partitionCount(partitionCount) {
@@ -38,6 +39,30 @@ const unsigned int MAX_SENSIBLE_WAVES = 64;
 
 uint64_t divideRoundingUp(uint64_t value, uint64_t divisor) {
     return (value + divisor - 1) / divisor;
+}
+
+// How many bucket descriptors one writer may hold open across flushes.
+//
+// The reason the writers used to open, write and close on *every* flush is real:
+// P can reach 65536 against the 8192 soft limit FileUtil::fixRlimitNoFile raises
+// to, so one descriptor per bucket runs the process out of them partway through.
+// But that made the map issue ~1e9 open+close pairs at 1e12 against a single
+// metadata server -- 1e6 work items x 1024 partitions, plus intra-item flushes.
+//
+// Keeping a bounded set open costs nothing and removes almost all of it: a wave
+// only writes P/W partitions, so the common case fits inside the budget entirely
+// and every flush becomes a plain fwrite. Buckets past the budget fall back to
+// open-write-close, which is exactly today's cost for those alone.
+size_t deriveDescriptorBudget(unsigned int activeCount) {
+    // Half the soft limit, so the rest of the process -- the sequence database,
+    // the coordination files, the work queue -- keeps its share.
+    size_t allowed = 256;
+    struct rlimit limit;
+    if (getrlimit(RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur != RLIM_INFINITY
+            && limit.rlim_cur > 64) {
+        allowed = static_cast<size_t>(limit.rlim_cur) / 2;
+    }
+    return std::min<size_t>(std::max<size_t>(allowed, 16), std::max<unsigned int>(activeCount, 1));
 }
 
 unsigned int roundUpToPowerOfTwo(uint64_t value) {
@@ -180,15 +205,51 @@ KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitio
     // At least a handful of records per partition even with a tiny budget, so a
     // large partition count degrades to more frequent flushes rather than to
     // one write syscall per k-mer.
-    const size_t perPartition = bufferBudgetBytes / (partitionCount * sizeof(KmerRecord));
+    //
+    // Divided by the partitions this wave actually writes, not by P. A wave owns
+    // the slice [partitionFrom, partitionTo) and drops every append outside it, so
+    // dividing by P gave each live partition a buffer waveCount times smaller than
+    // the budget allowed -- and the write size is exactly what a parallel
+    // filesystem cares about.
+    const unsigned int activeCount =
+        (this->partitionTo > partitionFrom) ? (this->partitionTo - partitionFrom) : 1;
+    const size_t perPartition = bufferBudgetBytes / (activeCount * sizeof(KmerRecord));
     recordsPerBuffer = std::max<size_t>(perPartition, 16);
     buffers.resize(partitionCount);
+    // Reserved up front: push_back until size() >= recordsPerBuffer lets a
+    // std::vector's geometric growth land on twice the budgeted capacity, so a
+    // 1 GB budget became 2 GB resident across the active partitions.
+    for (unsigned int p = partitionFrom; p < this->partitionTo && p < partitionCount; p++) {
+        buffers[p].reserve(recordsPerBuffer);
+    }
     files.assign(partitionCount, NULL);
     recordCounts.assign(partitionCount, 0);
+    descriptorBudget = deriveDescriptorBudget(activeCount);
+    openFiles.store(0);
 }
 
 KmerBucketWriter::~KmerBucketWriter() {
     close();
+}
+
+// Caller must hold mutexes[partition].
+void KmerBucketWriter::closeFile(unsigned int partition) {
+    if (files[partition] == NULL) {
+        return;
+    }
+    // Checked: buffered I/O can report ENOSPC, a quota, or a remote filesystem
+    // error only at close, and the queue marks the item done straight after
+    // flushAll(). An unchecked close here let an item be recorded complete with
+    // k-mers missing, which the reduce then reads as "this k-mer had no partner"
+    // -- a wrong clustering with no diagnostic.
+    FILE *file = files[partition];
+    files[partition] = NULL;
+    openFiles.fetch_sub(1);
+    if (fclose(file) != 0) {
+        Debug(Debug::ERROR) << "Cannot close k-mer bucket " << partition << " of " << dir << ": "
+                            << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 void KmerBucketWriter::flush(unsigned int partition) {
@@ -199,18 +260,14 @@ void KmerBucketWriter::flush(unsigned int partition) {
     if (files[partition] == NULL) {
         // Opened lazily: with 8192 partitions and a sparse shard, most buckets
         // stay untouched and should not cost a file descriptor or an empty file.
-        // Opened in append mode and closed again after the write (see below).
-        // Holding one descriptor per partition for the life of the writer needs P
-        // of them -- 8192 at the 1e12 sizing -- against a soft limit
-        // FileUtil::fixRlimitNoFile only raises to 8192, so the last partitions
-        // would fail to open. Append is safe because this shard belongs to this
-        // worker alone.
+        // Append is safe because this shard belongs to this worker alone.
         const std::string path = partitionDir(dir, partition) + "/" + shardId + ".kmers";
         files[partition] = fopen(path.c_str(), "ab");
         if (files[partition] == NULL) {
             Debug(Debug::ERROR) << "Cannot open bucket " << path << ": " << strerror(errno) << "\n";
             EXIT(EXIT_FAILURE);
         }
+        openFiles.fetch_add(1);
     }
     if (fwrite(buffer.data(), sizeof(KmerRecord), buffer.size(), files[partition]) != buffer.size()) {
         // Name the reason: a full scratch filesystem is by far the likeliest way
@@ -219,17 +276,13 @@ void KmerBucketWriter::flush(unsigned int partition) {
                             << partition << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    // Checked, and before the buffer is dropped: buffered I/O can report ENOSPC,
-    // a quota, or a remote filesystem error only at close, and the queue marks the
-    // item done straight after flushAll(). An unchecked close here let an item be
-    // recorded complete with k-mers missing, which the reduce then reads as "this
-    // k-mer had no partner" -- a wrong clustering with no diagnostic.
-    if (fclose(files[partition]) != 0) {
-        Debug(Debug::ERROR) << "Cannot close k-mer bucket " << partition << " of " << dir << ": "
-                            << strerror(errno) << "\n";
-        EXIT(EXIT_FAILURE);
+    // Held open while the writer's descriptor budget allows, so a partition that
+    // is flushed once per work item does not pay an open and a close each time
+    // (see deriveDescriptorBudget). Past the budget this is the old
+    // open-write-close, which is what makes a 65536-partition run safe.
+    if (openFiles.load() > descriptorBudget) {
+        closeFile(partition);
     }
-    files[partition] = NULL;
     buffer.clear();
 }
 
@@ -258,6 +311,9 @@ uint64_t KmerBucketWriter::getRecordCount() {
 }
 
 void KmerBucketWriter::flushAll() {
+    // Descriptors that survive a flush now hold the records in a stdio buffer, so
+    // getting them to the OS -- which is exactly what this call owes its caller
+    // before the work item is marked done -- takes a checked fflush.
     for (unsigned int p = 0; p < partitionCount; p++) {
         std::lock_guard<std::mutex> guard(mutexes[p]);
         flush(p);
@@ -273,13 +329,7 @@ void KmerBucketWriter::close() {
     for (unsigned int p = 0; p < partitionCount; p++) {
         std::lock_guard<std::mutex> guard(mutexes[p]);
         flush(p);
-        if (files[p] != NULL) {
-            if (fclose(files[p]) != 0) {
-                Debug(Debug::ERROR) << "Cannot close k-mer bucket for partition " << p << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            files[p] = NULL;
-        }
+        closeFile(p);
     }
 }
 
@@ -307,7 +357,22 @@ std::vector<std::string> KmerBucketReader::shardFiles(const std::string &dir, un
             shards.push_back(path + "/" + name);
         }
     }
-    closedir(handle);
+    // errno was set to 0 before the loop precisely so it could be read here, and
+    // then never was. A directory read that fails part-way returns NULL exactly as
+    // the end of the directory does, so an unchecked loop turns an I/O error into a
+    // *partial* shard list -- which downstream reads as "these k-mers had no
+    // partner", a smaller clustering with no diagnostic. EdgeBucketWriter::shardFiles
+    // already does this; the two are now the same shape.
+    const int readErr = errno;
+    if (readErr != 0) {
+        Debug(Debug::ERROR) << "Cannot read " << path << ": " << strerror(readErr) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (closedir(handle) != 0) {
+        const int closeErr = errno;
+        Debug(Debug::ERROR) << "Cannot close " << path << ": " << strerror(closeErr) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     // Sorted so a partition reads back in the same order on every run, which
     // keeps the whole pipeline reproducible regardless of directory order.
     std::sort(shards.begin(), shards.end());
@@ -339,13 +404,29 @@ uint64_t KmerBucketReader::countRecords(const std::string &dir, unsigned int par
 void KmerBucketReader::readPartition(const std::string &dir, unsigned int partition,
                                      std::vector<KmerRecord> &out) {
     const std::vector<std::string> shards = shardFiles(dir, partition);
+    // Sized in one go rather than grown per shard: resize() on a vector holding
+    // hundreds of gigabytes reallocates and copies the whole array once per shard,
+    // and a partition has one shard per worker.
+    uint64_t total = 0;
+    std::vector<size_t> counts(shards.size(), 0);
     for (size_t i = 0; i < shards.size(); i++) {
+        counts[i] = FileUtil::getFileSize(shards[i]) / sizeof(KmerRecord);
+        total += counts[i];
+    }
+    out.reserve(out.size() + static_cast<size_t>(total));
+    for (size_t i = 0; i < shards.size(); i++) {
+        // Rounded down to whole records rather than refused, matching countRecords
+        // and readPartitionAsPositions. A torn tail is what an interrupted worker
+        // leaves; its item is redone into a *different* shard, so nothing is lost,
+        // and making it fatal meant every later read of that partition died on it
+        // forever with no recovery but deleting the file by hand.
         const size_t bytes = FileUtil::getFileSize(shards[i]);
         if (bytes % sizeof(KmerRecord) != 0) {
-            Debug(Debug::ERROR) << "Bucket " << shards[i] << " is truncated\n";
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::WARNING) << "Bucket " << shards[i] << " ends mid-record at " << bytes
+                                  << " bytes, as an interrupted worker leaves it; reading the "
+                                  << counts[i] << " whole records it holds.\n";
         }
-        const size_t count = bytes / sizeof(KmerRecord);
+        const size_t count = counts[i];
         if (count == 0) {
             continue;
         }

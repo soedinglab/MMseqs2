@@ -1,5 +1,6 @@
 #include "ByteParser.h"
 #include "CommandCaller.h"
+#include "KmerPartition.h"
 #include "Debug.h"
 #include "FileUtil.h"
 #include "Parameters.h"
@@ -59,6 +60,20 @@ int linclustparallel(int argc, const char **argv, const Command &command) {
                             << "neither, so the result would differ from linclust without saying "
                             << "so. Use --cov-mode 1 (target) or 2 (query).\n";
         EXIT(EXIT_FAILURE);
+    }
+
+    // Said once, up front, rather than discovered several stages in.
+    //
+    // DBKeyType is a uint32_t unless the build sets MMSEQS_INT64_IDS, whose CMake
+    // default is off. createdbparallel does refuse an input past the ceiling, but
+    // only after scanning and planning the whole thing -- hours at the scales this
+    // command exists for. Naming the limit before anything is launched turns that
+    // into a one-line answer.
+    if (static_cast<uint64_t>(DB_KEY_INVALID) - 1 < KmerRecord::MAX_ID) {
+        Debug(Debug::WARNING)
+            << "This build uses 32-bit database keys, so it can cluster at most "
+            << static_cast<uint64_t>(DB_KEY_INVALID) << " sequences. The distributed pipeline is "
+            << "designed for 1e11-1e12; build with -DMMSEQS_INT64_IDS=1 for those.\n";
     }
 
     std::string tmpDir = par.db3;

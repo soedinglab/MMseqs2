@@ -81,6 +81,47 @@ struct TranslatedRow {
 // schedule(dynamic), so a different schedule -- or a different --threads -- leaves
 // shards from the earlier attempt on disk, and pass 3 reads every shard it finds.
 // Both attempts' rows would then be emitted.
+//
+// Matched against the exact generated grammar, not merely "starts with the
+// prefix". The spill prefix is derived from the *output* path, so with
+// clusters.tsv.tmp as the output the prefix is clusters.tsv.tmp.bymember -- and a
+// plain prefix compare also removed an unrelated neighbouring file called
+// clusters.tsv.tmp.bymember-notes. The three shapes actually generated are
+//
+//   <prefix>.<bucket>            pass 1's fixed-width spill
+//   <prefix>.t<thread>.<bucket>  pass 2's thread-private spill
+//   <prefix><bucket>             pass 3's output pieces, whose prefix ends in "p"
+//
+// so the suffix is a run of segments, each `<digits>` or `t<digits>`, separated by
+// dots, with the leading dot optional. Requiring that shape makes the deletion
+// exactly as wide as what was created.
+bool isGeneratedSpillName(const std::string &name, const std::string &base) {
+    if (name.size() <= base.size() || name.compare(0, base.size(), base) != 0) {
+        return false;
+    }
+    size_t at = base.size();
+    bool first = true;
+    while (at < name.size()) {
+        if (name[at] == '.') {
+            at++;
+        } else if (first == false) {
+            return false;  // segments after the first must be dot-separated
+        }
+        first = false;
+        if (at < name.size() && name[at] == 't') {
+            at++;
+        }
+        const size_t digitsFrom = at;
+        while (at < name.size() && name[at] >= '0' && name[at] <= '9') {
+            at++;
+        }
+        if (at == digitsFrom) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void removeSpillFiles(const std::string &prefix) {
     const size_t slash = prefix.find_last_of('/');
     const std::string dir = slash == std::string::npos ? std::string(".") : prefix.substr(0, slash);
@@ -90,13 +131,22 @@ void removeSpillFiles(const std::string &prefix) {
         return;  // nothing written yet
     }
     struct dirent *entry;
+    errno = 0;
     while ((entry = readdir(handle)) != NULL) {
         const std::string name = entry->d_name;
-        if (name.size() > base.size() && name.compare(0, base.size(), base) == 0) {
+        if (isGeneratedSpillName(name, base)) {
             FileUtil::remove((dir + "/" + name).c_str());
         }
     }
-    closedir(handle);
+    const int readErr = errno;
+    if (readErr != 0) {
+        Debug(Debug::ERROR) << "Cannot read " << dir << ": " << strerror(readErr) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (closedir(handle) != 0) {
+        Debug(Debug::ERROR) << "Cannot close " << dir << ": " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 
@@ -411,7 +461,6 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     // are used.
     uint64_t keyCount = 0;
     {
-        LookupCursor probe(lookupFile);
         // Counting lines is one extra sequential pass, but the alternative is
         // guessing the key space from the clustering, which need not mention the
         // highest key at all.
@@ -431,22 +480,51 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     const uint64_t bytesPerKey = 192;
     const uint64_t perThreadBudget =
         std::max<uint64_t>(targetBytes / static_cast<uint64_t>(threads), 1ULL * 1024 * 1024);
+    // Sized against the *rows* as well as the keys.
+    //
+    // A bucket is a range of representative key, but what pass 3 holds is one
+    // TranslatedRow per *member* assigned into that range -- and cluster sizes are
+    // skewed, so a bucket of `span` keys can hold far more than `span` rows. Sizing
+    // on keys alone therefore bounded the accession slice and left the row vector
+    // unbounded, which is the one that carries a std::string each.
+    //
+    // The row count is bounded from the input file: a row is "0\t0\n" at the very
+    // least. ~128 B per row is the pair of keys plus a short accession and the
+    // std::string that holds it; being wrong only changes how many buckets are used.
+    const uint64_t rowsUpperBound = FileUtil::getFileSize(inTsv) / 4 + 1;
+    const uint64_t bytesPerRow = 128;
     unsigned int buckets = 1;
-    while (buckets < 65536 && (keyCount / buckets) * bytesPerKey > perThreadBudget) {
+    while (buckets < 65536
+           && ((keyCount / buckets) * bytesPerKey > perThreadBudget
+               || (rowsUpperBound / buckets) * bytesPerRow > perThreadBudget)) {
         buckets *= 2;
     }
     const uint64_t span = (keyCount + buckets - 1) / buckets;
     Debug(Debug::INFO) << "Translating " << keyCount << " keys over " << buckets << " buckets of "
                        << span << "\n";
 
-    const std::string tmpA = outTsv + ".bymember";
-    const std::string tmpB = outTsv + ".byrep";
+    // Spill files go where --spill-prefix says, which the workflow points inside
+    // its tmp directory. Deriving them from the output path -- which is what
+    // happens when the option is not given -- puts every intermediate this command
+    // writes on the *output* filesystem: at 1e11 the first fixed-width spill alone
+    // is on the order of 1.6 TB, none of it counted by --scratch-budget, and a
+    // small output filesystem fills even when scratch has room.
+    const std::string spillBase = par.spillPrefix.empty() ? outTsv : par.spillPrefix;
+    const std::string tmpA = spillBase + ".bymember";
+    const std::string tmpB = spillBase + ".byrep";
+    const std::string piecePrefix = spillBase + ".p";
     // Clear anything an interrupted earlier attempt left behind. A rerun only
     // truncates the shards it happens to touch, and pass 2's thread/bucket
     // assignment is dynamic, so shards from the previous attempt would otherwise
     // survive and pass 3 would emit both attempts' rows.
     removeSpillFiles(tmpA);
     removeSpillFiles(tmpB);
+    // The output pieces too. Pass 3 writes <out>.p<bucket> and then concatenates
+    // every one it finds, but it `continue`s past a bucket whose key range the
+    // lookup never covers -- skipping the overwrite, not the concatenation. A
+    // <out>.p<b> left by an interrupted earlier attempt was therefore appended to
+    // the final result of the next one.
+    removeSpillFiles(piecePrefix);
 
     // Pass 1: bucket by member key.
     {
@@ -568,10 +646,11 @@ int translatekeys(int argc, const char **argv, const Command &command) {
                     buffer.push_back('\n');
                     written++;
                 }
-                FILE *piece = FileUtil::openAndDelete((outTsv + ".p" + SSTR(b)).c_str(), "w");
-                writeAllOrDie(buffer.data(), buffer.size(), piece, outTsv);
+                const std::string piecePath = piecePrefix + SSTR(b);
+                FILE *piece = FileUtil::openAndDelete(piecePath.c_str(), "w");
+                writeAllOrDie(buffer.data(), buffer.size(), piece, piecePath);
                 if (fclose(piece) != 0) {
-                    Debug(Debug::ERROR) << "Cannot close " << outTsv << ".p" << b << "\n";
+                    Debug(Debug::ERROR) << "Cannot close " << piecePath << "\n";
                     EXIT(EXIT_FAILURE);
                 }
             }
@@ -579,7 +658,7 @@ int translatekeys(int argc, const char **argv, const Command &command) {
         FILE *out = FileUtil::openAndDelete(outTsv.c_str(), "w");
         std::vector<char> copy(8 << 20);
         for (unsigned int b = 0; b < buckets; b++) {
-            const std::string piecePath = outTsv + ".p" + SSTR(b);
+            const std::string piecePath = piecePrefix + SSTR(b);
             if (FileUtil::fileExists(piecePath.c_str()) == false) {
                 continue;
             }

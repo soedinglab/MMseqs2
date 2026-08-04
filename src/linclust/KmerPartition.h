@@ -1,6 +1,7 @@
 #ifndef MMSEQS_KMERPARTITION_H
 #define MMSEQS_KMERPARTITION_H
 
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
@@ -236,6 +237,7 @@ private:
 
     // Caller must hold mutexes[partition].
     void flush(unsigned int partition);
+    void closeFile(unsigned int partition);
 
     std::string dir;
     std::string shardId;
@@ -247,6 +249,11 @@ private:
     std::vector<uint64_t> recordCounts;
     unsigned int partitionFrom;
     unsigned int partitionTo;  // exclusive
+    // Descriptors are kept open across flushes up to this many; past it a flush
+    // reverts to open-append-close. Counted atomically because the count is shared
+    // across the per-partition mutexes.
+    size_t descriptorBudget;
+    std::atomic<size_t> openFiles;
 };
 
 // Reads every shard of one partition back.

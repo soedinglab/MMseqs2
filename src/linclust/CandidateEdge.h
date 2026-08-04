@@ -18,6 +18,23 @@ struct __attribute__((__packed__)) CandidateEdge {
     // bytes cheaper per side than a full 64-bit key.
     uint8_t repBytes[6];
     uint8_t memberBytes[6];
+    // 16 bits deliberately, and *not* wide enough to hold every diagonal a 65535
+    // residue sequence can produce. That is stock's convention, not an oversight:
+    //
+    //   - stock stores it in `short KmerEntry::diagonal` (kmermatcher.h:187,199)
+    //     and truncates an int into it at kmermatcher.cpp:2050, exactly as
+    //     collectRoundEdges does here;
+    //   - the prefilter hands it on as `unsigned short hit_t::diagonal`
+    //     (QueryMatcher.h:36);
+    //   - the aligner *undoes* the truncation. ungappedAlign takes an
+    //     `unsigned short` and DistanceCalculator::computeUngappedAlignment
+    //     (DistanceCalculator.h:93-112) tries every real diagonal congruent to it
+    //     mod 65536 that the two lengths allow, keeping the best-scoring one.
+    //
+    // So a diagonal of 45000 stored as -20536 is recovered by the aligner, and two
+    // real diagonals that alias mod 65536 alias in stock too. Widening this would
+    // diverge from stock rather than converge on it, and cost 6% of the largest
+    // intermediate the pipeline writes.
     int16_t diagonal;
     // Nucleotide strand. Stock carries it in bit 63 of the representative key,
     // which a 48-bit key has no room for.
@@ -172,6 +189,7 @@ private:
     EdgeBucketWriter &operator=(const EdgeBucketWriter &);
 
     void flush(unsigned int bucket);
+    void closeFile(unsigned int bucket);
     std::string shardPath(unsigned int bucket) const;
 
     std::string dir;
@@ -180,6 +198,11 @@ private:
     size_t edgesPerBuffer;
     std::vector<std::vector<CandidateEdge> > buffers;
     std::vector<FILE *> files;
+    // Descriptors kept open across flushes, up to descriptorBudget. Plain counters:
+    // one writer belongs to one process and its appends come from the single
+    // thread that drains the work queue.
+    size_t descriptorBudget;
+    size_t openFiles;
     uint64_t edgeCount;
     bool closed;
     unsigned int currentPartition;

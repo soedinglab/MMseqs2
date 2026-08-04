@@ -23,7 +23,7 @@ const size_t DATA_COALESCE_BYTES = 1024 * 1024;
 }  // namespace
 
 PartitionSequences::PartitionSequences(const std::string &dbName)
-    : dbName(dbName), dataFd(-1), indexFd(-1), bytesRead(0) {
+    : dbName(dbName), dataFd(-1), indexFd(-1), bytesRead(0), slotShift(0) {
     const DenseIndex::Info info = DenseIndex::readInfo(dbName);
     entryCount = info.entryCount;
     firstKey = info.firstKey;
@@ -79,6 +79,7 @@ void PartitionSequences::load(const std::vector<uint64_t> &sortedKeys) {
     lengths.assign(keys.size(), 0);
     arena.clear();
     bytesRead = 0;
+    buildDirectory();
     if (keys.empty()) {
         return;
     }
@@ -137,13 +138,49 @@ void PartitionSequences::load(const std::vector<uint64_t> &sortedKeys) {
     }
 }
 
+void PartitionSequences::buildDirectory() {
+    slotStart.clear();
+    slotShift = 0;
+    if (keys.empty()) {
+        return;
+    }
+    const uint64_t span = keys.back() - keys.front() + 1;
+    const uint64_t wantSlots = std::max<uint64_t>(keys.size() / KEYS_PER_SLOT, 1);
+    while ((span >> slotShift) > wantSlots) {
+        slotShift++;
+    }
+    const size_t slots = static_cast<size_t>(span >> slotShift) + 1;
+    // Filled from the back, so each slot ends up holding the *first* index at or
+    // past it and the array is non-decreasing without a second pass.
+    slotStart.assign(slots + 1, keys.size());
+    for (size_t i = keys.size(); i > 0; i--) {
+        const size_t slot = static_cast<size_t>((keys[i - 1] - keys.front()) >> slotShift);
+        slotStart[slot] = i - 1;
+    }
+    for (size_t s = slots; s > 0; s--) {
+        if (slotStart[s - 1] > slotStart[s]) {
+            slotStart[s - 1] = slotStart[s];
+        }
+    }
+}
+
 const char *PartitionSequences::get(uint64_t key, unsigned int *length) const {
-    const std::vector<uint64_t>::const_iterator it =
-        std::lower_bound(keys.begin(), keys.end(), key);
-    if (it == keys.end() || *it != key) {
+    if (keys.empty() || key < keys.front() || key > keys.back()) {
         return NULL;
     }
-    const size_t idx = static_cast<size_t>(it - keys.begin());
-    *length = lengths[idx];
-    return arena.data() + offsets[idx];
+    const size_t slot = static_cast<size_t>((key - keys.front()) >> slotShift);
+    const size_t from = static_cast<size_t>(slotStart[slot]);
+    const size_t to = static_cast<size_t>(slotStart[slot + 1]);
+    // A handful of contiguous entries on average, so a linear scan beats a branchy
+    // search and stays in one or two cache lines.
+    for (size_t i = from; i < to; i++) {
+        if (keys[i] == key) {
+            *length = lengths[i];
+            return arena.data() + offsets[i];
+        }
+        if (keys[i] > key) {
+            break;
+        }
+    }
+    return NULL;
 }

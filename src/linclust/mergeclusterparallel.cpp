@@ -131,7 +131,15 @@ private:
 };
 
 // Streams a "rep<TAB>member" TSV, bucketing on whichever column the join needs.
-void partition(const std::string &tsv, BucketWriter &writer, uint64_t bucketSpan, bool byRep) {
+//
+// Both columns are checked against the key space *before* either is divided into a
+// bucket index. `key / bucketSpan` indexes the writer's bucket vector immediately,
+// and the value ends up indexing `remap[key - lo]` in compose(), so a key from a
+// clustering built over a different database wrote out of bounds long before
+// anything downstream could report it. Dense keys make the valid range exactly
+// [0, entryCount).
+void partition(const std::string &tsv, BucketWriter &writer, uint64_t bucketSpan, bool byRep,
+               uint64_t entryCount) {
     FILE *file = FileUtil::openFileOrDie(tsv.c_str(), "r", true);
     char *line = NULL;
     size_t cap = 0;
@@ -143,6 +151,13 @@ void partition(const std::string &tsv, BucketWriter &writer, uint64_t bucketSpan
         }
         const uint64_t rep = strtoull(line, NULL, 10);
         const uint64_t member = strtoull(tab + 1, NULL, 10);
+        if (rep >= entryCount || member >= entryCount) {
+            Debug(Debug::ERROR) << "Clustering " << tsv << " names key "
+                                << std::max(rep, member) << ", beyond the " << entryCount
+                                << " keys of the database. The clusterings being merged and the "
+                                << "database are from different runs.\n";
+            EXIT(EXIT_FAILURE);
+        }
         const uint64_t key = byRep ? rep : member;
         const uint64_t value = byRep ? member : rep;
         writer.append(static_cast<unsigned int>(key / bucketSpan), key, value);
@@ -205,8 +220,8 @@ void compose(const std::string &earlier, const std::string &later, const std::st
         // Bucket the later clustering by the member it reassigns, and the earlier
         // one by its representative: those are the two sides of the join, so they
         // meet in the same bucket.
-        partition(later, laterW, bucketSpan, false);
-        partition(earlier, earlierW, bucketSpan, true);
+        partition(later, laterW, bucketSpan, false, entryCount);
+        partition(earlier, earlierW, bucketSpan, true, entryCount);
     }
 
     FILE *result = FileUtil::openAndDelete(out.c_str(), "w");
@@ -226,12 +241,30 @@ void compose(const std::string &earlier, const std::string &later, const std::st
         remap.assign(static_cast<size_t>(hi - lo), INVALID);
         const std::vector<Pair> laterPairs = readBucket(tmpPrefix + ".later", b);
         for (size_t i = 0; i < laterPairs.size(); i++) {
+            // Re-checked on the way out of the spill file, not only on the way in:
+            // this is the index into `remap`, and a bucket file written by an
+            // earlier attempt with a different bucketSpan would land here holding
+            // keys for a different range.
+            if (laterPairs[i].key < lo || laterPairs[i].key >= hi) {
+                Debug(Debug::ERROR) << "Bucket " << b << " of " << tmpPrefix << ".later holds key "
+                                    << laterPairs[i].key << ", outside its range [" << lo << ", "
+                                    << hi << "). Remove the working directory and re-run the "
+                                    << "merge.\n";
+                EXIT(EXIT_FAILURE);
+            }
             remap[static_cast<size_t>(laterPairs[i].key - lo)] = laterPairs[i].value;
         }
 
         const std::vector<Pair> earlierPairs = readBucket(tmpPrefix + ".earlier", b);
         for (size_t i = 0; i < earlierPairs.size(); i++) {
             const uint64_t rep = earlierPairs[i].key;
+            if (rep < lo || rep >= hi) {
+                Debug(Debug::ERROR) << "Bucket " << b << " of " << tmpPrefix
+                                    << ".earlier holds key " << rep << ", outside its range ["
+                                    << lo << ", " << hi << "). Remove the working directory and "
+                                    << "re-run the merge.\n";
+                EXIT(EXIT_FAILURE);
+            }
             const uint64_t mapped = remap[static_cast<size_t>(rep - lo)];
             appendPair(buffer, mapped == INVALID ? rep : mapped, earlierPairs[i].value);
             if (buffer.size() > 32 * 1024 * 1024) {
@@ -269,6 +302,12 @@ int mergeclusterparallel(int argc, const char **argv, const Command &command) {
     par.printParameters(command.cmd, argc, argv, *command.params);
 
     const DenseIndex::Info info = DenseIndex::readInfo(seqDb);
+    // Refused rather than divided by: bucketSpan would be 0 for an empty database
+    // and `key / bucketSpan` is the first thing partition() does with every row.
+    if (info.entryCount == 0) {
+        Debug(Debug::ERROR) << "Database " << seqDb << " is empty\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     // One bucket's remap array is 8 bytes per key in its range; size the buckets so
     // that stays a modest slice of the memory limit.

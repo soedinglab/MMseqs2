@@ -62,6 +62,7 @@ Parameters::Parameters():
         PARAM_KEY_MAP(PARAM_KEY_MAP_ID, "--key-map", "Sub-key map", "Maps this database's dense sub-keys back to the original keys, as written by createrepdb. Needed with --filter-cludb-file when the pass runs on a re-keyed representative database.", typeid(std::string), (void *) &keyMapFile, "", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SCRATCH_BUDGET(PARAM_SCRATCH_BUDGET_ID, "--scratch-budget", "Scratch budget", "Total scratch the run may occupy. The k-mer extraction wave count and the partition count are derived from this together with --split-memory-limit, rather than set by hand. Default (0) for a single wave. E.g. 100T, 500T", typeid(ByteParser), (void *) &scratchBudget, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SCRATCH_USED(PARAM_SCRATCH_USED_ID, "--scratch-used", "Scratch already used", "Bytes of --scratch-budget already occupied when this stage starts. The workflow measures it, so a later pass accounts for what earlier passes left on disk. 0 derives it from the input database alone.", typeid(ByteParser), (void *) &scratchUsed, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPILL_PREFIX(PARAM_SPILL_PREFIX_ID, "--spill-prefix", "Spill prefix", "Path prefix for this command's temporary spill files. Default (empty) puts them beside the output, which is outside the scratch filesystem --scratch-budget accounts for. Point it inside the run's tmp directory so the spill is counted and cleaned up with the rest of the run.", typeid(std::string), (void *) &spillPrefix, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -227,6 +228,7 @@ Parameters::Parameters():
         PARAM_CREATEDB_MODE(PARAM_CREATEDB_MODE_ID, "--createdb-mode", "Createdb mode", "Createdb mode 0: copy data, 1: soft link data and write new index (works only with single line fasta/q) 2: GPU compatible db", typeid(int), (void *) &createdbMode, "^[0-2]{1}$"),
         PARAM_SHUFFLE(PARAM_SHUFFLE_ID, "--shuffle", "Shuffle input database", "Shuffle input database", typeid(bool), (void *) &shuffleDatabase, ""),
         PARAM_WRITE_LOOKUP(PARAM_WRITE_LOOKUP_ID, "--write-lookup", "Write lookup file", "write .lookup file containing mapping from internal id, fasta id and file number", typeid(int), (void *) &writeLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WRITE_TEXT_INDEX(PARAM_WRITE_TEXT_INDEX_ID, "--write-text-index", "Write text index", "Also write the stock-compatible text .index alongside the dense .index.bin. None of the distributed stages read it, and at 1e12 sequences it is ~36 TB and ~98 h of single-threaded formatting; turn it off unless a stock MMseqs2 tool has to open the database.", typeid(int), (void *) &writeTextIndex, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use header DB", "use the sequence header DB instead of the body to map the entry keys", typeid(bool), (void *) &useHeaderFile, ""),
         // setextendeddbtype
         PARAM_EXTENDED_DBTYPE(PARAM_EXTENDED_DBTYPE_ID, "--extended-dbtype", "Extended dbtype", "Set extended dbtype 1: compressed, 2: need src, 4: context pseudoe cnts", typeid(int), (void *) &extendedDbtype, "^[0-4]{1}"),
@@ -921,8 +923,18 @@ Parameters::Parameters():
     createdbparallel.push_back(&PARAM_WRITE_LOOKUP);
     createdbparallel.push_back(&PARAM_DB_TYPE);
     createdbparallel.push_back(&PARAM_CHUNK_SIZE);
+    createdbparallel.push_back(&PARAM_WRITE_TEXT_INDEX);
     createdbparallel.push_back(&PARAM_THREADS);
-    createdbparallel.push_back(&PARAM_COMPRESSED);
+    // No PARAM_COMPRESSED. emitChunk pwrites raw sequence and header bytes into
+    // preallocated files at offsets a plan derived from *uncompressed* lengths,
+    // so there is nowhere for compression to happen -- but finalize passed
+    // par.compressed straight into DBWriter::writeDbtypeFile, marking those raw
+    // files as compressed. Readers then decoded raw bytes as compressed records:
+    // `createdbparallel in.fasta db --compressed 1` followed by
+    // `convert2fasta db out.fasta` segfaulted. Supporting it needs a
+    // compression-aware planner, since compressed offsets cannot be derived from
+    // sequence lengths; until then the flag is not offered rather than accepted
+    // and ignored.
     createdbparallel.push_back(&PARAM_V);
 
     // kmermatcherparallel
@@ -1001,6 +1013,9 @@ Parameters::Parameters():
     mergeclusterparallel.push_back(&PARAM_V);
 
     // createrepdb
+    // --split-memory-limit sizes the bucketed pass that builds the pass-2 filter
+    // gate; the copy itself is bounded by its chunk size, not by this.
+    createrepdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     createrepdb.push_back(&PARAM_THREADS);
     createrepdb.push_back(&PARAM_V);
 
@@ -1010,6 +1025,7 @@ Parameters::Parameters():
 
     // translatekeys
     translatekeys.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    translatekeys.push_back(&PARAM_SPILL_PREFIX);
     translatekeys.push_back(&PARAM_THREADS);
     translatekeys.push_back(&PARAM_V);
 
@@ -2636,6 +2652,8 @@ void Parameters::setDefaults() {
     keyMapFile = "";
     scratchBudget = 0;
     scratchUsed = 0;
+    spillPrefix = "";
+    writeTextIndex = 1;
     diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";

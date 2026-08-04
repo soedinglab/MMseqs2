@@ -311,11 +311,18 @@ std::vector<Command> baseCommands = {
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"linclustparallel",  linclustparallel,  &par.linclustparallelworkflow,   COMMAND_MAIN,
                 "Linclust across many nodes over a shared filesystem",
-                "# Same clustering as linclust, computed by many independent worker\n"
-                "# processes that coordinate only through files: no MPI, no rank argument,\n"
-                "# and no node-to-node communication. Every worker of a stage runs the\n"
-                "# identical command line, so a stage maps onto a Slurm array job and\n"
-                "# workers may join late, die, or be restarted. Re-running resumes.\n\n"
+                "# The same clustering as linclust *for the coverage modes it supports*,\n"
+                "# computed by many independent worker processes that coordinate only\n"
+                "# through files: no MPI, no rank argument, and no node-to-node\n"
+                "# communication. Every worker of a stage runs the identical command line,\n"
+                "# so a stage maps onto a Slurm array job and workers may join late, die,\n"
+                "# or be restarted. Re-running resumes.\n\n"
+                "# Supported subset: --cov-mode 1 (target, the default here) or 2 (query).\n"
+                "# Stock linclust defaults to --cov-mode 0, which selects SET_COVER\n"
+                "# clustering and the count-table grouping rounds; neither is implemented\n"
+                "# here, so mode 0 is refused rather than silently answered differently.\n"
+                "# Nucleotide input is refused for the same reason (stock routes it to the\n"
+                "# v1 path, which has no counterpart here).\n\n"
                 "# On one node\n"
                 "mmseqs linclustparallel sequenceDB clusters.tsv tmp\n\n"
                 "# Across 64 nodes, bounding scratch at 100 TB\n"

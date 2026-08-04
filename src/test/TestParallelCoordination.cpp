@@ -310,6 +310,111 @@ static void testCompletedWorkersNamesOneProducer(const std::string &dir) {
     check(workers[2] == -1, "an unfinished item names nobody");
 }
 
+// Two *independently constructed* objects over the same path, used concurrently
+// in one process.
+//
+// The existing concurrency tests share one object between threads, which the
+// object's own mutex serialises. This is the case that mutex could not cover:
+// fcntl record locks belong to the process, so two FileLocks for one path both
+// believe they hold it, and their separate mutexes serialise nothing. Worse,
+// closing *any* descriptor to a file drops the process's locks on it, so one
+// object going out of scope silently unlocked the other mid-update.
+//
+// Without a per-path registry this loses increments; with one the total is exact.
+static void testSeparateObjectsOverOnePath(const std::string &dir) {
+    const std::string path = dir + "/shared_path_counter";
+    // Kept to the same scale as the other counter tests: every fetchAdd fsyncs,
+    // and on a busy journalling filesystem that is milliseconds each.
+    const int threadCount = 8;
+    const int perThread = 25;
+
+    std::vector<std::thread> threads;
+    for (int t = 0; t < threadCount; t++) {
+        threads.push_back(std::thread([&path, perThread]() {
+            // A fresh object per thread, and a second short-lived one inside the
+            // loop whose destruction used to drop the first one's lock.
+            SharedCounter mine(path);
+            for (int i = 0; i < perThread; i++) {
+                mine.fetchAdd(1);
+                SharedCounter transient(path);
+                transient.get();
+            }
+        }));
+    }
+    for (size_t i = 0; i < threads.size(); i++) {
+        threads[i].join();
+    }
+
+    SharedCounter observer(path);
+    check(observer.get() == static_cast<int64_t>(threadCount) * perThread,
+          "separate counter objects over one path do not lose increments");
+
+    // The same for a queue: two objects, one path, every item claimed once.
+    const std::string queuePath = dir + "/shared_path_queue";
+    const int64_t itemCount = 64;
+    std::vector<int> claimedBy(static_cast<size_t>(itemCount), 0);
+    std::vector<std::vector<int64_t> > taken(2);
+    std::vector<std::thread> queueThreads;
+    for (int t = 0; t < 2; t++) {
+        queueThreads.push_back(std::thread([&queuePath, itemCount, t, &taken]() {
+            WorkQueue queue(queuePath, itemCount);
+            while (true) {
+                const int64_t item = queue.claim(t + 1, 600);
+                if (item < 0) {
+                    break;
+                }
+                taken[t].push_back(item);
+                queue.complete(item, t + 1);
+            }
+        }));
+    }
+    for (size_t i = 0; i < queueThreads.size(); i++) {
+        queueThreads[i].join();
+    }
+    size_t total = 0;
+    for (size_t t = 0; t < taken.size(); t++) {
+        for (size_t i = 0; i < taken[t].size(); i++) {
+            claimedBy[static_cast<size_t>(taken[t][i])]++;
+        }
+        total += taken[t].size();
+    }
+    bool exactlyOnce = total == static_cast<size_t>(itemCount);
+    for (size_t i = 0; i < claimedBy.size(); i++) {
+        exactlyOnce = exactlyOnce && claimedBy[i] == 1;
+    }
+    check(exactlyOnce, "separate queue objects over one path claim every item exactly once");
+}
+
+// complete() must not mark an item done that another worker now holds.
+//
+// renew() and release() have always checked ownership; complete() did not, so a
+// worker whose lease lapsed -- and whose item another worker is running right now
+// -- still recorded it DONE on finishing. The stage then treats an in-progress
+// item as complete, and for the reduce it also makes the wrong worker the
+// authority for that partition's edge blocks.
+static void testCompleteChecksOwnership(const std::string &dir) {
+    const std::string queuePath = dir + "/ownership_queue";
+    WorkQueue queue(queuePath, 2);
+
+    check(queue.claim(1, 1) == 0, "worker 1 takes item 0 under a one-second lease");
+    sleep(2);
+    check(queue.claim(2, 600) == 0, "worker 2 re-claims it once the lease lapses");
+
+    // Worker 1 finishes late. Its output is superseded by worker 2's, which is
+    // still running, so this must not be recorded.
+    queue.complete(0, 1);
+    check(queue.getDoneCount() == 0, "a lapsed holder cannot complete an item someone else holds");
+
+    std::vector<int64_t> workers;
+    check(WorkQueue::readCompletedWorkers(queuePath, workers), "the queue reads back");
+    check(workers[0] == -1, "the item is still unfinished");
+
+    queue.complete(0, 2);
+    check(queue.getDoneCount() == 1, "the current holder can complete it");
+    check(WorkQueue::readCompletedWorkers(queuePath, workers) && workers[0] == 2,
+          "the current holder is the authority for the item");
+}
+
 int main(int, const char**) {
     std::string dir = makeTempDir();
 
@@ -321,6 +426,8 @@ int main(int, const char**) {
     testReleaseRequeues(dir);
     testResumeKeepsProgress(dir);
     testCompletedWorkersNamesOneProducer(dir);
+    testSeparateObjectsOverOnePath(dir);
+    testCompleteChecksOwnership(dir);
 
     removeTempDir(dir);
 

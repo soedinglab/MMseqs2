@@ -444,6 +444,8 @@ public:
     int kmerWave;                        // kmermatcherparallel: which extraction wave to write
     size_t scratchBudget;
     size_t scratchUsed;                  // Bytes of the budget already occupied when a stage starts
+    std::string spillPrefix;             // translatekeys: where its spill files go, when not beside the output
+    int writeTextIndex;                  // createdbparallel: also write the stock-compatible text .index
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
@@ -841,6 +843,7 @@ public:
     PARAMETER(PARAM_KEY_MAP)
     PARAMETER(PARAM_SCRATCH_BUDGET)
     PARAMETER(PARAM_SCRATCH_USED)
+    PARAMETER(PARAM_SPILL_PREFIX)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
@@ -1026,6 +1029,7 @@ public:
     PARAMETER(PARAM_CREATEDB_MODE)
     PARAMETER(PARAM_SHUFFLE)
     PARAMETER(PARAM_WRITE_LOOKUP)
+    PARAMETER(PARAM_WRITE_TEXT_INDEX)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)

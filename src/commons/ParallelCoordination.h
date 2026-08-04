@@ -1,6 +1,7 @@
 #ifndef MMSEQS_PARALLELCOORDINATION_H
 #define MMSEQS_PARALLELCOORDINATION_H
 
+#include <algorithm>
 #include <cstdint>
 #include <ctime>
 #include <unistd.h>
@@ -25,13 +26,19 @@
 //   - locks are owned by the *process*, not the thread, so a process-local mutex
 //     is needed as well to serialise threads within one worker;
 //   - locks are dropped when *any* file descriptor to the file is closed, so the
-//     descriptor is opened once and owned for the object's lifetime.
+//     descriptor must be owned in exactly one place.
 // Locks are released automatically when a process dies, so a crashed worker can
 // never deadlock the run.
+//
+// Both consequences are per *file*, not per object, so the descriptor and the
+// mutex live in a process-global registry keyed on the canonical path (see
+// LockRegistry in the .cpp). Two FileLock instances naming one path therefore
+// serialise against each other, and neither can close the descriptor out from
+// under the other.
 class FileLock {
 public:
-    // Opens (creating if needed) the lock file and keeps the descriptor for the
-    // object's lifetime. Does not acquire the lock.
+    // Joins (creating the file if needed) the process-wide lock state for this
+    // path. Does not acquire the lock.
     explicit FileLock(const std::string &path);
     ~FileLock();
 
@@ -48,8 +55,9 @@ private:
     FileLock &operator=(const FileLock &);
 
     std::string path;
+    // Both borrowed from the per-path registry entry, which outlives this object.
     int fd;
-    std::mutex threadMutex;
+    void *entry;
 };
 
 // A single 64-bit integer in a shared file, updated atomically across nodes.
@@ -170,9 +178,20 @@ public:
                unsigned int stallSeconds = 2 * DEFAULT_LEASE_SECONDS) {
         int64_t lastDone = -1;
         int64_t lastProgress = static_cast<int64_t>(time(NULL));
+        // Idle polling backs off. At the tail of a stage every worker that has run
+        // out of claimable items sits in the branch below, and each pass costs a
+        // claim() and a hasLiveClaim() through the one global lock -- thousands of
+        // workers hammering the lock exactly while the last few holders need it for
+        // their heartbeats. Doubling up to a minute keeps a late joiner responsive
+        // (the first waits are still pollSeconds) without that pile-up. Reset on
+        // every observed completion, so a queue that starts moving again is picked
+        // up promptly.
+        unsigned int wait = pollSeconds;
+        const unsigned int maxWait = 60;
         while (true) {
             const int64_t item = claim(workerId);
             if (item >= 0) {
+                wait = pollSeconds;
                 // Heartbeat for the duration of the item. Without it any item
                 // taking longer than the lease -- which at 1e11 is every reduce
                 // partition and every align bucket, both hours of work -- looks
@@ -207,6 +226,7 @@ public:
             if (done != lastDone) {
                 lastDone = done;
                 lastProgress = static_cast<int64_t>(time(NULL));
+                wait = pollSeconds;
             } else if (hasLiveClaim()) {
                 // Someone is still working, and heartbeating to say so. A stage
                 // whose last item takes hours must not be declared stalled.
@@ -216,7 +236,10 @@ public:
                            static_cast<int64_t>(stallSeconds)) {
                 return false;
             }
-            sleep(pollSeconds);
+            sleep(wait);
+            if (wait < maxWait) {
+                wait = std::min(maxWait, wait * 2);
+            }
         }
     }
 
@@ -251,6 +274,13 @@ private:
         uint64_t leaseExpiry;
     };
 
+    // The comment above has always said the sizes are asserted; they were not.
+    // A queue is written by one worker and read by others that may have been
+    // built at a different time, so a layout change has to fail the build rather
+    // than reinterpret an existing file.
+    static_assert(sizeof(Header) == 64, "WorkQueue::Header is written to disk verbatim");
+    static_assert(sizeof(Record) == 16, "WorkQueue::Record is written to disk verbatim");
+
     static const uint64_t MAGIC = 0x4d4d51554555453fULL;  // "MMQUEUE?"
     static const uint64_t VERSION = 1;
 
@@ -258,14 +288,26 @@ private:
     Header readHeaderLocked();
     void writeHeaderLocked(const Header &header);
     Record readRecordLocked(int64_t index);
-    // The whole record array in one read, for the scans that would otherwise issue
-    // itemCount separate 16-byte preads while holding the lock. On a shared
+    // A contiguous run of records in one read, for the scans that would otherwise
+    // issue one 16-byte pread per item while holding the lock. On a shared
     // filesystem each of those is a cross-node round trip, and at P = 8192 with
     // every idle worker polling every 5 s they crowd out the heartbeat renewals
     // that keep live workers' leases from lapsing.
-    void readRecordsLocked(std::vector<Record> &out);
+    //
+    // out is indexed *relative to `from`*. Reading [from, from + count) rather
+    // than the whole array is what keeps claim() O(1) in the item count: this used
+    // to pread from record 0 every time, so a 1,048,576-item queue -- the map's
+    // size at 1e12 -- moved 16 MB under the global lock per claim, measured at
+    // 13.2 ms against 4.2 ms for a 4096-item queue.
+    void readRecordsLocked(int64_t from, int64_t count, std::vector<Record> &out);
     void writeRecordLocked(int64_t index, const Record &record);
     void completeLocked(int64_t index, int64_t workerId);
+
+    // Records read per pass when scanning for a claimable item. Bounds the read
+    // under the lock; the scan extends by another window only when the whole
+    // window is DONE or live-leased, which happens on a queue whose head is a long
+    // finished prefix -- and nextHint then skips it on the next call.
+    static const int64_t SCAN_WINDOW = 4096;
 
     static size_t recordOffset(int64_t index) {
         return sizeof(Header) + static_cast<size_t>(index) * sizeof(Record);

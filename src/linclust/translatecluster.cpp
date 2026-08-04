@@ -85,7 +85,18 @@ public:
         const std::string p = path(prefix, b);
         if (FileUtil::fileExists(p.c_str()) == false) return out;
         const size_t bytes = FileUtil::getFileSize(p);
-        if (bytes == 0 || bytes % sizeof(Pair) != 0) return out;
+        // An empty bucket is legitimate -- a key range no assignment fell into.
+        // A *torn* one is not, and returning it as empty silently dropped every
+        // assignment in that key range, leaving a smaller clustering that still
+        // looks valid. mergeclusterparallel already makes the identical situation
+        // fatal, with a comment saying exactly why; the two now agree.
+        if (bytes % sizeof(Pair) != 0) {
+            Debug(Debug::ERROR) << "Spill bucket " << p << " is " << bytes << " bytes, not a whole "
+                                << "number of " << sizeof(Pair) << "-byte pairs. It was left by an "
+                                << "interrupted run; remove the spill files and re-run the stage.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (bytes == 0) return out;
         out.resize(bytes / sizeof(Pair));
         FILE *f = FileUtil::openFileOrDie(p.c_str(), "rb", true);
         if (fread(out.data(), sizeof(Pair), out.size(), f) != out.size()) {
@@ -177,6 +188,13 @@ int translatecluster(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
     const uint64_t subCount = mapBytes / sizeof(uint64_t);
+    // Refused rather than divided by. span would be 0 for an empty map, and the
+    // `key / span` that buckets every row is the first thing this does.
+    if (subCount == 0) {
+        Debug(Debug::ERROR) << "Key map " << mapFile << " is empty, so there is nothing to "
+                            << "translate into. createrepdb did not finish.\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     const uint64_t targetBytes = std::max<uint64_t>(Util::computeMemory(par.splitMemoryLimit) / 8,
                                                     1ULL * 1024 * 1024);
@@ -208,6 +226,18 @@ int translatecluster(int argc, const char **argv, const Command &command) {
             if (tab == NULL) continue;
             const uint64_t subRep = strtoull(line, NULL, 10);
             const uint64_t subMember = strtoull(tab + 1, NULL, 10);
+            // Validated before it is divided into a bucket index, not after.
+            // Both columns index `buffers[b]` immediately, so an out-of-range key
+            // -- a clustering paired with the wrong key map -- wrote past the end
+            // of the bucket vector before the range check further down could
+            // report it.
+            if (subRep >= subCount || subMember >= subCount) {
+                Debug(Debug::ERROR) << "Clustering " << inTsv << " names sub-key "
+                                    << std::max(subRep, subMember) << ", beyond the " << subCount
+                                    << " keys in " << mapFile << ". The clustering and the key map "
+                                    << "are from different runs.\n";
+                EXIT(EXIT_FAILURE);
+            }
             byMember.append(static_cast<unsigned int>(subMember / span), subMember, subRep);
         }
         free(line);
@@ -228,7 +258,16 @@ int translatecluster(int argc, const char **argv, const Command &command) {
                     EXIT(EXIT_FAILURE);
                 }
                 const uint64_t origMember = slice[static_cast<size_t>(pairs[i].key - lo)];
-                // Re-bucket on the representative sub-key for the second pass.
+                // Checked again here: `other` is the column this pass carries
+                // through untouched, so it was validated on the way in but has
+                // been through a spill file since, and it is about to index
+                // byRep's bucket vector.
+                if (pairs[i].other >= subCount) {
+                    Debug(Debug::ERROR) << "Spill bucket " << b << " holds sub-key "
+                                        << pairs[i].other << ", beyond the " << subCount
+                                        << " keys in " << mapFile << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
                 byRep.append(static_cast<unsigned int>(pairs[i].other / span), pairs[i].other,
                              origMember);
             }

@@ -42,10 +42,12 @@
 #include "DenseIndex.h"
 #include "FastSort.h"
 #include "FileUtil.h"
+#include "ParallelCoordination.h"
 #include "Parameters.h"
 #include "Util.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <cstring>
 #include <string>
@@ -146,7 +148,15 @@ size_t readBucket(const std::string &alnDir, unsigned int bucket, std::vector<Ca
     const size_t chunkBytes = 64 * 1024 * 1024;
     const size_t chunks = (bytes + chunkBytes - 1) / chunkBytes;
     char *base = reinterpret_cast<char *>(out.data());
-    bool failed = false;
+    // Both atomic. Threads used to write a plain `bool failed` concurrently, which
+    // is a data race and so undefined behaviour -- in practice the main thread
+    // could miss the flag entirely and treat a short or failed read as a complete
+    // bucket, dropping edges with no diagnostic. The error code is captured by the
+    // failing thread too, because reporting the *calling* thread's errno after the
+    // region names whatever happened to fail last in that thread, which is usually
+    // nothing.
+    std::atomic<bool> failed(false);
+    std::atomic<int> failedErrno(0);
 #pragma omp parallel for schedule(dynamic, 1) num_threads(threads)
     for (size_t c = 0; c < chunks; c++) {
         const size_t from = c * chunkBytes;
@@ -159,15 +169,18 @@ size_t readBucket(const std::string &alnDir, unsigned int bucket, std::vector<Ca
                 if (got < 0 && errno == EINTR) {
                     continue;
                 }
-                failed = true;
+                int expected = 0;
+                failedErrno.compare_exchange_strong(expected, got < 0 ? errno : EIO);
+                failed.store(true);
                 break;
             }
             done += static_cast<size_t>(got);
         }
     }
     close(fd);
-    if (failed) {
-        Debug(Debug::ERROR) << "Cannot read " << path << ": " << strerror(errno) << "\n";
+    if (failed.load()) {
+        Debug(Debug::ERROR) << "Cannot read " << path << ": " << strerror(failedErrno.load())
+                            << "\n";
         EXIT(EXIT_FAILURE);
     }
     return out.size();
@@ -186,16 +199,74 @@ int greedycluster(int argc, const char **argv, const Command &command) {
     const DenseIndex::Info info = DenseIndex::readInfo(seqDb);
     par.printParameters(command.cmd, argc, argv, *command.params);
 
-    // Bucket count comes from the align stage's layout: one file per bucket, and
-    // buckets are ascending representative-key ranges, which is exactly the order
-    // the sweep needs.
-    unsigned int bucketCount = 0;
-    while (FileUtil::fileExists(EdgeWriter::partitionPath(alnDir, bucketCount).c_str())) {
-        bucketCount++;
-    }
-    if (bucketCount == 0) {
-        Debug(Debug::ERROR) << "No edge buckets in " << alnDir << ". Run alignparallel first.\n";
+    // Bucket count and span come from the layout alignparallel recorded, and the
+    // align queue is checked complete before anything is read.
+    //
+    // Counting consecutive p<n>.edges files instead -- which is what this used to
+    // do -- treats a *prefix* of the buckets as the whole layout. An align stage
+    // that had produced only the first few buckets therefore looked complete, and
+    // bucketSpan was recomputed from the smaller count, so the sweep walked key
+    // ranges that did not correspond to any bucket. The result is a successful,
+    // silently wrong clustering, and a restart preserves it because the greedy
+    // output now exists.
+    const std::string layoutPath = alnDir + "/coord/align.info";
+    if (FileUtil::fileExists(layoutPath.c_str()) == false) {
+        Debug(Debug::ERROR) << "No align layout at " << layoutPath
+                            << ". Run alignparallel first (with this build: older ones did not "
+                            << "record the layout).\n";
         EXIT(EXIT_FAILURE);
+    }
+    unsigned int bucketCount = 0;
+    uint64_t bucketSpan = 0;
+    uint64_t layoutEntryCount = 0;
+    {
+        FILE *f = FileUtil::openFileOrDie(layoutPath.c_str(), "r", true);
+        char name[64];
+        size_t value;
+        while (fscanf(f, "%63s\t%zu\n", name, &value) == 2) {
+            const std::string key = name;
+            if (key == "bucketCount") bucketCount = static_cast<unsigned int>(value);
+            else if (key == "bucketSpan") bucketSpan = value;
+            else if (key == "entryCount") layoutEntryCount = value;
+        }
+        fclose(f);
+    }
+    if (bucketCount == 0 || bucketSpan == 0) {
+        Debug(Debug::ERROR) << "Align layout " << layoutPath << " is incomplete\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (layoutEntryCount != info.entryCount) {
+        Debug(Debug::ERROR) << "The alignments in " << alnDir << " were produced for "
+                            << layoutEntryCount << " sequences, but " << seqDb << " holds "
+                            << info.entryCount << ". They are from different runs.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    {
+        std::vector<int64_t> workers;
+        if (WorkQueue::readCompletedWorkers(alnDir + "/coord/align.queue", workers) == false) {
+            Debug(Debug::ERROR) << "No align work queue in " << alnDir
+                                << "/coord. Run alignparallel first.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (workers.size() != bucketCount) {
+            Debug(Debug::ERROR) << "The align queue covers " << workers.size()
+                                << " buckets but the layout records " << bucketCount << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        for (size_t i = 0; i < workers.size(); i++) {
+            if (workers[i] < 0) {
+                Debug(Debug::ERROR) << "Bucket " << i << " was never aligned. Re-run "
+                                    << "alignparallel before clustering.\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+    }
+    for (unsigned int b = 0; b < bucketCount; b++) {
+        if (FileUtil::fileExists(EdgeWriter::partitionPath(alnDir, b).c_str()) == false) {
+            Debug(Debug::ERROR) << "Bucket " << b << " is recorded aligned but "
+                                << EdgeWriter::partitionPath(alnDir, b) << " is missing\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     KeyFlags flags(info.entryCount);
@@ -212,8 +283,8 @@ int greedycluster(int argc, const char **argv, const Command &command) {
 
     // Edge buckets are contiguous ascending representative-key ranges, the same
     // ranges kmerreduceparallel derived, so walking buckets in order walks the key
-    // space in order.
-    const uint64_t bucketSpan = (info.entryCount + bucketCount - 1) / bucketCount;
+    // space in order. bucketSpan comes from the layout above rather than being
+    // re-derived, so it cannot disagree with the ranges the edges were bucketed on.
 
     for (unsigned int bucket = 0; bucket < bucketCount; bucket++) {
         const uint64_t lo = bucket * bucketSpan;
@@ -222,8 +293,23 @@ int greedycluster(int argc, const char **argv, const Command &command) {
         }
         const uint64_t hi = std::min(lo + bucketSpan, info.entryCount);
         readBucket(alnDir, bucket, edges, par.threads);
-        if (edges.empty() == false) {
-            SORT_PARALLEL(edges.begin(), edges.end(), compareByRepThenMember);
+        // Verified, not sorted. alignparallel produces this file already in
+        // (rep, member) order: mergePairCopies sorts by (rep, member, diagonal,
+        // strand), compacts to one record per pair in place, and the survivors are
+        // then appended in index order into one file per bucket, published by
+        // atomic rename. Re-sorting up to ~74 GB of edges per bucket at 1e12 was
+        // therefore pure cost -- but the sweep below is silently wrong if the order
+        // ever does not hold, so the assumption is checked rather than assumed. A
+        // linear scan against an O(n log n) sort is a trade worth making in both
+        // directions.
+        if (edges.empty() == false
+                && std::is_sorted(edges.begin(), edges.end(), compareByRepThenMember) == false) {
+            Debug(Debug::ERROR) << "Edge bucket " << EdgeWriter::partitionPath(alnDir, bucket)
+                                << " is not ordered by (representative, member). The greedy sweep "
+                                << "consumes it in one forward pass and would silently drop the "
+                                << "out-of-order edges. It was not written by this build's "
+                                << "alignparallel.\n";
+            EXIT(EXIT_FAILURE);
         }
 
         size_t p = 0;
