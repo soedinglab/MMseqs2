@@ -65,6 +65,44 @@ private:
     unsigned int mask;
 };
 
+// Sub-slice of a partition, for a reduce that cannot hold the whole thing.
+//
+// P is derived from the *average* partition, and a partition that exceeds a
+// worker's memory has to be groupable anyway: nodes in an allocation are not
+// always identical, a cgroup limit can be lower than the flag says, a resumed run
+// can land on smaller machines, and k-mer skew can push one partition above its
+// peers. Failing there wastes the whole run.
+//
+// Slicing is exact for the same reason partitioning is. The slice is a pure
+// function of the k-mer, so every occurrence of a k-mer lands in one slice and a
+// group is never split -- and the group is the atomic unit of the reduce, since
+// assignGroup only ever reads and swaps within one group's index range and
+// buildThreadOffsets refuses to cut a group across threads. Grouping the slices
+// separately therefore produces exactly the edges grouping the partition whole
+// would, and the align stage sums their support the same way it already sums
+// across partitions.
+//
+// A different mix from the partitioner's: that one uses the low bits of the
+// 16-bit hash kmermatcher already computed, so reusing it would put every record
+// of a partition in one slice.
+//
+// The case this does NOT cover is a single k-mer *group* too large for the
+// budget. No slicing can help there -- the group cannot be divided without
+// changing the answer. Measured on 10M MGnify sequences the largest group is
+// 3,718 records (0.11% of its partition, ~171 KB resident) against a mean of
+// 1.59, so that case is orders of magnitude away; it is diagnosed rather than
+// handled.
+inline unsigned int kmerSliceOf(uint64_t kmer, unsigned int sliceCount) {
+    if (sliceCount <= 1) {
+        return 0;
+    }
+    uint64_t mixed = kmer * 0x9E3779B97F4A7C15ULL;
+    mixed ^= mixed >> 29;
+    mixed *= 0xBF58476D1CE4E5B9ULL;
+    mixed ^= mixed >> 32;
+    return static_cast<unsigned int>(mixed % sliceCount);
+}
+
 // One k-mer occurrence, as held in memory.
 //
 // 24 bytes, packed. Two fields are here specifically to delete arrays that stock

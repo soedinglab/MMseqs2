@@ -231,6 +231,7 @@ Parameters::Parameters():
         PARAM_WRITE_TEXT_INDEX(PARAM_WRITE_TEXT_INDEX_ID, "--write-text-index", "Write text index", "Also write the stock-compatible text .index alongside the dense .index.bin. None of the distributed stages read it, and at 1e12 sequences it is ~36 TB and ~98 h of single-threaded formatting; turn it off unless a stock MMseqs2 tool has to open the database.", typeid(int), (void *) &writeTextIndex, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_RAW_RECORDS(PARAM_RAW_RECORDS_ID, "--raw-records", "Uncompacted bucket records", "Write k-mer and candidate-edge buckets as fixed-width structs instead of the packed block encoding. Roughly doubles the scratch these intermediates need, and exists only to separate an encoding defect from a semantic one: a run with this on must produce exactly the same clustering as a run with it off.", typeid(int), (void *) &rawRecords, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_WRITE_HEADER_DB(PARAM_WRITE_HEADER_DB_ID, "--write-header-db", "Write header database", "Also write the <db>_h header database. Nothing between createdb and the final TSV reads it -- accessions reach the output through .lookup -- and at 1e12 sequences it is ~35 TB of a ~1 PB scratch budget. Turning it off produces a database stock MMseqs2 tools cannot open.", typeid(int), (void *) &writeHeaderDb, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REDUCE_SLICES(PARAM_REDUCE_SLICES_ID, "--reduce-slices", "K-mer slices per partition", "Group each partition in this many k-mer slices instead of deriving the count from --split-memory-limit. 0 derives it. A slice is a pure function of the k-mer, so every occurrence of a k-mer stays in one slice and the edges are identical whatever this is set to -- which is what makes it a usable exactness control.", typeid(int), (void *) &reduceSlices, "^[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use header DB", "use the sequence header DB instead of the body to map the entry keys", typeid(bool), (void *) &useHeaderFile, ""),
         // setextendeddbtype
         PARAM_EXTENDED_DBTYPE(PARAM_EXTENDED_DBTYPE_ID, "--extended-dbtype", "Extended dbtype", "Set extended dbtype 1: compressed, 2: need src, 4: context pseudoe cnts", typeid(int), (void *) &extendedDbtype, "^[0-4]{1}"),
@@ -974,6 +975,7 @@ Parameters::Parameters():
     // fixed by the shuffle manifest the map wrote, not re-derived here, so passing
     // them would only create a way to disagree with what is on disk.
     kmerreduceparallel.push_back(&PARAM_RAW_RECORDS);
+    kmerreduceparallel.push_back(&PARAM_REDUCE_SLICES);
     kmerreduceparallel.push_back(&PARAM_SUB_MAT);
     kmerreduceparallel.push_back(&PARAM_ALPH_SIZE);
     kmerreduceparallel.push_back(&PARAM_C);
@@ -2661,6 +2663,7 @@ void Parameters::setDefaults() {
     writeTextIndex = 1;
     rawRecords = 0;
     writeHeaderDb = 1;
+    reduceSlices = 0;
     diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";

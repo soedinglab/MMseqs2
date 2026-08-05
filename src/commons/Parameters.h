@@ -448,6 +448,7 @@ public:
     int writeTextIndex;                  // createdbparallel: also write the stock-compatible text .index
     int rawRecords;                      // kmermatcherparallel/kmerreduceparallel: write uncompacted fixed-width records
     int writeHeaderDb;                   // createdbparallel: also write the <db>_h header database
+    int reduceSlices;                    // kmerreduceparallel: force this many k-mer slices per partition
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
@@ -1034,6 +1035,7 @@ public:
     PARAMETER(PARAM_WRITE_TEXT_INDEX)
     PARAMETER(PARAM_RAW_RECORDS)
     PARAMETER(PARAM_WRITE_HEADER_DB)
+    PARAMETER(PARAM_REDUCE_SLICES)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)

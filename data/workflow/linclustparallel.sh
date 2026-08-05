@@ -51,6 +51,11 @@
 # byte-identical output to one without, which is what separates an encoding
 # defect from a semantic one.
 [ -z "$RAW_RECORDS" ] && RAW_RECORDS=0
+# Forces the reduce to group each partition in this many k-mer slices. 0 derives
+# the count from the memory budget. Slicing is exact -- a slice is a pure function
+# of the k-mer, so a group is never split -- so any value must give byte-identical
+# output, which is how that exactness is tested.
+[ -z "$REDUCE_SLICES" ] && REDUCE_SLICES=0
 
 notExists() { [ ! -f "$1" ]; }
 # To stderr, not stdout: scratchUsed() runs inside a command substitution, so a
@@ -185,7 +190,8 @@ KMER_COMMON="--alph-size aa:21,nucl:5 --min-seq-id $MIN_SEQ_ID --kmer-per-seq 21
  --split-memory-limit $SPLIT_MEMORY_LIMIT --scratch-budget $SCRATCH_BUDGET \
  --raw-records $RAW_RECORDS --threads $THREADS"
 REDUCE_PAR="-c $COV --cov-mode $COV_MODE --include-adjacency 1 --num-adjacency 3 \
- --split-memory-limit $SPLIT_MEMORY_LIMIT --raw-records $RAW_RECORDS --threads $THREADS"
+ --split-memory-limit $SPLIT_MEMORY_LIMIT --raw-records $RAW_RECORDS \
+ --reduce-slices $REDUCE_SLICES --threads $THREADS"
 ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c $COV \
  --cov-mode $COV_MODE --threads $THREADS"
 

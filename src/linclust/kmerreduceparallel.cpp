@@ -74,7 +74,8 @@ BaseMatrix *createSubstitutionMatrix(Parameters &par, int dbType) {
 template <typename T>
 size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partition,
                                 KmerPosition<T, true, true> *out, size_t capacity,
-                                const LengthRankTable *lengths) {
+                                const LengthRankTable *lengths, unsigned int sliceCount,
+                                unsigned int slice) {
     const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, partition);
     std::vector<KmerRecord> block;
     size_t filled = 0;
@@ -89,16 +90,21 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
             if (reader.next(block, lengths) == false) {
                 break;
             }
-            if (filled + block.size() > capacity) {
+            // Bound before filtering: a slice keeps at most the whole block, and
+            // checking after would already have written past the end.
+            if (sliceCount <= 1 && filled + block.size() > capacity) {
                 Debug(Debug::ERROR) << "Partition " << partition << " holds more k-mers than the "
                                     << "shard sizes reported. A shard was written while this was "
                                     << "reading it.\n";
                 EXIT(EXIT_FAILURE);
             }
             for (size_t r = 0; r < block.size(); r++) {
-                kmerRecordToPosition(block[r], out[filled + r]);
+                if (sliceCount > 1 && kmerSliceOf(block[r].kmer, sliceCount) != slice) {
+                    continue;
+                }
+                kmerRecordToPosition(block[r], out[filled]);
+                filled++;
             }
-            filled += block.size();
         }
         if (reader.endedTorn()) {
             // Stopped at the last whole block rather than failing. A torn tail is
@@ -112,6 +118,38 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
         }
     }
     return filled;
+}
+
+// Never slice further than this. Past it the passes over the partition cost more
+// than the grouping, and a budget this far below one partition is a configuration
+// error worth surfacing rather than working around.
+const unsigned int MAX_REDUCE_SLICES = 1024;
+
+// Records per slice, so each slice's array is allocated for what it actually
+// holds rather than for an assumed even split.
+//
+// One extra decode pass over the partition. Against the sliceCount passes the
+// slicing already costs it is nothing, and the alternative -- allocating
+// recordCount / sliceCount with a safety factor -- either wastes memory in the
+// case where memory is already short or overflows and has to start again.
+void countPartitionSlices(const std::string &kmerDir, unsigned int partition,
+                          const LengthRankTable *lengths, unsigned int sliceCount,
+                          std::vector<uint64_t> &counts) {
+    counts.assign(sliceCount, 0);
+    const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, partition);
+    std::vector<KmerRecord> block;
+    for (size_t i = 0; i < shards.size(); i++) {
+        KmerShardReader reader(shards[i]);
+        while (true) {
+            block.clear();
+            if (reader.next(block, lengths) == false) {
+                break;
+            }
+            for (size_t r = 0; r < block.size(); r++) {
+                counts[kmerSliceOf(block[r].kmer, sliceCount)]++;
+            }
+        }
+    }
 }
 
 // Drops records that are byte-identical to their predecessor.
@@ -247,15 +285,16 @@ bool compareEdge(const CandidateEdge &a, const CandidateEdge &b) {
 
 
 
-// Groups one partition and writes its edges.
+// Groups one slice of one partition and writes its edges. sliceCount == 1 is the
+// whole partition, which is the normal case.
 template <typename T>
-uint64_t reducePartition(const std::string &kmerDir,
-                         unsigned int partition, int dbType, Parameters &par, BaseMatrix *subMat,
-                         EdgeBucketWriter &writer, uint64_t bucketSpan,
-                         const LengthRankTable *lengths) {
+uint64_t reduceSlice(const std::string &kmerDir, unsigned int partition, int dbType,
+                     Parameters &par, BaseMatrix *subMat, EdgeBucketWriter &writer,
+                     uint64_t bucketSpan, const LengthRankTable *lengths, unsigned int sliceCount,
+                     unsigned int slice, uint64_t sliceRecords) {
     const bool isNucleotide = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
-    const uint64_t recordCount = KmerBucketReader::countRecords(kmerDir, partition);
+    const uint64_t recordCount = sliceRecords;
     if (recordCount == 0) {
         return 0;
     }
@@ -266,7 +305,8 @@ uint64_t reducePartition(const std::string &kmerDir,
         new (std::nothrow) KmerPosition<T, true, true>[recordCount + 1];
     Util::checkAllocation(positions, "Cannot allocate the k-mer partition");
 
-    size_t count = readPartitionAsPositions<T>(kmerDir, partition, positions, recordCount, lengths);
+    size_t count = readPartitionAsPositions<T>(kmerDir, partition, positions, recordCount, lengths,
+                                               sliceCount, slice);
     if (isNucleotide) {
         SORT_PARALLEL(positions, positions + count,
                       KmerPosition<T, true, true>::compareRepSequenceAndIdAndPosReverse);
@@ -276,6 +316,42 @@ uint64_t reducePartition(const std::string &kmerDir,
     }
     count = dropDuplicates<T>(positions, count);
     memset(&positions[count], 0xFF, sizeof(positions[0]));
+
+    // The largest k-mer group in this partition.
+    //
+    // This is the quantity that separates the two kinds of skew, and they have
+    // different fixes. If partitions are uneven but every group is small, the
+    // partition can be cut into k-mer-hash sub-slices and each grouped
+    // independently -- exact, because every occurrence of a k-mer shares a hash
+    // and so stays together. If one *group* is itself too large, no sub-slicing
+    // helps: the group is the atomic unit, since assignGroup picks a centre and
+    // emits pairs within one group's index range and buildThreadOffsets refuses
+    // to split a group across threads.
+    //
+    // Measured here rather than assumed, because the two need very different
+    // amounts of work and nobody has reported which one real data produces.
+    {
+        size_t largestGroup = 0;
+        size_t groupCount = 0;
+        size_t groupStart = 0;
+        for (size_t i = 1; i <= count; i++) {
+            const bool boundary = (i == count) || (positions[i].kmer != positions[groupStart].kmer);
+            if (boundary) {
+                largestGroup = std::max(largestGroup, i - groupStart);
+                groupCount++;
+                groupStart = i;
+            }
+        }
+        Debug(Debug::INFO) << "Partition " << partition
+                           << (sliceCount > 1 ? (" slice " + SSTR(slice) + "/" + SSTR(sliceCount))
+                                              : std::string())
+                           << ": " << count << " k-mers, "
+                           << groupCount << " groups, largest group " << largestGroup << " ("
+                           << (count > 0 ? (100.0 * static_cast<double>(largestGroup) /
+                                            static_cast<double>(count))
+                                         : 0.0)
+                           << "% of the partition)\n";
+    }
 
     std::vector<size_t> threadOffsets;
     buildThreadOffsets<T>(positions, count, par.threads, isNucleotide, threadOffsets);
@@ -354,6 +430,105 @@ uint64_t reducePartition(const std::string &kmerDir,
     }
 
     return edges.size();
+}
+
+// Groups one partition, slicing it if it will not fit the worker's budget.
+template <typename T>
+uint64_t reducePartition(const std::string &kmerDir, unsigned int partition, int dbType,
+                         Parameters &par, BaseMatrix *subMat, EdgeBucketWriter &writer,
+                         uint64_t bucketSpan, const LengthRankTable *lengths,
+                         uint64_t expectedRecords, uint64_t memoryLimit, uint64_t *recordsOut) {
+    const uint64_t recordCount = KmerBucketReader::countRecords(kmerDir, partition);
+    // Handed back so the caller can keep a running mean without re-scanning every
+    // block header of the partition a second time.
+    if (recordsOut != NULL) {
+        *recordsOut = recordCount;
+    }
+    if (recordCount == 0) {
+        return 0;
+    }
+
+    // The two arrays the grouping holds: the k-mers it reads and the pairs
+    // assignGroup writes. The edges accumulate alongside them, which is why the
+    // arrays are sized against a fraction of the budget rather than all of it --
+    // the same split deriveKmerShuffleSizing's factor of 3 encodes.
+    const size_t bytesPerRecord =
+        sizeof(KmerPosition<T, true, true>) + sizeof(KmerPosition<T, false, true>);
+    const uint64_t residentBytes = recordCount * bytesPerRecord;
+
+    // P is derived from the *average* partition, so a partition well above it is
+    // not a sizing mistake -- it is skew, and the two need different responses.
+    // Saying so matters because raising --split-memory-limit cannot help: the
+    // partition of a k-mer is a pure function of the k-mer, so a k-mer carrying an
+    // outsized share of the database stays in one partition however large P is.
+    if (expectedRecords > 0 && recordCount > 2 * expectedRecords) {
+        Debug(Debug::WARNING)
+            << "Partition " << partition << " holds " << recordCount << " k-mers, "
+            << (static_cast<double>(recordCount) / static_cast<double>(expectedRecords))
+            << "x the average of " << expectedRecords << " over the partitions this worker has "
+            << "already grouped. This is k-mer skew, not a partition count that is too low.\n";
+    }
+
+    // Sliced only when the two arrays alone exceed the whole budget.
+    //
+    // Not a fraction of it, deliberately. deriveKmerShuffleSizing already aims a
+    // partition at roughly limit/3 on-disk bytes, which is 0.64 * limit once the
+    // 24-byte records become 46 bytes of KmerPosition -- so a threshold of, say,
+    // 0.6 * limit would slice every partition of every ordinary run and double
+    // its passes for nothing. At 1.0 the trigger is a partition ~56% above what
+    // the sizing intended, which is the case slicing exists for.
+    unsigned int sliceCount = 1;
+    if (par.reduceSlices > 0) {
+        sliceCount = static_cast<unsigned int>(par.reduceSlices);
+    } else if (memoryLimit > 0) {
+        while (sliceCount < MAX_REDUCE_SLICES && residentBytes / sliceCount > memoryLimit) {
+            sliceCount *= 2;
+        }
+    }
+    if (sliceCount == 1) {
+        return reduceSlice<T>(kmerDir, partition, dbType, par, subMat, writer, bucketSpan, lengths,
+                              1, 0, recordCount);
+    }
+
+    Debug(Debug::INFO) << "Partition " << partition << " needs about "
+                       << (residentBytes / (1024 * 1024)) << " MB to group whole, past this "
+                       << "worker's budget; grouping it in " << sliceCount
+                       << " k-mer slices instead. Every occurrence of a k-mer shares a slice, so "
+                       << "the edges are the same ones grouping it whole would produce.\n";
+
+    std::vector<uint64_t> sliceRecords;
+    countPartitionSlices(kmerDir, partition, lengths, sliceCount, sliceRecords);
+
+    uint64_t largest = 0;
+    for (size_t i = 0; i < sliceRecords.size(); i++) {
+        largest = std::max(largest, sliceRecords[i]);
+    }
+    if (memoryLimit > 0 && largest * bytesPerRecord > memoryLimit) {
+        // Only reachable when one k-mer *group* is itself too big: slices split
+        // groups apart, never within one, so no slice count can shrink it. Said
+        // plainly, because the obvious responses -- more slices, more partitions,
+        // a bigger limit -- are all useless against it.
+        Debug(Debug::WARNING)
+            << "Slice " << sliceCount << "-way still leaves " << largest << " k-mers ("
+            << (largest * bytesPerRecord / (1024 * 1024)) << " MB) in one slice. A single k-mer "
+            << "group cannot be divided without changing the answer, so this is the floor for "
+            << "this partition.\n";
+    }
+
+    uint64_t edges = 0;
+    for (unsigned int slice = 0; slice < sliceCount; slice++) {
+        edges += reduceSlice<T>(kmerDir, partition, dbType, par, subMat, writer, bucketSpan,
+                                lengths, sliceCount, slice, sliceRecords[slice]);
+        // Flushed between slices, so no block ever holds two of them.
+        //
+        // A slice's edges are sorted by representative, but the next slice starts
+        // over at low keys, and the writer buffers across calls -- so without this
+        // a bucket's buffer would hold a descending step in the middle and the
+        // packed encoder's delta would wrap. The encoder checks for exactly that
+        // and refused the run, which is how this was found rather than shipped.
+        writer.flushAll();
+    }
+    return edges;
 }
 
 }  // namespace
@@ -594,8 +769,20 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
                         static_cast<int64_t>(waveTo - waveFrom));
         // One partition at a time per process: the sort and the greedy inside a
         // partition are already threaded, and a partition is sized to fill a node.
+        // A running mean over the partitions this worker has already grouped.
+        //
+        // Compared against its peers rather than against a figure derived from the
+        // manifest: the reduce does not know --kmer-per-seq (the workflow does not
+        // pass it here), and "unusual next to the other partitions of this run" is
+        // the comparison that actually identifies skew anyway.
+        uint64_t seenPartitions = 0;
+        uint64_t seenRecords = 0;
         const bool finished = queue.drain(workerId, [&](size_t item) {
             const size_t partition = waveFrom + item;
+            const uint64_t expectedRecords =
+                (seenPartitions > 0) ? (seenRecords / seenPartitions) : 0;
+            const uint64_t memoryLimit = static_cast<uint64_t>(par.splitMemoryLimit);
+            uint64_t partitionRecords = 0;
             // Stamps every block this partition writes with (partition, worker).
             // If this worker dies before the queue records the item done, another
             // redoes it and the align stage drops these blocks in favour of the
@@ -604,11 +791,15 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
             if (info.maxSeqLen < SHRT_MAX) {
                 edgeCount += reducePartition<short>(kmerDir, static_cast<unsigned int>(partition),
                                                     dbType, par, subMat, *edgeWriter, bucketSpan,
-                                                    &lengths);
+                                                    &lengths, expectedRecords, memoryLimit,
+                                                    &partitionRecords);
             } else {
                 edgeCount += reducePartition<int>(kmerDir, static_cast<unsigned int>(partition), dbType,
-                                                  par, subMat, *edgeWriter, bucketSpan, &lengths);
+                                                  par, subMat, *edgeWriter, bucketSpan, &lengths,
+                                                  expectedRecords, memoryLimit, &partitionRecords);
             }
+            seenRecords += partitionRecords;
+            seenPartitions++;
             // Before drain() records the bucket done, so a worker that dies never
             // leaves an item complete whose edges were still buffered.
             edgeWriter->flushAll();
