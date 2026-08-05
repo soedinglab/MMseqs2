@@ -13,6 +13,8 @@ set(commons_header_files
         commons/DBWriter.h
         commons/DenseIndex.h
         commons/LengthRankedPlan.h
+        commons/LengthRankTable.h
+        commons/VarintCodec.h
         commons/IntervalArray.h
         commons/Debug.h
         commons/Domain.h
@@ -62,6 +64,7 @@ set(commons_source_files
         commons/DBWriter.cpp
         commons/DenseIndex.cpp
         commons/LengthRankedPlan.cpp
+        commons/LengthRankTable.cpp
         commons/Debug.cpp
         commons/ExpressionParser.cpp
         commons/FileUtil.cpp

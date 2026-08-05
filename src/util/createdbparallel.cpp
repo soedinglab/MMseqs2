@@ -32,6 +32,7 @@
 #include "FileUtil.h"
 #include "KSeqWrapper.h"
 #include "KmerPartition.h"
+#include "LengthRankTable.h"
 #include "LengthRankedPlan.h"
 #include "ParallelCoordination.h"
 #include "Parameters.h"
@@ -661,7 +662,8 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             }
 
             std::vector<ChunkPlan> plans;
-            const LengthRankedTotals totals = buildLengthRankedPlan(histograms, plans);
+            std::vector<LengthRankTable::Run> lengthRuns;
+            const LengthRankedTotals totals = buildLengthRankedPlan(histograms, plans, &lengthRuns);
             if (totals.seqCount == 0) {
                 Debug(Debug::ERROR) << "The input files have no entry\n";
                 EXIT(EXIT_FAILURE);
@@ -690,6 +692,12 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
                 ensureChunkGroupDir(coordDir, plans[i].chunkIdx);
                 plans[i].write(chunkPlanPath(coordDir, plans[i].chunkIdx));
             }
+
+            // The key -> length table. It is a by-product of the key assignment
+            // just computed, and it is what lets the k-mer record drop its 2-byte
+            // seqLen field -- 42 B per sequence, 42 TB at 1e12 -- without
+            // reintroducing stock's key-space-sized seqkey_to_len array.
+            LengthRankTable::write(dataFile, lengthRuns, totals.seqCount);
 
             allocateFile(dataFile, totals.dataBytes);
             allocateFile(hdrDataFile, totals.headerBytes);

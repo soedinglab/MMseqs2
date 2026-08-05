@@ -26,6 +26,8 @@ set(TESTS
         TestDenseIndex.cpp
         TestKmerPartition.cpp
         TestLengthRankedPlan.cpp
+        TestVarintCodec.cpp
+        TestLengthRankTable.cpp
         TestReduceMatrix.cpp
         TestScoreMatrixSerialization.cpp
         TestSequenceIndex.cpp

@@ -175,7 +175,8 @@ ChunkPlan ChunkPlan::read(const std::string &path) {
 }
 
 LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms,
-                                         std::vector<ChunkPlan> &plans) {
+                                         std::vector<ChunkPlan> &plans,
+                                         std::vector<LengthRankTable::Run> *lengthRuns) {
     // Order by chunk index so the plan never depends on the order the histograms
     // happened to be collected in.
     std::sort(histograms.begin(), histograms.end(),
@@ -221,6 +222,12 @@ LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms
 
     for (size_t l = 0; l < lengths.size(); l++) {
         const uint64_t length = lengths[l];
+        // Keys are handed out longest first, so at this point nextKey is exactly
+        // the number of sequences longer than `length` -- which is the one value
+        // the length-rank table needs per distinct length. Captured here rather
+        // than recomputed, so the table cannot drift from the key assignment it
+        // describes.
+        const uint64_t runFirstKey = nextKey;
         for (size_t i = 0; i < histograms.size(); i++) {
             if (cursor[i] == 0 || histograms[i].buckets[cursor[i] - 1].length != length) {
                 continue;
@@ -251,6 +258,13 @@ LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms
             // stays exact without looking at the sequences themselves.
             nextDataOffset += bucket.count * (length + 2);
             nextHdrOffset += bucket.headerBytes;
+        }
+        if (lengthRuns != NULL && nextKey > runFirstKey) {
+            LengthRankTable::Run run;
+            run.length = length;
+            run.firstKey = runFirstKey;
+            run.count = nextKey - runFirstKey;
+            lengthRuns->push_back(run);
         }
     }
 

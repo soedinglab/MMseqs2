@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "LengthRankTable.h"
+
 // Placement plan for a length-ranked, densely-keyed sequence database that many
 // independent workers build into one set of output files without ever merging.
 //
@@ -126,7 +128,13 @@ struct LengthRankedTotals {
 // Input histograms may arrive in any order; they are ordered by chunkIdx here so
 // the result does not depend on directory listing order. plans is resized to one
 // entry per histogram, indexed the same way as the sorted chunk order.
+// lengthRuns, when non-NULL, receives one entry per distinct sequence length in
+// descending length order: the length, the first key that has it, and how many
+// sequences do. That is the whole content of the length-rank table, and it is
+// produced here rather than recomputed later because it is a by-product of the
+// key assignment itself -- deriving it separately would let the two disagree.
 LengthRankedTotals buildLengthRankedPlan(std::vector<ChunkHistogram> &histograms,
-                                         std::vector<ChunkPlan> &plans);
+                                         std::vector<ChunkPlan> &plans,
+                                         std::vector<LengthRankTable::Run> *lengthRuns = NULL);
 
 #endif
