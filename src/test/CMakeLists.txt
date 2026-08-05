@@ -28,6 +28,7 @@ set(TESTS
         TestLengthRankedPlan.cpp
         TestVarintCodec.cpp
         TestLengthRankTable.cpp
+        TestEdgeCodec.cpp
         TestReduceMatrix.cpp
         TestScoreMatrixSerialization.cpp
         TestSequenceIndex.cpp

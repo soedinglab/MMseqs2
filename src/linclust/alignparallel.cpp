@@ -657,6 +657,18 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                 }
             }
             repStarts.push_back(edges.size());
+
+            // The align-stage half of the skew question: how much of a bucket one
+            // representative accounts for. A bucket is a representative key range,
+            // so a representative with an enormous cluster puts all of its edges --
+            // and all of its members' sequences -- in one bucket, and no bucket
+            // count can split it. Reported so the answer comes from data, as it did
+            // for the k-mer half.
+            size_t largestRepEdges = 0;
+            for (size_t i = 0; i + 1 < repStarts.size(); i++) {
+                largestRepEdges = std::max(largestRepEdges, repStarts[i + 1] - repStarts[i]);
+            }
+
             std::vector<unsigned char> survives(edges.size(), 0);
 
 #pragma omp parallel num_threads(par.threads)
@@ -820,7 +832,12 @@ int alignparallel(int argc, const char **argv, const Command &command) {
                                << " pairs -> " << kept << " surviving, " << needed.size()
                                << " sequences (" << sequences.getBytes() / (1024 * 1024)
                                << " MB arena, " << sequences.getBytesRead() / (1024 * 1024)
-                               << " MB read)\n";
+                               << " MB read), " << (repStarts.size() - 1) << " representatives, "
+                               << "largest " << largestRepEdges << " edges ("
+                               << (merged > 0 ? 100.0 * static_cast<double>(largestRepEdges) /
+                                                    static_cast<double>(merged)
+                                              : 0.0)
+                               << "% of the bucket)\n";
         });
         if (finished == false) {
             Debug(Debug::ERROR) << "Align stage stalled: work remains but no bucket is claimable\n";
