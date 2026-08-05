@@ -285,7 +285,17 @@ bool decode(const EdgeBlockHeader &header, const uint8_t *payload,
     const uint8_t *cursor = payload;
     const uint8_t *end = payload + header.payloadBytes;
     uint64_t prevRep = 0;
-    out.reserve(at + header.recordCount);
+    // Grown geometrically, never to exactly the size needed.
+    //
+    // std::vector::reserve allocates *exactly* what is asked for, so reserving
+    // `already + thisBlock` once per block defeats the geometric growth push_back
+    // would otherwise get: every block reallocates and copies everything decoded
+    // so far, making a shard quadratic in its block count. Measured on 10M, that
+    // cost the align stage +65% (111.9 s -> 184.9 s) against the fixed-width path,
+    // which uses resize() and is geometric already.
+    if (out.capacity() < at + header.recordCount) {
+        out.reserve(std::max(at + static_cast<size_t>(header.recordCount), out.capacity() * 2));
+    }
     for (uint32_t i = 0; i < header.recordCount; i++) {
         uint64_t repDelta = 0;
         uint64_t memberZigzag = 0;
