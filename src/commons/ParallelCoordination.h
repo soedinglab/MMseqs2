@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <mutex>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <string>
 #include <thread>
 #include <vector>
@@ -198,23 +200,46 @@ public:
                 // abandoned, gets re-claimed, and is then run by two workers at
                 // once. The stage's output is not written per worker, so that is
                 // silent corruption rather than merely wasted effort.
+                // Woken on a condition variable, not by polling sleep(1).
+                //
+                // The sleep loop this replaces cost ~0.5 s of dead time on *every*
+                // work item: join() cannot return until the heartbeat thread comes
+                // back from its current one-second sleep and notices the flag, so
+                // the wait was uniform on [0, 1] s however short the item was.
+                // Measured on the map at 1M -- 20 items, 128 threads -- the queue
+                // accounted for 14.6 s of a 20.2 s stage against 2.8 s of actual
+                // extraction, and the cost was identical at 1 thread and at 128,
+                // for every partition count and every --max-seq-len, which is what
+                // eventually identified it. Every stage that drains a queue paid
+                // it; the map paid most because it has the most items.
                 std::atomic<bool> running(true);
-                std::thread heartbeat([this, item, workerId, &running]() {
-                    const int64_t every = DEFAULT_LEASE_SECONDS / 3;
-                    int64_t slept = 0;
-                    while (running.load()) {
-                        sleep(1);
-                        if (++slept < every) {
-                            continue;
+                std::mutex heartbeatMutex;
+                std::condition_variable heartbeatStop;
+                std::thread heartbeat([this, item, workerId, &running, &heartbeatMutex,
+                                       &heartbeatStop]() {
+                    const int64_t every = std::max<int64_t>(DEFAULT_LEASE_SECONDS / 3, 1);
+                    while (true) {
+                        {
+                            std::unique_lock<std::mutex> guard(heartbeatMutex);
+                            // Returns true only if the predicate held, i.e. we were
+                            // told to stop; a timeout means the lease needs renewing.
+                            if (heartbeatStop.wait_for(guard, std::chrono::seconds(every),
+                                                       [&running]() { return running.load() == false; })) {
+                                return;
+                            }
                         }
-                        slept = 0;
-                        if (running.load()) {
-                            renew(item, workerId);
-                        }
+                        // Renewed outside the mutex: it takes the queue's file lock,
+                        // and holding a local mutex across that would make the
+                        // shutdown notify below wait on unrelated I/O.
+                        renew(item, workerId);
                     }
                 });
                 body(static_cast<size_t>(item));
-                running.store(false);
+                {
+                    std::lock_guard<std::mutex> guard(heartbeatMutex);
+                    running.store(false);
+                }
+                heartbeatStop.notify_all();
                 heartbeat.join();
                 complete(item, workerId);
                 continue;

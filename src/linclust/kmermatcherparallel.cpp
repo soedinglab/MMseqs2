@@ -28,6 +28,8 @@
 #include "FileUtil.h"
 #include "CandidateEdge.h"
 #include "KmerPartition.h"
+
+#include <sys/time.h>
 #include "NucleotideMatrix.h"
 #include "ParallelCoordination.h"
 #include "Parameters.h"
@@ -484,7 +486,12 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
         // Claimed one item at a time by the process rather than by each thread:
         // the extraction inside an item is already threaded, and nesting a second
         // parallel region inside a claiming one would oversubscribe the node.
+        double scanSeconds = 0.0, flushSeconds = 0.0;
+        struct timeval drainStart;
+        gettimeofday(&drainStart, NULL);
         const bool finished = queue.drain(workerId, [&](size_t item) {
+            struct timeval itemA, itemB, itemC;
+            gettimeofday(&itemA, NULL);
             const DBKeyType keyFrom = static_cast<DBKeyType>(item * sequencesPerItem);
             const DBKeyType keyTo = static_cast<DBKeyType>(
                 std::min<uint64_t>((item + 1) * sequencesPerItem, info.entryCount));
@@ -497,8 +504,21 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
             // never leave an item marked complete whose k-mers were still buffered.
             // One flush per item keeps the writes large: item size and P grow
             // together, so a partition takes ~0.5 MB per flush at the 100B target.
+            gettimeofday(&itemB, NULL);
             writer.flushAll();
+            gettimeofday(&itemC, NULL);
+            scanSeconds += (itemB.tv_sec - itemA.tv_sec) + (itemB.tv_usec - itemA.tv_usec) / 1e6;
+            flushSeconds += (itemC.tv_sec - itemB.tv_sec) + (itemC.tv_usec - itemB.tv_usec) / 1e6;
         });
+        {
+            struct timeval drainEnd;
+            gettimeofday(&drainEnd, NULL);
+            const double total = (drainEnd.tv_sec - drainStart.tv_sec) +
+                                 (drainEnd.tv_usec - drainStart.tv_usec) / 1e6;
+            Debug(Debug::INFO) << "drain total " << total << " s = scan " << scanSeconds
+                               << " s + flushAll " << flushSeconds << " s + queue "
+                               << (total - scanSeconds - flushSeconds) << " s\n";
+        }
         if (finished == false) {
             Debug(Debug::ERROR) << "Map stage stalled: work remains but no item is claimable\n";
             EXIT(EXIT_FAILURE);
