@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+#include "LengthRankTable.h"
+#include "VarintCodec.h"
+
 // K-mer space partitioning for the distributed linclust map/reduce.
 //
 // Stock kmermatcher handles a database too large for memory by *splitting*: it
@@ -62,7 +65,7 @@ private:
     unsigned int mask;
 };
 
-// One k-mer occurrence as stored in a bucket file.
+// One k-mer occurrence, as held in memory.
 //
 // 24 bytes, packed. Two fields are here specifically to delete arrays that stock
 // kmermatcher sizes by *key space* rather than by entry count, and which
@@ -70,6 +73,14 @@ private:
 //   - seqLen removes `seqkey_to_len[dbKeySize]` (kmermatcher.cpp:1236),
 //   - id is carried explicitly so nothing needs a dense key-indexed side table.
 // `countTable` (:1256) and `repSequence` (:1357) fall the same way.
+//
+// **This is the in-memory form, no longer the on-disk one.** Bucket files hold
+// the packed block encoding below, which is ~13.5 B per record against these 24.
+// `seqLen` in particular is never written: keys are length-ranked, so
+// LengthRankTable recovers it from the id for the price of a binary search over a
+// table of distinct lengths. Keeping the field resident costs nothing (the decode
+// buffer is bounded) and keeps kmerRecordToPosition and everything downstream
+// unchanged.
 struct __attribute__((__packed__)) KmerRecord {
     uint64_t kmer;
     // 48 bits is 2.8e14 keys, comfortably past the 1e12 target, and saves 2 bytes
@@ -170,6 +181,125 @@ void kmerPositionToRecord(KmerPositionT &in, KmerRecord &out) {
     }
 }
 
+// Framing for one flushed run of k-mer records.
+//
+// Three things this buys, beyond the packing itself:
+//
+//   - a torn tail from a worker killed mid-flush is *recognisable*. The reader
+//     rounds down to the last whole block and carries on, which is the behaviour
+//     the fixed-width format could only approximate by rounding the file size
+//     down to a record boundary -- and could not do at all once records vary in
+//     width.
+//   - the record count is readable without decoding, so the reduce can size its
+//     array in one allocation by scanning headers rather than payloads.
+//   - the encoding is named per block, so `--raw-records` is a writer-side switch
+//     that costs the reader nothing: a directory holding both kinds still reads
+//     correctly, which is what makes the two comparable in one run.
+struct __attribute__((__packed__)) KmerBlockHeader {
+    // Distinguishes a real header from the tail of a torn write.
+    uint32_t magic;
+    // ENCODING_RAW or ENCODING_PACKED.
+    uint8_t encoding;
+    // Bytes per k-mer field, packed mode only. Derived from the largest k-mer in
+    // *this* block rather than from (k, alphabetSize): it needs no parameter
+    // plumbing, it cannot overflow for a large nucleotide k, and it adapts when a
+    // block happens to hold only small k-mers.
+    uint8_t kmerWidth;
+    uint16_t reserved;
+    uint64_t recordCount;
+    uint64_t payloadBytes;
+    // FNV-1a over the payload, computed while the bytes are already in hand. A
+    // truncated block is caught by payloadBytes alone; this also catches a block
+    // boundary that has drifted, which would otherwise decode into plausible
+    // nonsense.
+    uint32_t checksum;
+    uint32_t reserved2;
+};
+
+namespace KmerBlockCodec {
+
+const uint32_t MAGIC = 0x4B424C4BU;  // "KBLK"
+const uint8_t ENCODING_RAW = 0;
+const uint8_t ENCODING_PACKED = 1;
+
+// Six adjacent residues at five bits each. Stock uses UCHAR_MAX as the "no
+// adjacency" sentinel that assignGroup tests, so it maps onto the one value five
+// bits leaves spare.
+const uint8_t ADJACENT_SENTINEL = 31;
+const unsigned int ADJACENT_COUNT = 6;
+const unsigned int ADJACENT_BITS = 5;
+const unsigned int ADJACENT_BYTES = 4;
+
+// Ceiling on the bytes one record can encode to: a 10-byte id delta, an 8-byte
+// k-mer, a 3-byte position and the packed adjacency. The writer sizes its buffer
+// budget against this so the encode buffer and the record buffer together stay
+// inside it.
+const size_t MAX_ENCODED_BYTES_PER_RECORD = VarintCodec::MAX_BYTES + 8 + 3 + ADJACENT_BYTES;
+
+// Largest residue index the packing can carry. Checked against the alphabet at
+// startup rather than per record.
+const unsigned int MAX_ALPHABET_SIZE = 31;
+
+// Sorts records by (id, kmer, pos) and appends one framed block to out.
+//
+// The sort is what makes the id field cost about one byte: the map scans a
+// contiguous key range, so a flush holds ids from that range and, once ordered,
+// consecutive deltas are the range divided by the record count. Threads share the
+// per-partition buffer (that is deliberate -- a per-thread buffer would divide the
+// write size by the thread count), so the ordering has to be restored here rather
+// than relied on. Measured against the whole pipeline the sort is a rounding
+// error; the field it shrinks is 6 bytes on every one of 2.1e13 records at 1e12.
+void encode(std::vector<KmerRecord> &records, bool raw, std::vector<uint8_t> &out);
+
+// Decodes one block payload, appending to out.
+//
+// `lengths` may be NULL only for a raw block, which carries seqLen itself. That
+// asymmetry is deliberate: it makes --raw-records a control that does not depend
+// on the length table, so comparing the two paths tests the table as well as the
+// codec.
+//
+// Returns false on a corrupt payload rather than exiting, because the caller's
+// correct response is to stop at the last good block, not to fail the run.
+bool decode(const KmerBlockHeader &header, const uint8_t *payload,
+            const LengthRankTable *lengths, std::vector<KmerRecord> &out);
+
+// Whether a header could plausibly start a block. Cheap pre-check before
+// trusting payloadBytes.
+bool headerLooksValid(const KmerBlockHeader &header);
+
+uint32_t checksum(const uint8_t *data, size_t size);
+
+}  // namespace KmerBlockCodec
+
+// Reads framed blocks from one shard file.
+class KmerShardReader {
+public:
+    explicit KmerShardReader(const std::string &path);
+    ~KmerShardReader();
+
+    // Appends the next block's records to out. Returns false at end of file or at
+    // the first block that does not decode, which is how a torn tail ends the
+    // shard without failing the run.
+    bool next(std::vector<KmerRecord> &out, const LengthRankTable *lengths);
+
+    // True if the shard ended on a partial or corrupt block rather than cleanly.
+    bool endedTorn() const { return torn; }
+
+    // Sums recordCount over the shard's block headers, seeking past each payload.
+    // O(blocks), not O(records): a shard holds ~1e7 records in a few hundred
+    // blocks at the target scale, so this is a few hundred forward seeks.
+    static uint64_t countRecords(const std::string &path, bool &torn);
+
+private:
+    KmerShardReader(const KmerShardReader &);
+    KmerShardReader &operator=(const KmerShardReader &);
+
+    FILE *file;
+    std::string path;
+    std::vector<uint8_t> payload;
+    bool torn;
+};
+
 // Appends k-mer records into per-partition bucket files.
 //
 // One writer per worker *process*, shared by all its threads, writing
@@ -205,7 +335,8 @@ public:
     // Appends outside the window are dropped; the wave that owns them writes them.
     KmerBucketWriter(const std::string &dir, unsigned int partitionCount,
                      const std::string &shardId, size_t bufferBudgetBytes = 1024 * 1024 * 1024,
-                     unsigned int partitionFrom = 0, unsigned int partitionTo = 0);
+                     unsigned int partitionFrom = 0, unsigned int partitionTo = 0,
+                     bool rawRecords = false);
     ~KmerBucketWriter();
 
     // Thread-safe.
@@ -244,11 +375,21 @@ private:
     unsigned int partitionCount;
     size_t recordsPerBuffer;
     std::vector<std::vector<KmerRecord> > buffers;
+    // One reusable encode target per partition, so a flush allocates nothing.
+    // Per partition rather than shared because flush() runs under the
+    // per-partition mutex and a shared buffer would serialise every partition
+    // behind one lock.
+    std::vector<std::vector<uint8_t> > encodeBuffers;
     std::vector<FILE *> files;
     std::vector<std::mutex> mutexes;
     std::vector<uint64_t> recordCounts;
     unsigned int partitionFrom;
     unsigned int partitionTo;  // exclusive
+    // Writes fixed-width records instead of packed blocks. The escape hatch that
+    // separates a codec defect from a semantic one: a run with it on must produce
+    // the same candidate edges as a run with it off, and if it does not, the
+    // difference is in the encoding rather than in the clustering.
+    bool rawRecords;
     // Descriptors are kept open across flushes up to this many; past it a flush
     // reverts to open-append-close. Counted atomically because the count is shared
     // across the per-partition mutexes.
@@ -260,7 +401,7 @@ private:
 class KmerBucketReader {
 public:
     // Total records across all shards of the partition, so the reduce stage can
-    // size its array in one allocation before reading.
+    // size its array in one allocation before reading. Reads block headers only.
     static uint64_t countRecords(const std::string &dir, unsigned int partition);
 
     // Appends every record of the partition to out.
@@ -276,8 +417,9 @@ public:
     // Dropping them is exact, not a heuristic: (kmer, id, pos) identifies one
     // k-mer occurrence in one sequence, so two byte-identical records can only
     // come from the same occurrence being written twice.
+    // lengths is required unless every block was written with --raw-records.
     static void readPartition(const std::string &dir, unsigned int partition,
-                              std::vector<KmerRecord> &out);
+                              std::vector<KmerRecord> &out, const LengthRankTable *lengths);
 
     static std::vector<std::string> shardFiles(const std::string &dir, unsigned int partition);
 };

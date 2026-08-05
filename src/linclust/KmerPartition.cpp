@@ -3,9 +3,11 @@
 #include "Debug.h"
 #include "FileUtil.h"
 #include "Util.h"
+#include "VarintCodec.h"
 
 #include <algorithm>
 #include <cerrno>
+#include <climits>
 #include <cstring>
 
 #include <dirent.h>
@@ -178,6 +180,296 @@ std::string KmerBucketWriter::partitionDir(const std::string &dir, unsigned int 
     return dir + "/p" + SSTR(partition);
 }
 
+namespace KmerBlockCodec {
+
+uint32_t checksum(const uint8_t *data, size_t size) {
+    // FNV-1a. Chosen for being a few instructions per byte on data that is
+    // already in cache from having just been written or read; this is not a
+    // cryptographic check, it is a guard against a block boundary that has drifted.
+    uint32_t hash = 2166136261U;
+    for (size_t i = 0; i < size; i++) {
+        hash ^= data[i];
+        hash *= 16777619U;
+    }
+    return hash;
+}
+
+bool headerLooksValid(const KmerBlockHeader &header) {
+    if (header.magic != MAGIC) {
+        return false;
+    }
+    if (header.encoding != ENCODING_RAW && header.encoding != ENCODING_PACKED) {
+        return false;
+    }
+    if (header.encoding == ENCODING_PACKED && (header.kmerWidth < 1 || header.kmerWidth > 8)) {
+        return false;
+    }
+    if (header.encoding == ENCODING_RAW &&
+        header.payloadBytes != header.recordCount * sizeof(KmerRecord)) {
+        return false;
+    }
+    return true;
+}
+
+// Six residues at five bits each, little-endian within a 32-bit word.
+static uint32_t packAdjacent(const uint8_t *adjacent) {
+    uint32_t bits = 0;
+    for (unsigned int i = 0; i < ADJACENT_COUNT; i++) {
+        uint32_t value = adjacent[i];
+        if (value == UCHAR_MAX) {
+            value = ADJACENT_SENTINEL;
+        } else if (value >= ADJACENT_SENTINEL) {
+            // Only reachable if the alphabet is wider than the packing allows,
+            // which is checked once at startup. Reaching it here means that check
+            // was skipped, and silently truncating would corrupt the adjacency
+            // rounds rather than fail.
+            Debug(Debug::ERROR) << "Adjacent residue index " << value
+                                << " does not fit the 5-bit packing (max "
+                                << (ADJACENT_SENTINEL - 1) << ", or " << UCHAR_MAX
+                                << " for absent)\n";
+            EXIT(EXIT_FAILURE);
+        }
+        bits |= value << (i * ADJACENT_BITS);
+    }
+    return bits;
+}
+
+static void unpackAdjacent(uint32_t bits, uint8_t *adjacent) {
+    for (unsigned int i = 0; i < ADJACENT_COUNT; i++) {
+        const uint32_t value = (bits >> (i * ADJACENT_BITS)) & 0x1FU;
+        adjacent[i] = (value == ADJACENT_SENTINEL) ? UCHAR_MAX : static_cast<uint8_t>(value);
+    }
+}
+
+void encode(std::vector<KmerRecord> &records, bool raw, std::vector<uint8_t> &out) {
+    if (records.empty()) {
+        return;
+    }
+
+    KmerBlockHeader header;
+    header.magic = MAGIC;
+    header.reserved = 0;
+    header.reserved2 = 0;
+    header.recordCount = records.size();
+
+    const size_t headerAt = out.size();
+    out.resize(headerAt + sizeof(KmerBlockHeader));
+    const size_t payloadAt = out.size();
+
+    if (raw) {
+        header.encoding = ENCODING_RAW;
+        header.kmerWidth = 0;
+        header.payloadBytes = records.size() * sizeof(KmerRecord);
+        out.resize(payloadAt + header.payloadBytes);
+        memcpy(&out[payloadAt], records.data(), header.payloadBytes);
+    } else {
+        // Ascending ids are what make the id delta a byte; see the note on
+        // encode() in the header. Ties broken by (kmer, pos) so the encoding is a
+        // pure function of the record multiset, which is what lets a redone work
+        // item produce byte-identical output.
+        std::sort(records.begin(), records.end(),
+                  [](const KmerRecord &a, const KmerRecord &b) {
+                      const uint64_t ida = a.getId();
+                      const uint64_t idb = b.getId();
+                      if (ida != idb) {
+                          return ida < idb;
+                      }
+                      if (a.kmer != b.kmer) {
+                          return a.kmer < b.kmer;
+                      }
+                      return a.pos < b.pos;
+                  });
+
+        uint64_t maxKmer = 0;
+        for (size_t i = 0; i < records.size(); i++) {
+            maxKmer = std::max(maxKmer, records[i].kmer);
+        }
+        const unsigned int kmerWidth = VarintCodec::fixedWidthFor(maxKmer);
+        header.encoding = ENCODING_PACKED;
+        header.kmerWidth = static_cast<uint8_t>(kmerWidth);
+
+        // Sized exactly rather than reserved at the worst case. The loose bound is
+        // 25 B per record against a ~13.5 B result, and this buffer is live
+        // alongside the 24 B record buffer it encodes -- so reserving the bound
+        // would put the writer's real footprint at nearly twice what the budget
+        // was told to expect. Costing one extra pass over data already in cache is
+        // the cheaper half of that trade.
+        size_t payloadSize = 0;
+        {
+            uint64_t prevId = 0;
+            for (size_t i = 0; i < records.size(); i++) {
+                const uint64_t id = records[i].getId();
+                payloadSize += VarintCodec::size(id - prevId);
+                payloadSize += VarintCodec::size(records[i].pos);
+                prevId = id;
+            }
+            payloadSize += records.size() * (kmerWidth + ADJACENT_BYTES);
+        }
+        out.resize(payloadAt + payloadSize);
+        uint8_t *cursor = &out[payloadAt];
+
+        // prevId starts at zero, so the first record's "delta" is its absolute id.
+        // That keeps the decode loop uniform and costs a few bytes once per block.
+        uint64_t prevId = 0;
+        for (size_t i = 0; i < records.size(); i++) {
+            const uint64_t id = records[i].getId();
+            cursor = VarintCodec::write(cursor, id - prevId);
+            prevId = id;
+            cursor = VarintCodec::writeFixed(cursor, records[i].kmer, kmerWidth);
+            cursor = VarintCodec::write(cursor, records[i].pos);
+            cursor = VarintCodec::writeFixed(cursor, packAdjacent(records[i].adjacent),
+                                             ADJACENT_BYTES);
+        }
+        header.payloadBytes = static_cast<uint64_t>(cursor - &out[payloadAt]);
+        if (header.payloadBytes != payloadSize) {
+            Debug(Debug::ERROR) << "K-mer block encoder wrote " << header.payloadBytes
+                                << " bytes where it sized " << payloadSize << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
+    header.checksum = checksum(&out[payloadAt], header.payloadBytes);
+    memcpy(&out[headerAt], &header, sizeof(KmerBlockHeader));
+}
+
+bool decode(const KmerBlockHeader &header, const uint8_t *payload,
+            const LengthRankTable *lengths, std::vector<KmerRecord> &out) {
+    if (checksum(payload, header.payloadBytes) != header.checksum) {
+        return false;
+    }
+    if (header.encoding == ENCODING_RAW) {
+        if (header.payloadBytes != header.recordCount * sizeof(KmerRecord)) {
+            return false;
+        }
+        const size_t at = out.size();
+        out.resize(at + header.recordCount);
+        memcpy(&out[at], payload, header.payloadBytes);
+        return true;
+    }
+
+    // Packed blocks do not carry seqLen; it comes from the key.
+    if (lengths == NULL || lengths->isOpen() == false) {
+        Debug(Debug::ERROR) << "A packed k-mer block needs the length-rank table to recover "
+                            << "sequence lengths, and none was opened\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    const uint8_t *cursor = payload;
+    const uint8_t *end = payload + header.payloadBytes;
+    uint64_t prevId = 0;
+    const size_t at = out.size();
+    out.reserve(at + header.recordCount);
+    for (uint64_t i = 0; i < header.recordCount; i++) {
+        uint64_t idDelta = 0;
+        uint64_t kmer = 0;
+        uint64_t pos = 0;
+        uint64_t adjacentBits = 0;
+        if (VarintCodec::read(cursor, end, idDelta) == false ||
+            VarintCodec::readFixed(cursor, end, header.kmerWidth, kmer) == false ||
+            VarintCodec::read(cursor, end, pos) == false ||
+            VarintCodec::readFixed(cursor, end, ADJACENT_BYTES, adjacentBits) == false) {
+            out.resize(at);
+            return false;
+        }
+        prevId += idDelta;
+        if (prevId > KmerRecord::MAX_ID || pos > UINT16_MAX) {
+            out.resize(at);
+            return false;
+        }
+        unsigned int length = 0;
+        if (lengths->tryLengthOf(prevId, length) == false) {
+            out.resize(at);
+            return false;
+        }
+
+        KmerRecord record;
+        record.kmer = kmer;
+        record.setId(prevId);
+        record.pos = static_cast<uint16_t>(pos);
+        record.seqLen = static_cast<uint16_t>(std::min<unsigned int>(length, UINT16_MAX));
+        unpackAdjacent(static_cast<uint32_t>(adjacentBits), record.adjacent);
+        out.push_back(record);
+    }
+    // Trailing bytes mean the block is not what its header says it is.
+    if (cursor != end) {
+        out.resize(at);
+        return false;
+    }
+    return true;
+}
+
+}  // namespace KmerBlockCodec
+
+KmerShardReader::KmerShardReader(const std::string &path) : path(path), torn(false) {
+    file = fopen(path.c_str(), "rb");
+    if (file == NULL) {
+        // A shard that vanished under us is not an error: the reduce unlinks
+        // consumed partitions, and a restart can race that sweep.
+        torn = false;
+    }
+}
+
+KmerShardReader::~KmerShardReader() {
+    if (file != NULL) {
+        fclose(file);
+    }
+}
+
+bool KmerShardReader::next(std::vector<KmerRecord> &out, const LengthRankTable *lengths) {
+    if (file == NULL) {
+        return false;
+    }
+    KmerBlockHeader header;
+    const size_t got = fread(&header, 1, sizeof(KmerBlockHeader), file);
+    if (got == 0) {
+        return false;  // clean end of shard
+    }
+    if (got != sizeof(KmerBlockHeader) || KmerBlockCodec::headerLooksValid(header) == false) {
+        torn = true;
+        return false;
+    }
+    payload.resize(static_cast<size_t>(header.payloadBytes));
+    if (header.payloadBytes > 0 &&
+        fread(payload.data(), 1, payload.size(), file) != payload.size()) {
+        torn = true;
+        return false;
+    }
+    if (KmerBlockCodec::decode(header, payload.data(), lengths, out) == false) {
+        torn = true;
+        return false;
+    }
+    return true;
+}
+
+uint64_t KmerShardReader::countRecords(const std::string &path, bool &torn) {
+    torn = false;
+    FILE *file = fopen(path.c_str(), "rb");
+    if (file == NULL) {
+        return 0;
+    }
+    uint64_t total = 0;
+    while (true) {
+        KmerBlockHeader header;
+        const size_t got = fread(&header, 1, sizeof(KmerBlockHeader), file);
+        if (got == 0) {
+            break;
+        }
+        if (got != sizeof(KmerBlockHeader) || KmerBlockCodec::headerLooksValid(header) == false) {
+            torn = true;
+            break;
+        }
+        // Seeking past the payload rather than reading it is what keeps this
+        // O(blocks) instead of O(records).
+        if (fseeko(file, static_cast<off_t>(header.payloadBytes), SEEK_CUR) != 0) {
+            torn = true;
+            break;
+        }
+        total += header.recordCount;
+    }
+    fclose(file);
+    return total;
+}
+
 void KmerBucketWriter::createLayout(const std::string &dir, unsigned int partitionCount) {
     if (FileUtil::directoryExists(dir.c_str()) == false) {
         FileUtil::makeDir(dir.c_str());
@@ -198,10 +490,11 @@ void KmerBucketWriter::createLayout(const std::string &dir, unsigned int partiti
 
 KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitionCount,
                                    const std::string &shardId, size_t bufferBudgetBytes,
-                                   unsigned int partitionFrom, unsigned int partitionTo)
+                                   unsigned int partitionFrom, unsigned int partitionTo,
+                                   bool rawRecords)
     : dir(dir), shardId(shardId), partitionCount(partitionCount),
       mutexes(partitionCount), partitionFrom(partitionFrom),
-      partitionTo(partitionTo == 0 ? partitionCount : partitionTo) {
+      partitionTo(partitionTo == 0 ? partitionCount : partitionTo), rawRecords(rawRecords) {
     // At least a handful of records per partition even with a tiny budget, so a
     // large partition count degrades to more frequent flushes rather than to
     // one write syscall per k-mer.
@@ -213,7 +506,13 @@ KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitio
     // filesystem cares about.
     const unsigned int activeCount =
         (this->partitionTo > partitionFrom) ? (this->partitionTo - partitionFrom) : 1;
-    const size_t perPartition = bufferBudgetBytes / (activeCount * sizeof(KmerRecord));
+    // Divided by both buffers a partition holds: the 24-byte records and the
+    // encoded block they are packed into. Sizing against the records alone would
+    // understate the writer's footprint by the encoded size, which is the same
+    // class of quiet overshoot that reserving the encoder's worst case would be.
+    const size_t perPartition =
+        bufferBudgetBytes /
+        (activeCount * (sizeof(KmerRecord) + KmerBlockCodec::MAX_ENCODED_BYTES_PER_RECORD));
     recordsPerBuffer = std::max<size_t>(perPartition, 16);
     buffers.resize(partitionCount);
     // Reserved up front: push_back until size() >= recordsPerBuffer lets a
@@ -222,6 +521,7 @@ KmerBucketWriter::KmerBucketWriter(const std::string &dir, unsigned int partitio
     for (unsigned int p = partitionFrom; p < this->partitionTo && p < partitionCount; p++) {
         buffers[p].reserve(recordsPerBuffer);
     }
+    encodeBuffers.resize(partitionCount);
     files.assign(partitionCount, NULL);
     recordCounts.assign(partitionCount, 0);
     descriptorBudget = deriveDescriptorBudget(activeCount);
@@ -269,7 +569,15 @@ void KmerBucketWriter::flush(unsigned int partition) {
         }
         openFiles.fetch_add(1);
     }
-    if (fwrite(buffer.data(), sizeof(KmerRecord), buffer.size(), files[partition]) != buffer.size()) {
+    // Framed and packed here rather than written as fixed-width structs. The
+    // encode buffer is per partition and reused across flushes, so it allocates
+    // once; recordsPerBuffer is derived against both buffers so the pair stays
+    // inside the budget.
+    std::vector<uint8_t> &encoded = encodeBuffers[partition];
+    encoded.clear();
+    KmerBlockCodec::encode(buffer, rawRecords, encoded);
+    if (encoded.empty() == false &&
+        fwrite(encoded.data(), 1, encoded.size(), files[partition]) != encoded.size()) {
         // Name the reason: a full scratch filesystem is by far the likeliest way
         // this stage fails, and "cannot write" alone sends you looking for a bug.
         Debug(Debug::ERROR) << "Cannot write " << buffer.size() << " k-mer records to bucket "
@@ -383,60 +691,47 @@ uint64_t KmerBucketReader::countRecords(const std::string &dir, unsigned int par
     const std::vector<std::string> shards = shardFiles(dir, partition);
     uint64_t total = 0;
     for (size_t i = 0; i < shards.size(); i++) {
-        const size_t bytes = FileUtil::getFileSize(shards[i]);
-        if (bytes % sizeof(KmerRecord) != 0) {
-            // Counted down to the last whole record rather than refused. A torn
+        // Block headers only, seeking past each payload: O(blocks) rather than
+        // O(records), and with variable-width records the file size no longer
+        // gives the count at all.
+        bool torn = false;
+        total += KmerShardReader::countRecords(shards[i], torn);
+        if (torn) {
+            // Counted down to the last whole block rather than refused. A torn
             // tail is exactly what an interrupted worker leaves, and the map
             // redoes that item into a *different* shard, so the records are not
             // lost -- but the torn shard stays on disk, and making it fatal meant
             // every later reduce of that partition died on it forever, with no
-            // recovery but deleting the file by hand. readPartitionAsPositions
-            // already stops at the last whole record for the same reason.
-            Debug(Debug::WARNING) << "Bucket " << shards[i] << " ends mid-record at " << bytes
-                                  << " bytes, as an interrupted worker leaves it; reading the "
-                                  << (bytes / sizeof(KmerRecord)) << " whole records it holds.\n";
+            // recovery but deleting the file by hand.
+            Debug(Debug::WARNING) << "Bucket " << shards[i]
+                                  << " ends on a partial block, as an interrupted worker leaves "
+                                     "it; counting the whole blocks it holds.\n";
         }
-        total += bytes / sizeof(KmerRecord);
     }
     return total;
 }
 
 void KmerBucketReader::readPartition(const std::string &dir, unsigned int partition,
-                                     std::vector<KmerRecord> &out) {
+                                     std::vector<KmerRecord> &out, const LengthRankTable *lengths) {
     const std::vector<std::string> shards = shardFiles(dir, partition);
     // Sized in one go rather than grown per shard: resize() on a vector holding
     // hundreds of gigabytes reallocates and copies the whole array once per shard,
     // and a partition has one shard per worker.
     uint64_t total = 0;
-    std::vector<size_t> counts(shards.size(), 0);
     for (size_t i = 0; i < shards.size(); i++) {
-        counts[i] = FileUtil::getFileSize(shards[i]) / sizeof(KmerRecord);
-        total += counts[i];
+        bool torn = false;
+        total += KmerShardReader::countRecords(shards[i], torn);
     }
     out.reserve(out.size() + static_cast<size_t>(total));
     for (size_t i = 0; i < shards.size(); i++) {
-        // Rounded down to whole records rather than refused, matching countRecords
-        // and readPartitionAsPositions. A torn tail is what an interrupted worker
-        // leaves; its item is redone into a *different* shard, so nothing is lost,
-        // and making it fatal meant every later read of that partition died on it
-        // forever with no recovery but deleting the file by hand.
-        const size_t bytes = FileUtil::getFileSize(shards[i]);
-        if (bytes % sizeof(KmerRecord) != 0) {
-            Debug(Debug::WARNING) << "Bucket " << shards[i] << " ends mid-record at " << bytes
-                                  << " bytes, as an interrupted worker leaves it; reading the "
-                                  << counts[i] << " whole records it holds.\n";
+        KmerShardReader reader(shards[i]);
+        while (reader.next(out, lengths)) {
         }
-        const size_t count = counts[i];
-        if (count == 0) {
-            continue;
+        if (reader.endedTorn()) {
+            Debug(Debug::WARNING) << "Bucket " << shards[i]
+                                  << " ends on a partial block, as an interrupted worker leaves "
+                                     "it; reading the whole blocks it holds.\n";
         }
-        FILE *file = FileUtil::openFileOrDie(shards[i].c_str(), "rb", true);
-        const size_t offset = out.size();
-        out.resize(offset + count);
-        if (fread(out.data() + offset, sizeof(KmerRecord), count, file) != count) {
-            Debug(Debug::ERROR) << "Cannot read bucket " << shards[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(file);
     }
 }
+

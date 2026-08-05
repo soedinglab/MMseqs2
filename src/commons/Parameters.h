@@ -446,6 +446,8 @@ public:
     size_t scratchUsed;                  // Bytes of the budget already occupied when a stage starts
     std::string spillPrefix;             // translatekeys: where its spill files go, when not beside the output
     int writeTextIndex;                  // createdbparallel: also write the stock-compatible text .index
+    int rawRecords;                      // kmermatcherparallel/kmerreduceparallel: write uncompacted fixed-width records
+    int writeHeaderDb;                   // createdbparallel: also write the <db>_h header database
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
@@ -1030,6 +1032,8 @@ public:
     PARAMETER(PARAM_SHUFFLE)
     PARAMETER(PARAM_WRITE_LOOKUP)
     PARAMETER(PARAM_WRITE_TEXT_INDEX)
+    PARAMETER(PARAM_RAW_RECORDS)
+    PARAMETER(PARAM_WRITE_HEADER_DB)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)

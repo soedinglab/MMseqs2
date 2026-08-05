@@ -29,6 +29,7 @@
 #include "FastSort.h"
 #include "FileUtil.h"
 #include "KmerPartition.h"
+#include "LengthRankTable.h"
 #include "NucleotideMatrix.h"
 #include "ParallelCoordination.h"
 #include "Parameters.h"
@@ -72,51 +73,43 @@ BaseMatrix *createSubstitutionMatrix(Parameters &par, int dbType) {
 // fit a node.
 template <typename T>
 size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partition,
-                                KmerPosition<T, true, true> *out, size_t capacity) {
+                                KmerPosition<T, true, true> *out, size_t capacity,
+                                const LengthRankTable *lengths) {
     const std::vector<std::string> shards = KmerBucketReader::shardFiles(kmerDir, partition);
-    const size_t blockRecords = 1024 * 1024;
-    std::vector<KmerRecord> block(blockRecords);
+    std::vector<KmerRecord> block;
     size_t filled = 0;
     for (size_t i = 0; i < shards.size(); i++) {
-        // Not openFileOrDie: a worker whose lease lapsed can still be here while
-        // the workers that finished the wave unlink its shards. Its results are
-        // discarded by block header regardless, so the shard vanishing under it is
-        // a race it should survive rather than a reason to fail the whole stage.
-        FILE *file = fopen(shards[i].c_str(), "rb");
-        if (file == NULL) {
-            if (errno == ENOENT) {
-                continue;
-            }
-            Debug(Debug::ERROR) << "Cannot open k-mer bucket " << shards[i] << ": "
-                                << strerror(errno) << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+        // A worker whose lease lapsed can still be here while the workers that
+        // finished the wave unlink its shards. KmerShardReader treats a shard that
+        // will not open as empty, which is the race this stage should survive
+        // rather than a reason to fail.
+        KmerShardReader reader(shards[i]);
         while (true) {
-            const size_t got = fread(block.data(), sizeof(KmerRecord), blockRecords, file);
-            if (got == 0) {
-                // A short read is EOF only if nothing went wrong. Treating an I/O
-                // error as EOF silently groups the partition with fewer k-mers,
-                // and the missing edges are indistinguishable from "this k-mer had
-                // no partner" -- a wrong answer with no diagnostic.
-                if (ferror(file)) {
-                    Debug(Debug::ERROR) << "Cannot read k-mer bucket " << shards[i] << ": "
-                                        << strerror(errno) << "\n";
-                    EXIT(EXIT_FAILURE);
-                }
+            block.clear();
+            if (reader.next(block, lengths) == false) {
                 break;
             }
-            if (filled + got > capacity) {
+            if (filled + block.size() > capacity) {
                 Debug(Debug::ERROR) << "Partition " << partition << " holds more k-mers than the "
                                     << "shard sizes reported. A shard was written while this was "
                                     << "reading it.\n";
                 EXIT(EXIT_FAILURE);
             }
-            for (size_t r = 0; r < got; r++) {
+            for (size_t r = 0; r < block.size(); r++) {
                 kmerRecordToPosition(block[r], out[filled + r]);
             }
-            filled += got;
+            filled += block.size();
         }
-        fclose(file);
+        if (reader.endedTorn()) {
+            // Stopped at the last whole block rather than failing. A torn tail is
+            // what an interrupted worker leaves; its item is redone into a
+            // *different* shard, so nothing is lost. Making it fatal meant every
+            // later reduce of that partition died on it forever, with no recovery
+            // but deleting the file by hand.
+            Debug(Debug::WARNING) << "K-mer bucket " << shards[i]
+                                  << " ends on a partial block, as an interrupted worker leaves "
+                                     "it; using the whole blocks it holds.\n";
+        }
     }
     return filled;
 }
@@ -258,7 +251,8 @@ bool compareEdge(const CandidateEdge &a, const CandidateEdge &b) {
 template <typename T>
 uint64_t reducePartition(const std::string &kmerDir,
                          unsigned int partition, int dbType, Parameters &par, BaseMatrix *subMat,
-                         EdgeBucketWriter &writer, uint64_t bucketSpan) {
+                         EdgeBucketWriter &writer, uint64_t bucketSpan,
+                         const LengthRankTable *lengths) {
     const bool isNucleotide = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
     const uint64_t recordCount = KmerBucketReader::countRecords(kmerDir, partition);
@@ -272,7 +266,7 @@ uint64_t reducePartition(const std::string &kmerDir,
         new (std::nothrow) KmerPosition<T, true, true>[recordCount + 1];
     Util::checkAllocation(positions, "Cannot allocate the k-mer partition");
 
-    size_t count = readPartitionAsPositions<T>(kmerDir, partition, positions, recordCount);
+    size_t count = readPartitionAsPositions<T>(kmerDir, partition, positions, recordCount, lengths);
     if (isNucleotide) {
         SORT_PARALLEL(positions, positions + count,
                       KmerPosition<T, true, true>::compareRepSequenceAndIdAndPosReverse);
@@ -377,6 +371,18 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
     // The partitions themselves are self-contained.
     const int dbType = FileUtil::parseDbType(seqDb.c_str());
     const DenseIndex::Info info = DenseIndex::readInfo(seqDb);
+
+    // The k-mer record does not carry seqLen; the key does, because keys are
+    // length-ranked. Opened once per process -- it is a few tens of kilobytes and
+    // every decoded record consults it.
+    LengthRankTable lengths;
+    lengths.open(seqDb);
+    if (lengths.getEntryCount() != info.entryCount) {
+        Debug(Debug::ERROR) << "The length-rank table describes " << lengths.getEntryCount()
+                            << " sequences but the database has " << info.entryCount
+                            << ". They are from different builds.\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     const std::string coordDir = kmerDir + "/coord";
     const std::string manifestPath = coordDir + "/shuffle.info";
@@ -578,7 +584,8 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
     BaseMatrix *subMat = createSubstitutionMatrix(par, dbType);
 
     EdgeBucketWriter *edgeWriter =
-        new EdgeBucketWriter(edgeDir, bucketCount, "w" + SSTR(workerId));
+        new EdgeBucketWriter(edgeDir, bucketCount, "w" + SSTR(workerId),
+                             256 * 1024 * 1024, par.rawRecords != 0);
 
     uint64_t edgeCount = 0;
     {
@@ -596,10 +603,11 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
             edgeWriter->beginPartition(static_cast<unsigned int>(partition), workerId);
             if (info.maxSeqLen < SHRT_MAX) {
                 edgeCount += reducePartition<short>(kmerDir, static_cast<unsigned int>(partition),
-                                                    dbType, par, subMat, *edgeWriter, bucketSpan);
+                                                    dbType, par, subMat, *edgeWriter, bucketSpan,
+                                                    &lengths);
             } else {
                 edgeCount += reducePartition<int>(kmerDir, static_cast<unsigned int>(partition), dbType,
-                                                  par, subMat, *edgeWriter, bucketSpan);
+                                                  par, subMat, *edgeWriter, bucketSpan, &lengths);
             }
             // Before drain() records the bucket done, so a worker that dies never
             // leaves an item complete whose edges were still buffered.

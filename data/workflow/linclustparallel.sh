@@ -45,6 +45,12 @@
 [ -z "$EVAL" ] && EVAL=0.001
 [ -z "$SPLIT_MEMORY_LIMIT" ] && SPLIT_MEMORY_LIMIT=0
 [ -z "$SCRATCH_BUDGET" ] && SCRATCH_BUDGET=0
+# Writes the k-mer and candidate-edge buckets as fixed-width structs instead of
+# the packed block encoding. Roughly doubles the scratch those two intermediates
+# need and exists only as a control: a run with RAW_RECORDS=1 must produce
+# byte-identical output to one without, which is what separates an encoding
+# defect from a semantic one.
+[ -z "$RAW_RECORDS" ] && RAW_RECORDS=0
 
 notExists() { [ ! -f "$1" ]; }
 # To stderr, not stdout: scratchUsed() runs inside a command substitution, so a
@@ -176,9 +182,10 @@ mkdir -p "$TMP"
 KMER_COMMON="--alph-size aa:21,nucl:5 --min-seq-id $MIN_SEQ_ID --kmer-per-seq 21 \
  --mask 0 --mask-prob 0.9 --mask-lower-case 0 --mask-n-repeat 0 -k 0 --max-seq-len 65535 \
  --hash-shift 67 --ignore-multi-kmer 0 \
- --split-memory-limit $SPLIT_MEMORY_LIMIT --scratch-budget $SCRATCH_BUDGET --threads $THREADS"
+ --split-memory-limit $SPLIT_MEMORY_LIMIT --scratch-budget $SCRATCH_BUDGET \
+ --raw-records $RAW_RECORDS --threads $THREADS"
 REDUCE_PAR="-c $COV --cov-mode $COV_MODE --include-adjacency 1 --num-adjacency 3 \
- --split-memory-limit $SPLIT_MEMORY_LIMIT --threads $THREADS"
+ --split-memory-limit $SPLIT_MEMORY_LIMIT --raw-records $RAW_RECORDS --threads $THREADS"
 ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c $COV \
  --cov-mode $COV_MODE --threads $THREADS"
 
@@ -212,7 +219,7 @@ if notExists "$INPUT.dbtype"; then
         # the database with `mmseqs createdbparallel --write-text-index 1` if a
         # stock MMseqs2 tool has to open it afterwards.
         $WORKER_RUNNER "$MMSEQS" createdbparallel "$INPUT" "$DB" $VERBOSITY --threads $THREADS \
-            --write-text-index 0 \
+            --write-text-index 0 --write-header-db 0 \
             || fail "createdbparallel died"
     fi
 fi

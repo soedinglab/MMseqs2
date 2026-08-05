@@ -1,5 +1,7 @@
 #include "CandidateEdge.h"
 
+#include "VarintCodec.h"
+
 #include "Debug.h"
 #include "FileUtil.h"
 #include "Util.h"
@@ -152,11 +154,188 @@ void EdgeBucketWriter::createLayout(const std::string &dir, unsigned int bucketC
     }
 }
 
+// C++14 has no inline variables, so the in-class initialiser is not a definition.
+const uint64_t CandidateEdge::MAX_KEY;
+
+namespace EdgeBlockCodec {
+
+uint32_t checksum(const uint8_t *data, size_t size) {
+    uint32_t hash = 2166136261U;
+    for (size_t i = 0; i < size; i++) {
+        hash ^= data[i];
+        hash *= 16777619U;
+    }
+    return hash;
+}
+
+bool headerLooksValid(const EdgeBlockHeader &header) {
+    if (header.magic != EdgeBlockHeader::MAGIC) {
+        return false;
+    }
+    if (header.encoding != ENCODING_RAW && header.encoding != ENCODING_PACKED) {
+        return false;
+    }
+    if (header.encoding == ENCODING_RAW &&
+        header.payloadBytes != static_cast<uint64_t>(header.recordCount) * sizeof(CandidateEdge)) {
+        return false;
+    }
+    return true;
+}
+
+void encode(const std::vector<CandidateEdge> &edges, bool raw, uint32_t partition, uint32_t worker,
+            std::vector<uint8_t> &out) {
+    if (edges.empty()) {
+        return;
+    }
+
+    EdgeBlockHeader header;
+    header.magic = EdgeBlockHeader::MAGIC;
+    header.partition = partition;
+    header.worker = worker;
+    header.recordCount = static_cast<uint32_t>(edges.size());
+    header.reserved[0] = header.reserved[1] = header.reserved[2] = 0;
+    header.reserved2 = 0;
+
+    const size_t headerAt = out.size();
+    out.resize(headerAt + sizeof(EdgeBlockHeader));
+    const size_t payloadAt = out.size();
+
+    if (raw) {
+        header.encoding = ENCODING_RAW;
+        header.payloadBytes = static_cast<uint64_t>(edges.size()) * sizeof(CandidateEdge);
+        out.resize(payloadAt + header.payloadBytes);
+        memcpy(&out[payloadAt], edges.data(), static_cast<size_t>(header.payloadBytes));
+    } else {
+        header.encoding = ENCODING_PACKED;
+
+        // Checked rather than assumed. The reduce sorts by (rep, member,
+        // diagonal, strand) before appending and a bucket is a rep range, so a
+        // block is sorted by construction -- but a rep that went backwards would
+        // wrap its delta into a huge unsigned value and decode as a different
+        // edge, silently.
+        for (size_t i = 1; i < edges.size(); i++) {
+            if (edges[i].getRep() < edges[i - 1].getRep()) {
+                Debug(Debug::ERROR) << "Edge block for partition " << partition
+                                    << " is not sorted by representative at record " << i
+                                    << ". The packed encoding requires the order the reduce "
+                                       "produces.\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+
+        // Sized exactly, then written. Reserving the worst case instead would put
+        // this buffer at 26 B per edge alongside the 17 B edge buffer it encodes,
+        // which is nearly twice what the writer's budget was told to expect.
+        size_t payloadSize = 0;
+        uint64_t prevRep = 0;
+        for (size_t i = 0; i < edges.size(); i++) {
+            const uint64_t rep = edges[i].getRep();
+            const uint64_t member = edges[i].getMember();
+            payloadSize += VarintCodec::size(rep - prevRep);
+            payloadSize += VarintCodec::size(VarintCodec::zigzag(
+                static_cast<int64_t>(member) - static_cast<int64_t>(rep)));
+            payloadSize += VarintCodec::size(VarintCodec::zigzag(edges[i].diagonal));
+            payloadSize += VarintCodec::size((static_cast<uint64_t>(edges[i].score) << 1) |
+                                             (edges[i].reverseStrand ? 1U : 0U));
+            prevRep = rep;
+        }
+        out.resize(payloadAt + payloadSize);
+        uint8_t *cursor = &out[payloadAt];
+
+        prevRep = 0;
+        for (size_t i = 0; i < edges.size(); i++) {
+            const uint64_t rep = edges[i].getRep();
+            const uint64_t member = edges[i].getMember();
+            cursor = VarintCodec::write(cursor, rep - prevRep);
+            cursor = VarintCodec::write(
+                cursor, VarintCodec::zigzag(static_cast<int64_t>(member) -
+                                            static_cast<int64_t>(rep)));
+            cursor = VarintCodec::write(cursor, VarintCodec::zigzag(edges[i].diagonal));
+            cursor = VarintCodec::write(cursor, (static_cast<uint64_t>(edges[i].score) << 1) |
+                                                    (edges[i].reverseStrand ? 1U : 0U));
+            prevRep = rep;
+        }
+        header.payloadBytes = static_cast<uint64_t>(cursor - &out[payloadAt]);
+        if (header.payloadBytes != payloadSize) {
+            Debug(Debug::ERROR) << "Edge block encoder wrote " << header.payloadBytes
+                                << " bytes where it sized " << payloadSize << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
+    header.checksum = checksum(&out[payloadAt], static_cast<size_t>(header.payloadBytes));
+    memcpy(&out[headerAt], &header, sizeof(EdgeBlockHeader));
+}
+
+bool decode(const EdgeBlockHeader &header, const uint8_t *payload,
+            std::vector<CandidateEdge> &out) {
+    if (checksum(payload, static_cast<size_t>(header.payloadBytes)) != header.checksum) {
+        return false;
+    }
+    const size_t at = out.size();
+    if (header.encoding == ENCODING_RAW) {
+        if (header.payloadBytes != static_cast<uint64_t>(header.recordCount) * sizeof(CandidateEdge)) {
+            return false;
+        }
+        out.resize(at + header.recordCount);
+        memcpy(&out[at], payload, static_cast<size_t>(header.payloadBytes));
+        return true;
+    }
+
+    const uint8_t *cursor = payload;
+    const uint8_t *end = payload + header.payloadBytes;
+    uint64_t prevRep = 0;
+    out.reserve(at + header.recordCount);
+    for (uint32_t i = 0; i < header.recordCount; i++) {
+        uint64_t repDelta = 0;
+        uint64_t memberZigzag = 0;
+        uint64_t diagonalZigzag = 0;
+        uint64_t scoreStrand = 0;
+        if (VarintCodec::read(cursor, end, repDelta) == false ||
+            VarintCodec::read(cursor, end, memberZigzag) == false ||
+            VarintCodec::read(cursor, end, diagonalZigzag) == false ||
+            VarintCodec::read(cursor, end, scoreStrand) == false) {
+            out.resize(at);
+            return false;
+        }
+        prevRep += repDelta;
+        const int64_t memberOffset = VarintCodec::unzigzag(memberZigzag);
+        const int64_t member = static_cast<int64_t>(prevRep) + memberOffset;
+        const int64_t diagonal = VarintCodec::unzigzag(diagonalZigzag);
+        if (prevRep > CandidateEdge::MAX_KEY || member < 0 ||
+            static_cast<uint64_t>(member) > CandidateEdge::MAX_KEY ||
+            diagonal < INT16_MIN || diagonal > INT16_MAX || (scoreStrand >> 1) > UINT16_MAX) {
+            out.resize(at);
+            return false;
+        }
+
+        CandidateEdge edge;
+        edge.setRep(prevRep);
+        edge.setMember(static_cast<uint64_t>(member));
+        edge.diagonal = static_cast<int16_t>(diagonal);
+        edge.reverseStrand = static_cast<uint8_t>(scoreStrand & 1U);
+        edge.score = static_cast<uint16_t>(scoreStrand >> 1);
+        out.push_back(edge);
+    }
+    if (cursor != end) {
+        out.resize(at);
+        return false;
+    }
+    return true;
+}
+
+}  // namespace EdgeBlockCodec
+
 EdgeBucketWriter::EdgeBucketWriter(const std::string &dir, unsigned int bucketCount,
-                                   const std::string &shardId, size_t bufferBudgetBytes)
+                                   const std::string &shardId, size_t bufferBudgetBytes,
+                                   bool rawRecords)
     : dir(dir), shardId(shardId), bucketCount(bucketCount), edgeCount(0), closed(false),
-      currentPartition(0), currentWorker(-1) {
-    const size_t perBucket = bufferBudgetBytes / (bucketCount * sizeof(CandidateEdge));
+      currentPartition(0), currentWorker(-1), rawRecords(rawRecords) {
+    // Divided by both buffers a bucket holds: the fixed-width edges and the
+    // encoded block they are packed into.
+    const size_t perBucket =
+        bufferBudgetBytes /
+        (bucketCount * (sizeof(CandidateEdge) + EdgeBlockCodec::MAX_ENCODED_BYTES_PER_EDGE));
     edgesPerBuffer = std::max<size_t>(perBucket, 64);
     buffers.resize(bucketCount);
     // Reserved up front, so a std::vector's geometric growth cannot leave the
@@ -164,6 +343,7 @@ EdgeBucketWriter::EdgeBucketWriter(const std::string &dir, unsigned int bucketCo
     for (unsigned int b = 0; b < bucketCount; b++) {
         buffers[b].reserve(edgesPerBuffer);
     }
+    encodeBuffers.resize(bucketCount);
     files.assign(bucketCount, NULL);
     descriptorBudget = deriveEdgeDescriptorBudget(bucketCount);
     openFiles = 0;
@@ -204,17 +384,12 @@ void EdgeBucketWriter::flush(unsigned int bucket) {
                             << "the partition and worker producing them.\n";
         EXIT(EXIT_FAILURE);
     }
-    EdgeBlockHeader header;
-    header.magic = EdgeBlockHeader::MAGIC;
-    header.partition = currentPartition;
-    header.worker = static_cast<uint32_t>(currentWorker);
-    header.recordCount = static_cast<uint32_t>(buffer.size());
-    if (fwrite(&header, sizeof(EdgeBlockHeader), 1, files[bucket]) != 1) {
-        Debug(Debug::ERROR) << "Cannot write the block header of bucket " << bucket << " of " << dir
-                            << ": " << strerror(errno) << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (fwrite(buffer.data(), sizeof(CandidateEdge), buffer.size(), files[bucket]) != buffer.size()) {
+    std::vector<uint8_t> &encoded = encodeBuffers[bucket];
+    encoded.clear();
+    EdgeBlockCodec::encode(buffer, rawRecords, currentPartition,
+                           static_cast<uint32_t>(currentWorker), encoded);
+    if (encoded.empty() == false &&
+        fwrite(encoded.data(), 1, encoded.size(), files[bucket]) != encoded.size()) {
         Debug(Debug::ERROR) << "Cannot write " << buffer.size() << " edges to bucket " << bucket
                             << " of " << dir << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
@@ -346,6 +521,7 @@ size_t EdgeBucketReader::readShard(const std::string &path, const std::vector<in
     FILE *file = FileUtil::openFileOrDie(path.c_str(), "rb", true);
     size_t offset = 0;
     size_t kept = 0;
+    std::vector<uint8_t> payload;
     while (offset + sizeof(EdgeBlockHeader) <= bytes) {
         EdgeBlockHeader header;
         if (fread(&header, sizeof(EdgeBlockHeader), 1, file) != 1) {
@@ -358,12 +534,12 @@ size_t EdgeBucketReader::readShard(const std::string &path, const std::vector<in
             EXIT(EXIT_FAILURE);
         }
         offset += sizeof(EdgeBlockHeader);
-        const size_t blockBytes = static_cast<size_t>(header.recordCount) * sizeof(CandidateEdge);
         // A worker killed mid-write leaves a partial block, always at the end of
         // its own shard: it appends, and a restarted worker takes a new id and so
         // a new shard. Stopping here discards exactly that tail. The partition it
         // belonged to is redone by another worker, whose copy is complete.
-        if (header.magic != EdgeBlockHeader::MAGIC || offset + blockBytes > bytes) {
+        if (EdgeBlockCodec::headerLooksValid(header) == false ||
+            offset + header.payloadBytes > bytes) {
             Debug(Debug::WARNING) << "Edge shard " << path << " ends in a partial block at byte "
                                   << offset << "; it was written by an interrupted worker and the "
                                   << "partition it held was redone.\n";
@@ -387,24 +563,31 @@ size_t EdgeBucketReader::readShard(const std::string &path, const std::vector<in
         if (wanted == false) {
             // A superseded copy: this worker did not record the partition done, so
             // another redid it and its edges are the ones that count.
-            if (fseek(file, static_cast<long>(blockBytes), SEEK_CUR) != 0) {
+            if (fseeko(file, static_cast<off_t>(header.payloadBytes), SEEK_CUR) != 0) {
                 Debug(Debug::ERROR) << "Cannot skip a superseded block in " << path << "\n";
                 EXIT(EXIT_FAILURE);
             }
-            offset += blockBytes;
+            offset += static_cast<size_t>(header.payloadBytes);
             continue;
         }
         if (header.recordCount > 0) {
-            const size_t at = out.size();
-            out.resize(at + header.recordCount);
-            if (fread(out.data() + at, sizeof(CandidateEdge), header.recordCount, file) !=
-                header.recordCount) {
+            payload.resize(static_cast<size_t>(header.payloadBytes));
+            if (payload.empty() == false &&
+                fread(payload.data(), 1, payload.size(), file) != payload.size()) {
                 Debug(Debug::ERROR) << "Cannot read a block of edge shard " << path << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (EdgeBlockCodec::decode(header, payload.data(), out) == false) {
+                // Distinguished from the partial-block case above: the bytes are
+                // all present but do not decode, which means the shard is not what
+                // its headers claim rather than merely truncated.
+                Debug(Debug::ERROR) << "Edge shard " << path << " has a block at byte " << offset
+                                    << " that does not decode. The shard is corrupt.\n";
                 EXIT(EXIT_FAILURE);
             }
             kept += header.recordCount;
         }
-        offset += blockBytes;
+        offset += static_cast<size_t>(header.payloadBytes);
     }
     fclose(file);
     return kept;

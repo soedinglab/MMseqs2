@@ -491,11 +491,17 @@ void emitChunk(const std::string &filename, const Chunk &chunk, const ChunkPlan 
             continue;
         }
         writeAt(seqFd, bucket.seqData.data(), bucket.seqData.size(), bucket.dataOffset, "sequence data");
-        writeAt(hdrFd, bucket.hdrData.data(), bucket.hdrData.size(), bucket.hdrOffset, "header data");
+        if (hdrFd >= 0) {
+            writeAt(hdrFd, bucket.hdrData.data(), bucket.hdrData.size(), bucket.hdrOffset,
+                    "header data");
+        }
         writeAt(seqIdxFd, bucket.seqIndex.data(), bucket.seqIndex.size() * sizeof(DenseIndex::Entry),
                 DenseIndex::entryOffset(bucket.keyStart), "sequence index");
-        writeAt(hdrIdxFd, bucket.hdrIndex.data(), bucket.hdrIndex.size() * sizeof(DenseIndex::Entry),
-                DenseIndex::entryOffset(bucket.keyStart), "header index");
+        if (hdrIdxFd >= 0) {
+            writeAt(hdrIdxFd, bucket.hdrIndex.data(),
+                    bucket.hdrIndex.size() * sizeof(DenseIndex::Entry),
+                    DenseIndex::entryOffset(bucket.keyStart), "header index");
+        }
         if (lookupFd >= 0) {
             writeAt(lookupFd, bucket.lookupText.data(), bucket.lookupText.size(),
                     bucket.lookupOffset, "lookup");
@@ -700,13 +706,17 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             LengthRankTable::write(dataFile, lengthRuns, totals.seqCount);
 
             allocateFile(dataFile, totals.dataBytes);
-            allocateFile(hdrDataFile, totals.headerBytes);
+            if (par.writeHeaderDb) {
+                allocateFile(hdrDataFile, totals.headerBytes);
+            }
             if (par.writeLookup) {
                 allocateFile(lookupFile, totals.lookupBytes);
             }
             DenseIndex::createEmpty(dataFile, totals.seqCount, 0, totals.dataBytes,
                                     static_cast<uint32_t>(totals.maxSeqLen + 2));
-            DenseIndex::createEmpty(hdrDataFile, totals.seqCount, 0, totals.headerBytes, 0);
+            if (par.writeHeaderDb) {
+                DenseIndex::createEmpty(hdrDataFile, totals.seqCount, 0, totals.headerBytes, 0);
+            }
 
             const std::string sourceFile = dataFile + ".source";
             FILE *source = FileUtil::openAndDelete(sourceFile.c_str(), "w");
@@ -741,9 +751,12 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
     // Pass 2: write the sequences.
     {
         const int seqFd = openForWrite(dataFile);
-        const int hdrFd = openForWrite(hdrDataFile);
+        // Off by request. Nothing between here and the final TSV opens the header
+        // database -- accessions reach the output through .lookup -- and at 1e12
+        // sequences it is ~35 TB of the scratch budget, held for the whole run.
+        const int hdrFd = par.writeHeaderDb ? openForWrite(hdrDataFile) : -1;
         const int seqIdxFd = openForWrite(DenseIndex::fileName(dataFile));
-        const int hdrIdxFd = openForWrite(DenseIndex::fileName(hdrDataFile));
+        const int hdrIdxFd = par.writeHeaderDb ? openForWrite(DenseIndex::fileName(hdrDataFile)) : -1;
         // Off by request only: at 1e12 sequences the lookup is ~30 TB, and the
         // clustering path never reads it -- keys translate through the header
         // database, which is addressed by the same dense keys.
@@ -808,7 +821,9 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             // files as compressed, and readers then tried to decode them. See the
             // note beside createdbparallel's parameter list.
             DBWriter::writeDbtypeFile(dataFile.c_str(), dbType, false);
-            DBWriter::writeDbtypeFile(hdrDataFile.c_str(), Parameters::DBTYPE_GENERIC_DB, false);
+            if (par.writeHeaderDb) {
+                DBWriter::writeDbtypeFile(hdrDataFile.c_str(), Parameters::DBTYPE_GENERIC_DB, false);
+            }
             // Opt-in. No stage of this pipeline reads a text index -- they all
             // address entries through the dense .index.bin -- and it exists only so
             // stock MMseqs2 tools can open the database. Measured, the snprintf and
@@ -818,7 +833,9 @@ int createdbparallel(int argc, const char **argv, const Command &command) {
             // budget for output nothing in the run consumes.
             if (par.writeTextIndex) {
                 DenseIndex::writeTextIndex(dataFile);
-                DenseIndex::writeTextIndex(hdrDataFile);
+                if (par.writeHeaderDb) {
+                    DenseIndex::writeTextIndex(hdrDataFile);
+                }
             } else {
                 Debug(Debug::INFO) << "Skipping the stock-compatible text indices "
                                    << "(--write-text-index 0); the dense .index.bin is what the "

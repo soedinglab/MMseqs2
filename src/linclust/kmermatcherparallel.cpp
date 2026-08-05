@@ -52,8 +52,9 @@ namespace {
 // with their own two indices, .lookup and .source; sizing against the data file
 // alone undercounts by ~1.64x on real data.
 static uint64_t databaseFootprint(const std::string &db) {
-    static const char *suffixes[] = {"", ".index", ".index.bin", ".dbtype", ".lookup", ".source",
-                                     "_h", "_h.index", "_h.index.bin", "_h.dbtype"};
+    static const char *suffixes[] = {"",   ".index",   ".index.bin", ".dbtype",      ".lookup",
+                                     ".source", ".lenrank", "_h",         "_h.index",
+                                     "_h.index.bin", "_h.dbtype"};
     uint64_t total = 0;
     for (size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
         const std::string path = db + suffixes[i];
@@ -288,6 +289,23 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
     // null, so the residue count follows from the data size without a scan.
     const uint64_t residues = info.dataSize - 2 * info.entryCount;
     setKmerLengthAndAlphabet(par, residues, dbType);
+    // The packed record stores six adjacent residues at five bits each, with the
+    // spare value reserved for stock's UCHAR_MAX "no adjacency" sentinel. Checked
+    // here rather than per record; every protein and nucleotide alphabet linclust
+    // selects is far below this, so it is a guard against a future alphabet
+    // silently truncating the adjacency rounds' input.
+    {
+        const int alphabetSize = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES)
+                                     ? par.alphabetSize.values.nucleotide()
+                                     : par.alphabetSize.values.aminoacid();
+        if (par.rawRecords == 0 &&
+            static_cast<unsigned int>(alphabetSize) > KmerBlockCodec::MAX_ALPHABET_SIZE) {
+            Debug(Debug::ERROR) << "Alphabet size " << alphabetSize
+                                << " exceeds the " << KmerBlockCodec::MAX_ALPHABET_SIZE
+                                << " the packed k-mer record can carry. Run with --raw-records 1.\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
     par.printParameters(command.cmd, argc, argv, *command.params);
     Debug(Debug::INFO) << "Database size: " << info.entryCount << " sequences, " << residues
                        << " residues\n";
@@ -458,7 +476,7 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
     // One writer for the whole process, shared by every thread and kept open
     // across items so bucket files are appended to rather than reopened.
     KmerBucketWriter writer(kmerDir, sizing.partitionCount, "w" + SSTR(workerId),
-                            1024 * 1024 * 1024, waveFrom, waveTo);
+                            1024 * 1024 * 1024, waveFrom, waveTo, par.rawRecords != 0);
 
     {
         WorkQueue queue(coordDir + "/scan." + SSTR(par.kmerWave < 0 ? 0 : par.kmerWave) +

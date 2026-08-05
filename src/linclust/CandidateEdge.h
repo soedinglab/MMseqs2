@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "VarintCodec.h"
+
 // One (representative, member) pair proposed by the distributed reduce.
 //
 // Packed binary rather than a prefilter DB. A `pref` DB stores each hit as ASCII
@@ -56,6 +58,10 @@ struct __attribute__((__packed__)) CandidateEdge {
     // k-mers agree on this diagonal" and measured closer to stock, but the two
     // can still disagree on a pair whose per-entry count exceeds 255.
     uint16_t score;
+
+    // 48-bit keys, matching KmerRecord::MAX_ID. Checked on decode: a packed edge
+    // whose delta arithmetic produced a key past this is corrupt, not large.
+    static const uint64_t MAX_KEY = (static_cast<uint64_t>(1) << 48) - 1;
 
     uint64_t getRep() const { return get(repBytes); }
     uint64_t getMember() const { return get(memberBytes); }
@@ -139,9 +145,73 @@ struct __attribute__((__packed__)) EdgeBlockHeader {
     uint32_t partition;
     uint32_t worker;
     uint32_t recordCount;
+    // ENCODING_RAW or ENCODING_PACKED. Named per block, so --raw-records is a
+    // writer-side switch that costs the reader nothing and a directory holding
+    // both kinds still reads correctly.
+    uint8_t encoding;
+    uint8_t reserved[3];
+    uint64_t payloadBytes;
+    // FNV-1a over the payload. Length alone catches a truncated block; this also
+    // catches a block boundary that has drifted, which with variable-width
+    // records would otherwise decode into plausible nonsense.
+    uint32_t checksum;
+    uint32_t reserved2;
 
     static const uint32_t MAGIC = 0x45444745;  // "EDGE"
 };
+
+// Packs a sorted run of edges.
+//
+// This is the intermediate that decides whether the pipeline fits its scratch
+// budget. Waves divide the k-mer shuffle but not the edges -- alignment runs once,
+// after every wave -- so at 1e12 the edges are the term nothing else reduces:
+// ~22 records per sequence measured at 1e9, at 17 fixed-width bytes each.
+//
+// Four fields, each encoded against what the surrounding design already
+// guarantees:
+//
+//   - `rep` as a delta. The reduce sorts its edges by (rep, member, diagonal,
+//     strand) and appends them in that order, and bucket == rep / bucketSpan, so
+//     a bucket's appends are a subsequence of a sorted sequence and every block is
+//     sorted by construction. No sort is needed here.
+//   - `member` as a zigzag delta *from its own rep*, not from the previous
+//     member. Keys are length-ranked and homologous sequences have similar
+//     lengths, so |rep - member| is small for most edges -- 82.5% below 1e7 on
+//     measured UniRef100 data. This is a direct dividend of the length-ranked key
+//     design; with input-order keys it would be a full 6 bytes.
+//   - `diagonal` zigzagged. It stays an int16_t: stock truncates an int into a
+//     short (kmermatcher.cpp:2050) and DistanceCalculator undoes it by trying
+//     every diagonal congruent mod 65536, so widening it would diverge from stock
+//     rather than converge on it.
+//   - `score` and `reverseStrand` share a varint, strand in the low bit. Strand
+//     belongs in the sort key (two opposite-strand edges on one diagonal are
+//     different alignments), but it is one bit and a byte of its own would be
+//     6% of the record.
+namespace EdgeBlockCodec {
+
+const uint8_t ENCODING_RAW = 0;
+const uint8_t ENCODING_PACKED = 1;
+
+// Ceiling on the bytes one edge can encode to, used to size the writer's budget
+// against both the edge buffer and the encode buffer it packs into.
+const size_t MAX_ENCODED_BYTES_PER_EDGE = VarintCodec::MAX_BYTES * 2 + 3 + 3;
+
+// Appends one framed block. Requires edges sorted by non-decreasing rep, which
+// the reduce guarantees; the encoder checks rather than assumes, because a
+// negative delta would wrap into a huge one and decode into a different edge.
+void encode(const std::vector<CandidateEdge> &edges, bool raw, uint32_t partition, uint32_t worker,
+            std::vector<uint8_t> &out);
+
+// Decodes one block payload, appending to out. Returns false on corruption rather
+// than exiting, so a caller can stop at the last good block.
+bool decode(const EdgeBlockHeader &header, const uint8_t *payload,
+            std::vector<CandidateEdge> &out);
+
+bool headerLooksValid(const EdgeBlockHeader &header);
+
+uint32_t checksum(const uint8_t *data, size_t size);
+
+}  // namespace EdgeBlockCodec
 
 // Writes edges into buckets by *representative key range*.
 //
@@ -164,7 +234,7 @@ struct __attribute__((__packed__)) EdgeBlockHeader {
 class EdgeBucketWriter {
 public:
     EdgeBucketWriter(const std::string &dir, unsigned int bucketCount, const std::string &shardId,
-                     size_t bufferBudgetBytes = 256 * 1024 * 1024);
+                     size_t bufferBudgetBytes = 256 * 1024 * 1024, bool rawRecords = false);
     ~EdgeBucketWriter();
 
     // Names the partition every subsequent append belongs to, and the worker
@@ -197,6 +267,8 @@ private:
     unsigned int bucketCount;
     size_t edgesPerBuffer;
     std::vector<std::vector<CandidateEdge> > buffers;
+    // One reusable encode target per bucket, so a flush allocates nothing.
+    std::vector<std::vector<uint8_t> > encodeBuffers;
     std::vector<FILE *> files;
     // Descriptors kept open across flushes, up to descriptorBudget. Plain counters:
     // one writer belongs to one process and its appends come from the single
@@ -207,6 +279,8 @@ private:
     bool closed;
     unsigned int currentPartition;
     int64_t currentWorker;
+    // Writes fixed-width edges instead of packed blocks; see --raw-records.
+    bool rawRecords;
 };
 
 // Reads the blocks EdgeBucketWriter wrote, keeping only those whose producer the

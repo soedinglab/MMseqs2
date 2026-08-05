@@ -7,10 +7,12 @@
 // the clustering is quietly wrong rather than visibly broken -- so it is checked
 // here directly, on a corpus with heavy k-mer repetition.
 
+#include "FileUtil.h"
 #include "KmerPartition.h"
 #include "kmermatcher.h"
 
 #include <algorithm>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -146,11 +148,37 @@ static void testPartitioner() {
 
 // The load-bearing test: run a repetitive corpus through the writer, read it
 // back partition by partition, and prove nothing was lost, duplicated or split.
-static void testLosslessRoundTrip(const std::string &dir) {
+//
+// Run twice, once per encoding. The packed form drops seqLen from the record and
+// recovers it from the length-rank table, so running the same corpus both ways
+// tests the table and the codec together against a single expectation -- which is
+// exactly what --raw-records exists to make possible in a real run.
+static void testLosslessRoundTrip(const std::string &dir, bool raw) {
     const unsigned int partitionCount = 64;
-    const std::string bucketDir = dir + "/buckets";
+    const std::string suffix = raw ? "_raw" : "_packed";
+    const std::string bucketDir = dir + "/buckets" + suffix;
     KmerBucketWriter::createLayout(bucketDir, partitionCount);
     KmerPartitioner partitioner(partitionCount);
+
+    const uint64_t sequences = 20000;
+
+    // Lengths must be *non-increasing in the key*, because that is what a
+    // length-ranked database guarantees and what the table encodes. Fifty
+    // sequences per length, so there are runs to binary-search rather than one
+    // length per key.
+    std::vector<LengthRankTable::Run> runs;
+    for (uint64_t seqId = 0; seqId < sequences; seqId += 50) {
+        LengthRankTable::Run run;
+        run.length = 500 - (seqId / 50);
+        run.firstKey = seqId;
+        run.count = 50;
+        runs.push_back(run);
+    }
+    const std::string tableDb = bucketDir + "/db";
+    LengthRankTable::write(tableDb, runs, sequences);
+    LengthRankTable lengths;
+    lengths.open(tableDb);
+    const LengthRankTable *lengthsForRead = raw ? NULL : &lengths;
 
     // Few distinct k-mers over many sequences, so most k-mers recur -- which is
     // the case where a partitioning bug would actually lose candidate pairs.
@@ -162,21 +190,29 @@ static void testLosslessRoundTrip(const std::string &dir) {
     const char *shardNames[] = {"w0", "w1", "w2"};
     std::vector<KmerBucketWriter *> writers;
     for (int s = 0; s < 3; s++) {
-        writers.push_back(new KmerBucketWriter(bucketDir, partitionCount, shardNames[s], 4096));
+        writers.push_back(
+            new KmerBucketWriter(bucketDir, partitionCount, shardNames[s], 4096, 0, 0, raw));
     }
 
     uint64_t written = 0;
-    for (uint64_t seqId = 0; seqId < 20000; seqId++) {
+    for (uint64_t seqId = 0; seqId < sequences; seqId++) {
         const int shard = static_cast<int>(seqId % 3);
+        const uint16_t seqLen = static_cast<uint16_t>(500 - (seqId / 50));
         for (int k = 0; k < 21; k++) {
             const uint64_t kmer = static_cast<uint64_t>(rand()) % distinctKmers;
             KmerRecord record;
             record.kmer = kmer;
             record.setId(seqId);
             record.pos = static_cast<uint16_t>(k);
-            record.seqLen = static_cast<uint16_t>(100 + (seqId % 400));
+            record.seqLen = seqLen;
             for (int i = 0; i < 6; i++) {
-                record.adjacent[i] = static_cast<uint8_t>((kmer + i) & 0xFF);
+                // Residue indices inside a 21-letter alphabet, plus the UCHAR_MAX
+                // "no adjacency" sentinel on every seventh sequence: the sentinel
+                // is the one value the 5-bit packing has to special-case, and
+                // assignGroup tests it directly.
+                record.adjacent[i] = (seqId % 7 == 0)
+                                         ? static_cast<uint8_t>(UCHAR_MAX)
+                                         : static_cast<uint8_t>((kmer + i) % 21);
             }
             writers[shard]->append(partitioner.partitionOf(scoreOf(kmer)), record);
             expected[kmer].push_back(seqId);
@@ -192,7 +228,8 @@ static void testLosslessRoundTrip(const std::string &dir) {
     for (unsigned int p = 0; p < partitionCount; p++) {
         counted += KmerBucketReader::countRecords(bucketDir, p);
     }
-    check(counted == written, "every written record is counted back across partitions");
+    check(counted == written,
+          "every written record is counted back across partitions" + suffix);
 
     // Read each partition and check the k-mers it holds belong to it alone.
     std::map<uint64_t, unsigned int> kmerPartition;
@@ -202,7 +239,7 @@ static void testLosslessRoundTrip(const std::string &dir) {
     uint64_t readBack = 0;
     for (unsigned int p = 0; p < partitionCount; p++) {
         std::vector<KmerRecord> records;
-        KmerBucketReader::readPartition(bucketDir, p, records);
+        KmerBucketReader::readPartition(bucketDir, p, records, lengthsForRead);
         for (size_t i = 0; i < records.size(); i++) {
             const KmerRecord &record = records[i];
             // Every occurrence of this k-mer must be in this partition and no other.
@@ -215,16 +252,19 @@ static void testLosslessRoundTrip(const std::string &dir) {
                 partitionPure = false;
             }
             const uint64_t seqId = record.getId();
-            fieldsIntact = fieldsIntact && record.seqLen == 100 + (seqId % 400) &&
-                           record.adjacent[0] == static_cast<uint8_t>(record.kmer & 0xFF);
+            const uint8_t wantAdjacent =
+                (seqId % 7 == 0) ? static_cast<uint8_t>(UCHAR_MAX)
+                                 : static_cast<uint8_t>((record.kmer + 0) % 21);
+            fieldsIntact = fieldsIntact && record.seqLen == 500 - (seqId / 50) &&
+                           record.adjacent[0] == wantAdjacent && record.pos < 21;
             recovered[record.kmer].push_back(seqId);
             readBack++;
         }
     }
 
-    check(readBack == written, "every record survives the write/read round trip");
-    check(partitionPure, "each k-mer appears in exactly one partition");
-    check(fieldsIntact, "id, seqLen and adjacency survive the round trip");
+    check(readBack == written, "every record survives the write/read round trip" + suffix);
+    check(partitionPure, "each k-mer appears in exactly one partition" + suffix);
+    check(fieldsIntact, "id, seqLen, position and adjacency survive the round trip" + suffix);
 
     bool sameMultiset = recovered.size() == expected.size();
     for (std::map<uint64_t, std::vector<uint64_t> >::iterator it = recovered.begin();
@@ -236,7 +276,8 @@ static void testLosslessRoundTrip(const std::string &dir) {
         sameMultiset = got == want;
     }
     check(sameMultiset,
-          "grouping partition by partition sees exactly the same k-mer/sequence pairs as the whole input");
+          "grouping partition by partition sees exactly the same k-mer/sequence pairs as the "
+          "whole input" + suffix);
 
     // A legitimately empty partition is one createLayout made and no worker wrote
     // to -- an *existing*, readable directory with no shards in it. A directory
@@ -246,9 +287,33 @@ static void testLosslessRoundTrip(const std::string &dir) {
     const std::string emptyDir = bucketDir + "_empty";
     KmerBucketWriter::createLayout(emptyDir, 1);
     std::vector<KmerRecord> empty;
-    KmerBucketReader::readPartition(emptyDir, 0, empty);
+    KmerBucketReader::readPartition(emptyDir, 0, empty, lengthsForRead);
     check(empty.empty() && KmerBucketReader::countRecords(emptyDir, 0) == 0,
-          "a partition nothing was written to reads back empty rather than failing");
+          "a partition nothing was written to reads back empty rather than failing" + suffix);
+}
+
+// The packed encoding must be smaller than the fixed-width one it replaces --
+// that is the entire reason it exists, and a change that quietly stopped packing
+// would otherwise pass every correctness check above.
+static void testPackedIsSmaller(const std::string &dir) {
+    uint64_t bytes[2] = {0, 0};
+    for (int raw = 0; raw < 2; raw++) {
+        const std::string bucketDir = dir + "/buckets" + (raw ? "_raw" : "_packed");
+        for (unsigned int p = 0; p < 64; p++) {
+            const std::vector<std::string> shards = KmerBucketReader::shardFiles(bucketDir, p);
+            for (size_t i = 0; i < shards.size(); i++) {
+                bytes[raw] += FileUtil::getFileSize(shards[i]);
+            }
+        }
+    }
+    const double perRecordRaw = static_cast<double>(bytes[1]) / (20000.0 * 21.0);
+    const double perRecordPacked = static_cast<double>(bytes[0]) / (20000.0 * 21.0);
+    fprintf(stdout, "      raw %.2f B/record, packed %.2f B/record (%.2fx)\n", perRecordRaw,
+            perRecordPacked, perRecordRaw / perRecordPacked);
+    // The fixed-width record is 24 B plus framing; the packed one should land well
+    // under it even on this synthetic corpus, whose tiny k-mer values flatter the
+    // k-mer field but whose 4096-byte buffers make the per-block header costly.
+    check(bytes[0] * 10 < bytes[1] * 8, "the packed encoding is at least 20% smaller than raw");
 }
 
 // The reduce stage feeds records into assignGroup through KmerPosition, so the
@@ -384,7 +449,9 @@ int main(int, char **) {
     testPartitioner();
     testShuffleSizing();
     testKmerPositionConversion();
-    testLosslessRoundTrip(dir);
+    testLosslessRoundTrip(dir, true);
+    testLosslessRoundTrip(dir, false);
+    testPackedIsSmaller(dir);
 
     removeTempDir(dir);
 

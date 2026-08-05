@@ -48,6 +48,7 @@
 #include "Command.h"
 #include "Debug.h"
 #include "DenseIndex.h"
+#include "LengthRankTable.h"
 #include "FastSort.h"
 #include "FileUtil.h"
 #include "Parameters.h"
@@ -192,13 +193,16 @@ struct CopyPlan {
     uint32_t maxLen;
 
     CopyPlan() : totalBytes(0), maxLen(0) {}
+    // One entry per distinct sequence length among the representatives,
+    // longest first. Written as the sub-database's .lenrank.
+    std::vector<LengthRankTable::Run> lengthRuns;
 };
 
 // One streaming pass over the source index. Optionally emits the sub-key ->
 // original-key map as it goes, which is what keeps that 8 B per representative
 // off the heap.
 CopyPlan planCopy(int srcIdx, const Bitmap &keep, uint64_t entryCount, uint64_t keptCount,
-                  FILE *keyMapOut, const std::string &keyMapPath) {
+                  FILE *keyMapOut, const std::string &keyMapPath, bool lengthRanked) {
     CopyPlan plan;
     plan.srcRow.reserve(static_cast<size_t>(keptCount / CHUNK_ENTRIES + 2));
     plan.dataOffset.reserve(static_cast<size_t>(keptCount / CHUNK_ENTRIES + 2));
@@ -222,6 +226,38 @@ CopyPlan planCopy(int srcIdx, const Bitmap &keep, uint64_t entryCount, uint64_t 
             }
             total += buf[i].length;
             plan.maxLen = std::max(plan.maxLen, buf[i].length);
+            // The sub-database's length-rank table, accumulated in the same pass.
+            //
+            // It exists because pass 2 runs on this database and every stage there
+            // recovers a sequence length from its key. It is free to build here:
+            // original keys are length-ranked, so the representatives -- visited in
+            // ascending original-key order -- already come out longest first, and
+            // the runs are just the points where the length changes.
+            //
+            // An entry occupies its residues plus a newline and DBWriter's
+            // terminating null, which is the same +2 createdbparallel plans with.
+            if (lengthRanked) {
+                const uint64_t residues = buf[i].length >= 2 ? buf[i].length - 2 : 0;
+                if (plan.lengthRuns.empty() == false &&
+                    residues > plan.lengthRuns.back().length) {
+                    // Only reachable if the source database is not length-ranked,
+                    // which every stage here assumes. Silently writing a
+                    // non-monotone table would give pass 2 plausible wrong lengths.
+                    Debug(Debug::ERROR)
+                        << "Source key " << (from + i) << " is longer (" << residues
+                        << ") than a representative before it (" << plan.lengthRuns.back().length
+                        << "). The source database is not length-ranked.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (plan.lengthRuns.empty() || plan.lengthRuns.back().length != residues) {
+                    LengthRankTable::Run run;
+                    run.length = residues;
+                    run.firstKey = kept;
+                    run.count = 0;
+                    plan.lengthRuns.push_back(run);
+                }
+                plan.lengthRuns.back().count++;
+            }
             if (keyMapOut != NULL) {
                 keyBuf.push_back(from + i);
                 if (keyBuf.size() == keyBuf.capacity()) {
@@ -260,13 +296,18 @@ struct CopyResult {
     uint32_t maxLen;
 };
 
+// lengthRanked says whether the entries are sequences ordered longest first, in
+// which case the sub-database gets its own length-rank table. It is false for the
+// header database: an entry's "length" there is its header text, which has no
+// relation to sequence length and is not monotone in the key.
 CopyResult copyFlagged(const std::string &srcDb, const std::string &dstDb, const Bitmap &keep,
                        uint64_t entryCount, uint64_t keptCount, int threads,
-                       FILE *keyMapOut, const std::string &keyMapPath) {
+                       FILE *keyMapOut, const std::string &keyMapPath, bool lengthRanked) {
     const int srcIdx = openOrDie(DenseIndex::fileName(srcDb), O_RDONLY);
     const int srcData = openOrDie(srcDb, O_RDONLY);
 
-    const CopyPlan plan = planCopy(srcIdx, keep, entryCount, keptCount, keyMapOut, keyMapPath);
+    const CopyPlan plan =
+        planCopy(srcIdx, keep, entryCount, keptCount, keyMapOut, keyMapPath, lengthRanked);
 
     CopyResult result;
     result.maxLen = plan.maxLen;
@@ -274,6 +315,11 @@ CopyResult copyFlagged(const std::string &srcDb, const std::string &dstDb, const
 
     allocate(dstDb, plan.totalBytes);
     DenseIndex::createEmpty(dstDb, keptCount, 0, plan.totalBytes, plan.maxLen);
+    // Pass 2 addresses this database by key and recovers lengths from the key, so
+    // the sub-database needs its own length-rank table just as the full one does.
+    if (lengthRanked) {
+        LengthRankTable::write(dstDb, plan.lengthRuns, keptCount);
+    }
 
     const int dstData = openOrDie(dstDb, O_WRONLY);
     const int dstIdx = openOrDie(DenseIndex::fileName(dstDb), O_WRONLY);
@@ -810,7 +856,8 @@ int createrepdb(int argc, const char **argv, const Command &command) {
     FILE *m = FileUtil::openAndDelete(keymapTmp.c_str(), "wb");
 
     const CopyResult seq =
-        copyFlagged(seqDb, repDb, isRep, info.entryCount, repCount, par.threads, m, keymapTmp);
+        copyFlagged(seqDb, repDb, isRep, info.entryCount, repCount, par.threads, m, keymapTmp,
+                    true);
 
     if (fclose(m) != 0) {
         Debug(Debug::ERROR) << "Cannot close " << keymapTmp << ": " << strerror(errno) << "\n";
@@ -823,7 +870,15 @@ int createrepdb(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    copyFlagged(seqDb + "_h", repDb + "_h", isRep, info.entryCount, repCount, par.threads, NULL, "");
+    // Skipped when the source database has no headers (createdbparallel
+    // --write-header-db 0). Nothing between here and the final TSV opens them --
+    // accessions come from .lookup -- so their absence is a supported
+    // configuration rather than a broken database.
+    const bool haveHeaders = FileUtil::fileExists((seqDb + "_h").c_str());
+    if (haveHeaders) {
+        copyFlagged(seqDb + "_h", repDb + "_h", isRep, info.entryCount, repCount, par.threads, NULL,
+                    "", false);
+    }
 
     // The pass-2 filter gate, built once here instead of in every align worker.
     // Needs the rank directory, which turns an original key into its sub-key.
@@ -835,9 +890,11 @@ int createrepdb(int argc, const char **argv, const Command &command) {
     const int dbType = FileUtil::parseDbType(seqDb.c_str());
     FileUtil::writeFile(repDb + ".dbtype", reinterpret_cast<const unsigned char *>(&dbType),
                         sizeof(int));
-    const int hdrType = Parameters::DBTYPE_GENERIC_DB;
-    FileUtil::writeFile(repDb + "_h.dbtype", reinterpret_cast<const unsigned char *>(&hdrType),
-                        sizeof(int));
+    if (haveHeaders) {
+        const int hdrType = Parameters::DBTYPE_GENERIC_DB;
+        FileUtil::writeFile(repDb + "_h.dbtype", reinterpret_cast<const unsigned char *>(&hdrType),
+                            sizeof(int));
+    }
 
     // The key map is renamed last, after the .dbtype files, because the workflow
     // guards this whole stage on its existence. Publishing it first meant a death
