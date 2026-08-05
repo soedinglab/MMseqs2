@@ -277,13 +277,21 @@ Matcher::result_t Matcher::parseAlignmentRecord(const char *data, bool readCompr
 }
 
 
-size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBacktrace, bool compress, bool addOrfPosition) {
+size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBacktrace, bool compress, bool addOrfPosition, bool highPrecisionSeqId) {
     char * basePos = buff1;
     char * tmpBuff = Itoa::u32toa_sse2((uint32_t) result.dbKey, buff1);
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::i32toa_sse2(result.score, tmpBuff);
     *(tmpBuff-1) = '\t';
-    tmpBuff = Util::fastSeqIdToBuffer(result.seqId, tmpBuff);
+    if (highPrecisionSeqId) {
+        // %.9g round-trips a float exactly. Same pointer convention as the eval column below:
+        // snprintf returns the length without the terminator, so advance past it and let the
+        // shared *(tmpBuff-1) below overwrite the '\0' with the column separator.
+        tmpBuff += snprintf(tmpBuff, 32, "%.9g", (double) result.seqId);
+        tmpBuff++;
+    } else {
+        tmpBuff = Util::fastSeqIdToBuffer(result.seqId, tmpBuff);
+    }
     *(tmpBuff-1) = '\t';
     tmpBuff += snprintf(tmpBuff, 32, "%.3E", result.eval);
     tmpBuff++;

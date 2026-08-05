@@ -727,6 +727,8 @@ public:
     // reclassify
     double reclassifyLambda;
     double reclassifyAlpha;
+    double reclassifyAlphaTau;
+    double reclassifyCoveragePrior;
     int reclassifyMaxIterations;
     double reclassifyTolerance;
     int reclassifyTaxonomy;
@@ -1092,6 +1094,8 @@ public:
     // reclassify
     PARAMETER(PARAM_RECLASSIFY_LAMBDA)
     PARAMETER(PARAM_RECLASSIFY_ALPHA)
+    PARAMETER(PARAM_RECLASSIFY_ALPHA_TAU)
+    PARAMETER(PARAM_RECLASSIFY_COV_PRIOR)
     PARAMETER(PARAM_RECLASSIFY_MAX_ITER)
     PARAMETER(PARAM_RECLASSIFY_TOL)
     PARAMETER(PARAM_RECLASSIFY_TAXONOMY)

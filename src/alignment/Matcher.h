@@ -216,7 +216,13 @@ public:
     static std::string uncompressAlignment(const std::string &cbt);
 
 
-    static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true, bool addOrfPosition = false);
+    // highPrecisionSeqId: write column 3 with %.9g instead of Util::fastSeqIdToBuffer. The fast
+    // writer is a 3-decimal fixed-point encoder with a hard-coded "0." prefix -- it can only
+    // represent 1000 distinct values and truncates (not rounds) anything below 0.001 to zero.
+    // That is fine for a sequence identity, but modules that repurpose column 3 to carry a
+    // probability (see `mmseqs reclassify`, which stores EM posteriors there) need the full
+    // float range. Defaults to false, so every existing caller is unaffected.
+    static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true, bool addOrfPosition = false, bool highPrecisionSeqId = false);
 
     static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 

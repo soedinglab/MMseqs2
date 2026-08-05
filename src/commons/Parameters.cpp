@@ -311,6 +311,8 @@ Parameters::Parameters():
         // reclassify / abundance (lambda..tol shared; taxonomy and drop are abundance-only)
         PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification bit score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_ALPHA(PARAM_RECLASSIFY_ALPHA_ID, "--alpha", "Reclassify alpha", "Exponent applied to abundance during reclassification", typeid(double), (void *) &reclassifyAlpha, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_ALPHA_TAU(PARAM_RECLASSIFY_ALPHA_TAU_ID, "--alpha-tau", "Alpha annealing time constant", "Time constant tau of the alpha annealing schedule alpha_k = alpha * (1 - exp(-(k+1)/tau)), so alpha ramps in from ~0 over the first iterations instead of starting at its full value. 0 disables annealing (alpha is at its full value from iteration 1)", typeid(double), (void *) &reclassifyAlphaTau, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_COV_PRIOR(PARAM_RECLASSIFY_COV_PRIOR_ID, "--cov-prior", "Coverage prior weight", "Weight of the coverage-confidence prior in the abundance update, as a fraction of the read mass: the prior contributes w/(1+w) of the total. Scale-free, so it does not depend on read or target count (0 disables the prior)", typeid(double), (void *) &reclassifyCoveragePrior, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--max-iter", "Reclassify max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
         PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--tol", "Reclassify tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Abundance taxonomy output", "0: write alignment and protein abundance only; taxonomy files are not required. 1: also write taxonomy_abundance.tsv and taxonomic columns in protein_abundance.tsv; requires targetDB_mapping and targetDB_taxonomy", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
@@ -345,6 +347,8 @@ Parameters::Parameters():
     // reclassify
     reclassify.push_back(&PARAM_RECLASSIFY_LAMBDA);
     reclassify.push_back(&PARAM_RECLASSIFY_ALPHA);
+    reclassify.push_back(&PARAM_RECLASSIFY_ALPHA_TAU);
+    reclassify.push_back(&PARAM_RECLASSIFY_COV_PRIOR);
     reclassify.push_back(&PARAM_RECLASSIFY_MAX_ITER);
     reclassify.push_back(&PARAM_RECLASSIFY_TOL);
     reclassify.push_back(&PARAM_THREADS);
@@ -2664,7 +2668,11 @@ void Parameters::setDefaults() {
 
     // reclassify
     reclassifyLambda = 0.25;
-    reclassifyAlpha = 0.5;
+    reclassifyAlpha = 1.0;
+    // 3.0 reproduces the schedule that was hard-coded before this became a parameter.
+    // Set --alpha-tau 0 for the no-annealing control.
+    reclassifyAlphaTau = 3.0;
+    reclassifyCoveragePrior = 0.0;
     reclassifyMaxIterations = 100;
     reclassifyTolerance = 1e-5;
     reclassifyTaxonomy = 0;
