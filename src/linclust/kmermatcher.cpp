@@ -79,10 +79,34 @@ static void flushKmerBuffer(KmerPosition<T, includeAdjacency, IncludeSeqLen> *km
     }
 }
 
+// Copies a fully staged k-mer slot into a bucket record and appends it to the
+// partition its hash selects.
+//
+// Reading the length from the sequence rather than from the slot is deliberate:
+// seqLen only round-trips through KmerPosition when IncludeSeqLen is true, but
+// the record must carry it for every instantiation, since carrying it is exactly
+// what deletes the key-space-sized seqkey_to_len array.
+template <typename KmerPositionT>
+static void appendStagedKmerToBucket(KmerBucketWriter *writer, const KmerPartitioner &partitioner,
+                                     unsigned short score, KmerPositionT &staged,
+                                     DBKeyType seqId, int seqLen) {
+    KmerRecord record;
+    record.kmer = staged.kmer;
+    record.setId(static_cast<uint64_t>(seqId));
+    record.pos = static_cast<uint16_t>(staged.pos);
+    record.seqLen = static_cast<uint16_t>(seqLen);
+    for (int i = 0; i < 6; i++) {
+        record.adjacent[i] = staged.getAdjacentSeq(i);
+    }
+    writer->append(partitioner.partitionOf(score), record);
+}
+
 template <int TYPE, typename T, bool includeAdjacency, bool IncludeSeqLen>
 std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency, IncludeSeqLen> * kmerArray, size_t kmerArraySize, DBReader<DBKeyType> &seqDbr,
                                                 Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
-                                                size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution){
+                                                size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution,
+                                                KmerBucketWriter *bucketWriter,
+                                                const KmerPartitioner *kmerPartitioner){
     size_t offset = 0;
     int querySeqType  =  seqDbr.getDbtype();
     size_t longestKmer = par.kmerSize;
@@ -267,10 +291,19 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                                 threadKmerBuffer[bufferPos].setAdjacentSeq(i, xIndex);
                             }
                         }
-                        bufferPos++;
-                        if (bufferPos >= BUFFER_SIZE) {
-                            flushKmerBuffer(kmerArray, kmerArraySize, threadKmerBuffer, bufferPos, &offset);
-                            bufferPos = 0;
+                        if (bucketWriter != NULL) {
+                            // The identity k-mer is partitioned by the same value the split
+                            // range test above uses, the low 16 bits of the sequence hash, so
+                            // two identical sequences always meet in the same partition.
+                            appendStagedKmerToBucket(bucketWriter, *kmerPartitioner,
+                                                     static_cast<unsigned short>(seqHash),
+                                                     threadKmerBuffer[bufferPos], seqId, seq.L);
+                        } else {
+                            bufferPos++;
+                            if (bufferPos >= BUFFER_SIZE) {
+                                flushKmerBuffer(kmerArray, kmerArraySize, threadKmerBuffer, bufferPos, &offset);
+                                bufferPos = 0;
+                            }
                         }
                     }
                 }
@@ -319,7 +352,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                         }
 
                         selectedKmer++;
-                        if ((kmers + kmerIdx)->score >= hashStartRange && (kmers + kmerIdx)->score <= hashEndRange)
+                        const bool keepKmer = (bucketWriter != NULL)
+                                || ((kmers + kmerIdx)->score >= hashStartRange
+                                    && (kmers + kmerIdx)->score <= hashEndRange);
+                        if (keepKmer)
                         {
                             if(hashDistribution != NULL){
                                 __sync_fetch_and_add(&hashDistribution[(kmers + kmerIdx)->score], 1);
@@ -358,11 +394,18 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                                     threadKmerBuffer[bufferPos].setAdjacentSeq(3, seq.numSequence[endPos + 1]);
                                 }
                             }
-                            bufferPos++;
+                            if (bucketWriter != NULL) {
+                                appendStagedKmerToBucket(bucketWriter, *kmerPartitioner,
+                                                         (kmers + kmerIdx)->score,
+                                                         threadKmerBuffer[bufferPos], seqId, seq.L);
+                                // The staging slot is reused; kmerArray stays untouched.
+                            } else {
+                                bufferPos++;
 
-                            if (bufferPos >= BUFFER_SIZE) {
-                                flushKmerBuffer(kmerArray, kmerArraySize, threadKmerBuffer, bufferPos, &offset);
-                                bufferPos = 0;
+                                if (bufferPos >= BUFFER_SIZE) {
+                                    flushKmerBuffer(kmerArray, kmerArraySize, threadKmerBuffer, bufferPos, &offset);
+                                    bufferPos = 0;
+                                }
                             }
                         }
                     }
@@ -783,6 +826,12 @@ template size_t assignGroup<0, short, true, false>(KmerPosition<short, true, fal
 template size_t assignGroup<0, int, true, false>(KmerPosition<int, true, false> *kmers, KmerPosition<int, false, false> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
 template size_t assignGroup<1, short, true, false>(KmerPosition<short, true, false> *kmers, KmerPosition<short, false, false> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
 template size_t assignGroup<1, int, true, false>(KmerPosition<int, true, false> *kmers, KmerPosition<int, false, false> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
+
+// Distributed reduce: adjacency and inline sequence lengths both on.
+template size_t assignGroup<0, short, true, true>(KmerPosition<short, true, true> *kmers, KmerPosition<short, false, true> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
+template size_t assignGroup<0, int, true, true>(KmerPosition<int, true, true> *kmers, KmerPosition<int, false, true> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
+template size_t assignGroup<1, short, true, true>(KmerPosition<short, true, true> *kmers, KmerPosition<short, false, true> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
+template size_t assignGroup<1, int, true, true>(KmerPosition<int, true, true> *kmers, KmerPosition<int, false, true> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr, int threads, std::vector<size_t>& threadOffsets, BaseMatrix *subMat, AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
 
 template <typename T, bool includeAdjacency, bool IncludeSeqLen>
 static void runIteration(
@@ -2066,23 +2115,34 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
 }
 
 // Existing explicit instantiations (IncludeSeqLen defaults to false)
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, true>(KmerPosition<short, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false>(KmerPosition<short, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, true>(KmerPosition<short, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false>(KmerPosition<short, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, true>(KmerPosition<short, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false>(KmerPosition<short, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, true>(KmerPosition<int, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, false>(KmerPosition<int, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, true>(KmerPosition<int, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, false>(KmerPosition<int, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, true>(KmerPosition<int, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, false>(KmerPosition<int, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, true>(KmerPosition<short, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false>(KmerPosition<short, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, true>(KmerPosition<short, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false>(KmerPosition<short, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, true>(KmerPosition<short, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false>(KmerPosition<short, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, true>(KmerPosition<int, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, false>(KmerPosition<int, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, true>(KmerPosition<int, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, false>(KmerPosition<int, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, true>(KmerPosition<int, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, false>(KmerPosition<int, false> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
 
 // Linsearch explicit instantiations (IncludeSeqLen=true)
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+
+// Distributed map explicit instantiations. Adjacency and inline lengths are both
+// on: the bucket record always carries the flanking residues and the sequence
+// length, and carrying the length is what deletes the key-space-sized
+// seqkey_to_len array that cannot exist at 1e12 sequences.
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, true, true>(KmerPosition<short, true, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, true, true>(KmerPosition<short, true, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, true, true>(KmerPosition<short, true, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, true, true>(KmerPosition<int, true, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, true, true>(KmerPosition<int, true, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, true, true>(KmerPosition<int, true, true> *, size_t, DBReader<DBKeyType> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *, KmerBucketWriter *, const KmerPartitioner *);
 
 template KmerPosition<short, true> *initKmerPositionMemory(size_t size);
 template KmerPosition<short, false> *initKmerPositionMemory(size_t size);

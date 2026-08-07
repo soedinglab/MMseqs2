@@ -160,6 +160,18 @@ std::vector<Command> baseCommands = {
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz2]|stdin", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfileStdinAndGeneric },
                                                            {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"createdbparallel",     createdbparallel,     &par.createdbparallel,     COMMAND_DATABASE_CREATION,
+                "Convert FASTA file(s) to a length-ranked sequence DB with many workers",
+                "# Build a sequence DB with sequences ordered longest first and dense keys.\n"
+                "# Every worker runs this identical command line and coordinates through\n"
+                "# <sequenceDB>.coord; workers may join late, die and be restarted.\n"
+                "mmseqs createdbparallel seq.fasta sequenceDB\n\n"
+                "# Run it from several nodes against the same shared filesystem\n"
+                "srun -N 8 mmseqs createdbparallel seq.fasta sequenceDB --chunk-size 1G\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:fastaFile1> ... <i:fastaFileN> <o:sequenceDB>",
+                CITATION_MMSEQS2, {{"fastaFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
+                                                           {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"makepaddedseqdb",               makepaddedseqdb,              &par.makepaddedseqdb,              COMMAND_HIDDEN,
                 "Generate a padded sequence DB",
                 "Generate a padded sequence DB",
@@ -296,6 +308,32 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <o:clusterDB> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb },
+                                                           {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"linclustparallel",  linclustparallel,  &par.linclustparallelworkflow,   COMMAND_MAIN,
+                "Linclust across many nodes over a shared filesystem",
+                "# The same clustering as linclust *for the coverage modes it supports*,\n"
+                "# computed by many independent worker processes that coordinate only\n"
+                "# through files: no MPI, no rank argument, and no node-to-node\n"
+                "# communication. Every worker of a stage runs the identical command line,\n"
+                "# so a stage maps onto a Slurm array job and workers may join late, die,\n"
+                "# or be restarted. Re-running resumes.\n\n"
+                "# Supported subset: --cov-mode 1 (target, the default here) or 2 (query).\n"
+                "# Stock linclust defaults to --cov-mode 0, which selects SET_COVER\n"
+                "# clustering and the count-table grouping rounds; neither is implemented\n"
+                "# here, so mode 0 is refused rather than silently answered differently.\n"
+                "# Nucleotide input is refused for the same reason (stock routes it to the\n"
+                "# v1 path, which has no counterpart here).\n\n"
+                "# On one node\n"
+                "mmseqs linclustparallel sequenceDB clusters.tsv tmp\n\n"
+                "# Across 64 nodes, bounding scratch at 100 TB\n"
+                "mmseqs linclustparallel sequenceDB clusters.tsv tmp \\\n"
+                "    --runner \"srun -n 64\" --scratch-budget 100T --split-memory-limit 700G\n\n"
+                "# Output is representative<TAB>member in accessions, not a cluster DB:\n"
+                "# a per-key index is state no single node can hold at this scale.\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:fastaFile|sequenceDB> <o:clusterTsv> <tmpDir>",
+                CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile|sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfileAndSequenceDb },
+                                                           {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"cluster",              clusteringworkflow,   &par.clusterworkflow,      COMMAND_MAIN,
                 "Slower, sensitive clustering",
@@ -667,6 +705,100 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <o:prefilterDB>",
                 CITATION_MMSEQS2,{{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"prefilterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::prefilterDb }}},
+        {"kmermatcherparallel",  kmermatcherparallel,  &par.kmermatcherparallel,  COMMAND_PREFILTER,
+                "Shuffle a sequence DB's k-mers into partition buckets with many workers",
+                "# Scan the sequence DB once and write every k-mer into the bucket of its\n"
+                "# partition. Every worker runs this identical command line and coordinates\n"
+                "# through <kmerDir>/coord; workers may join late, die and be restarted.\n"
+                "mmseqs kmermatcherparallel sequenceDB kmerDir\n\n"
+                "# Run it from several nodes against the same shared filesystem\n"
+                "srun -N 8 mmseqs kmermatcherparallel sequenceDB kmerDir --scratch-budget 100T\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <o:kmerDir>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"kmerDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"kmerreduceparallel",   kmerreduceparallel,   &par.kmerreduceparallel,   COMMAND_PREFILTER,
+                "Group shuffled k-mer partitions into candidate edges with many workers",
+                "# Read back the partitions kmermatcherparallel wrote, group each one, and\n"
+                "# write its (representative, member) candidate edges as packed binary.\n"
+                "# Workers claim whole partitions from <edgeDir>/coord.\n"
+                "mmseqs kmerreduceparallel sequenceDB kmerDir edgeDir\n\n"
+                "# Run it from several nodes against the same shared filesystem\n"
+                "srun -N 8 mmseqs kmerreduceparallel sequenceDB kmerDir edgeDir\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <i:kmerDir> <o:edgeDir>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"kmerDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
+                                         {"edgeDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"alignparallel",        alignparallel,        &par.alignparallel,        COMMAND_ALIGNMENT,
+                "Align candidate edges bucketed by representative key, with many workers",
+                "# Merge the duplicate copies the k-mer partitions produced, align each pair\n"
+                "# once, and write the survivors. Workers claim representative-key buckets.\n"
+                "mmseqs alignparallel sequenceDB edgeDir alnDir --min-seq-id 0.9 -c 0.8\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <i:edgeDir> <o:alnDir>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"edgeDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
+                                         {"alnDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"greedycluster",        greedycluster,        &par.greedycluster,        COMMAND_CLUSTER,
+                "Greedy clustering over the surviving edges, in one key-ordered sweep",
+                "# Representatives always have lower keys than their members, so a single\n"
+                "# left-to-right sweep is the exact greedy. Needs two bits per key, not the\n"
+                "# eight bytes per sequence stock's fused clustering keeps resident.\n"
+                "mmseqs greedycluster sequenceDB alnDir clusters.tsv\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <i:alnDir> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"alnDir", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::directory },
+                                         {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"mergeclusterparallel", mergeclusterparallel, &par.mergeclusterparallel, COMMAND_CLUSTER,
+                "Compose the clusterings of successive linclust passes",
+                "# Folds a later clustering into an earlier one by a key-range join, so no\n"
+                "# per-sequence list array is needed (stock keeps 24 B/sequence of empty\n"
+                "# list headers before storing a single member).\n"
+                "mmseqs mergeclusterparallel sequenceDB pass1.tsv pass2.tsv clusters.tsv\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <i:clusterTsv1> ... <i:clusterTsvN> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfile },
+                                         {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"createrepdb",          createrepdb,          &par.createrepdb,          COMMAND_HIDDEN,
+                "Build a densely re-keyed representative DB for the next linclust pass",
+                "# An internal stage of linclustparallel, not a general database builder: the\n"
+                "# output carries a dense companion index instead of the usual .index/.lookup,\n"
+                "# so only the parallel linclust stages can read it.\n"
+                "# Representatives keep length order, so sub-key i is the i-th representative\n"
+                "# and the copy is sequential. Writes <repDB>.keymap (sub-key -> original key)\n"
+                "# so the next pass's clustering can be translated back before merging.\n"
+                "mmseqs createrepdb sequenceDB clusters.tsv repDB\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:sequenceDB> <i:clusterTsv> <o:denseSequenceDB>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                         {"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                         {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"translatecluster",     translatecluster,     &par.translatecluster,     COMMAND_CLUSTER,
+                "Rewrite a clustering from sub-key space into original keys",
+                "# The pass over a createrepdb sub-database returns sub-keys; this maps them\n"
+                "# back before merging. Each key column is translated in its own bucketed\n"
+                "# pass, so the key map is only ever read in contiguous slices.\n"
+                "mmseqs translatecluster pass2.tsv repDB.keymap pass2_orig.tsv\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:clusterTsv> <i:keyMap> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                         {"keyMap", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                         {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"translatekeys",        translatekeys,        &par.translatekeys,        COMMAND_CLUSTER,
+                "Rewrite a clustering from database keys into accessions",
+                "# The distributed pipeline works in dense keys, so its clusters.tsv holds\n"
+                "# numbers. This joins it against the database's .lookup by streaming: each\n"
+                "# key column is translated in its own bucketed pass, and the lookup is read\n"
+                "# sequentially, so nothing per-key is ever resident.\n"
+                "mmseqs translatekeys clusters.tsv sequenceDB.lookup clusters_named.tsv\n",
+                "Björn Buschkämper <bjoern.buschkaemper@gmail.com>",
+                "<i:clusterTsv> <i:lookupFile> <o:clusterTsv>",
+                CITATION_MMSEQS2, {{"clusterTsv", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                                            {"lookupFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                                            {"clusterTsv", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"kmersearch",           kmersearch,           &par.kmersearch,           COMMAND_PREFILTER,
                 "Find bottom-m-hashed k-mer matches between target and query DB",
                 NULL,

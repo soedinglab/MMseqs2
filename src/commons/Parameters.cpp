@@ -1,4 +1,6 @@
 #include "Parameters.h"
+
+#include <cerrno>
 #include "Util.h"
 #include "DistanceCalculator.h"
 #include "Debug.h"
@@ -55,6 +57,13 @@ Parameters::Parameters():
         PARAM_SPLIT(PARAM_SPLIT_ID, "--split", "Split database", "Split input into N equally distributed chunks. 0: set the best split automatically", typeid(int), (void *) &split, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID, "--split-mode", "Split mode", "0: split target db; 1: split query db; 2: auto, depending on main memory", typeid(int), (void *) &splitMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_CHUNK_SIZE(PARAM_CHUNK_SIZE_ID, "--chunk-size", "Chunk size", "Input bytes one work item covers. Smaller chunks spread work more evenly and use less memory per thread; larger chunks mean fewer coordination files. E.g. 64M, 256M, 1G", typeid(ByteParser), (void *) &chunkSize, "^([1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_KMER_WAVE(PARAM_KMER_WAVE_ID, "--kmer-wave", "K-mer wave", "Which extraction wave to write, when the scratch budget needs more than one. Each wave re-extracts every k-mer but keeps only its own slice of the partition space, so peak scratch is the whole shuffle divided by the wave count. Default -1 requires a single wave. Run waves 0..W-1, reducing each before starting the next.", typeid(int), (void *) &kmerWave, "^-?[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_KEY_MAP(PARAM_KEY_MAP_ID, "--key-map", "Sub-key map", "Maps this database's dense sub-keys back to the original keys, as written by createrepdb. Needed with --filter-cludb-file when the pass runs on a re-keyed representative database.", typeid(std::string), (void *) &keyMapFile, "", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SCRATCH_BUDGET(PARAM_SCRATCH_BUDGET_ID, "--scratch-budget", "Scratch budget", "Total scratch the run may occupy. The k-mer extraction wave count and the partition count are derived from this together with --split-memory-limit, rather than set by hand. Default (0) for a single wave. E.g. 100T, 500T", typeid(ByteParser), (void *) &scratchBudget, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SCRATCH_USED(PARAM_SCRATCH_USED_ID, "--scratch-used", "Scratch already used", "Bytes of --scratch-budget already occupied when this stage starts. The workflow measures it, so a later pass accounts for what earlier passes left on disk. 0 derives it from the input database alone.", typeid(ByteParser), (void *) &scratchUsed, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WORKER_COUNT(PARAM_WORKER_COUNT_ID, "--workers", "Worker count hint", "How many workers the runner launches for this stage. Raises the k-mer partition and edge bucket counts so there is work for every worker to claim; it never lowers them below what the memory limit requires. A hint only: workers may still join late, die or be restarted, and the recorded layout stays authoritative. Default (0) sizes the work units from --split-memory-limit alone, which on a large per-node limit can leave most workers idle.", typeid(int), (void *) &workerCount, "^[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPILL_PREFIX(PARAM_SPILL_PREFIX_ID, "--spill-prefix", "Spill prefix", "Path prefix for this command's temporary spill files. Default (empty) puts them beside the output, which is outside the scratch filesystem --scratch-budget accounts for. Point it inside the run's tmp directory so the spill is counted and cleaned up with the rest of the run.", typeid(std::string), (void *) &spillPrefix, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -178,6 +187,7 @@ Parameters::Parameters():
         PARAM_CLUSTER_VERSION(PARAM_CLUSTER_VERSION_ID, "--cluster-version", "Cluster version", "Cluster version: 1: Cluster1, 2: Cluster2", typeid(int), (void *) &clusterVersion, "^[1-2]$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "MPI runner", "Use MPI on compute cluster with this MPI command (e.g. \"mpirun -np 42\")", typeid(std::string), (void *) &runner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WORKER_RUNNER(PARAM_WORKER_RUNNER_ID, "--runner", "Worker runner", "Command that starts one worker process per node (e.g. \"srun -n 64\"). The workers coordinate through files and never communicate, so this only has to start them; no MPI is involved", typeid(std::string), (void *) &workerRunner, "", MMseqsParameter::COMMAND_COMMON),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart with latest tmp", "Reuse tmp filse in tmp/latest folder ignoring parameters and version changes", typeid(bool), (void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Search iterations", "Number of iterative profile search iterations", typeid(int), (void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
@@ -219,6 +229,10 @@ Parameters::Parameters():
         PARAM_CREATEDB_MODE(PARAM_CREATEDB_MODE_ID, "--createdb-mode", "Createdb mode", "Createdb mode 0: copy data, 1: soft link data and write new index (works only with single line fasta/q) 2: GPU compatible db", typeid(int), (void *) &createdbMode, "^[0-2]{1}$"),
         PARAM_SHUFFLE(PARAM_SHUFFLE_ID, "--shuffle", "Shuffle input database", "Shuffle input database", typeid(bool), (void *) &shuffleDatabase, ""),
         PARAM_WRITE_LOOKUP(PARAM_WRITE_LOOKUP_ID, "--write-lookup", "Write lookup file", "write .lookup file containing mapping from internal id, fasta id and file number", typeid(int), (void *) &writeLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WRITE_TEXT_INDEX(PARAM_WRITE_TEXT_INDEX_ID, "--write-text-index", "Write text index", "Also write the stock-compatible text .index alongside the dense .index.bin. None of the distributed stages read it, and at 1e12 sequences it is ~36 TB and ~98 h of single-threaded formatting; turn it off unless a stock MMseqs2 tool has to open the database.", typeid(int), (void *) &writeTextIndex, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_RAW_RECORDS(PARAM_RAW_RECORDS_ID, "--raw-records", "Uncompacted bucket records", "Write k-mer and candidate-edge buckets as fixed-width structs instead of the packed block encoding. Roughly doubles the scratch these intermediates need, and exists only to separate an encoding defect from a semantic one: a run with this on must produce exactly the same clustering as a run with it off.", typeid(int), (void *) &rawRecords, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WRITE_HEADER_DB(PARAM_WRITE_HEADER_DB_ID, "--write-header-db", "Write header database", "Also write the <db>_h header database. Nothing between createdb and the final TSV reads it -- accessions reach the output through .lookup -- and at 1e12 sequences it is ~35 TB of a ~1 PB scratch budget. Turning it off produces a database stock MMseqs2 tools cannot open.", typeid(int), (void *) &writeHeaderDb, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REDUCE_SLICES(PARAM_REDUCE_SLICES_ID, "--reduce-slices", "K-mer slices per partition", "Group each partition in this many k-mer slices instead of deriving the count from --split-memory-limit. 0 derives it. A slice is a pure function of the k-mer, so every occurrence of a k-mer stays in one slice and the edges are identical whatever this is set to -- which is what makes it a usable exactness control.", typeid(int), (void *) &reduceSlices, "^[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use header DB", "use the sequence header DB instead of the body to map the entry keys", typeid(bool), (void *) &useHeaderFile, ""),
         // setextendeddbtype
         PARAM_EXTENDED_DBTYPE(PARAM_EXTENDED_DBTYPE_ID, "--extended-dbtype", "Extended dbtype", "Set extended dbtype 1: compressed, 2: need src, 4: context pseudoe cnts", typeid(int), (void *) &extendedDbtype, "^[0-4]{1}"),
@@ -909,6 +923,122 @@ Parameters::Parameters():
     createdb.push_back(&PARAM_GPU);
     createdb.push_back(&PARAM_V);
 
+    // createdbparallel
+    createdbparallel.push_back(&PARAM_WRITE_LOOKUP);
+    createdbparallel.push_back(&PARAM_DB_TYPE);
+    createdbparallel.push_back(&PARAM_CHUNK_SIZE);
+    createdbparallel.push_back(&PARAM_WRITE_TEXT_INDEX);
+    createdbparallel.push_back(&PARAM_WRITE_HEADER_DB);
+    createdbparallel.push_back(&PARAM_THREADS);
+    // No PARAM_COMPRESSED. emitChunk pwrites raw sequence and header bytes into
+    // preallocated files at offsets a plan derived from *uncompressed* lengths,
+    // so there is nowhere for compression to happen -- but finalize passed
+    // par.compressed straight into DBWriter::writeDbtypeFile, marking those raw
+    // files as compressed. Readers then decoded raw bytes as compressed records:
+    // `createdbparallel in.fasta db --compressed 1` followed by
+    // `convert2fasta db out.fasta` segfaulted. Supporting it needs a
+    // compression-aware planner, since compressed offsets cannot be derived from
+    // sequence lengths; until then the flag is not offered rather than accepted
+    // and ignored.
+    createdbparallel.push_back(&PARAM_V);
+
+    // kmermatcherparallel
+    // Extraction knobs only: this stage stops at the shuffled k-mer buckets, so
+    // the grouping and alignment parameters belong to the reduce that reads them.
+    // No PARAM_ADJUST_KMER_LEN either -- the adjusted length is a property of the
+    // whole database that a worker scanning one key range cannot agree on.
+    kmermatcherparallel.push_back(&PARAM_RAW_RECORDS);
+    kmermatcherparallel.push_back(&PARAM_SUB_MAT);
+    kmermatcherparallel.push_back(&PARAM_ALPH_SIZE);
+    kmermatcherparallel.push_back(&PARAM_MIN_SEQ_ID);
+    kmermatcherparallel.push_back(&PARAM_K);
+    kmermatcherparallel.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcherparallel.push_back(&PARAM_KMER_PER_SEQ_SCALE);
+    kmermatcherparallel.push_back(&PARAM_SPACED_KMER_MODE);
+    kmermatcherparallel.push_back(&PARAM_SPACED_KMER_PATTERN);
+    kmermatcherparallel.push_back(&PARAM_MASK_RESIDUES);
+    kmermatcherparallel.push_back(&PARAM_MASK_PROBABILTY);
+    kmermatcherparallel.push_back(&PARAM_MASK_LOWER_CASE);
+    kmermatcherparallel.push_back(&PARAM_MASK_N_REPEAT);
+    kmermatcherparallel.push_back(&PARAM_MAX_SEQ_LEN);
+    kmermatcherparallel.push_back(&PARAM_HASH_SHIFT);
+    kmermatcherparallel.push_back(&PARAM_IGNORE_MULTI_KMER);
+    kmermatcherparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmermatcherparallel.push_back(&PARAM_SCRATCH_BUDGET);
+    kmermatcherparallel.push_back(&PARAM_SCRATCH_USED);
+    kmermatcherparallel.push_back(&PARAM_KMER_WAVE);
+    kmermatcherparallel.push_back(&PARAM_WORKER_COUNT);
+    kmermatcherparallel.push_back(&PARAM_THREADS);
+    kmermatcherparallel.push_back(&PARAM_COMPRESSED);
+    kmermatcherparallel.push_back(&PARAM_V);
+
+    // kmerreduceparallel
+    // Grouping knobs. No k-mer extraction parameters: k and the partitioning are
+    // fixed by the shuffle manifest the map wrote, not re-derived here, so passing
+    // them would only create a way to disagree with what is on disk.
+    kmerreduceparallel.push_back(&PARAM_RAW_RECORDS);
+    kmerreduceparallel.push_back(&PARAM_REDUCE_SLICES);
+    kmerreduceparallel.push_back(&PARAM_WORKER_COUNT);
+    kmerreduceparallel.push_back(&PARAM_SUB_MAT);
+    kmerreduceparallel.push_back(&PARAM_ALPH_SIZE);
+    kmerreduceparallel.push_back(&PARAM_C);
+    kmerreduceparallel.push_back(&PARAM_COV_MODE);
+    kmerreduceparallel.push_back(&PARAM_INCLUDE_ONLY_EXTENDABLE);
+    kmerreduceparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmerreduceparallel.push_back(&PARAM_INCLUDE_ADJACENCY);
+    kmerreduceparallel.push_back(&PARAM_NUM_ADJACENCY);
+    kmerreduceparallel.push_back(&PARAM_KMER_WAVE);
+    kmerreduceparallel.push_back(&PARAM_THREADS);
+    kmerreduceparallel.push_back(&PARAM_COMPRESSED);
+    kmerreduceparallel.push_back(&PARAM_V);
+
+    // alignparallel
+    // Alignment knobs only: the edge buckets and the key ranges are fixed by the
+    // manifest kmerreduceparallel wrote, not re-derived here.
+    alignparallel.push_back(&PARAM_SUB_MAT);
+    alignparallel.push_back(&PARAM_E);
+    alignparallel.push_back(&PARAM_C);
+    alignparallel.push_back(&PARAM_COV_MODE);
+    alignparallel.push_back(&PARAM_MIN_SEQ_ID);
+    alignparallel.push_back(&PARAM_MIN_ALN_LEN);
+    alignparallel.push_back(&PARAM_SEQ_ID_MODE);
+    alignparallel.push_back(&PARAM_GAP_OPEN);
+    alignparallel.push_back(&PARAM_GAP_EXTEND);
+    alignparallel.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    alignparallel.push_back(&PARAM_FILTER_CLUDB_FILE);
+    alignparallel.push_back(&PARAM_FILTER_SEQDB_FILE);
+    alignparallel.push_back(&PARAM_KEY_MAP);
+    alignparallel.push_back(&PARAM_THREADS);
+    alignparallel.push_back(&PARAM_COMPRESSED);
+    alignparallel.push_back(&PARAM_V);
+
+    // greedycluster
+    // No clustering-mode knob: the sweep implements linclust's greedy, which is
+    // the only mode the key ordering makes exact in one pass.
+    greedycluster.push_back(&PARAM_THREADS);
+    greedycluster.push_back(&PARAM_V);
+
+    // mergeclusterparallel
+    mergeclusterparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    mergeclusterparallel.push_back(&PARAM_V);
+
+    // createrepdb
+    // --split-memory-limit sizes the bucketed pass that builds the pass-2 filter
+    // gate; the copy itself is bounded by its chunk size, not by this.
+    createrepdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    createrepdb.push_back(&PARAM_THREADS);
+    createrepdb.push_back(&PARAM_V);
+
+    // translatecluster
+    translatecluster.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    translatecluster.push_back(&PARAM_V);
+
+    // translatekeys
+    translatekeys.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    translatekeys.push_back(&PARAM_SPILL_PREFIX);
+    translatekeys.push_back(&PARAM_THREADS);
+    translatekeys.push_back(&PARAM_V);
+
     // makepaddedseqdb
     makepaddedseqdb.push_back(&PARAM_SUB_MAT);
     makepaddedseqdb.push_back(&PARAM_SCORE_BIAS);
@@ -1511,6 +1641,26 @@ Parameters::Parameters():
     linclustworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(&PARAM_REUSELATEST);
     linclustworkflow.push_back(&PARAM_RUNNER);
+
+    // linclustparallelworkflow
+    // Deliberately small. Everything the stages need beyond this is either fixed
+    // by the algorithm (the k-mer length and alphabet follow from --min-seq-id,
+    // the extraction settings are the two passes' defaults) or derived from
+    // --scratch-budget and --split-memory-limit. Exposing the individual stages'
+    // knobs here would let a run be given parameters its stages disagree on,
+    // which produces a different clustering rather than an error.
+    linclustparallelworkflow.push_back(&PARAM_MIN_SEQ_ID);
+    linclustparallelworkflow.push_back(&PARAM_C);
+    linclustparallelworkflow.push_back(&PARAM_COV_MODE);
+    linclustparallelworkflow.push_back(&PARAM_E);
+    linclustparallelworkflow.push_back(&PARAM_SCRATCH_BUDGET);
+    linclustparallelworkflow.push_back(&PARAM_WORKER_COUNT);
+    linclustparallelworkflow.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    linclustparallelworkflow.push_back(&PARAM_THREADS);
+    linclustparallelworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    linclustparallelworkflow.push_back(&PARAM_REUSELATEST);
+    linclustparallelworkflow.push_back(&PARAM_WORKER_RUNNER);
+    linclustparallelworkflow.push_back(&PARAM_V);
 
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
@@ -2383,9 +2533,18 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, int argc, const 
         } else if (db.accessMode == db.ACCESS_MODE_OUTPUT) {
             if (db.validator == &DbValidator::directory) {
                 if (FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
-                    if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false) {
+                    // Racing workers may both reach this. makeDir is a bare mkdir,
+                    // so the loser gets EEXIST and would exit -- which, with a
+                    // Slurm array starting every worker at once, is nearly every
+                    // launch of the shared-filesystem stages. Only a failure that
+                    // also leaves no directory behind is real. Same rule the
+                    // linclust modules already apply (KmerPartition.cpp,
+                    // CandidateEdge.cpp).
+                    if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false &&
+                        FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
                         printParameters(command.cmd, argc, argv, *command.params);
-                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[fileIdx] << "\n";
+                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[fileIdx]
+                                            << ": " << strerror(errno) << "\n";
                         EXIT(EXIT_FAILURE);
                     } else {
                         Debug(Debug::INFO) << "Create directory " << filenames[fileIdx] << "\n";
@@ -2499,6 +2658,17 @@ void Parameters::setDefaults() {
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
     splitMemoryLimit = 0;
+    chunkSize = 256 * 1024 * 1024;
+    kmerWave = -1;
+    keyMapFile = "";
+    scratchBudget = 0;
+    scratchUsed = 0;
+    workerCount = 0;
+    spillPrefix = "";
+    writeTextIndex = 1;
+    rawRecords = 0;
+    writeHeaderDb = 1;
+    reduceSlices = 0;
     diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";
@@ -2599,6 +2769,10 @@ void Parameters::setDefaults() {
     } else {
         runner = "";
     }
+    // Not seeded from $RUNNER: the parallel workflow *sets* that variable for the
+    // driver it execs, so inheriting it here would make a nested invocation
+    // silently launch its own workers.
+    workerRunner = "";
     reuseLatest = false;
     // Clustering workflow
     removeTmpFiles = false;
@@ -2990,8 +3164,8 @@ size_t Parameters::hashParameter(const std::vector<DbType> &dbtypes, const std::
 std::string Parameters::createParameterString(const std::vector<MMseqsParameter*> &par, bool wasSet) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {
-        // Never pass the MPI parameters along, they are passed by the environment
-        if (par[i]->uniqid == PARAM_RUNNER_ID) {
+        // Never pass the runner parameters along, they are passed by the environment
+        if (par[i]->uniqid == PARAM_RUNNER_ID || par[i]->uniqid == PARAM_WORKER_RUNNER_ID) {
             continue;
         }
         if(wasSet == true){

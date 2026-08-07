@@ -439,6 +439,17 @@ public:
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB
     size_t splitMemoryLimit;             // Maximum memory in bytes a split can use
+    size_t chunkSize;                    // Input bytes one createdbparallel work item covers
+    std::string keyMapFile;              // alignparallel: sub-key -> original key for the filter gate
+    int kmerWave;                        // kmermatcherparallel: which extraction wave to write
+    size_t scratchBudget;
+    size_t scratchUsed;                  // Bytes of the budget already occupied when a stage starts
+    int workerCount;                     // Workers the runner launched; a sizing hint, never a contract
+    std::string spillPrefix;             // translatekeys: where its spill files go, when not beside the output
+    int writeTextIndex;                  // createdbparallel: also write the stock-compatible text .index
+    int rawRecords;                      // kmermatcherparallel/kmerreduceparallel: write uncompacted fixed-width records
+    int writeHeaderDb;                   // createdbparallel: also write the <db>_h header database
+    int reduceSlices;                    // kmerreduceparallel: force this many k-mer slices per partition
     size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
@@ -475,6 +486,10 @@ public:
 
     // workflow
     std::string runner;
+    // Separate from `runner` on purpose. That one is MPI's, and renaming it would
+    // break every existing --mpi-runner invocation; this one launches independent
+    // worker processes that never communicate.
+    std::string workerRunner;
     bool reuseLatest;
 
     // CLUSTERING
@@ -827,6 +842,13 @@ public:
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
+    PARAMETER(PARAM_CHUNK_SIZE)
+    PARAMETER(PARAM_KMER_WAVE)
+    PARAMETER(PARAM_KEY_MAP)
+    PARAMETER(PARAM_SCRATCH_BUDGET)
+    PARAMETER(PARAM_SCRATCH_USED)
+    PARAMETER(PARAM_WORKER_COUNT)
+    PARAMETER(PARAM_SPILL_PREFIX)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
@@ -966,6 +988,7 @@ public:
 
     // workflow
     PARAMETER(PARAM_RUNNER)
+    PARAMETER(PARAM_WORKER_RUNNER)
     PARAMETER(PARAM_REUSELATEST)
 
     // search workflow
@@ -1011,6 +1034,10 @@ public:
     PARAMETER(PARAM_CREATEDB_MODE)
     PARAMETER(PARAM_SHUFFLE)
     PARAMETER(PARAM_WRITE_LOOKUP)
+    PARAMETER(PARAM_WRITE_TEXT_INDEX)
+    PARAMETER(PARAM_RAW_RECORDS)
+    PARAMETER(PARAM_WRITE_HEADER_DB)
+    PARAMETER(PARAM_REDUCE_SLICES)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
@@ -1232,6 +1259,15 @@ public:
     std::vector<MMseqsParameter*> createlinindex;
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
+    std::vector<MMseqsParameter*> createdbparallel;
+    std::vector<MMseqsParameter*> kmermatcherparallel;
+    std::vector<MMseqsParameter*> kmerreduceparallel;
+    std::vector<MMseqsParameter*> alignparallel;
+    std::vector<MMseqsParameter*> greedycluster;
+    std::vector<MMseqsParameter*> mergeclusterparallel;
+    std::vector<MMseqsParameter*> createrepdb;
+    std::vector<MMseqsParameter*> translatecluster;
+    std::vector<MMseqsParameter*> translatekeys;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
@@ -1245,6 +1281,7 @@ public:
     std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
+    std::vector<MMseqsParameter*> linclustparallelworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;
     std::vector<MMseqsParameter*> linsearchworkflow;
