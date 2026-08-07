@@ -472,6 +472,18 @@ void testShuffleSizingWorkerFloor() {
     check(powerOfTwo, "P stays a power of two inside the hash space at every worker count");
     check(wavesDivide, "the wave count still divides P at every worker count");
 
+    // A large --workers against a small database must not shatter it into
+    // partitions holding almost nothing.
+    const KmerShuffleSizing small =
+        deriveKmerShuffleSizing(10000000ULL, 21, 0, 0, 64 * GB, 4096);
+    check(small.totalKmerBytes / small.partitionCount >= 64ULL * 1024 * 1024,
+          "--workers never derives partitions smaller than the useful floor");
+    // And an absurd worker count is clamped rather than killing the run.
+    const KmerShuffleSizing absurd =
+        deriveKmerShuffleSizing(1000000000ULL, 21, 0, 0, 64 * GB, 4000000000U);
+    check(absurd.partitionCount <= 65536,
+          "an absurd --workers is clamped into the hash space rather than fatal");
+
     // Not told is the previous behaviour, exactly.
     const KmerShuffleSizing zero = deriveKmerShuffleSizing(1000000000ULL, 21, 0, 0, 800 * GB, 0);
     check(zero.partitionCount == untold.partitionCount,
@@ -482,23 +494,51 @@ void testShuffleSizingWorkerFloor() {
 // failure mode applies: a generous memory limit must not collapse it to one.
 void testAlignBucketCount() {
     const uint64_t GiB = 1024ULL * 1024 * 1024;
+    const uint64_t MiB = 1024ULL * 1024;
 
     // The measured 1e9 case: 125 GB of edges on a 800 GB node produced one bucket
     // and left alignparallel running on a single node for half the run.
     const unsigned int big = deriveAlignBucketCount(125 * GiB, 1000000000ULL, 800 * GiB, 0);
     check(big >= 64, "a large edge set is split into many buckets despite a large memory limit");
 
-    // More memory must never mean less parallelism.
+    // More memory must never mean less parallelism. Swept from 256 MiB, because
+    // min(mem/4, 1 GiB) pins the target at 1 GiB for anything at or above 4 GiB --
+    // a sweep that starts above that never leaves the flat region and would pass
+    // whatever the code did.
     bool monotone = true;
-    unsigned int previous = deriveAlignBucketCount(125 * GiB, 1000000000ULL, 16 * GiB, 0);
-    for (uint64_t limit = 32; limit <= 1024; limit *= 2) {
-        const unsigned int now = deriveAlignBucketCount(125 * GiB, 1000000000ULL, limit * GiB, 0);
+    bool sawMemoryMatter = false;
+    unsigned int previous = deriveAlignBucketCount(125 * GiB, 1000000000ULL, 256 * MiB, 0);
+    for (uint64_t limit = 512ULL * 1024 * 1024; limit <= 1024 * GiB; limit *= 2) {
+        const unsigned int now = deriveAlignBucketCount(125 * GiB, 1000000000ULL, limit, 0);
         monotone = monotone && now <= previous;
+        sawMemoryMatter = sawMemoryMatter || now != previous;
         previous = now;
     }
     check(monotone, "raising the memory limit never raises the bucket count");
+    check(sawMemoryMatter, "the sweep covers the range where the memory limit changes the count");
     check(deriveAlignBucketCount(125 * GiB, 1000000000ULL, 1024 * GiB, 0) >= 64,
           "even an unlimited-looking memory limit keeps the byte target's buckets");
+
+    // The property that actually protects correctness: every representative key
+    // lands in a bucket that exists. bucketSpan is what the reduce computes from
+    // the returned count, so the two have to agree for all of them.
+    bool everyKeyMaps = true;
+    const uint64_t sizes[] = {1, 2, 3, 1000, 1048576, 100000000ULL, 1000000000ULL};
+    const uint64_t limits[] = {0, 1, 1024, 256ULL * MiB, 8 * GiB, 800 * GiB};
+    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+        for (size_t j = 0; j < sizeof(limits) / sizeof(limits[0]); j++) {
+            for (unsigned int w = 0; w <= 64; w = w ? w * 2 : 1) {
+                const uint64_t entries = sizes[i];
+                const unsigned int b =
+                    deriveAlignBucketCount(entries * 189, entries, limits[j], w);
+                const uint64_t span = (entries + b - 1) / b;
+                everyKeyMaps = everyKeyMaps && b >= 1 && b <= MAX_ALIGN_BUCKETS && span >= 1 &&
+                               (entries - 1) / span < b;
+            }
+        }
+    }
+    check(everyKeyMaps,
+          "every representative key maps into an existing bucket at every count");
 
     // The worker hint only ever raises it.
     const unsigned int small = deriveAlignBucketCount(2 * GiB, 10000000ULL, 800 * GiB, 0);

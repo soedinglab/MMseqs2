@@ -596,6 +596,22 @@ int alignparallel(int argc, const char **argv, const Command &command) {
 
     {
         WorkQueue queue(coordDir + "/align.queue", static_cast<int64_t>(bucketCount));
+    // Say so when this worker cannot possibly get work.
+    //
+    // The stage sizes its work units from --split-memory-limit and --workers, not
+    // from how many workers actually turn up, so an allocation larger than the
+    // unit count leaves the surplus with nothing to claim -- they sleep in the
+    // heartbeat and exit 0, and the stage looks like it succeeded on every node
+    // while running on one. That is exactly how this went unnoticed until a 1e9
+    // run was profiled. It cannot be made an error, because a worker joining a
+    // nearly finished stage legitimately finds nothing left; but it can be said
+    // out loud when the worker never had a chance.
+    if (workerId >= queue.getItemCount()) {
+        Debug(Debug::WARNING)
+            << "Worker " << workerId << " has no work: this stage was sized for "
+            << queue.getItemCount() << " work unit(s) and cannot use more workers than that. "
+            << "Pass --workers <n> so the unit count is sized for the allocation.\n";
+    }
         const bool finished = queue.drain(workerId, [&](size_t bucket) {
             std::vector<CandidateEdge> edges;
             readBucket(edgeDir, static_cast<unsigned int>(bucket), reduceAuthority, edges);

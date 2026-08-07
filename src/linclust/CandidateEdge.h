@@ -246,15 +246,18 @@ const unsigned int MAX_ALIGN_BUCKETS = 65536;
 // Deriving it from (1) alone means a *generous* --split-memory-limit produces
 // *fewer* buckets and less parallelism -- backwards, and silent, because the
 // starved workers find nothing claimable and exit 0. Measured at 1e9 sequences
-// with 800G per node: 125 GB of edges against a 200 GB target left bucketCount at
-// 1, and alignparallel ran 3h16m on one node while three others slept, half the
-// wall clock of the whole run.
+// with 800G per node: a 176 GiB sequence database against a 200 GB target left
+// bucketCount at 1, and alignparallel ran 3h16m on one node while three others
+// slept, half the wall clock of the whole run.
 //
 // So memoryLimitBytes becomes a ceiling and the target is taken well below it,
 // and workerCount (0 when not told) raises the count further so an allocation
 // always has something to claim. The result never exceeds entryCount, since a
 // bucket is a range of representative key.
-unsigned int deriveAlignBucketCount(uint64_t dataSize, uint64_t entryCount,
+//
+// sequenceBytes is the *sequence database* size, not the edge volume: buckets are
+// key ranges and the align worker loads that range's sequences whole.
+unsigned int deriveAlignBucketCount(uint64_t sequenceBytes, uint64_t entryCount,
                                     uint64_t memoryLimitBytes, unsigned int workerCount);
 
 // One file per (worker, bucket), like the k-mer shards, so no locking is needed.

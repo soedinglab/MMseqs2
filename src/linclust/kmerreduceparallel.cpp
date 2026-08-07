@@ -125,7 +125,6 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
 // error worth surfacing rather than working around.
 const unsigned int MAX_REDUCE_SLICES = 1024;
 
-
 // Records per slice, so each slice's array is allocated for what it actually
 // holds rather than for an assumed even split.
 //
@@ -787,6 +786,23 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         WorkQueue queue(reduceCoordDir + "/reduce." + SSTR(par.kmerWave < 0 ? 0 : par.kmerWave) +
                             ".queue",
                         static_cast<int64_t>(waveTo - waveFrom));
+    // Say so when this worker cannot possibly get work.
+    //
+    // The stage sizes its work units from --split-memory-limit and --workers, not
+    // from how many workers actually turn up, so an allocation larger than the
+    // unit count leaves the surplus with nothing to claim -- they sleep in the
+    // heartbeat and exit 0, and the stage looks like it succeeded on every node
+    // while running on one. That is exactly how this went unnoticed until a 1e9
+    // run was profiled. It cannot be made an error, because a worker joining a
+    // nearly finished stage legitimately finds nothing left; but it can be said
+    // out loud when the worker never had a chance.
+    if (workerId >= queue.getItemCount()) {
+        Debug(Debug::WARNING)
+            << "Worker " << workerId << " has no work: this stage was sized for "
+            << queue.getItemCount() << " work unit(s) and cannot use more workers than that. "
+            << "Pass --workers <n> so the unit count is sized for the allocation.\n";
+    }
+
         // One partition at a time per process: the sort and the greedy inside a
         // partition are already threaded, and a partition is sized to fill a node.
         // A running mean over the partitions this worker has already grouped.

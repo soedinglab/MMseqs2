@@ -41,6 +41,11 @@ const uint64_t REDUCE_MEMORY_FACTOR = 3;
 // k-mer hashes spread evenly enough that a small factor suffices.
 const uint64_t REDUCE_PARTITIONS_PER_WORKER = 2;
 
+// Floor on what one partition should hold before --workers is allowed to make
+// another. Only bounds the worker-derived floor; the memory sizing can still
+// derive a smaller partition when the limit genuinely requires it.
+const uint64_t MIN_USEFUL_PARTITION_BYTES = 64ULL * 1024 * 1024;
+
 // More waves than this means the budget is wrong, not that the plan is clever.
 const unsigned int MAX_SENSIBLE_WAVES = 64;
 
@@ -178,9 +183,23 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
     // authoritative, so a restart with a different --workers cannot re-shape an
     // existing shuffle.
     if (workerCount > 0) {
-        sizing.partitionCount = std::max(
-            sizing.partitionCount,
-            roundUpToPowerOfTwo(static_cast<uint64_t>(workerCount) * REDUCE_PARTITIONS_PER_WORKER));
+        // Clamped before roundUpToPowerOfTwo, which EXITs above 65536 with a
+        // message blaming --split-memory-limit. An absurd --workers is not that,
+        // and the align path clamps the same input rather than dying, so this
+        // matches it.
+        const uint64_t wanted = std::min<uint64_t>(
+            static_cast<uint64_t>(workerCount) * REDUCE_PARTITIONS_PER_WORKER, 65536);
+        unsigned int floorP = roundUpToPowerOfTwo(wanted);
+        // Never so many partitions that each holds almost nothing: a partition is
+        // a directory plus one shard per worker plus a queue item, so a large
+        // --workers against a small database -- pass 2 runs over just the
+        // representatives -- would otherwise trade real work for millions of tiny
+        // files. Measured at 1e7 sequences with --workers 1024: P = 2048, i.e.
+        // 2.5 MB per partition.
+        while (floorP > 1 && sizing.totalKmerBytes / floorP < MIN_USEFUL_PARTITION_BYTES) {
+            floorP /= 2;
+        }
+        sizing.partitionCount = std::max(sizing.partitionCount, floorP);
     }
     if (sizing.partitionCount > 65536) {
         // Above the 16-bit hash space the partitioner cannot tell partitions
