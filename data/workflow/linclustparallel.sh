@@ -45,6 +45,11 @@
 [ -z "$EVAL" ] && EVAL=0.001
 [ -z "$SPLIT_MEMORY_LIMIT" ] && SPLIT_MEMORY_LIMIT=0
 [ -z "$SCRATCH_BUDGET" ] && SCRATCH_BUDGET=0
+# How many workers $WORKER_RUNNER starts. Passed to the two stages that decide how
+# many work units to make, so the allocation has something to claim: those counts
+# otherwise come from --split-memory-limit alone, and a generous per-node limit
+# makes *fewer* units and leaves most workers idle. 0 means "not told".
+[ -z "$WORKERS" ] && WORKERS=0
 # Writes the k-mer and candidate-edge buckets as fixed-width structs instead of
 # the packed block encoding. Roughly doubles the scratch those two intermediates
 # need and exists only as a control: a run with RAW_RECORDS=1 must produce
@@ -188,10 +193,10 @@ KMER_COMMON="--alph-size aa:21,nucl:5 --min-seq-id $MIN_SEQ_ID --kmer-per-seq 21
  --mask 0 --mask-prob 0.9 --mask-lower-case 0 --mask-n-repeat 0 -k 0 --max-seq-len 65535 \
  --hash-shift 67 --ignore-multi-kmer 0 \
  --split-memory-limit $SPLIT_MEMORY_LIMIT --scratch-budget $SCRATCH_BUDGET \
- --raw-records $RAW_RECORDS --threads $THREADS"
+ --raw-records $RAW_RECORDS --workers $WORKERS --threads $THREADS"
 REDUCE_PAR="-c $COV --cov-mode $COV_MODE --include-adjacency 1 --num-adjacency 3 \
  --split-memory-limit $SPLIT_MEMORY_LIMIT --raw-records $RAW_RECORDS \
- --reduce-slices $REDUCE_SLICES --threads $THREADS"
+ --reduce-slices $REDUCE_SLICES --workers $WORKERS --threads $THREADS"
 ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c $COV \
  --cov-mode $COV_MODE --threads $THREADS"
 

@@ -181,11 +181,19 @@ struct KmerShuffleSizing {
 // reduce will write.
 //
 // scratchBudgetBytes == 0 means unlimited, giving a single wave.
+//
+// workerCount is how many workers the runner launched for the stage, and it only
+// ever raises P. A partition is the reduce's unit of *work* as well as its unit of
+// memory, so deriving P from workerMemoryBytes alone makes it a ceiling on how
+// many workers the stage can use, and a generous per-node limit then starves the
+// very allocation it was raised for. 0 means "not told", which keeps the
+// memory-only sizing and the previous behaviour.
 KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount,
                                           unsigned int kmersPerSequence,
                                           uint64_t scratchBudgetBytes,
                                           uint64_t persistentBytes,
-                                          uint64_t workerMemoryBytes);
+                                          uint64_t workerMemoryBytes,
+                                          unsigned int workerCount = 0);
 
 // Converts a bucket record into the KmerPosition that assignGroup consumes, and
 // back. Templated rather than including kmermatcher.h so this header stays free

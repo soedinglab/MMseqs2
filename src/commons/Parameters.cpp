@@ -62,6 +62,7 @@ Parameters::Parameters():
         PARAM_KEY_MAP(PARAM_KEY_MAP_ID, "--key-map", "Sub-key map", "Maps this database's dense sub-keys back to the original keys, as written by createrepdb. Needed with --filter-cludb-file when the pass runs on a re-keyed representative database.", typeid(std::string), (void *) &keyMapFile, "", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SCRATCH_BUDGET(PARAM_SCRATCH_BUDGET_ID, "--scratch-budget", "Scratch budget", "Total scratch the run may occupy. The k-mer extraction wave count and the partition count are derived from this together with --split-memory-limit, rather than set by hand. Default (0) for a single wave. E.g. 100T, 500T", typeid(ByteParser), (void *) &scratchBudget, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SCRATCH_USED(PARAM_SCRATCH_USED_ID, "--scratch-used", "Scratch already used", "Bytes of --scratch-budget already occupied when this stage starts. The workflow measures it, so a later pass accounts for what earlier passes left on disk. 0 derives it from the input database alone.", typeid(ByteParser), (void *) &scratchUsed, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_WORKER_COUNT(PARAM_WORKER_COUNT_ID, "--workers", "Worker count hint", "How many workers the runner launches for this stage. Raises the k-mer partition and edge bucket counts so there is work for every worker to claim; it never lowers them below what the memory limit requires. A hint only: workers may still join late, die or be restarted, and the recorded layout stays authoritative. Default (0) sizes the work units from --split-memory-limit alone, which on a large per-node limit can leave most workers idle.", typeid(int), (void *) &workerCount, "^[0-9]+$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPILL_PREFIX(PARAM_SPILL_PREFIX_ID, "--spill-prefix", "Spill prefix", "Path prefix for this command's temporary spill files. Default (empty) puts them beside the output, which is outside the scratch filesystem --scratch-budget accounts for. Point it inside the run's tmp directory so the spill is counted and cleaned up with the rest of the run.", typeid(std::string), (void *) &spillPrefix, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
@@ -966,6 +967,7 @@ Parameters::Parameters():
     kmermatcherparallel.push_back(&PARAM_SCRATCH_BUDGET);
     kmermatcherparallel.push_back(&PARAM_SCRATCH_USED);
     kmermatcherparallel.push_back(&PARAM_KMER_WAVE);
+    kmermatcherparallel.push_back(&PARAM_WORKER_COUNT);
     kmermatcherparallel.push_back(&PARAM_THREADS);
     kmermatcherparallel.push_back(&PARAM_COMPRESSED);
     kmermatcherparallel.push_back(&PARAM_V);
@@ -976,6 +978,7 @@ Parameters::Parameters():
     // them would only create a way to disagree with what is on disk.
     kmerreduceparallel.push_back(&PARAM_RAW_RECORDS);
     kmerreduceparallel.push_back(&PARAM_REDUCE_SLICES);
+    kmerreduceparallel.push_back(&PARAM_WORKER_COUNT);
     kmerreduceparallel.push_back(&PARAM_SUB_MAT);
     kmerreduceparallel.push_back(&PARAM_ALPH_SIZE);
     kmerreduceparallel.push_back(&PARAM_C);
@@ -1651,6 +1654,7 @@ Parameters::Parameters():
     linclustparallelworkflow.push_back(&PARAM_COV_MODE);
     linclustparallelworkflow.push_back(&PARAM_E);
     linclustparallelworkflow.push_back(&PARAM_SCRATCH_BUDGET);
+    linclustparallelworkflow.push_back(&PARAM_WORKER_COUNT);
     linclustparallelworkflow.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     linclustparallelworkflow.push_back(&PARAM_THREADS);
     linclustparallelworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
@@ -2659,6 +2663,7 @@ void Parameters::setDefaults() {
     keyMapFile = "";
     scratchBudget = 0;
     scratchUsed = 0;
+    workerCount = 0;
     spillPrefix = "";
     writeTextIndex = 1;
     rawRecords = 0;

@@ -30,7 +30,52 @@ size_t deriveEdgeDescriptorBudget(unsigned int bucketCount) {
     }
     return std::min<size_t>(std::max<size_t>(allowed, 16), std::max<unsigned int>(bucketCount, 1));
 }
+
+// What one edge bucket should hold when memory would allow a bigger one.
+//
+// Deliberately far below any plausible per-node budget, because this count is
+// what bounds align-stage parallelism. 1 GiB puts 1e8 sequences at 32 buckets and
+// 1e9 at 128, which feeds any allocation those scales are run on, while staying
+// large enough that the per-bucket write buffers EdgeBucketWriter carves out of a
+// fixed budget are still worth having.
+const uint64_t TARGET_ALIGN_BUCKET_BYTES = 1ULL << 30;
+
+// Buckets per worker when --workers is given. More than one so a worker that
+// draws a heavy bucket is not the whole stage's critical path: bucket boundaries
+// are uniform in key space, not in edge count, and cluster sizes are heavy-tailed.
+const unsigned int ALIGN_BUCKETS_PER_WORKER = 4;
 }  // namespace
+
+unsigned int deriveAlignBucketCount(uint64_t dataSize, uint64_t entryCount,
+                                    uint64_t memoryLimitBytes, unsigned int workerCount) {
+    const uint64_t targetBucketBytes =
+        std::min<uint64_t>(memoryLimitBytes / 4, TARGET_ALIGN_BUCKET_BYTES);
+    unsigned int bucketCount = 1;
+    // A target of zero would double all the way to the ceiling on any input at
+    // all, so an unusable memory limit falls back to the byte target alone.
+    const uint64_t effectiveTarget = targetBucketBytes > 0 ? targetBucketBytes
+                                                           : TARGET_ALIGN_BUCKET_BYTES;
+    while (bucketCount < MAX_ALIGN_BUCKETS && dataSize / bucketCount > effectiveTarget) {
+        bucketCount *= 2;
+    }
+    // Only ever raises the count, so the memory ceiling above still holds. A hint
+    // rather than a contract: workers may join late, die or be restarted, and the
+    // recorded manifest stays authoritative. It matters where the data is too
+    // small for the byte target to make enough buckets by itself -- at 1e7 the
+    // edges are ~2 GB, which is two buckets however many workers are waiting.
+    if (workerCount > 0) {
+        const uint64_t wanted = static_cast<uint64_t>(workerCount) * ALIGN_BUCKETS_PER_WORKER;
+        while (bucketCount < MAX_ALIGN_BUCKETS && bucketCount < wanted) {
+            bucketCount *= 2;
+        }
+    }
+    // More buckets than there are keys leaves empty buckets and a bucketSpan of
+    // zero.
+    while (bucketCount > 1 && static_cast<uint64_t>(bucketCount) > entryCount) {
+        bucketCount /= 2;
+    }
+    return bucketCount;
+}
 
 std::string EdgeWriter::partitionPath(const std::string &dir, unsigned int partition) {
     return dir + "/p" + SSTR(partition) + ".edges";

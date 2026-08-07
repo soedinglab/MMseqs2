@@ -413,7 +413,8 @@ int kmermatcherparallel(int argc, const char **argv, const Command &command) {
         } else {
             sizing = deriveKmerShuffleSizing(info.entryCount, kmersPerSequence, par.scratchBudget,
                                              persistentBytes,
-                                             Util::computeMemory(par.splitMemoryLimit));
+                                             Util::computeMemory(par.splitMemoryLimit),
+                                             static_cast<unsigned int>(std::max(par.workerCount, 0)));
             ShuffleManifest manifest;
             manifest.entryCount = info.entryCount;
             manifest.partitionCount = sizing.partitionCount;

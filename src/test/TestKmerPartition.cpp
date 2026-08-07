@@ -7,6 +7,7 @@
 // the clustering is quietly wrong rather than visibly broken -- so it is checked
 // here directly, on a corpus with heavy k-mer repetition.
 
+#include "CandidateEdge.h"
 #include "FileUtil.h"
 #include "KmerPartition.h"
 #include "kmermatcher.h"
@@ -442,12 +443,86 @@ static void testShuffleSizing() {
           "a small input collapses to one partition and one wave");
 }
 
+// P is the reduce's unit of work as well as its unit of memory, so a per-node
+// memory limit large enough to hold everything used to derive P = 1 and leave the
+// whole allocation but one worker with nothing to claim. --workers raises it.
+void testShuffleSizingWorkerFloor() {
+    const uint64_t TB = 1024ULL * 1024 * 1024 * 1024;
+    const uint64_t GB = 1024ULL * 1024 * 1024;
+    // 1e9 sequences against a 800 GB node: the memory sizing alone gives a P far
+    // below the worker count, which is exactly the measured failure.
+    const KmerShuffleSizing untold = deriveKmerShuffleSizing(1000000000ULL, 21, 0, 0, 800 * GB);
+    const KmerShuffleSizing told = deriveKmerShuffleSizing(1000000000ULL, 21, 0, 0, 800 * GB, 8);
+    check(told.partitionCount >= 8,
+          "--workers gives every reduce worker at least one partition to claim");
+    check(told.partitionCount >= untold.partitionCount,
+          "--workers never lowers P below what the memory limit required");
+
+    // The hint must not break the invariants the rest of the shuffle relies on.
+    bool powerOfTwo = true;
+    bool wavesDivide = true;
+    for (unsigned int workers = 1; workers <= 1024; workers *= 2) {
+        const KmerShuffleSizing s =
+            deriveKmerShuffleSizing(1000000000ULL, 21, 100 * TB, 0, 64 * GB, workers);
+        powerOfTwo = powerOfTwo && s.partitionCount > 0 &&
+                     (s.partitionCount & (s.partitionCount - 1)) == 0 &&
+                     s.partitionCount <= 65536;
+        wavesDivide = wavesDivide && s.partitionCount % s.waveCount == 0;
+    }
+    check(powerOfTwo, "P stays a power of two inside the hash space at every worker count");
+    check(wavesDivide, "the wave count still divides P at every worker count");
+
+    // Not told is the previous behaviour, exactly.
+    const KmerShuffleSizing zero = deriveKmerShuffleSizing(1000000000ULL, 21, 0, 0, 800 * GB, 0);
+    check(zero.partitionCount == untold.partitionCount,
+          "--workers 0 leaves the memory-only sizing untouched");
+}
+
+// The align stage's parallelism is capped by the edge bucket count, so the same
+// failure mode applies: a generous memory limit must not collapse it to one.
+void testAlignBucketCount() {
+    const uint64_t GiB = 1024ULL * 1024 * 1024;
+
+    // The measured 1e9 case: 125 GB of edges on a 800 GB node produced one bucket
+    // and left alignparallel running on a single node for half the run.
+    const unsigned int big = deriveAlignBucketCount(125 * GiB, 1000000000ULL, 800 * GiB, 0);
+    check(big >= 64, "a large edge set is split into many buckets despite a large memory limit");
+
+    // More memory must never mean less parallelism.
+    bool monotone = true;
+    unsigned int previous = deriveAlignBucketCount(125 * GiB, 1000000000ULL, 16 * GiB, 0);
+    for (uint64_t limit = 32; limit <= 1024; limit *= 2) {
+        const unsigned int now = deriveAlignBucketCount(125 * GiB, 1000000000ULL, limit * GiB, 0);
+        monotone = monotone && now <= previous;
+        previous = now;
+    }
+    check(monotone, "raising the memory limit never raises the bucket count");
+    check(deriveAlignBucketCount(125 * GiB, 1000000000ULL, 1024 * GiB, 0) >= 64,
+          "even an unlimited-looking memory limit keeps the byte target's buckets");
+
+    // The worker hint only ever raises it.
+    const unsigned int small = deriveAlignBucketCount(2 * GiB, 10000000ULL, 800 * GiB, 0);
+    const unsigned int hinted = deriveAlignBucketCount(2 * GiB, 10000000ULL, 800 * GiB, 8);
+    check(hinted >= 8, "--workers gives every align worker a bucket on a small input");
+    check(hinted >= small, "--workers never lowers the bucket count");
+
+    // Bounds.
+    check(deriveAlignBucketCount(1024, 4, 800 * GiB, 64) <= 4,
+          "there are never more buckets than representative keys");
+    check(deriveAlignBucketCount(0, 0, 800 * GiB, 0) == 1,
+          "an empty edge set is a single bucket");
+    check(deriveAlignBucketCount(1ULL << 50, 1ULL << 40, 0, 1000000) <= MAX_ALIGN_BUCKETS,
+          "the bucket count stays inside the 16-bit id space");
+}
+
 int main(int, char **) {
     const std::string dir = makeTempDir();
 
     testRecordLayout();
     testPartitioner();
     testShuffleSizing();
+    testShuffleSizingWorkerFloor();
+    testAlignBucketCount();
     testKmerPositionConversion();
     testLosslessRoundTrip(dir, true);
     testLosslessRoundTrip(dir, false);

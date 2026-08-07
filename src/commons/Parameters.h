@@ -444,6 +444,7 @@ public:
     int kmerWave;                        // kmermatcherparallel: which extraction wave to write
     size_t scratchBudget;
     size_t scratchUsed;                  // Bytes of the budget already occupied when a stage starts
+    int workerCount;                     // Workers the runner launched; a sizing hint, never a contract
     std::string spillPrefix;             // translatekeys: where its spill files go, when not beside the output
     int writeTextIndex;                  // createdbparallel: also write the stock-compatible text .index
     int rawRecords;                      // kmermatcherparallel/kmerreduceparallel: write uncompacted fixed-width records
@@ -846,6 +847,7 @@ public:
     PARAMETER(PARAM_KEY_MAP)
     PARAMETER(PARAM_SCRATCH_BUDGET)
     PARAMETER(PARAM_SCRATCH_USED)
+    PARAMETER(PARAM_WORKER_COUNT)
     PARAMETER(PARAM_SPILL_PREFIX)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)

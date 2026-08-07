@@ -104,6 +104,11 @@ int linclustparallel(int argc, const char **argv, const Command &command) {
     // straight through would inflate both limits a millionfold.
     cmd.addVariable("SPLIT_MEMORY_LIMIT", byteValue(par.splitMemoryLimit).c_str());
     cmd.addVariable("SCRATCH_BUDGET", byteValue(par.scratchBudget).c_str());
+    // Reaches the two stages that size work units, so they can make enough of them
+    // for the allocation. Without it those counts come from --split-memory-limit
+    // alone, and a generous per-node limit leaves most of the allocation with
+    // nothing to claim.
+    cmd.addVariable("WORKERS", SSTR(par.workerCount).c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
 
     std::string program = tmpDir + "/linclustparallel.sh";

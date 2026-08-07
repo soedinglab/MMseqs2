@@ -125,6 +125,7 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
 // error worth surfacing rather than working around.
 const unsigned int MAX_REDUCE_SLICES = 1024;
 
+
 // Records per slice, so each slice's array is allocated for what it actually
 // holds rather than for an assumed even split.
 //
@@ -656,14 +657,33 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
         FileUtil::makeDir(reduceCoordDir.c_str());
     }
 
-    // Edge buckets are ranges of representative key. Sized so one bucket's
-    // sequences are a comfortable slice for the align stage, which loads them
-    // whole; the align workers' memory, not the reduce's, sets this.
-    const uint64_t targetBucketBytes = Util::computeMemory(par.splitMemoryLimit) / 4;
-    unsigned int bucketCount = 1;
-    while (bucketCount < 65536 && info.dataSize / bucketCount > targetBucketBytes) {
-        bucketCount *= 2;
-    }
+    // Edge buckets are ranges of representative key, and they are two things at
+    // once:
+    //
+    //   1. a slice that has to fit an align worker, which loads its sequences
+    //      whole -- the align workers' memory, not the reduce's, sets this;
+    //   2. the unit of work the align stage's queue hands out, which makes the
+    //      count a hard ceiling on how many workers that stage can use at all.
+    //
+    // Sizing it from (1) alone -- which is what this did -- means a *generous*
+    // --split-memory-limit yields *fewer* buckets and less parallelism. That is
+    // backwards, and silent: the starved workers find nothing claimable, sleep in
+    // the heartbeat and exit 0. Measured at 1e9 with 800G per node, the edges are
+    // 125 GB against a 200 GB target, so bucketCount stayed 1 and alignparallel
+    // ran 3h16m on a single node while three others idled -- half the wall clock
+    // of the whole run.
+    //
+    // So the memory figure becomes a ceiling and the target is taken well below
+    // it. The cost is bounded and already handled: EdgeBucketWriter caps its open
+    // descriptors (deriveEdgeDescriptorBudget) and floors the per-bucket write
+    // buffer at 64 records, so a few thousand buckets is a few MB of buffering
+    // rather than descriptor exhaustion.
+    // Derived in CandidateEdge so it can be tested without a database; see the
+    // comment on deriveAlignBucketCount for why the memory limit is a ceiling
+    // rather than the target.
+    unsigned int bucketCount = deriveAlignBucketCount(
+        info.dataSize, info.entryCount, Util::computeMemory(par.splitMemoryLimit),
+        static_cast<unsigned int>(std::max(par.workerCount, 0)));
     uint64_t bucketSpan = (info.entryCount + bucketCount - 1) / bucketCount;
 
     // The manifest is authoritative once it exists; the derivation above only

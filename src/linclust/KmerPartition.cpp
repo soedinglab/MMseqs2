@@ -36,6 +36,11 @@ namespace {
 // candidate edges take the rest of the headroom.
 const uint64_t REDUCE_MEMORY_FACTOR = 3;
 
+// Partitions per worker when the caller passes --workers. More than one so the
+// reduce's makespan is not set by whichever worker draws the heaviest partition;
+// k-mer hashes spread evenly enough that a small factor suffices.
+const uint64_t REDUCE_PARTITIONS_PER_WORKER = 2;
+
 // More waves than this means the budget is wrong, not that the plan is clever.
 const unsigned int MAX_SENSIBLE_WAVES = 64;
 
@@ -89,7 +94,7 @@ unsigned int roundUpToPowerOfTwo(uint64_t value) {
 
 KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int kmersPerSequence,
                                           uint64_t scratchBudgetBytes, uint64_t persistentBytes,
-                                          uint64_t workerMemoryBytes) {
+                                          uint64_t workerMemoryBytes, unsigned int workerCount) {
     KmerShuffleSizing sizing;
     sizing.totalKmerBytes = sequenceCount * kmersPerSequence * sizeof(KmerRecord);
 
@@ -161,6 +166,22 @@ KmerShuffleSizing deriveKmerShuffleSizing(uint64_t sequenceCount, unsigned int k
     }
     // Both are powers of two, so this makes the wave count a divisor of P.
     sizing.partitionCount = std::max(sizing.partitionCount, sizing.waveCount);
+    // A partition is also the reduce's unit of work, so P is a ceiling on how
+    // many workers that stage can use -- deriving it from memory alone means a
+    // generous --split-memory-limit starves the very allocation it was raised
+    // for. Measured at 1e9 with 800G per node: P = 2, so six of eight reduce
+    // workers had nothing to claim.
+    //
+    // Only ever raises P, so the memory sizing above still bounds what one worker
+    // holds, and the result stays a power of two, which keeps waveCount a divisor
+    // of P. A hint, not a contract: the manifest the caller writes stays
+    // authoritative, so a restart with a different --workers cannot re-shape an
+    // existing shuffle.
+    if (workerCount > 0) {
+        sizing.partitionCount = std::max(
+            sizing.partitionCount,
+            roundUpToPowerOfTwo(static_cast<uint64_t>(workerCount) * REDUCE_PARTITIONS_PER_WORKER));
+    }
     if (sizing.partitionCount > 65536) {
         // Above the 16-bit hash space the partitioner cannot tell partitions
         // apart, so this is a real dead end rather than something to clamp: the
