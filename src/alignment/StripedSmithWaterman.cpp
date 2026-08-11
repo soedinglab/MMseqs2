@@ -1815,6 +1815,19 @@ inline F simd_hmax(const F * in, unsigned int n) {
 }
 
 int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
+    return ungapped_alignment_impl<false>(db_sequence, db_length, NULL);
+}
+
+// Reports the diagonal of the best-scoring cell alongside the score. See the header.
+int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length,
+                                      int &bestDiagonal) {
+    bestDiagonal = 0;
+    return ungapped_alignment_impl<true>(db_sequence, db_length, &bestDiagonal);
+}
+
+template <bool TrackDiagonal>
+int SmithWaterman::ungapped_alignment_impl(const unsigned char *db_sequence, int32_t db_length,
+                                           int *bestDiagonalOut) {
 #define SWAP(tmp, arg1, arg2) tmp = arg1; arg1 = arg2; arg2 = tmp;
 
     int i; // position in query bands (0,..,W-1)
@@ -1826,6 +1839,8 @@ int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t 
     simd_int *p;
     simd_int S;              // 16 unsigned bytes holding S(b*W+i,j) (b=0,..,15)
     simd_int Smax = simdi_setzero();
+    int trackedBest = 0;      // running max, only maintained when TrackDiagonal
+    int trackedDiagonal = 0;  // diagonal (queryPos - dbPos) that produced trackedBest
     simd_int Soffset; // all scores in query profile are shifted up by Soffset to obtain pos values
     simd_int *s_prev, *s_curr; // pointers to Score(i-1,j-1) and Score(i,j), resp.
     simd_int *qji;             // query profile score in row j (for residue x_j)
@@ -1867,10 +1882,40 @@ int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t 
             // Load the next S and Smax values
             S = simdi_load(s_prev_it++);
         }
+        if (TrackDiagonal) {
+            // Smax only ever grows, so a bigger horizontal max means this column j produced a new
+            // best cell. That happens at most 255 times (byte scores), so locating it by scanning
+            // the column is cheap; the per-column cost is one horizontal max.
+            const int columnBest = (int) simdi8_hmax(Smax);
+            if (columnBest > trackedBest) {
+                trackedBest = columnBest;
+                const unsigned char *cells = (const unsigned char *) s_curr;
+                for (int band = 0; band < W; band++) {
+                    for (int lane = 0; lane < element_count; lane++) {
+                        // striped layout: query position = band + lane * W (createQueryProfile)
+                        const int queryPos = band + lane * W;
+                        if (queryPos >= profile->query_length) {
+                            continue;  // padded lanes, never the real maximum
+                        }
+                        if ((int) cells[band * element_count + lane] == columnBest) {
+                            trackedDiagonal = queryPos - j;
+                            band = W;  // break out of both loops
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
     int score = simd_hmax((unsigned char *) &Smax, element_count);
+    if (TrackDiagonal) {
+        *bestDiagonalOut = trackedDiagonal;
+    }
 
     /* return largest score */
     return score;
 #undef SWAP
 }
+
+template int SmithWaterman::ungapped_alignment_impl<false>(const unsigned char *, int32_t, int *);
+template int SmithWaterman::ungapped_alignment_impl<true>(const unsigned char *, int32_t, int *);

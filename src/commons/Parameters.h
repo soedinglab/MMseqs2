@@ -93,6 +93,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
     static const unsigned int DBTYPE_EXTENDED_GPU = 8;
     static const unsigned int DBTYPE_EXTENDED_SET = 16;
+    static const unsigned int DBTYPE_EXTENDED_AUX_SEQ = 32;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -414,6 +415,7 @@ public:
     int    gpu;                          // use GPU
     int    gpuServer;                    // use the gpu server
     int    gpuServerWaitTimeout;         // wait for this many seconds until GPU server is ready
+    int    gpuRescoreTopkMult;           // rescore top (this * maxResListLen) hits with the aux channel
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
@@ -890,6 +892,7 @@ public:
     PARAMETER(PARAM_GPU)
     PARAMETER(PARAM_GPU_SERVER)
     PARAMETER(PARAM_GPU_SERVER_WAIT_TIMEOUT)
+    PARAMETER(PARAM_GPU_RESCORE_TOPK_MULT)
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
     PARAMETER(PARAM_FORMAT_OUTPUT)

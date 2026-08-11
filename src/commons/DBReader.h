@@ -533,6 +533,8 @@ private:
     int dbtype;
     int compression;
     int padded;
+    // set when the DB packs two alphabets into one byte; see the note in the DBReader constructor
+    bool packedAlphabet;
     char ** compressedBuffers;
     size_t * compressedBufferSizes;
     ZSTD_DStream ** dstream;
