@@ -1347,7 +1347,9 @@ void DBReader<T>::decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize,
             sumCharsAssignedToCurrRank = 0;
             currentRank++;
         }
-        sumCharsAssignedToCurrRank += index[i].length;
+        // Add the sequence length at position i (after any sorting)
+        // This is identical to index[i].length when the reader is unsorted
+        sumCharsAssignedToCurrRank += getEntryLen(i);
         entriesPerWorker[currentRank] += 1;
     }
 
