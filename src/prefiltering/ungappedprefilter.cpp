@@ -185,7 +185,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
                 profile = (int8_t*)realloc(profile, subMat->alphabetSize * profileBufferLength * sizeof(int8_t));
             }
             if (compositionBias != NULL) {
-                if ((size_t)qSeq.L >= compBufferSize) {
+                if ((size_t)qSeq.L * sizeof(float) >= compBufferSize) {
                     compBufferSize = (size_t)qSeq.L * 1.5 * sizeof(float);
                     compositionBias = (float*)realloc(compositionBias, compBufferSize);
                     // memset(compositionBias, 0, compBufferSize);
