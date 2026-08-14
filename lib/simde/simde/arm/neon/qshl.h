@@ -23,6 +23,7 @@
  * Copyright:
  *   2020      Evan Nemerson <evan@nemerson.com>
  *   2020      Christopher Moore <moore@free.fr>
+ *   2023      Yi-Yen Chung <eric681@andestech.com> (Copyright owned by Andes Technology)
  */
 
 #if !defined(SIMDE_ARM_NEON_QSHL_H)
@@ -186,21 +187,23 @@ simde_vqshlb_u8(uint8_t a, int8_t b) {
     #endif
   #else
     uint8_t r;
+    int8_t b8 = HEDLEY_STATIC_CAST(int8_t, b);
 
-    if (b < -7)
-      b = -7;
-
-    if (b <= 0) {
-      r = a >> -b;
-    } else if (b < 7) {
-      r = HEDLEY_STATIC_CAST(uint8_t, a << b);
-      if ((r >> b) != a) {
+    if ((b8 <= -8) || (a == 0))
+    {
+      r = 0;
+    }
+    else if (b8 >= 8)
+    {
+      r = UINT8_MAX;
+    }
+    else if (b8 <= 0) {
+      r = a >> -b8;
+    } else {
+      r = HEDLEY_STATIC_CAST(uint8_t, a << b8);
+      if ((r >> b8) != a) {
         r = UINT8_MAX;
       }
-    } else if (a == 0) {
-      r = 0;
-    } else {
-      r = UINT8_MAX;
     }
 
     return r;
@@ -227,21 +230,23 @@ simde_vqshlh_u16(uint16_t a, int16_t b) {
     #endif
   #else
     uint16_t r;
+    int8_t b8 = HEDLEY_STATIC_CAST(int8_t, b);
 
-    if (b < -15)
-      b = -15;
-
-    if (b <= 0) {
-      r = a >> -b;
-    } else if (b < 15) {
-      r = HEDLEY_STATIC_CAST(uint16_t, a << b);
-      if ((r >> b) != a) {
+    if ((b8 <= -16) || (a == 0))
+    {
+      r = 0;
+    }
+    else if (b8 >= 16)
+    {
+      r = UINT16_MAX;
+    }
+    else if (b8 <= 0) {
+      r = a >> -b8;
+    } else {
+      r = HEDLEY_STATIC_CAST(uint16_t, a << b8);
+      if ((r >> b8) != a) {
         r = UINT16_MAX;
       }
-    } else if (a == 0) {
-      r = 0;
-    } else {
-      r = UINT16_MAX;
     }
 
     return r;
@@ -268,21 +273,23 @@ simde_vqshls_u32(uint32_t a, int32_t b) {
     #endif
   #else
     uint32_t r;
+    int8_t b8 = HEDLEY_STATIC_CAST(int8_t, b);
 
-    if (b < -31)
-      b = -31;
-
-    if (b <= 0) {
-      r = HEDLEY_STATIC_CAST(uint32_t, a >> -b);
-    } else if (b < 31) {
-      r = a << b;
-      if ((r >> b) != a) {
+    if ((b8 <= -32) || (a == 0))
+    {
+      r = 0;
+    }
+    else if (b8 >= 32)
+    {
+      r = UINT32_MAX;
+    }
+    else if (b8 <= 0) {
+      r = a >> -b8;
+    } else {
+      r = HEDLEY_STATIC_CAST(uint32_t, a << b8);
+      if ((r >> b8) != a) {
         r = UINT32_MAX;
       }
-    } else if (a == 0) {
-      r = 0;
-    } else {
-      r = UINT32_MAX;
     }
 
     return r;
@@ -309,28 +316,30 @@ simde_vqshld_u64(uint64_t a, int64_t b) {
     #endif
   #else
     uint64_t r;
+    int8_t b8 = HEDLEY_STATIC_CAST(int8_t, b);
 
-    if (b < -63)
-      b = -63;
-
-    if (b <= 0) {
-      r = a >> -b;
-    } else if (b < 63) {
-      r = HEDLEY_STATIC_CAST(uint64_t, a << b);
-      if ((r >> b) != a) {
+    if ((b8 <= -64) || (a == 0))
+    {
+      r = 0;
+    }
+    else if (b8 >= 64)
+    {
+      r = UINT64_MAX;
+    }
+    else if (b8 <= 0) {
+      r = a >> -b8;
+    } else {
+      r = HEDLEY_STATIC_CAST(uint64_t, a << b8);
+      if ((r >> b8) != a) {
         r = UINT64_MAX;
       }
-    } else if (a == 0) {
-      r = 0;
-    } else {
-      r = UINT64_MAX;
     }
 
     return r;
   #endif
 }
 #if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES)
-  #undef vqshldb_u64
+  #undef vqshld_u64
   #define vqshld_u64(a, b) simde_vqshld_u64((a), (b))
 #endif
 

@@ -23,6 +23,8 @@
  * Copyright:
  *   2020      Evan Nemerson <evan@nemerson.com>
  *   2021      Zhi An Ng <zhin@google.com> (Copyright owned by Google, LLC)
+ *   2023      Yi-Yen Chung <eric681@andestech.com> (Copyright owned by Andes Technology)
+ *   2023      Chi-Wei Chu <wewe5215@gapp.nthu.edu.tw> (Copyright owned by NTHU pllab)
  */
 
 #if !defined(SIMDE_ARM_NEON_SHRN_N_H)
@@ -43,10 +45,16 @@ simde_vshrn_n_s16 (const simde_int16x8_t a, const int n)
     SIMDE_REQUIRE_CONSTANT_RANGE(n, 1, 8) {
   simde_int8x8_private r_;
   simde_int16x8_private a_ = simde_int16x8_to_private(a);
-  SIMDE_VECTORIZE
-  for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-    r_.values[i] = HEDLEY_STATIC_CAST(int8_t, (a_.values[i] >> n) & UINT8_MAX);
-  }
+
+  #if defined(SIMDE_RISCV_V_NATIVE)
+    vint16m1_t shift = __riscv_vand_vx_i16m1(__riscv_vsll_vx_i16m1 (a_.sv128, n, 8), UINT8_MAX, 8);
+    r_.sv64 = __riscv_vlmul_ext_v_i8mf2_i8m1(__riscv_vncvt_x_x_w_i8mf2(shift, 8));
+  #else
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = HEDLEY_STATIC_CAST(int8_t, (a_.values[i] >> n) & UINT8_MAX);
+    }
+  #endif
   return simde_int8x8_from_private(r_);
 }
 #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -65,12 +73,15 @@ simde_vshrn_n_s32 (const simde_int32x4_t a, const int n)
     SIMDE_REQUIRE_CONSTANT_RANGE(n, 1, 16) {
   simde_int16x4_private r_;
   simde_int32x4_private a_ = simde_int32x4_to_private(a);
-
-  SIMDE_VECTORIZE
-  for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-    r_.values[i] = HEDLEY_STATIC_CAST(int16_t, (a_.values[i] >> n) & UINT16_MAX);
-  }
-
+  #if defined(SIMDE_RISCV_V_NATIVE)
+    vint32m1_t shift = __riscv_vand_vx_i32m1(__riscv_vsll_vx_i32m1 (a_.sv128, n, 4), UINT16_MAX, 4);
+    r_.sv64 = __riscv_vlmul_ext_v_i16mf2_i16m1(__riscv_vncvt_x_x_w_i16mf2(shift, 4));
+  #else
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = HEDLEY_STATIC_CAST(int16_t, (a_.values[i] >> n) & UINT16_MAX);
+    }
+  #endif
   return simde_int16x4_from_private(r_);
 }
 #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -90,11 +101,15 @@ simde_vshrn_n_s64 (const simde_int64x2_t a, const int n)
   simde_int32x2_private r_;
   simde_int64x2_private a_ = simde_int64x2_to_private(a);
 
-  SIMDE_VECTORIZE
-  for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-    r_.values[i] = HEDLEY_STATIC_CAST(int32_t, (a_.values[i] >> n) & UINT32_MAX);
-  }
-
+  #if defined(SIMDE_RISCV_V_NATIVE)
+    vint64m1_t shift = __riscv_vand_vx_i64m1(__riscv_vsll_vx_i64m1 (a_.sv128, n, 2), UINT32_MAX, 2);
+    r_.sv64 = __riscv_vlmul_ext_v_i32mf2_i32m1(__riscv_vncvt_x_x_w_i32mf2(shift, 2));
+  #else
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = HEDLEY_STATIC_CAST(int32_t, (a_.values[i] >> n) & UINT32_MAX);
+    }
+  #endif
   return simde_int32x2_from_private(r_);
 }
 #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -107,40 +122,36 @@ simde_vshrn_n_s64 (const simde_int64x2_t a, const int n)
   #define vshrn_n_s64(a, n) simde_vshrn_n_s64((a), (n))
 #endif
 
-#define simde_vshrn_n_u16(a, n) \
-  simde_vreinterpret_u8_s8(     \
-      simde_vshrn_n_s16(simde_vreinterpretq_s16_u16(a), (n)))
-
 #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
-  #undef simde_vshrn_n_u16
   #define simde_vshrn_n_u16(a, n) vshrn_n_u16((a), (n))
+#else
+  #define simde_vshrn_n_u16(a, n) \
+    simde_vreinterpret_u8_s8( \
+        simde_vshrn_n_s16(simde_vreinterpretq_s16_u16(a), (n)))
 #endif
-
 #if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
   #undef vshrn_n_u16
   #define vshrn_n_u16(a, n) simde_vshrn_n_u16((a), (n))
 #endif
 
-#define simde_vshrn_n_u32(a, n) \
-  simde_vreinterpret_u16_s16( \
-      simde_vshrn_n_s32(simde_vreinterpretq_s32_u32(a), (n)))
-
 #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
-  #undef simde_vshrn_n_u32
   #define simde_vshrn_n_u32(a, n) vshrn_n_u32((a), (n))
+#else
+  #define simde_vshrn_n_u32(a, n) \
+    simde_vreinterpret_u16_s16( \
+        simde_vshrn_n_s32(simde_vreinterpretq_s32_u32(a), (n)))
 #endif
 #if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
   #undef vshrn_n_u32
   #define vshrn_n_u32(a, n) simde_vshrn_n_u32((a), (n))
 #endif
 
-#define simde_vshrn_n_u64(a, n) \
-  simde_vreinterpret_u32_s32( \
-      simde_vshrn_n_s64(simde_vreinterpretq_s64_u64(a), (n)))
-
 #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
-  #undef simde_vshrn_n_u64
   #define simde_vshrn_n_u64(a, n) vshrn_n_u64((a), (n))
+#else
+  #define simde_vshrn_n_u64(a, n) \
+    simde_vreinterpret_u32_s32( \
+        simde_vshrn_n_s64(simde_vreinterpretq_s64_u64(a), (n)))
 #endif
 #if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
   #undef vshrn_n_u64
