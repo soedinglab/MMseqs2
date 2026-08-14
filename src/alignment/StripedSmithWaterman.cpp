@@ -870,7 +870,7 @@ s_align SmithWaterman::ssw_align_private (
 
 	bool blockAlignFailed = false;
 	s_align alignTmp = alignStartPosBacktraceBlock<type>(db_sequence, db_length, gap_open, gap_extend, backtrace, align);
-	if (align.score1 == UINT32_MAX) {
+	if (alignTmp.score1 == UINT32_MAX) {
 		blockAlignFailed = true;
 	} else {
 		align = alignTmp;
