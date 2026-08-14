@@ -1,4 +1,4 @@
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
 #include "GpuUtil.h"
 
 #include "Debug.h"
