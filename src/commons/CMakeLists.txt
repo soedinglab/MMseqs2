@@ -78,6 +78,7 @@ set(commons_source_files
         commons/Sequence.cpp
         commons/SequenceWeights.cpp
         commons/SubstitutionMatrix.cpp
+        commons/Timer.cpp
         commons/UniprotKB.cpp
         commons/Util.cpp
         PARENT_SCOPE

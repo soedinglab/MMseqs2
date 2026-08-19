@@ -7,6 +7,7 @@
 #include "FileUtil.h"
 #include "itoa.h"
 #include "Parameters.h"
+#include <sstream>
 
 #ifdef OPENMP
 #include <omp.h>

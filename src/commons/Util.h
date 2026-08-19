@@ -4,6 +4,7 @@
 #include <string>
 #include <cstddef>
 #include <cstring>
+#include <cstdio>
 #include <vector>
 #include <limits>
 #include <map>
@@ -12,7 +13,7 @@
 #include "IndexTypes.h"
 
 #ifndef EXIT
-#define EXIT(exitCode) do { int __status = (exitCode); std::cerr.flush(); std::cout.flush(); exit(__status); } while(0)
+#define EXIT(exitCode) do { int __status = (exitCode); fflush(NULL); exit(__status); } while(0)
 #endif
 
 #define BIT_SET(a,b) ((a) | (1ULL<<(b)))

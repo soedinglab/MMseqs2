@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <sstream>
+#include <iostream>
 
 #ifdef OPENMP
 #include <omp.h>

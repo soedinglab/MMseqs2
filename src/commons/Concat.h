@@ -18,6 +18,7 @@
 #include "Debug.h"
 #include "FileUtil.h"
 #include "Util.h"
+#include <iostream>
 #define SAFE_READ_ERROR ((size_t) -1)
 
 class Concat {

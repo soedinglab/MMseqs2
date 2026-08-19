@@ -4,6 +4,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "HeaderSummarizer.h"
+#include <sstream>
 
 #ifdef OPENMP
 #include <omp.h>

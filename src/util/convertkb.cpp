@@ -8,6 +8,7 @@
 
 #include <fstream>
 #include <set>
+#include <sstream>
 
 std::string getPrimaryAccession(const std::string &accession) {
     size_t end = accession.find_first_of(';');

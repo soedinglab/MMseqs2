@@ -3,6 +3,7 @@
 #include "DBWriter.h"
 #include "Util.h"
 #include "Debug.h"
+#include <sstream>
 
 #ifdef OPENMP
 #include <omp.h>
