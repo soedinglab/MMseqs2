@@ -1,3 +1,5 @@
+#ifndef FASTSORT_H
+#define FASTSORT_H
 #include <algorithm>
 
 #ifdef ENABLE_IPS4O
@@ -17,4 +19,5 @@
 #else
 # define SORT_PARALLEL std::sort
 # define SORT_SERIAL std::sort
+#endif
 #endif
