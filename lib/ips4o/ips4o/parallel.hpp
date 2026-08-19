@@ -85,10 +85,8 @@ void Sorter<Cfg>::parallelSecondary(SharedData& shared, int id, int num_threads)
  * Main loop for the primary thread in the parallel algorithm.
  */
 template <class Cfg>
-template <class TaskSorter>
 void Sorter<Cfg>::parallelPrimary(const iterator begin, const iterator end,
-                                  SharedData& shared, const int num_threads,
-                                  TaskSorter&& task_sorter) {
+                                  SharedData& shared, const int num_threads) {
     const auto max_sequential_size = [&] {
         const auto div = (end - begin) / num_threads;
         const auto blocks = num_threads * Cfg::kMinParallelBlocksPerThread * Cfg::kBlockSize;
@@ -128,7 +126,8 @@ void Sorter<Cfg>::parallelPrimary(const iterator begin, const iterator end,
         }
         if (shared.big_tasks.empty()) {
             // Sort small tasks by size, larger ones first
-            task_sorter(shared.small_tasks.begin(), shared.small_tasks.end());
+            std::sort(shared.small_tasks.begin(), shared.small_tasks.end(),
+                      std::greater<detail::ParallelTask>());
         }
 
         shared.reset();
@@ -158,7 +157,6 @@ class ParallelSorter {
             , shared_ptr_(Cfg::kDataAlignment, std::move(comp), thread_pool_.sync(), thread_pool_.numThreads())
             , buffer_storage_(thread_pool_.numThreads())
             , local_ptrs_(new detail::AlignedPtr<typename Sorter::LocalData>[thread_pool_.numThreads()])
-            , task_sorter_(false, {}, buffer_storage_.forThread(0))
     {
         // Allocate local data
         thread_pool_([this](int my_id, int) {
@@ -190,7 +188,7 @@ class ParallelSorter {
             auto& shared = this->shared_ptr_.get();
             Sorter sorter(*shared.local[my_id]);
             if (my_id == 0)
-                sorter.parallelPrimary(begin, end, shared, num_threads, task_sorter_);
+                sorter.parallelPrimary(begin, end, shared, num_threads);
             else
                 sorter.parallelSecondary(shared, my_id, num_threads);
         }, num_threads);
@@ -201,10 +199,6 @@ class ParallelSorter {
     detail::AlignedPtr<typename Sorter::SharedData> shared_ptr_;
     typename Sorter::BufferStorage buffer_storage_;
     std::unique_ptr<detail::AlignedPtr<typename Sorter::LocalData>[]> local_ptrs_;
-    SequentialSorter<ExtendedConfig<
-                std::vector<detail::ParallelTask>::iterator,
-                std::greater<>, typename Cfg::BaseConfig
-                       >> task_sorter_;
 };
 
 }  // namespace ips4o
