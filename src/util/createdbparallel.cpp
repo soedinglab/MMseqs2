@@ -247,6 +247,22 @@ Chunk resolveChunk(const std::vector<std::string> &filenames, const ChunkLayout 
 // small inputs keep small chunks so a second worker still has something to claim.
 const size_t TARGET_CHUNKS = 100000;
 
+// Ceiling on the derived chunk size, independent of how large the input is.
+//
+// The scaling below is the whole point of this function, but scaling with the
+// *total* input size makes per-worker memory grow with the database -- which is
+// exactly the property the file header says this design does not have. A chunk is
+// read whole and re-buffered before it is written, roughly 2.3x its size, in each
+// of `threads` concurrent items: at 1e12 sequences the unbounded form derived a
+// 3.5 GB chunk, i.e. ~515 GB per node at 64 threads and over a terabyte at 128.
+// The worker OOMs, and because the size is re-derived identically on restart,
+// every retry OOMs in the same place unless --chunk-size is set by hand.
+//
+// 1 GB keeps the chunk count near TARGET_CHUNKS for everything up to ~100 TB of
+// FASTA and simply stops growing after that: past this point the coordination
+// cost the scaling exists to avoid is already amortised, and the memory is not.
+const uint64_t MAX_DERIVED_CHUNK_BYTES = 1024ULL * 1024 * 1024;
+
 size_t deriveChunkSize(const std::vector<std::string> &filenames, size_t requested,
                        bool userSupplied) {
     if (userSupplied) {
@@ -256,7 +272,8 @@ size_t deriveChunkSize(const std::vector<std::string> &filenames, size_t request
     for (size_t i = 0; i < filenames.size(); i++) {
         totalBytes += FileUtil::getFileSize(filenames[i]);
     }
-    const uint64_t wanted = totalBytes / TARGET_CHUNKS;
+    uint64_t wanted = totalBytes / TARGET_CHUNKS;
+    wanted = std::min(wanted, MAX_DERIVED_CHUNK_BYTES);
     if (wanted <= requested) {
         return requested;
     }
