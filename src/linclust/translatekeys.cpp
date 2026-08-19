@@ -37,6 +37,8 @@
 #include <vector>
 
 #include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -389,30 +391,134 @@ private:
     std::string pendingAccession;
 };
 
+// The first line beginning at or after `from`, as (offset, key).
+//
+// False at end of file. Reads in blocks rather than a byte at a time: this is the
+// probe of a binary search over a file that is hundreds of gigabytes at 1e10.
+static bool lineAtOrAfter(int fd, uint64_t size, uint64_t from, uint64_t &lineStart,
+                          uint64_t &key) {
+    if (from >= size) {
+        return false;
+    }
+    uint64_t at = from;
+    if (from > 0) {
+        // Not a line start unless we land on one: the bytes up to and including the
+        // next newline belong to the previous line.
+        char buf[64 * 1024];
+        bool found = false;
+        while (at < size && found == false) {
+            const size_t want = static_cast<size_t>(std::min<uint64_t>(sizeof(buf), size - at));
+            const ssize_t got = pread(fd, buf, want, static_cast<off_t>(at));
+            if (got < 0) {
+                if (errno == EINTR) continue;
+                Debug(Debug::ERROR) << "Cannot read the lookup at offset " << at << ": "
+                                    << strerror(errno) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (got == 0) {
+                return false;  // end of file
+            }
+            const char *nl = static_cast<const char *>(memchr(buf, '\n', static_cast<size_t>(got)));
+            if (nl != NULL) {
+                at += static_cast<uint64_t>(nl - buf) + 1;
+                found = true;
+            } else {
+                at += static_cast<uint64_t>(got);
+            }
+        }
+        if (found == false || at >= size) {
+            return false;
+        }
+    }
+    // The key is the first field, so a short read is enough to parse it -- but it
+    // has to be a *complete* short read. Returning false on a signal or a partial
+    // read is indistinguishable from "there is no line here", which the binary
+    // search takes as "search lower" and the consumers take as "this bucket is
+    // empty": every clustering row in its key range then vanishes from the output
+    // with nothing said. A partial read is worse still, since it can truncate the
+    // key mid-number and converge on the wrong offset.
+    char head[64];
+    const size_t want = static_cast<size_t>(std::min<uint64_t>(sizeof(head) - 1, size - at));
+    size_t have = 0;
+    while (have < want) {
+        const ssize_t got = pread(fd, head + have, want - have, static_cast<off_t>(at + have));
+        if (got < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            Debug(Debug::ERROR) << "Cannot read the lookup at offset " << (at + have) << ": "
+                                << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (got == 0) {
+            break;  // end of file, which for the last line is legitimate
+        }
+        have += static_cast<size_t>(got);
+    }
+    if (have == 0) {
+        return false;
+    }
+    head[have] = '\0';
+    lineStart = at;
+    key = strtoull(head, NULL, 10);
+    return true;
+}
+
 // Byte offset in the lookup where each bucket's key range begins.
 //
-// The lookup is variable-width text, so a bucket cannot seek to its own keys --
-// which is why the three passes below used to share one forward cursor and run
-// strictly one bucket at a time. One sequential scan recording `buckets` offsets
-// (a few KB) makes every bucket independent, and the passes become parallel.
+// The lookup is variable-width text, so a bucket cannot compute where its own keys
+// start -- which is why the passes below used to share one forward cursor and run
+// strictly one bucket at a time. But the keys *ascend*, so the offset can be
+// found even though it cannot be computed: a binary search over byte positions,
+// each probe snapped forward to a line start and its key read, locates a bucket's
+// first line in O(log filesize) small reads.
+//
+// This replaces a full sequential scan of the lookup. At 1e10 that file is on the
+// order of hundreds of gigabytes and the scan was single-node time paid before any
+// bucket could start; the searches are ~40 probes per bucket and independent of
+// each other, so they also thread.
+//
+// Gaps are tolerated exactly as the scan tolerated them: a bucket whose key range
+// no line falls into keeps UINT64_MAX and is skipped by its consumers.
 static std::vector<uint64_t> indexLookup(const std::string &path, uint64_t span,
-                                         unsigned int buckets) {
+                                         unsigned int buckets, int threads) {
     std::vector<uint64_t> at(buckets, UINT64_MAX);
-    FILE *f = FileUtil::openFileOrDie(path.c_str(), "r", true);
-    char *line = NULL;
-    size_t cap = 0;
-    ssize_t len;
-    uint64_t offset = 0;
-    while ((len = getline(&line, &cap, f)) > 0) {
-        const uint64_t key = strtoull(line, NULL, 10);
-        const unsigned int b = static_cast<unsigned int>(key / span);
-        if (b < buckets && at[b] == UINT64_MAX) {
-            at[b] = offset;
-        }
-        offset += static_cast<uint64_t>(len);
+    const uint64_t size = FileUtil::getFileSize(path);
+    if (size == 0) {
+        return at;
     }
-    free(line);
-    fclose(f);
+#pragma omp parallel num_threads(threads)
+    {
+        const int fd = open(path.c_str(), O_RDONLY);
+        if (fd < 0) {
+            Debug(Debug::ERROR) << "Cannot open " << path << ": " << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+#pragma omp for schedule(dynamic, 1)
+        for (int64_t bi = 0; bi < static_cast<int64_t>(buckets); bi++) {
+            const uint64_t target = static_cast<uint64_t>(bi) * span;
+            // Smallest line start whose key is >= target. f(p) = "key of the first
+            // line at or after p" is non-decreasing, which is what makes this a
+            // binary search at all.
+            uint64_t lo = 0, hi = size;
+            while (lo < hi) {
+                const uint64_t mid = lo + (hi - lo) / 2;
+                uint64_t ls = 0, k = 0;
+                if (lineAtOrAfter(fd, size, mid, ls, k) == false || k >= target) {
+                    hi = mid;
+                } else {
+                    // That line starts at ls and is still below target, so the
+                    // answer lies past it. ls >= mid >= lo, so this makes progress.
+                    lo = ls + 1;
+                }
+            }
+            uint64_t ls = 0, k = 0;
+            if (lineAtOrAfter(fd, size, lo, ls, k) && k < target + span) {
+                at[static_cast<size_t>(bi)] = ls;
+            }
+        }
+        close(fd);
+    }
     return at;
 }
 
@@ -459,17 +565,52 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     // the sorted TranslatedRow vector (which carries the member accession), and
     // the output buffer being assembled. Being wrong only changes how many buckets
     // are used.
+    // The key space, taken from the last line rather than by counting lines.
+    //
+    // createdbparallel writes the lookup in ascending key order, so the highest key
+    // is on the last line and the space is that plus one. Counting lines was a full
+    // sequential pass over a file that is hundreds of gigabytes at 1e10, paid
+    // before any bucket could start.
+    //
+    // It is also the more correct of the two. What this number is used for is the
+    // key *space* -- it sizes the buckets, and `slice[key - lo]` is indexed with
+    // it -- and a lookup with gaps has fewer lines than keys. The old count made
+    // such a database reject its own highest keys as out of range.
     uint64_t keyCount = 0;
     {
-        // Counting lines is one extra sequential pass, but the alternative is
-        // guessing the key space from the clustering, which need not mention the
-        // highest key at all.
-        FILE *f = FileUtil::openFileOrDie(lookupFile.c_str(), "r", true);
-        char *line = NULL;
-        size_t cap = 0;
-        while (getline(&line, &cap, f) > 0) keyCount++;
-        free(line);
-        fclose(f);
+        const uint64_t size = FileUtil::getFileSize(lookupFile);
+        if (size == 0) {
+            Debug(Debug::ERROR) << lookupFile << " is empty\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const int fd = open(lookupFile.c_str(), O_RDONLY);
+        if (fd < 0) {
+            Debug(Debug::ERROR) << "Cannot open " << lookupFile << ": " << strerror(errno) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // Enough to hold the last line whole; accessions are short and this only
+        // has to reach back past one newline.
+        const uint64_t want = std::min<uint64_t>(64 * 1024, size);
+        std::vector<char> tail(static_cast<size_t>(want) + 1);
+        const ssize_t got = pread(fd, tail.data(), static_cast<size_t>(want),
+                                  static_cast<off_t>(size - want));
+        close(fd);
+        if (got <= 0) {
+            Debug(Debug::ERROR) << "Cannot read the end of " << lookupFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        tail[static_cast<size_t>(got)] = '\0';
+        // Trailing newline dropped first, so the search finds the start of the last
+        // *record* rather than the empty string after it.
+        size_t end = static_cast<size_t>(got);
+        while (end > 0 && (tail[end - 1] == '\n' || tail[end - 1] == '\r')) end--;
+        size_t begin = end;
+        while (begin > 0 && tail[begin - 1] != '\n') begin--;
+        if (end == begin) {
+            Debug(Debug::ERROR) << lookupFile << " has no complete final record\n";
+            EXIT(EXIT_FAILURE);
+        }
+        keyCount = strtoull(tail.data() + begin, NULL, 10) + 1;
     }
     if (keyCount == 0) {
         Debug(Debug::ERROR) << lookupFile << " is empty\n";
@@ -555,7 +696,7 @@ int translatekeys(int argc, const char **argv, const Command &command) {
     // Parallel over buckets, each thread seeking straight to its own key range.
     // Its output goes to a thread-private set of representative buckets, so no
     // two threads share a writer; pass 3 reads all shards of a bucket.
-    const std::vector<uint64_t> lookupAt = indexLookup(lookupFile, span, buckets);
+    const std::vector<uint64_t> lookupAt = indexLookup(lookupFile, span, buckets, threads);
     {
         std::vector<TextBuckets *> writers(threads, NULL);
         for (int t = 0; t < threads; t++) {
