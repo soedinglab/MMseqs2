@@ -1002,6 +1002,11 @@ Parameters::Parameters():
     alignparallel.push_back(&PARAM_MIN_SEQ_ID);
     alignparallel.push_back(&PARAM_MIN_ALN_LEN);
     alignparallel.push_back(&PARAM_SEQ_ID_MODE);
+    // Registered because the workflow has to be able to say it. The linclust
+    // family forces SCORE_COV_SEQID, and without this parameter that decision was
+    // made in the workflow process and could not reach the stage, which then used
+    // its own FAST_AUTO default and silently produced a different clustering.
+    alignparallel.push_back(&PARAM_ALIGNMENT_MODE);
     alignparallel.push_back(&PARAM_GAP_OPEN);
     alignparallel.push_back(&PARAM_GAP_EXTEND);
     alignparallel.push_back(&PARAM_NO_COMP_BIAS_CORR);

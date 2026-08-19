@@ -197,8 +197,14 @@ KMER_COMMON="--alph-size aa:21,nucl:5 --min-seq-id $MIN_SEQ_ID --kmer-per-seq 21
 REDUCE_PAR="-c $COV --cov-mode $COV_MODE --include-adjacency 1 --num-adjacency 3 \
  --split-memory-limit $SPLIT_MEMORY_LIMIT --raw-records $RAW_RECORDS \
  --reduce-slices $REDUCE_SLICES --workers $WORKERS --threads $THREADS"
+# --alignment-mode 3 is SCORE_COV_SEQID, which is what stock linclust forces
+# (Parameters.cpp, ALIGN2CLUST_PAR). It has to be passed rather than assumed: the
+# workflow process sets it as a default, but alignparallel is a separate process
+# and used its own FAST_AUTO -- which at --min-seq-id 0 degrades to SCORE_COV and
+# at -c 0 to SCORE_ONLY, reporting the score-per-column estimate as the identity.
+# Both are silent, and both make this pipeline cluster differently from stock.
 ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c $COV \
- --cov-mode $COV_MODE --threads $THREADS"
+ --cov-mode $COV_MODE --alignment-mode 3 --threads $THREADS"
 
 # 0. Sequence database with dense, length-ranked keys. Every later stage depends
 #    on that ordering: it is what makes the greedy a single forward sweep.
