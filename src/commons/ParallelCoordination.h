@@ -175,8 +175,18 @@ public:
     // Returns false if no item completed anywhere in the run for stallSeconds,
     // which by then means the run really is stuck rather than merely waiting on a
     // lease.
+    // pollMillis is the *first* idle wait, not the only one: it doubles up to a
+    // minute, so a short value costs a few quick polls at the tail of a stage and
+    // nothing thereafter.
+    //
+    // It is milliseconds rather than seconds because a second is not a rounding
+    // error for every stage. The map, reduce and align run items for minutes to
+    // hours and never notice; the stages that were single-node until recently
+    // have phases that finish in well under a second, and there a one-second floor
+    // on the straggler wake-up was the dominant cost -- four phases of it turned a
+    // 0.34 s merge into 4.7 s at 1e6. The default is unchanged in effect.
     template <typename Body>
-    bool drain(int64_t workerId, Body body, unsigned int pollSeconds = 5,
+    bool drain(int64_t workerId, Body body, unsigned int pollMillis = 5000,
                unsigned int stallSeconds = 2 * DEFAULT_LEASE_SECONDS) {
         int64_t lastDone = -1;
         int64_t lastProgress = static_cast<int64_t>(time(NULL));
@@ -185,15 +195,15 @@ public:
         // claim() and a hasLiveClaim() through the one global lock -- thousands of
         // workers hammering the lock exactly while the last few holders need it for
         // their heartbeats. Doubling up to a minute keeps a late joiner responsive
-        // (the first waits are still pollSeconds) without that pile-up. Reset on
+        // (the first waits are still pollMillis) without that pile-up. Reset on
         // every observed completion, so a queue that starts moving again is picked
         // up promptly.
-        unsigned int wait = pollSeconds;
-        const unsigned int maxWait = 60;
+        unsigned int wait = pollMillis;
+        const unsigned int maxWait = 60 * 1000;
         while (true) {
             const int64_t item = claim(workerId);
             if (item >= 0) {
-                wait = pollSeconds;
+                wait = pollMillis;
                 // Heartbeat for the duration of the item. Without it any item
                 // taking longer than the lease -- which at 1e11 is every reduce
                 // partition and every align bucket, both hours of work -- looks
@@ -251,7 +261,7 @@ public:
             if (done != lastDone) {
                 lastDone = done;
                 lastProgress = static_cast<int64_t>(time(NULL));
-                wait = pollSeconds;
+                wait = pollMillis;
             } else if (hasLiveClaim()) {
                 // Someone is still working, and heartbeating to say so. A stage
                 // whose last item takes hours must not be declared stalled.
@@ -261,7 +271,7 @@ public:
                            static_cast<int64_t>(stallSeconds)) {
                 return false;
             }
-            sleep(wait);
+            std::this_thread::sleep_for(std::chrono::milliseconds(wait));
             if (wait < maxWait) {
                 wait = std::min(maxWait, wait * 2);
             }
