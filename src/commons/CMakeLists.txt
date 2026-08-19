@@ -56,6 +56,7 @@ set(commons_source_files
         commons/CommandCaller.cpp
         commons/DBConcat.cpp
         commons/DBReader.cpp
+        commons/DBReaderSortIndex.cpp
         commons/DBWriter.cpp
         commons/Debug.cpp
         commons/ExpressionParser.cpp

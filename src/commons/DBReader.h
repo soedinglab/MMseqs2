@@ -561,4 +561,9 @@ private:
 
 };
 
+// Defined in DBReaderSortIndex.cpp
+template<> void DBReader<std::string>::sortIndex(bool isSortedById);
+template<> void DBReader<DBKeyType>::sortIndex(bool isSortedById);
+template<> void DBReader<DBKeyType>::sortIndex(float *weights);
+
 #endif
