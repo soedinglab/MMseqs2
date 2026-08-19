@@ -378,6 +378,9 @@ float * CSProfile::computeProfile(unsigned char * numSeq, int seqLen,
                                   float pTau, float pca, float pcb){
     //std::cout << "Adding pseudocounts ...\n";
     const int center = ctxLib->center;
+    if (seqLen <= 0) {
+        return profile;
+    }
     // Calculate posterior probability ppi[k] of state k given sequence window
     // around position 'i'
     std::fill(maximums, maximums + seqLen, -FLT_MAX);
