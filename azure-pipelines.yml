@@ -104,6 +104,7 @@ jobs:
           STATIC: 0
           MPI: 0
           BUILD_TYPE: ASanOpt
+          PCH: 0
     steps:
       - checkout: self
         submodules: true
@@ -132,10 +133,10 @@ jobs:
             LIBGOMP=/usr/lib/gcc/x86_64-linux-gnu/11
             cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DFORCE_STATIC_DEPS=1 -DHAVE_TESTS=1 \
               -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
-              ${WERROR} ${EXTRA} -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+              ${WERROR} ${EXTRA} -DUSE_PCH=${PCH:-1} -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
             cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-              ${WERROR} ${EXTRA} -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+              ${WERROR} ${EXTRA} -DUSE_PCH=${PCH:-1} -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
           make -j $(nproc --all) VERBOSE=1
@@ -230,7 +231,7 @@ jobs:
            cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 -DFORCE_STATIC_DEPS=1 \
             -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
             -DRust_CARGO_TARGET=${CPREF}-unknown-linux-gnu \
-            -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 ..
+            -DENABLE_WERROR=1 -DUSE_PCH=1 -DHAVE_${SIMD}=1 ..
           make -j $(nproc --all)
         displayName: Build MMseqs2
       - task: PublishPipelineArtifact@0

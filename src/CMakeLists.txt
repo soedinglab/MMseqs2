@@ -6,6 +6,7 @@ set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
 #set(DISABLE_LTO 0 CACHE BOOL "Disable link-time optimization in non-debug builds")
 set(REQUIRE_OPENMP 1 CACHE BOOL "Require availability of OpenMP")
 set(ATOMIC_LIB_OVERRIDE "" CACHE PATH "Override path to libatomic")
+set(USE_PCH 0 CACHE BOOL "Use precompiled headers to speed up compilation (needs CMake >= 3.16)")
 
 include(AppendTargetProperty)
 
@@ -53,6 +54,29 @@ target_include_directories(mmseqs-framework PUBLIC linclust)
 target_include_directories(mmseqs-framework PUBLIC taxonomy)
 target_include_directories(mmseqs-framework PUBLIC util)
 target_include_directories(mmseqs-framework PUBLIC .)
+
+if (USE_PCH)
+    if (CMAKE_VERSION VERSION_LESS "3.16")
+        message(WARNING "-- USE_PCH needs CMake >= 3.16, ignoring")
+    else ()
+        message("-- Using precompiled headers")
+        target_precompile_headers(mmseqs-framework PRIVATE
+                <algorithm> <cstdio> <cstdlib> <cstring> <limits> <map> <string> <vector>
+                alignment/Matcher.h
+                commons/DBReader.h
+                commons/DBWriter.h
+                commons/Debug.h
+                commons/FileUtil.h
+                commons/IndexReader.h
+                commons/MemoryMapped.h
+                commons/Orf.h
+                commons/Parameters.h
+                commons/Sequence.h
+                commons/SubstitutionMatrix.h
+                commons/Util.h
+                commons/itoa.h)
+    endif ()
+endif ()
 
 add_dependencies(mmseqs-framework generated)
 
