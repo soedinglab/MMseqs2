@@ -90,8 +90,9 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
             if (reader.next(block, lengths) == false) {
                 break;
             }
-            // Bound before filtering: a slice keeps at most the whole block, and
-            // checking after would already have written past the end.
+            // Bound before filtering: without slicing a block keeps every record,
+            // so the whole block can be checked at once and the inner loop stays
+            // branch-free.
             if (sliceCount <= 1 && filled + block.size() > capacity) {
                 Debug(Debug::ERROR) << "Partition " << partition << " holds more k-mers than the "
                                     << "shard sizes reported. A shard was written while this was "
@@ -101,6 +102,20 @@ size_t readPartitionAsPositions(const std::string &kmerDir, unsigned int partiti
             for (size_t r = 0; r < block.size(); r++) {
                 if (sliceCount > 1 && kmerSliceOf(block[r].kmer, sliceCount) != slice) {
                     continue;
+                }
+                // The sliced path cannot use the bound above -- a block contributes
+                // only its matching records, so comparing the whole block against a
+                // per-slice capacity would refuse legitimate input -- but it is the
+                // path that needs a bound most: its capacity comes from a separate
+                // counting pass over the same shards, and this function is
+                // documented to run while a lapsed map worker may still be appending
+                // to one. Without this the disagreement wrote past the end of the
+                // array and the run carried on with a corrupted heap.
+                if (sliceCount > 1 && filled >= capacity) {
+                    Debug(Debug::ERROR) << "Partition " << partition << " slice " << slice
+                                        << " holds more k-mers than the counting pass found. A "
+                                        << "shard was written while this was reading it.\n";
+                    EXIT(EXIT_FAILURE);
                 }
                 kmerRecordToPosition(block[r], out[filled]);
                 filled++;
