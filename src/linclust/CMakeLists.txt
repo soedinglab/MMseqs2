@@ -11,6 +11,7 @@ set(linclust_source_files
         linclust/CandidateEdge.cpp
         linclust/PartitionSequences.cpp
         linclust/KmerPartition.cpp
+        linclust/StageParts.cpp
         linclust/kmerindexdb.cpp
         linclust/kmersearch.cpp
         linclust/LinsearchIndexReader.cpp

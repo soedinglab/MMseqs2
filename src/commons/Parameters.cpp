@@ -1025,6 +1025,7 @@ Parameters::Parameters():
 
     // mergeclusterparallel
     mergeclusterparallel.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    mergeclusterparallel.push_back(&PARAM_WORKER_COUNT);
     mergeclusterparallel.push_back(&PARAM_V);
 
     // createrepdb
@@ -1036,6 +1037,7 @@ Parameters::Parameters():
 
     // translatecluster
     translatecluster.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    translatecluster.push_back(&PARAM_WORKER_COUNT);
     translatecluster.push_back(&PARAM_V);
 
     // translatekeys

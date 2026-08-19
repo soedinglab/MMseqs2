@@ -45,11 +45,19 @@
 [ -z "$EVAL" ] && EVAL=0.001
 [ -z "$SPLIT_MEMORY_LIMIT" ] && SPLIT_MEMORY_LIMIT=0
 [ -z "$SCRATCH_BUDGET" ] && SCRATCH_BUDGET=0
-# How many workers $WORKER_RUNNER starts. Passed to the two stages that decide how
+# How many workers $WORKER_RUNNER starts. Passed to every stage that decides how
 # many work units to make, so the allocation has something to claim: those counts
 # otherwise come from --split-memory-limit alone, and a generous per-node limit
-# makes *fewer* units and leaves most workers idle. 0 means "not told".
-[ -z "$WORKERS" ] && WORKERS=0
+# makes *fewer* units and leaves most workers idle.
+#
+# Derived from the allocation when the caller did not say, because "not told" is
+# the normal case and it is silent: the documented invocation on line 10 sets
+# WORKER_RUNNER and nothing else, so every stage sized its work units for one
+# worker while 64 ran, and every one of them reported success. Slurm exports both
+# of these; outside Slurm the count stays 0 and the stages say so themselves.
+if [ -z "$WORKERS" ]; then
+    WORKERS="${SLURM_NTASKS:-${SLURM_JOB_NUM_NODES:-0}}"
+fi
 # Writes the k-mer and candidate-edge buckets as fixed-width structs instead of
 # the packed block encoding. Roughly doubles the scratch those two intermediates
 # need and exists only as a control: a run with RAW_RECORDS=1 must produce
@@ -211,6 +219,12 @@ ALIGN_PAR="--min-seq-id $MIN_SEQ_ID --min-aln-len 0 --seq-id-mode 0 -e $EVAL -c 
 # 0. Sequence database with dense, length-ranked keys. Every later stage depends
 #    on that ordering: it is what makes the greedy a single forward sweep.
 DB="$INPUT"
+# .lookup rather than .index.bin as the second test: createdbparallel writes the
+# dense index in its plan phase but .dbtype only in finalize, so a user database
+# whose build was killed by a walltime has .index.bin and no .dbtype, and one
+# killed slightly earlier has neither. Either way the guard below has to fire
+# rather than hand a half-built database to the next stage as though it were
+# FASTA. The workflow's own build is covered by its finalize.done sentinel.
 if [ -f "$INPUT.dbtype" ] && notExists "$INPUT.index.bin"; then
     # Checked here rather than left to the first stage. Reaching for `createdb`
     # first is the natural thing to do, and its databases are not dense or
@@ -317,10 +331,14 @@ dropIntermediate "$TMP/edges2" "$TMP/aln2" "$TMP/kmer2"
 
 if notExists "$TMP/clu2.tsv"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" translatecluster "$TMP/clu2_sub.tsv" "$TMP/rep.keymap" "$TMP/clu2.tsv.tmp" \
-        $VERBOSITY --split-memory-limit $SPLIT_MEMORY_LIMIT \
+    $WORKER_RUNNER "$MMSEQS" translatecluster "$TMP/clu2_sub.tsv" "$TMP/rep.keymap" \
+        "$TMP/clu2.tsv.tmp" \
+        $VERBOSITY --split-memory-limit $SPLIT_MEMORY_LIMIT --workers $WORKERS \
         || fail "translatecluster died"
+    # After the runner has reaped every worker: the last phase is a parallel
+    # pwrite into this path by all of them.
     mv -f "$TMP/clu2.tsv.tmp" "$TMP/clu2.tsv"
+    rm -rf "$TMP/clu2.tsv.tmp.coord"
 fi
 
 # ---- fold pass 2 into pass 1 ------------------------------------------------
@@ -328,10 +346,14 @@ fi
 # the form the merge produces. It is translated below.
 if notExists "$TMP/clu.keys.tsv"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" mergeclusterparallel "$DB" "$TMP/clu1.tsv" "$TMP/clu2.tsv" "$TMP/clu.keys.tsv.tmp" \
-        $VERBOSITY --split-memory-limit $SPLIT_MEMORY_LIMIT \
+    $WORKER_RUNNER "$MMSEQS" mergeclusterparallel "$DB" "$TMP/clu1.tsv" "$TMP/clu2.tsv" \
+        "$TMP/clu.keys.tsv.tmp" \
+        $VERBOSITY --split-memory-limit $SPLIT_MEMORY_LIMIT --workers $WORKERS \
         || fail "mergeclusterparallel died"
+    # After the runner has reaped every worker, so the file is complete: the last
+    # phase of the merge is a parallel pwrite into this path by all of them.
     mv -f "$TMP/clu.keys.tsv.tmp" "$TMP/clu.keys.tsv"
+    rm -rf "$TMP/clu.keys.tsv.tmp.coord"
 fi
 
 # ---- back to accession space ------------------------------------------------
