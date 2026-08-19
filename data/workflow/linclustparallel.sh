@@ -184,7 +184,9 @@ TMP="$3"
 # `notExists "$OUT"` instead meant a stale file survived a full run and the script
 # still reported success, so the user believed they had clustered and had not.
 # Resume is keyed on state under $TMP, never on $OUT.
-[ -f "$OUT" ] && fail "$OUT exists already"
+# -e, not -f: a directory at $OUT passes a -f test, and the `mv -f` at the end
+# then files the result *inside* it and reports success.
+[ -e "$OUT" ] && fail "$OUT exists already"
 mkdir -p "$TMP"
 
 # Shared by both passes. --min-seq-id belongs here because it selects the k-mer
