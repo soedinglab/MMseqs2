@@ -376,6 +376,18 @@ int greedycluster(int argc, const char **argv, const Command &command) {
         for (uint64_t blockStart = 0; blockStart < info.entryCount; blockStart += blockKeys) {
             const uint64_t blockEnd = std::min(blockStart + blockKeys, info.entryCount);
             uint64_t blockSingletons = 0;
+            // Cleared outside the region, not inside it. num_threads() is a request,
+            // not a guarantee -- OMP_THREAD_LIMIT, OMP_DYNAMIC or an enclosing
+            // region can all give a smaller team -- and the flush below walks all
+            // par.threads slots. Clearing from inside left every slot the team did
+            // not cover holding the previous block's text, which was then written
+            // again verbatim. The block loop runs more than once for any database
+            // past 64M entries, i.e. always at the scale this pipeline exists for,
+            // and the singleton counter stays correct because it counts real work,
+            // so the stage agreed with a clusters.tsv full of duplicate rows.
+            for (int t = 0; t < par.threads; t++) {
+                threadBuffers[t].clear();
+            }
 #pragma omp parallel num_threads(par.threads) reduction(+ : blockSingletons)
             {
                 int tid = 0;
@@ -383,7 +395,6 @@ int greedycluster(int argc, const char **argv, const Command &command) {
                 tid = omp_get_thread_num();
 #endif
                 std::string &mine = threadBuffers[tid];
-                mine.clear();
 #pragma omp for schedule(static)
                 for (uint64_t key = blockStart; key < blockEnd; key++) {
                     if (flags.isDecided(key) == false) {
