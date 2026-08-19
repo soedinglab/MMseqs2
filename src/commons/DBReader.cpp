@@ -170,9 +170,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         incrementMemory(sizeof(SourceEntry) * this->sourceSize);
         readSource(sourceDataChar, sourceDataSize, source);
         if (dataMode & USE_SOURCE) {
-            SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareById);
+            SORT_SERIAL(source, source + sourceSize, SourceEntry::compareById);
         } else {
-            SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareByFileName);
+            SORT_SERIAL(source, source + sourceSize, SourceEntry::compareByFileName);
         }
         sourceData.close();
     }
@@ -826,13 +826,13 @@ template <typename T> size_t DBReader<T>::getSourceIdByFileName(const std::strin
 
 template <typename T> void DBReader<T>::sortSourceById(){
     if (source != NULL) {
-        SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareById);
+        SORT_SERIAL(source, source + sourceSize, SourceEntry::compareById);
     }
 }
 
 template <typename T> void DBReader<T>::sortSourceByFileName(){
     if (source != NULL) {
-        SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareByFileName);
+        SORT_SERIAL(source, source + sourceSize, SourceEntry::compareByFileName);
     }
 }
 
