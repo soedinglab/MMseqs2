@@ -817,7 +817,14 @@ int kmerreduceparallel(int argc, const char **argv, const Command &command) {
             const size_t partition = waveFrom + item;
             const uint64_t expectedRecords =
                 (seenPartitions > 0) ? (seenRecords / seenPartitions) : 0;
-            const uint64_t memoryLimit = static_cast<uint64_t>(par.splitMemoryLimit);
+            // Util::computeMemory, as every other reader of this parameter does:
+            // --split-memory-limit is a byte-parsed string whose 0 means "derive
+            // from the machine", and the workflow leaves it at 0 by default. Taken
+            // raw, the limit is 0, the slicing below never triggers however skewed
+            // a partition is, and the stage has no way to fit one that does not
+            // fit -- every worker in turn allocates, dies, and hands the item to
+            // the next.
+            const uint64_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
             uint64_t partitionRecords = 0;
             // Stamps every block this partition writes with (partition, worker).
             // If this worker dies before the queue records the item done, another
