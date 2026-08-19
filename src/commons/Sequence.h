@@ -16,7 +16,6 @@
 #include <utility>
 #include <string>
 #include <vector>
-#include <simd/simd.h>
 
 const int8_t seed_4[]        = {1, 1, 1, 1};
 const int8_t spaced_seed_4[] = {1, 1, 1, 0, 1};
