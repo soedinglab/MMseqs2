@@ -95,16 +95,16 @@ fi
 # the queue is already drained; the single-node stages are guarded on their
 # output. Running a phase twice, or running the whole pipeline in one job after
 # a partial chain, therefore costs a queue scan and nothing else.
-[ -z "$PHASES" ] && PHASES="p1 s1 p2 s2 p3 s3"
-for _phase in $PHASES; do
+[ -z "$LINCLUST_PHASES" ] && LINCLUST_PHASES="p1 s1 p2 s2 p3 s3"
+for _phase in $LINCLUST_PHASES; do
     case "$_phase" in
         p1|s1|p2|s2|p3|s3) ;;
-        *) echo "Error: unknown phase '$_phase' in PHASES. Expected a subset of \
+        *) echo "Error: unknown phase '$_phase' in LINCLUST_PHASES. Expected a subset of \
 'p1 s1 p2 s2 p3 s3'." >&2; exit 1 ;;
     esac
 done
 # Substring match on a padded copy, so "p1" cannot match inside another token.
-phase() { case " $PHASES " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+phase() { case " $LINCLUST_PHASES " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 notExists() { [ ! -f "$1" ]; }
 # To stderr, not stdout: scratchUsed() runs inside a command substitution, so a
@@ -285,7 +285,7 @@ if notExists "$INPUT.dbtype"; then
     # s-phases are given.
     if notExists "$DB.coord/finalize.done" && ! phase p1; then
         fail "$DB has no finished database and this invocation does not run phase \
-p1, which builds it (PHASES=\"$PHASES\").
+p1, which builds it (LINCLUST_PHASES=\"$LINCLUST_PHASES\").
 Run the phases in order: p1 s1 p2 s2 p3 s3."
     fi
     if notExists "$DB.coord/finalize.done"; then
@@ -441,7 +441,7 @@ fi
 # the database has none (--write-lookup 0), leaving the key-space result as the
 # output rather than failing at the last step.
 if ! phase s3; then
-    echo "Phases '$PHASES' done; $OUT is written by phase s3"
+    echo "Phases '$LINCLUST_PHASES' done; $OUT is written by phase s3"
     exit 0
 fi
 if notExists "$TMP/clu.keys.tsv"; then
