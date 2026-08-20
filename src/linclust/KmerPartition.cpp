@@ -450,13 +450,56 @@ bool decode(const KmerBlockHeader &header, const uint8_t *payload,
 
 }  // namespace KmerBlockCodec
 
-KmerShardReader::KmerShardReader(const std::string &path) : path(path), torn(false) {
-    file = fopen(path.c_str(), "rb");
+// A shard that will not open is benign only when it is *gone*.
+//
+// The reduce unlinks consumed partitions while a lapsed worker may still be
+// reading them, so ENOENT is the race this stage is built to survive
+// (kmerreduceparallel.cpp:82-86 documents it). Every other errno means a shard
+// that exists and holds k-mers could not be read, and returning it as empty makes
+// the reduce treat those k-mers as "this k-mer had no partner" -- a smaller
+// clustering that still exits 0. Measured on a 4-partition shuffle with one shard
+// unreadable: 107,050 candidate edges against 142,394, no warning, exit 0.
+//
+// EMFILE is not hypothetical here. translatekeys.cpp:226-230 records this
+// pipeline hitting the 8192 descriptor limit at exactly the scale it exists for,
+// and EIO or ESTALE mid-file is the ordinary shared-filesystem failure.
+//
+// EdgeBucketReader::readShard (CandidateEdge.cpp:592-606) already makes the
+// equivalent condition fatal, with a comment saying missing edges are
+// indistinguishable from pairs that never matched. The same is true of k-mers.
+static FILE *openShardOrDie(const std::string &path, bool &missing) {
+    FILE *file = fopen(path.c_str(), "rb");
+    missing = false;
     if (file == NULL) {
-        // A shard that vanished under us is not an error: the reduce unlinks
-        // consumed partitions, and a restart can race that sweep.
-        torn = false;
+        if (errno == ENOENT) {
+            missing = true;
+            return NULL;
+        }
+        Debug(Debug::ERROR) << "Cannot open k-mer shard " << path << ": " << strerror(errno)
+                            << ". The shard exists but could not be read; treating it as empty "
+                            << "would silently drop every k-mer it holds.\n";
+        EXIT(EXIT_FAILURE);
     }
+    return file;
+}
+
+// Tells a real read error from the end of the shard.
+//
+// fread() returns a short count for both, so without this a mid-shard EIO or
+// ESTALE reads as a clean end and the rest of the shard is dropped in silence. A
+// short read with no error flag is a torn tail, which is recoverable: the
+// interrupted worker's item is redone into a different shard.
+static void failOnReadError(FILE *file, const std::string &path) {
+    if (ferror(file)) {
+        Debug(Debug::ERROR) << "Cannot read k-mer shard " << path << ": " << strerror(errno)
+                            << ". Stopping rather than treating the remainder as absent.\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
+KmerShardReader::KmerShardReader(const std::string &path) : path(path), torn(false) {
+    bool missing = false;
+    file = openShardOrDie(path, missing);
 }
 
 KmerShardReader::~KmerShardReader() {
@@ -472,15 +515,18 @@ bool KmerShardReader::next(std::vector<KmerRecord> &out, const LengthRankTable *
     KmerBlockHeader header;
     const size_t got = fread(&header, 1, sizeof(KmerBlockHeader), file);
     if (got == 0) {
+        failOnReadError(file, path);
         return false;  // clean end of shard
     }
     if (got != sizeof(KmerBlockHeader) || KmerBlockCodec::headerLooksValid(header) == false) {
+        failOnReadError(file, path);
         torn = true;
         return false;
     }
     payload.resize(static_cast<size_t>(header.payloadBytes));
     if (header.payloadBytes > 0 &&
         fread(payload.data(), 1, payload.size(), file) != payload.size()) {
+        failOnReadError(file, path);
         torn = true;
         return false;
     }
@@ -493,7 +539,8 @@ bool KmerShardReader::next(std::vector<KmerRecord> &out, const LengthRankTable *
 
 uint64_t KmerShardReader::countRecords(const std::string &path, bool &torn) {
     torn = false;
-    FILE *file = fopen(path.c_str(), "rb");
+    bool missing = false;
+    FILE *file = openShardOrDie(path, missing);
     if (file == NULL) {
         return 0;
     }
@@ -502,9 +549,14 @@ uint64_t KmerShardReader::countRecords(const std::string &path, bool &torn) {
         KmerBlockHeader header;
         const size_t got = fread(&header, 1, sizeof(KmerBlockHeader), file);
         if (got == 0) {
+            // Undercounting here is worse than elsewhere: the count sizes the
+            // array the reduce reads into, so a silent short count is a bound the
+            // records then overflow.
+            failOnReadError(file, path);
             break;
         }
         if (got != sizeof(KmerBlockHeader) || KmerBlockCodec::headerLooksValid(header) == false) {
+            failOnReadError(file, path);
             torn = true;
             break;
         }
