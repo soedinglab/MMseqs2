@@ -2795,8 +2795,8 @@ void Parameters::setDefaults() {
     includeAdjacency = true;
     adjIteration = 3;
     clustHash = false;
-    linclustVersion = 2;
-    clusterVersion = 1;
+    linclustVersion = LINCLUST_VERSION2;
+    clusterVersion = CLUSTER_VERSION1;
 
     // result2stats
     stat = "";
