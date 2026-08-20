@@ -154,6 +154,20 @@ size_t findRecordStart(int fd, size_t from, size_t fileSize) {
                 return pos + static_cast<size_t>(i) + 1;
             }
         }
+        // Scanned to the end of the file without finding one, so there is no
+        // record start at or after `from`.
+        //
+        // Checked before the advance below, which is what makes this loop
+        // terminate. At pos == fileSize - 1 the window is a single byte, the scan
+        // above cannot run (it needs a pair), the short-read retry does not fire
+        // because got == want == 1, and `pos += got - 1` advances by *zero* -- so
+        // the loop spun forever, at full CPU, with nothing logged. Every worker
+        // that re-claimed the chunk hung in the same place, so the stage never
+        // finished and never failed. Reproduced with a 3 MB single-record FASTA at
+        // --chunk-size 1M: no output, no error, killed at a 45 s timeout.
+        if (pos + static_cast<size_t>(got) >= fileSize) {
+            break;
+        }
         if (static_cast<size_t>(got) < want) {
             continue;
         }
