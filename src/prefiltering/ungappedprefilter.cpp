@@ -381,7 +381,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
     const int querySeqType = qdbr->getDbtype();
     // Score the primary alphabet over every target, keep the top
     // (--gpu-rescore-topk-mult * --max-seqs), add the aux channel to those, re-rank, then
-    // truncate to --max-seqs. Set only when the target DB is packed and --aux-score is on; the
+    // truncate to --max-seqs. Set only when the target DB is packed and aux scoring is on; the
     // *query* must carry the aux channel too, which profile queries do not (mirrors
     // rescoreCount is shared across the team.
     const bool queryHasAux = (Sequence::getAuxInfo(querySeqType) != NULL)
@@ -668,14 +668,14 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
 
 
     // Build the auxiliary substitution matrix so the prefilter can add the aux channel.
-    // Two conditions: the target DB carries the packed flag, and --aux-score is on.
+    // Two conditions: the target DB carries the packed flag, and aux scoring is on.
     // Either failing leaves subMatAux NULL and the primary alphabet is scored alone.
     const Sequence::SeqAuxInfo *auxInfoTarget = Sequence::getAuxInfo(targetSeqType);
     const bool packedTargetDb =
         (DBReader<DBKeyType>::getExtendedDbtype(tdbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_AUX_SEQ) != 0;
     const bool packedTarget = packedTargetDb && par.useAuxScoring;
     if (packedTargetDb && par.useAuxScoring == false) {
-        Debug(Debug::INFO) << "aux channel disabled by --aux-score; scoring the primary alphabet only\n";
+        Debug(Debug::INFO) << "aux channel disabled; scoring the primary alphabet only\n";
     }
     BaseMatrix *subMatAux = NULL;
     if (packedTarget) {
