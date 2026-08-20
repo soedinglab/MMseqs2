@@ -633,46 +633,59 @@ void buildFilterGate(const std::string &clusterTsv, const std::string &repDb, co
         for (int t = 0; t < realThreads; t++) {
             writers[t] = new GateSpill(spillPrefix + ".t" + SSTR(t), buckets, rowsPerBuffer);
         }
-        const uint64_t rangeSize = (tsvSize + realThreads - 1) / realThreads;
+        // Ranges handed out by `omp for`, not indexed by omp_get_thread_num(),
+        // for the reason the isRep scan below spells out: a team smaller than
+        // realThreads would otherwise never read the ranges belonging to the
+        // threads it did not create, and the gate would silently omit those
+        // clusters -- which makes pass 2 admit members stock would have rejected.
+        //
+        // tid still selects the writer, which is safe: it only indexes per-thread
+        // scratch, and GateSpill::read skips a shard that was never created, so a
+        // slot no thread used costs nothing.
+        const int rangeCount = realThreads;
+        const uint64_t rangeSize = (tsvSize + rangeCount - 1) / rangeCount;
 #pragma omp parallel num_threads(realThreads)
         {
             int tid = 0;
 #ifdef OPENMP
             tid = omp_get_thread_num();
 #endif
-            const uint64_t nominalFrom = static_cast<uint64_t>(tid) * rangeSize;
-            if (nominalFrom < tsvSize) {
-                const uint64_t nominalTo = std::min(nominalFrom + rangeSize, tsvSize);
-                FILE *f = FileUtil::openFileOrDie(clusterTsv.c_str(), "r", true);
-                const uint64_t from = nextLineStart(f, nominalFrom, tsvSize);
-                if (fseeko(f, static_cast<off_t>(from), SEEK_SET) != 0) {
-                    Debug(Debug::ERROR) << "Cannot seek " << clusterTsv << ": " << strerror(errno)
-                                        << "\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                char *line = NULL;
-                size_t cap = 0;
-                ssize_t len;
-                uint64_t at = from;
-                while (at < nominalTo && (len = getline(&line, &cap, f)) > 0) {
-                    at += static_cast<uint64_t>(len);
-                    char *tab = strchr(line, '\t');
-                    if (tab == NULL) continue;
-                    const uint64_t rep = strtoull(line, NULL, 10);
-                    const uint64_t member = strtoull(tab + 1, NULL, 10);
-                    if (rep >= entryCount || member >= entryCount) {
-                        Debug(Debug::ERROR) << "Clustering " << clusterTsv << " names key "
-                                            << std::max(rep, member) << ", beyond the "
-                                            << entryCount << " in the database\n";
+#pragma omp for schedule(dynamic, 1)
+            for (int range = 0; range < rangeCount; range++) {
+                const uint64_t nominalFrom = static_cast<uint64_t>(range) * rangeSize;
+                if (nominalFrom < tsvSize) {
+                    const uint64_t nominalTo = std::min(nominalFrom + rangeSize, tsvSize);
+                    FILE *f = FileUtil::openFileOrDie(clusterTsv.c_str(), "r", true);
+                    const uint64_t from = nextLineStart(f, nominalFrom, tsvSize);
+                    if (fseeko(f, static_cast<off_t>(from), SEEK_SET) != 0) {
+                        Debug(Debug::ERROR) << "Cannot seek " << clusterTsv << ": " << strerror(errno)
+                                            << "\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    // Every first-column key is a representative by construction,
-                    // so this rank is its sub-key.
-                    const uint64_t sub = isRep.rankOf(rep);
-                    writers[tid]->append(static_cast<unsigned int>(sub / span), sub, member);
+                    char *line = NULL;
+                    size_t cap = 0;
+                    ssize_t len;
+                    uint64_t at = from;
+                    while (at < nominalTo && (len = getline(&line, &cap, f)) > 0) {
+                        at += static_cast<uint64_t>(len);
+                        char *tab = strchr(line, '\t');
+                        if (tab == NULL) continue;
+                        const uint64_t rep = strtoull(line, NULL, 10);
+                        const uint64_t member = strtoull(tab + 1, NULL, 10);
+                        if (rep >= entryCount || member >= entryCount) {
+                            Debug(Debug::ERROR) << "Clustering " << clusterTsv << " names key "
+                                                << std::max(rep, member) << ", beyond the "
+                                                << entryCount << " in the database\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        // Every first-column key is a representative by construction,
+                        // so this rank is its sub-key.
+                        const uint64_t sub = isRep.rankOf(rep);
+                        writers[tid]->append(static_cast<unsigned int>(sub / span), sub, member);
+                    }
+                    free(line);
+                    fclose(f);
                 }
-                free(line);
-                fclose(f);
             }
         }
         for (int t = 0; t < realThreads; t++) {
@@ -805,15 +818,28 @@ int createrepdb(int argc, const char **argv, const Command &command) {
             EXIT(EXIT_FAILURE);
         }
         const int threads = std::max(1, par.threads);
-        const uint64_t rangeSize = (tsvSize + threads - 1) / threads;
+        // One range per *requested* thread, handed out by `omp for` rather than
+        // indexed by omp_get_thread_num().
+        //
+        // num_threads() is a request, not a guarantee -- OMP_THREAD_LIMIT,
+        // OMP_DYNAMIC and a Slurm cpuset all give a smaller team, and all three
+        // are routine on the machines this runs on. Deriving the byte range from
+        // the thread id meant every range belonging to a thread the team never
+        // created was simply never read, so those representatives were never
+        // flagged. repCount fell with them, so the `kept != keptCount` guard in
+        // planCopy still passed and the stage exited 0 on a partial database that
+        // the whole of pass 2 is then built from. Measured at 173,313 sequences:
+        // 165,481 representatives with a full team of 8, 39,519 under
+        // OMP_THREAD_LIMIT=2.
+        //
+        // This is the same defect greedycluster.cpp:379-387 documents in its
+        // singleton pass; the two scans in this file were missed by that fix.
+        const int rangeCount = threads;
+        const uint64_t rangeSize = (tsvSize + rangeCount - 1) / rangeCount;
         uint64_t counted = 0;
-#pragma omp parallel num_threads(threads) reduction(+ : counted)
-        {
-            int tid = 0;
-#ifdef OPENMP
-            tid = omp_get_thread_num();
-#endif
-            const uint64_t nominalFrom = static_cast<uint64_t>(tid) * rangeSize;
+#pragma omp parallel for num_threads(threads) schedule(dynamic, 1) reduction(+ : counted)
+        for (int range = 0; range < rangeCount; range++) {
+            const uint64_t nominalFrom = static_cast<uint64_t>(range) * rangeSize;
             if (nominalFrom < tsvSize) {
                 const uint64_t nominalTo = std::min(nominalFrom + rangeSize, tsvSize);
                 FILE *f = FileUtil::openFileOrDie(clusterTsv.c_str(), "r", true);
