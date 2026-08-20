@@ -16,7 +16,6 @@ void setLinclustWorkflowDefaults(Parameters *p) {
     p->evalThr = 0.001;
     p->seqIdThr = 0.9;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID; // set alignmentmode 3 as a default in linclust2
-    p->linclustVersion = Parameters::LINCLUST_VERSION2;
     p->clustHash = false;
 }
 

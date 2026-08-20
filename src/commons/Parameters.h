@@ -100,6 +100,7 @@ public:
     static const int LINCLUST_VERSION2 = 2;
     static const int CLUSTER_VERSION1 = 1;
     static const int CLUSTER_VERSION2 = 2;
+
     static const int SEARCH_TYPE_AUTO = 0;
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
