@@ -336,6 +336,31 @@ void assemblePart(const std::string &out, const std::string &prefix, unsigned in
         done += static_cast<uint64_t>(got);
     }
     close(in);
+    // Durable before the work queue records this item DONE, which is the next
+    // thing that happens: assemblePart runs as a drain() body, and drain marks the
+    // item complete -- fsyncing that record -- once the body returns.
+    //
+    // Without this the two are the wrong way round. WorkQueue::completeLocked
+    // fsyncs the DONE record while these bytes are still only in the page cache,
+    // so a node lost in that window comes back with the queue saying assembly
+    // finished and the bytes never written. The resume then takes the
+    // `queue.allDone()` branch, skips the whole assemble block, and cleanup
+    // unlinks the parts -- and since createAssembled ftruncate'd the output to its
+    // full length, the missing range reads as NUL bytes. Simulated by punching the
+    // hole a lost writeback leaves: the resume exits 0, logs nothing, and leaves
+    // 72,594 NUL bytes of 290,376 in the published result, with the parts gone and
+    // nothing left to rebuild from.
+    //
+    // createdbparallel.cpp:789-806 already orders these correctly, fsyncing the
+    // database before its finalize sentinel and saying why; this stage was the one
+    // that did not.
+    //
+    // One fsync per bucket, not per write, so the cost is a few thousand at 1e10
+    // against a stage that moves terabytes.
+    if (fsync(fd) != 0) {
+        Debug(Debug::ERROR) << "Cannot flush " << out << ": " << strerror(errno) << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     if (close(fd) != 0) {
         Debug(Debug::ERROR) << "Cannot close " << out << ": " << strerror(errno) << "\n";
         EXIT(EXIT_FAILURE);
