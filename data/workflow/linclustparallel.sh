@@ -69,6 +69,42 @@ fi
 # of the k-mer, so a group is never split -- so any value must give byte-identical
 # output, which is how that exactness is tested.
 [ -z "$REDUCE_SLICES" ] && REDUCE_SLICES=0
+# Which stage groups this invocation runs, space separated, in the order they
+# appear below:
+#
+#   p1  createdbparallel, the pass-1 k-mer waves, alignparallel      multi-worker
+#   s1  greedycluster (pass 1), createrepdb                          one node
+#   p2  the pass-2 k-mer waves, alignparallel                        multi-worker
+#   s2  greedycluster (pass 2)                                       one node
+#   p3  translatecluster, mergeclusterparallel                       multi-worker
+#   s3  translatekeys                                                one node
+#
+# The default is all of them, which is the single-allocation behaviour and the
+# only one a run outside a batch system wants.
+#
+# Splitting them exists for the opposite case. The p-phases divide across the
+# allocation; the s-phases are one process on one node however many were asked
+# for, so in a single N-node job the other N-1 sit idle through them and are
+# billed for it. At 1e10 the s-phases are ~1.9 h of a 4.7 h run on 32 nodes:
+# 39% of the allocation buys nothing. Submitting the phases as a dependency
+# chain, the p-phases on N nodes and the s-phases on one, makes the bill flat in
+# N instead of rising with it.
+#
+# Every phase is idempotent, so the split is safe rather than merely cheaper.
+# The multi-worker stages resume from their work queues and exit at once when
+# the queue is already drained; the single-node stages are guarded on their
+# output. Running a phase twice, or running the whole pipeline in one job after
+# a partial chain, therefore costs a queue scan and nothing else.
+[ -z "$PHASES" ] && PHASES="p1 s1 p2 s2 p3 s3"
+for _phase in $PHASES; do
+    case "$_phase" in
+        p1|s1|p2|s2|p3|s3) ;;
+        *) echo "Error: unknown phase '$_phase' in PHASES. Expected a subset of \
+'p1 s1 p2 s2 p3 s3'." >&2; exit 1 ;;
+    esac
+done
+# Substring match on a padded copy, so "p1" cannot match inside another token.
+phase() { case " $PHASES " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 notExists() { [ ! -f "$1" ]; }
 # To stderr, not stdout: scratchUsed() runs inside a command substitution, so a
@@ -242,6 +278,16 @@ if notExists "$INPUT.dbtype"; then
     # Guarded on the finalize sentinel, not on .dbtype: createdbparallel writes
     # .dbtype before the text indices, so a death in that window leaves a database
     # that looks complete and is not. The sentinel is written last.
+    #
+    # Every phase needs $DB resolved, but only p1 may build it: a later phase
+    # reaching this with no database is a chain submitted out of order, and
+    # rebuilding it there would run a multi-worker stage on the one node the
+    # s-phases are given.
+    if notExists "$DB.coord/finalize.done" && ! phase p1; then
+        fail "$DB has no finished database and this invocation does not run phase \
+p1, which builds it (PHASES=\"$PHASES\").
+Run the phases in order: p1 s1 p2 s2 p3 s3."
+    fi
     if notExists "$DB.coord/finalize.done"; then
         # shellcheck disable=SC2086
         # --write-text-index 0: no stage of this pipeline reads a text .index --
@@ -276,16 +322,22 @@ esac
 # intermediates dropped: the reduce would then run over an empty shuffle, emit zero
 # edges and exit 0, and a greedycluster over that produces a clustering of
 # singletons rather than an error.
-if notExists "$TMP/clu1.tsv"; then
+if phase p1 && notExists "$TMP/clu1.tsv"; then
     mapReduceWaves "$DB" "$TMP/kmer1" "$TMP/edges1" \
         --spaced-kmer-mode 0 --kmer-per-seq-scale aa:0.000,nucl:0.200
 
     # shellcheck disable=SC2086
     $WORKER_RUNNER "$MMSEQS" alignparallel "$DB" "$TMP/edges1" "$TMP/aln1" $ALIGN_PAR $VERBOSITY \
         || fail "alignparallel (pass 1) died"
+fi
 
-    # Single node from here to the end of the pass: the greedy sweep is sequential
-    # by necessity, which is what makes it exact.
+# Single node: the greedy sweep is sequential by necessity, which is what makes
+# it exact. Its own phase so an allocation sized for the k-mer waves does not
+# have to be held through it.
+if phase s1 && notExists "$TMP/clu1.tsv"; then
+    if notExists "$TMP/aln1/coord/align.info"; then
+        fail "no pass-1 alignments in $TMP/aln1. Phase p1 has not finished."
+    fi
     # shellcheck disable=SC2086
     "$MMSEQS" greedycluster "$DB" "$TMP/aln1" "$TMP/clu1.tsv.tmp" $VERBOSITY --threads $THREADS \
         || fail "greedycluster (pass 1) died"
@@ -294,12 +346,23 @@ fi
 # Dead once clu1.tsv exists, and together the largest thing pass 1 leaves behind
 # for pass 2 to be sized around. kmer1 is already gone: the reduce unlinks each
 # wave's buckets as it consumes them.
-dropIntermediate "$TMP/edges1" "$TMP/aln1"
+#
+# Conditioned on clu1.tsv rather than run unconditionally, which is what it used
+# to be. With the phases split, p1 ends with the alignments still being the only
+# copy of pass 1's work and greedycluster not yet run: dropping them there would
+# delete the input of the very next phase, and the pass is guarded as
+# unre-enterable precisely so that it cannot be rebuilt.
+if [ -f "$TMP/clu1.tsv" ]; then
+    dropIntermediate "$TMP/edges1" "$TMP/aln1"
+fi
 
 # ---- pass 2, over the representatives --------------------------------------
 # Re-keyed densely rather than sub-set, because every stage addresses keys as
 # array offsets. The key map translates the result back below.
-if notExists "$TMP/rep.keymap"; then
+# Single node, and in the same phase as the greedy sweep it consumes: both are
+# one process reading the whole key space, so a chain that separated them would
+# pay a queue wait for nothing.
+if phase s1 && notExists "$TMP/rep.keymap"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createrepdb "$DB" "$TMP/clu1.tsv" "$TMP/rep" $VERBOSITY --threads $THREADS \
         --split-memory-limit $SPLIT_MEMORY_LIMIT \
@@ -307,7 +370,10 @@ if notExists "$TMP/rep.keymap"; then
 fi
 
 # Guarded as a whole, for the same reason as pass 1.
-if notExists "$TMP/clu2_sub.tsv"; then
+if phase p2 && notExists "$TMP/clu2_sub.tsv"; then
+    if notExists "$TMP/rep.keymap"; then
+        fail "no representative database at $TMP/rep. Phase s1 has not finished."
+    fi
     mapReduceWaves "$TMP/rep" "$TMP/kmer2" "$TMP/edges2" \
         --spaced-kmer-mode 1 --kmer-per-seq-scale aa:0.100,nucl:0.100
 
@@ -320,16 +386,29 @@ if notExists "$TMP/clu2_sub.tsv"; then
         --filter-cludb-file "$TMP/clu1.tsv" --filter-seqdb-file "$DB" \
         --key-map "$TMP/rep.keymap" \
         || fail "alignparallel (pass 2) died"
+fi
 
+# Single node, like its pass-1 counterpart.
+if phase s2 && notExists "$TMP/clu2_sub.tsv"; then
+    if notExists "$TMP/aln2/coord/align.info"; then
+        fail "no pass-2 alignments in $TMP/aln2. Phase p2 has not finished."
+    fi
     # shellcheck disable=SC2086
     "$MMSEQS" greedycluster "$TMP/rep" "$TMP/aln2" "$TMP/clu2_sub.tsv.tmp" $VERBOSITY \
         --threads $THREADS \
         || fail "greedycluster (pass 2) died"
     mv -f "$TMP/clu2_sub.tsv.tmp" "$TMP/clu2_sub.tsv"
 fi
-dropIntermediate "$TMP/edges2" "$TMP/aln2" "$TMP/kmer2"
+# Conditioned for the same reason as pass 1's: p2 leaves aln2 as the only copy
+# of its work, and s2 is what consumes it.
+if [ -f "$TMP/clu2_sub.tsv" ]; then
+    dropIntermediate "$TMP/edges2" "$TMP/aln2" "$TMP/kmer2"
+fi
 
-if notExists "$TMP/clu2.tsv"; then
+if phase p3 && notExists "$TMP/clu2.tsv"; then
+    if notExists "$TMP/clu2_sub.tsv"; then
+        fail "no pass-2 clustering at $TMP/clu2_sub.tsv. Phase s2 has not finished."
+    fi
     # shellcheck disable=SC2086
     $WORKER_RUNNER "$MMSEQS" translatecluster "$TMP/clu2_sub.tsv" "$TMP/rep.keymap" \
         "$TMP/clu2.tsv.tmp" \
@@ -344,7 +423,7 @@ fi
 # ---- fold pass 2 into pass 1 ------------------------------------------------
 # Keys, not accessions: every stage addresses sequences as dense keys, so this is
 # the form the merge produces. It is translated below.
-if notExists "$TMP/clu.keys.tsv"; then
+if phase p3 && notExists "$TMP/clu.keys.tsv"; then
     # shellcheck disable=SC2086
     $WORKER_RUNNER "$MMSEQS" mergeclusterparallel "$DB" "$TMP/clu1.tsv" "$TMP/clu2.tsv" \
         "$TMP/clu.keys.tsv.tmp" \
@@ -361,6 +440,13 @@ fi
 # id->name table. Here it is a streaming join against the .lookup. Skipped when
 # the database has none (--write-lookup 0), leaving the key-space result as the
 # output rather than failing at the last step.
+if ! phase s3; then
+    echo "Phases '$PHASES' done; $OUT is written by phase s3"
+    exit 0
+fi
+if notExists "$TMP/clu.keys.tsv"; then
+    fail "no merged clustering at $TMP/clu.keys.tsv. Phase p3 has not finished."
+fi
 if [ -f "$DB.lookup" ]; then
     # shellcheck disable=SC2086
     # --spill-prefix under $TMP. translatekeys derives its spill files from the
