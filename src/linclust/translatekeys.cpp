@@ -295,7 +295,29 @@ public:
         const std::string p = path(prefix, b);
         if (FileUtil::fileExists(p.c_str()) == false) return out;
         const size_t bytes = FileUtil::getFileSize(p);
-        if (bytes == 0 || bytes % sizeof(KeyPair) != 0) return out;
+        // An empty bucket is legitimate -- a key range nothing fell into. A *torn*
+        // one is not, and returning it as empty drops every row in that key range
+        // from the final clusters.tsv while the stage still exits 0.
+        //
+        // translatecluster.cpp:136-146 and mergeclusterparallel.cpp:264-273 both
+        // make this fatal, the first with a comment saying the empty return
+        // "silently dropped every assignment in that key range" and that the two
+        // now agree. There are three sites, and this was the one missed -- in the
+        // stage that writes the user-visible output, so the loss lands directly in
+        // the delivered result.
+        //
+        // Not reachable through the workflow today: removeSpillFiles clears any
+        // earlier attempt's shards before pass 1 writes, and KeyBuckets::flush
+        // checks fopen, fwrite *and* fclose, so a short write is already fatal.
+        // This is the guard for when one of those stops being true.
+        if (bytes % sizeof(KeyPair) != 0) {
+            Debug(Debug::ERROR) << "Spill bucket " << p << " is " << bytes << " bytes, not a whole "
+                                << "number of " << sizeof(KeyPair) << "-byte pairs. It was left by "
+                                << "an interrupted run; remove the spill files and re-run the "
+                                << "stage.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (bytes == 0) return out;
         out.resize(bytes / sizeof(KeyPair));
         FILE *f = FileUtil::openFileOrDie(p.c_str(), "rb", true);
         if (fread(out.data(), sizeof(KeyPair), out.size(), f) != out.size()) {
@@ -725,7 +747,21 @@ int translatekeys(int argc, const char **argv, const Command &command) {
                     writers[tid]->append(static_cast<unsigned int>(pairs[i].other / span),
                                          pairs[i].other, pairs[i].key, name.c_str(), name.size());
                 }
-                FileUtil::remove(KeyBuckets::path(tmpA, b).c_str());
+                // Guarded, because KeyBuckets::flush creates a bucket's file only
+                // when that bucket received a row, and FileUtil::remove is fatal
+                // on ENOENT. A clustering sparse enough to leave one key range
+                // empty therefore aborted the final stage on a perfectly valid
+                // input: reproduced with a 2-row clustering against a 173,313-key
+                // lookup at --split-memory-limit 1K, which exits 1 with "Could not
+                // delete ...bymember.1!" and writes no output at all.
+                //
+                // Pass 3 below already guards its own removal this way, with a
+                // comment noting those shards are sparse; pass 1's buckets are
+                // sparse for the same reason.
+                const std::string spent = KeyBuckets::path(tmpA, b);
+                if (FileUtil::fileExists(spent.c_str())) {
+                    FileUtil::remove(spent.c_str());
+                }
             }
         }
         for (int t = 0; t < threads; t++) {
