@@ -108,7 +108,6 @@ Parameters::Parameters():
         PARAM_GPU(PARAM_GPU_ID, "--gpu", "Use GPU", "Use GPU (CUDA) if possible", typeid(int), (void *) &gpu, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_GPU_SERVER(PARAM_GPU_SERVER_ID, "--gpu-server", "Use GPU server", "Use GPU server", typeid(int), (void *) &gpuServer, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_GPU_SERVER_WAIT_TIMEOUT(PARAM_GPU_SERVER_WAIT_TIMEOUT_ID, "--gpu-server-wait-timeout", "Wait for GPU server", "Wait for GPU server for 0: don't wait -1: no wait limit: >0 this many seconds", typeid(int), (void *) &gpuServerWaitTimeout, "^-?[0-9]+", MMseqsParameter::COMMAND_COMMON),
-        PARAM_GPU_RESCORE_TOPK_MULT(PARAM_GPU_RESCORE_TOPK_MULT_ID, "--gpu-rescore-topk-mult", "aux rescore top-K multiplier", "add the aux channel to the top (this * --max-seqs) hits ranked by the primary alphabet", typeid(int), (void *) &gpuRescoreTopkMult, "^[1-9][0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format:\n0: BLAST-TAB\n1: SAM\n2: BLAST-TAB + query/db length\n3: Pretty HTML\n4: BLAST-TAB + column headers\nBLAST-TAB (0) and BLAST-TAB + column headers (4) support custom output formats (--format-output)", typeid(int), (void *) &formatAlignmentMode, "^[0-4]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,fident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend,ppos", typeid(std::string), (void *) &outfmt, ""),
@@ -513,6 +512,7 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
     ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     ungappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
+    ungappedprefilter.push_back(&PARAM_MASK_N_REPEAT);
     ungappedprefilter.push_back(&PARAM_MAX_SEQS);
     ungappedprefilter.push_back(&PARAM_TAXON_LIST);
     ungappedprefilter.push_back(&PARAM_PRELOAD_MODE);
@@ -520,7 +520,6 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_GPU_SERVER);
     ungappedprefilter.push_back(&PARAM_GPU_SERVER_WAIT_TIMEOUT);
     ungappedprefilter.push_back(&PARAM_PREF_MODE);
-    ungappedprefilter.push_back(&PARAM_GPU_RESCORE_TOPK_MULT);
     ungappedprefilter.push_back(&PARAM_THREADS);
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
@@ -2670,7 +2669,6 @@ void Parameters::setDefaults() {
 #endif
     gpuServer = 0;
     gpuServerWaitTimeout = 10 * 60;
-    gpuRescoreTopkMult = 3;
 #ifdef HAVE_CUDA
     char* gpuServerEnv = getenv("MMSEQS_FORCE_GPUSERVER");
     if (gpuServerEnv != NULL) {
