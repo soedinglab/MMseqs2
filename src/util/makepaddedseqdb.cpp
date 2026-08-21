@@ -36,8 +36,10 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
 #pragma omp parallel
 {
     unsigned int thread_idx = 0;
+    unsigned int thread_count = 1;
 #ifdef OPENMP
     thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+    thread_count = static_cast<unsigned int>(omp_get_num_threads());
 #endif
     Masker masker(subMat);
     std::string result;
@@ -55,8 +57,13 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
         charSequence = (unsigned char*)malloc(charSeqBufferSize * sizeof(char));
     }
 
-#pragma omp for schedule(static)
-    for (size_t i = 0; i < dbr.getSize(); i++) {
+    size_t rangeStart = 0, rangeSize = 0;
+    // Processing cost scales with sequence length, so balance total bytes instead
+    dbr.decomposeDomainByAminoAcid(thread_count - 1 - thread_idx, thread_count, &rangeStart, &rangeSize);
+    // The reader processes longest first, but the loop below processes shortest first
+    // This keeps the GPU database sorted by increasing sequence length
+    rangeStart = dbr.getSize() - rangeStart - rangeSize;
+    for (size_t i = rangeStart; i < rangeStart + rangeSize; i++) {
         progress.updateProgress();
 
         if (firstIt == SIZE_MAX) {
