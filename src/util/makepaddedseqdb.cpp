@@ -25,6 +25,12 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
     int dbType = DBReader<DBKeyType>::setExtendedDbtype(dbr.getDbtype(), Parameters::DBTYPE_EXTENDED_GPU);
+
+    const bool packedAlphabet =
+        (DBReader<DBKeyType>::getExtendedDbtype(dbr.getDbtype()) & Parameters::DBTYPE_EXTENDED_AUX_SEQ) != 0;
+    const Sequence::SeqAuxInfo *padAuxInfo = Sequence::getAuxInfo(dbr.getDbtype());
+    const unsigned int padAuxAlphabetSize = (padAuxInfo != NULL) ? padAuxInfo->auxAlphabetSize : 1;
+    const unsigned char packedPad = (unsigned char)(20 * padAuxAlphabetSize);
     DBWriter dbsw(par.db2.c_str(), par.db2Index.c_str(), par.threads, false, dbType);
     dbsw.open();
     DBWriter dbhw(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_GENERIC_DB);
@@ -67,26 +73,35 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
         DBKeyType key = dbr.getDbKey(id);
         char *data = dbr.getData(id, thread_idx);
         size_t seqLen = dbr.getSeqLen(id);
-        seq.mapSequence(id, key, data, seqLen);
-
-        if (charSequence != NULL) {
-            if ((size_t)seq.L >= charSeqBufferSize) {
-                charSeqBufferSize = seq.L * 1.5;
-                charSequence = (unsigned char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
-            }
-            memcpy(charSequence, seq.numSequence, seq.L);
-            masker.maskSequence(seq, par.maskMode, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
-            for (int i = 0; i < seq.L; i++) {
-                result.append(1, (seq.numSequence[i] == masker.maskLetterNum) ? charSequence[i] + 32 : charSequence[i]);
-            }
+        size_t writtenLen;
+        char padByte;
+        if (packedAlphabet) {
+            result.append(data, seqLen);
+            writtenLen = seqLen;
+            padByte = (char)packedPad;
         } else {
-            for (int i = 0; i < seq.L; i++) {
-                char aa = data[i];
-                result.append(1, (islower(aa)) ? seq.numSequence[i] + 32 : seq.numSequence[i]);
+            seq.mapSequence(id, key, data, seqLen);
+            if (charSequence != NULL) {
+                if ((size_t)seq.L >= charSeqBufferSize) {
+                    charSeqBufferSize = seq.L * 1.5;
+                    charSequence = (unsigned char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
+                }
+                memcpy(charSequence, seq.numSequence, seq.L);
+                masker.maskSequence(seq, par.maskMode, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
+                for (int i = 0; i < seq.L; i++) {
+                    result.append(1, (seq.numSequence[i] == masker.maskLetterNum) ? charSequence[i] + 32 : charSequence[i]);
+                }
+            } else {
+                for (int i = 0; i < seq.L; i++) {
+                    char aa = data[i];
+                    result.append(1, (islower(aa)) ? seq.numSequence[i] + 32 : seq.numSequence[i]);
+                }
             }
+            writtenLen = seq.L;
+            padByte = static_cast<char>(20);
         }
-        const size_t sequencepadding = (seq.L % ALIGN == 0) ? 0 : ALIGN - seq.L % ALIGN;
-        result.append(sequencepadding, static_cast<char>(20));
+        const size_t sequencepadding = (writtenLen % ALIGN == 0) ? 0 : ALIGN - writtenLen % ALIGN;
+        result.append(sequencepadding, padByte);
         dbsw.writeData(result.c_str(), result.size(), key, thread_idx, false, false);
 
         // + 2 is needed for newline and null character
@@ -95,7 +110,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "Misalligned entry\n";
             EXIT(EXIT_FAILURE);
         }
-        dbsw.writeIndexEntry(firstIt + seqKey, start, seq.L + 2, thread_idx);
+        dbsw.writeIndexEntry(firstIt + seqKey, start, writtenLen + 2, thread_idx);
 
         size_t headerId = dbhr.getId(key);
         if (headerId == DB_ENTRY_NOT_FOUND) {
