@@ -4,6 +4,7 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
+#include "KmerPartition.h"
 
 #include <queue>
 #ifndef SIZE_T_MAX
@@ -266,10 +267,37 @@ KmerPosition<T, includeAdjacency, IncludeSeqLen> * doComputation(size_t totalKme
 template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
 KmerPosition<T, includeAdjacency, IncludeSeqLen> *initKmerPositionMemory(size_t size);
 
+class SequenceWeights;
+
+// Greedy grouping of the sorted k-mer array into (representative, member) pairs.
+//
+// Declared here so the distributed reduce can call it on one k-mer partition at a
+// time. That is exactly the same call stock makes on one split, and it is correct
+// per partition for the same reason: grouping only ever compares equal k-mers, and
+// equal k-mers always share a partition.
+//
+// On return the entries hold `.kmer` = representative key, `.id` = member key and
+// `.pos` = diagonal, written into writeSeqPair when it is non-NULL and in place
+// otherwise.
+template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
+size_t assignGroup(KmerPosition<T, includeAdjacency, IncludeSeqLen> *hashSeqPair,
+                   KmerPosition<T, false, IncludeSeqLen> *writeSeqPair,
+                   bool includeOnlyExtendable, int covMode, float covThr,
+                   SequenceWeights *sequenceWeights, float weightThr, int threads,
+                   std::vector<size_t> &threadOffsets, BaseMatrix *subMat,
+                   AssignGroupMask assignGroupMask, ComputationPhase phase, short *countTable);
+
 template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
 std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency, IncludeSeqLen> * kmerArray, size_t kmerArraySize, DBReader<DBKeyType> &seqDbr,
                                                  Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
-                                                 size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
+                                                 size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution,
+                                                 // When set, every selected k-mer is appended to its partition bucket
+                                                 // instead of being filtered down to [hashStartRange, hashEndRange] and
+                                                 // staged into kmerArray. This is what turns the per-split full rescan
+                                                 // into a single scan: nothing extracted is thrown away.
+                                                 // One writer shared by every thread; it is thread-safe.
+                                                 KmerBucketWriter *bucketWriter = NULL,
+                                                 const KmerPartitioner *kmerPartitioner = NULL);
 
 
 void maskSequence(int maskMode, int maskLowerCase,

@@ -18,10 +18,17 @@ set(TESTS
         TestKmerScore.cpp
         TestKwayMerge.cpp
         TestMultipleAlignment.cpp
+        TestParallelCoordination.cpp
         TestProfileAlignment.cpp
         TestPSSM.cpp
         TestPSSMPrune.cpp
         TestDBReaderZstd.cpp
+        TestDenseIndex.cpp
+        TestKmerPartition.cpp
+        TestLengthRankedPlan.cpp
+        TestVarintCodec.cpp
+        TestLengthRankTable.cpp
+        TestEdgeCodec.cpp
         TestReduceMatrix.cpp
         TestScoreMatrixSerialization.cpp
         TestSequenceIndex.cpp

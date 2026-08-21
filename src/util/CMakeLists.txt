@@ -14,6 +14,7 @@ set(util_source_files
         util/convertmsa.cpp
         util/convertprofiledb.cpp
         util/createdb.cpp
+        util/createdbparallel.cpp
         util/dbtype.cpp
         util/db2tar.cpp
         util/indexdb.cpp

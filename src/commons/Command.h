@@ -68,6 +68,9 @@ struct DbValidator {
     static std::vector<int> taxonomyReportInput;
     static std::vector<int> directory;
     static std::vector<int> flatfile;
+    // For a workflow that builds its own database when handed a FASTA, and
+    // reuses one when handed a database.
+    static std::vector<int> flatfileAndSequenceDb;
     static std::vector<int> flatfileAndStdin;
     static std::vector<int> flatfileStdinAndGeneric;
     static std::vector<int> flatfileStdinGenericUri;

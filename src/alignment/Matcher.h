@@ -255,6 +255,13 @@ private:
 };
 
 std::string getCovSeqidQscPercMinDiag();
+
+// Looks up the score-per-column cutoff that reaches targetPrecision at the given
+// coverage and sequence identity, from one of the precision libraries above.
+// Lives here rather than in a caller because more than one stage needs it and the
+// libraries it parses are here.
+float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double targetCov,
+                        double targetPrecision);
 std::string getCovSeqidQscPercMinDiagTargetCov();
 
 #endif

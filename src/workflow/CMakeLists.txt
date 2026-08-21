@@ -3,6 +3,7 @@ set(workflow_source_files
         workflow/ClusterUpdate.cpp
         workflow/Databases.cpp
         workflow/Linclust.cpp
+        workflow/LinclustParallel.cpp
         workflow/EasySearch.cpp
         workflow/EasyRbh.cpp
         workflow/EasyCluster.cpp
