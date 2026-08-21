@@ -103,6 +103,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+        size_t threadLongestKmer = par.kmerSize;
         unsigned short * scoreDist= new(std::nothrow) unsigned short[65536];
         Util::checkAllocation(scoreDist, "Can not allocate scoreDist memory in fillKmerPositionArray");
         unsigned int * hierarchicalScoreDist= new(std::nothrow) unsigned int[128];
@@ -189,7 +190,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                             }
                             kmerLen = MarkovKmerScore::adjustedLength(kmerToHash, adjustedKmerSize,
                                                                       (par.kmerSize - MarkovScores::MARKOV_ORDER) * MarkovScores::MEDIAN_SCORE);
-                            longestKmer = std::max(kmerLen, longestKmer);
+                            threadLongestKmer = std::max(kmerLen, threadLongestKmer);
                             kmerIdx = Indexer::computeKmerIdx(kmerToHash, kmerLen);
                         }
 
@@ -391,6 +392,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
         delete[] scoreDist;
         if (TYPE == Parameters::DBTYPE_HMM_PROFILE) {
             delete generator;
+        }
+#pragma omp critical
+        {
+            longestKmer = std::max(threadLongestKmer, longestKmer);
         }
     }
 
