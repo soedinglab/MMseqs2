@@ -54,8 +54,9 @@ BlockAligner::BlockAligner(
     queryCompBias = new int16_t[maxSequenceLength];
     targetCompBias = new int16_t[maxSequenceLength];
     queryCompBiasRev = new int16_t[maxSequenceLength];
+    // read as positional bias even when compBiasCorrection never fills them, so zero them
+    memset(queryCompBias, 0, maxSequenceLength * sizeof(int16_t));
     memset(queryCompBiasRev, 0, maxSequenceLength * sizeof(int16_t));
-    //set targetCompBias to 0
     memset(targetCompBias, 0, maxSequenceLength * sizeof(int16_t));
     tmpCompBias   = new float[maxSequenceLength];
 }
@@ -85,7 +86,10 @@ void BlockAligner::initQuery(Sequence* query){
     queryLength = query->L;
     //memset queryRevNumSeq
     memset(queryRevNumSeq, 0, maxSequenceLength * sizeof(int8_t));
-    
+    // reset per call so a compBias-off run never reuses the previous query's values
+    memset(queryCompBias, 0, maxSequenceLength * sizeof(int16_t));
+    memset(queryCompBiasRev, 0, maxSequenceLength * sizeof(int16_t));
+
     std::reverse_copy(queryNumSeq, queryNumSeq + queryLength, queryRevNumSeq);
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_AMINO_ACIDS)&& compBiasCorrection){
         SubstitutionMatrix::calcLocalAaBiasCorrection(subMat, queryNumSeq, queryLength, tmpCompBias, compBiasCorrectionScale);
@@ -105,7 +109,7 @@ s_align BlockAligner::gappedLocalAlign(
     float covThr,
     int covMode
 ) {
-    s_align local_aln;
+    s_align local_aln = {};
 
     AlignResult res;
     res.score = -1000000000;
@@ -130,21 +134,28 @@ s_align BlockAligner::gappedLocalAlign(
     // block_align_aa_xdrop_posbias(blockNoTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop); // forward with no trace(blockNoTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop); 
     res = block_res_aa_xdrop(blockNoTrace);
 
-    int qEnd = qIdx + res.query_idx -1 ;
-    int tEnd = tIdx + res.reference_idx -1;
-    
-    float tmpqcov = SmithWaterman::computeCov(0, qEnd, currentQuery->L);
-    float tmptcov = SmithWaterman::computeCov(0, tEnd, currentTarget->L);
-    bool hasCov = Util::hasCoverage(covThr, covMode, tmpqcov, tmptcov);
-    
-    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX || !hasCov) {
+    // Validate the forward result before deriving positions/coverage (SIZE_MAX or 0 == failure).
+    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX
+        || res.query_idx == 0 || res.reference_idx == 0) {
         local_aln.score1 = 0.0f;
         local_aln.qCov = 0.0f;
         local_aln.tCov = 0.0f;
         local_aln.evalue = -1.0f; // this should avoid that the hit is added
         return local_aln;
     }
-    
+
+    int qEnd = qIdx + res.query_idx - 1;
+    int tEnd = tIdx + res.reference_idx - 1;
+    float tmpqcov = SmithWaterman::computeCov(0, qEnd, currentQuery->L);
+    float tmptcov = SmithWaterman::computeCov(0, tEnd, currentTarget->L);
+    if (!Util::hasCoverage(covThr, covMode, tmpqcov, tmptcov)) {
+        local_aln.score1 = 0.0f;
+        local_aln.qCov = 0.0f;
+        local_aln.tCov = 0.0f;
+        local_aln.evalue = -1.0f;
+        return local_aln;
+    }
+
     // Backward full alignment
     int bqueryAlnLen = qEnd +1;
     int bqueryStartPos = qLen - bqueryAlnLen;
@@ -163,6 +174,16 @@ s_align BlockAligner::gappedLocalAlign(
 
     block_align_aa_trace_xdrop_posbias(blockTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop);
     res = block_res_aa_trace_xdrop(blockTrace);
+    // Validate the backward result before tracing back / freeing (avoid stale CIGAR + leak).
+    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX
+        || res.query_idx == 0 || res.reference_idx == 0) {
+        delete[] targetRevNumSeq;
+        local_aln.score1 = 0.0f;
+        local_aln.qCov = 0.0f;
+        local_aln.tCov = 0.0f;
+        local_aln.evalue = -1.0f;
+        return local_aln;
+    }
     block_cigar_aa_trace_xdrop(blockTrace, res.query_idx, res.reference_idx, cigar);
 
     int score = res.score;
@@ -270,6 +291,10 @@ BlockAligner::align(
     int covMode
 ) {
     s_align local_aln = gappedLocalAlign(currentTarget, qIdx, tIdx, cigar, xdrop, covThr, covMode);
+    // gappedLocalAlign returns before writing the CIGAR when it fails, so do not walk a stale one
+    if (local_aln.evalue < 0) {
+        return local_aln;
+    }
 
     int aaIds = 0;
     size_t cigarLength = block_len_cigar(cigar);
@@ -319,7 +344,7 @@ s_align BlockAligner::gappedLocalAlignForward(
     int qIdx, int tIdx,
     Cigar* cigar, int32_t x_drop
 ) {
-    s_align local_aln;
+    s_align local_aln = {};
 
     AlignResult res;
     res.score = -1000000000;
@@ -342,22 +367,22 @@ s_align BlockAligner::gappedLocalAlignForward(
 
     block_align_aa_trace_xdrop_posbias(blockTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop);
     res = block_res_aa_trace_xdrop(blockTrace);
-    block_cigar_aa_trace_xdrop(blockTrace, res.query_idx, res.reference_idx, cigar);
 
-    int qEnd = qIdx + res.query_idx;
-    int tEnd = tIdx + res.reference_idx;
-    
-    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX) {
+    // a failed x-drop yields SIZE_MAX indices, so validate before tracing back from an invalid cell
+    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX
+        || res.query_idx == 0 || res.reference_idx == 0) {
         local_aln.score1 = 0.0f;
         local_aln.qCov = 0.0f;
         local_aln.tCov = 0.0f;
-        local_aln.evalue = -1.0f; // this should avoid that the hit is added
+        local_aln.evalue = -1.0f; // failure marker; caller must not read the (unwritten) CIGAR
         return local_aln;
     }
 
-    
-    local_aln.qEndPos1 = qEnd;
-    local_aln.dbEndPos1 = tEnd;
+    block_cigar_aa_trace_xdrop(blockTrace, res.query_idx, res.reference_idx, cigar);
+
+    // res.query_idx / res.reference_idx are counts, so the last aligned index is start + count - 1
+    local_aln.qEndPos1 = qIdx + res.query_idx - 1;
+    local_aln.dbEndPos1 = tIdx + res.reference_idx - 1;
     local_aln.score1 = res.score;
 
     return local_aln;
@@ -369,7 +394,7 @@ s_align BlockAligner::gappedLocalAlignBackward(
     int qIdx, int tIdx,
     Cigar* cigar, int32_t x_drop
 ) {
-    s_align local_aln;
+    s_align local_aln = {};
 
     AlignResult res;
     res.score = -1000000000;
@@ -394,16 +419,18 @@ s_align BlockAligner::gappedLocalAlignBackward(
 
     block_align_aa_trace_xdrop_posbias(blockTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop);
     res = block_res_aa_trace_xdrop(blockTrace);
-    block_cigar_aa_trace_xdrop(blockTrace, res.query_idx, res.reference_idx, cigar);
-    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX) {
-        // Debug(Debug::ERROR) << "wrong end position: " << qEnd << "\t" << tEnd << "\n";
+    // Validate BEFORE tracing back; free the reversed target on the failure path (was leaked).
+    if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX
+        || res.query_idx == 0 || res.reference_idx == 0) {
+        delete[] targetRevNumSeq;
         local_aln.score1 = 0.0f;
         local_aln.qCov = 0.0f;
         local_aln.tCov = 0.0f;
-        local_aln.evalue = -1.0f; // this should avoid that the hit is added
+        local_aln.evalue = -1.0f; // failure marker; caller must not read the (unwritten) CIGAR
         return local_aln;
     }
 
+    block_cigar_aa_trace_xdrop(blockTrace, res.query_idx, res.reference_idx, cigar);
     local_aln.score1 = res.score;
     delete[] targetRevNumSeq;
     return local_aln;
@@ -420,7 +447,11 @@ BlockAligner::bandedalignForward(
 ) {
     //forward
     s_align local_aln = gappedLocalAlignForward(currentTarget, qIdx, tIdx, cigar, xdrop);
-    
+    // Forward failed: the CIGAR was not (re)written, so do not walk it (it would be stale).
+    if (local_aln.evalue < 0) {
+        return local_aln;
+    }
+
     int aaIds = 0;
     size_t cigarLength = block_len_cigar(cigar);
     int queryPos = 0;
@@ -473,7 +504,11 @@ BlockAligner::bandedalignBackward(
 ) {
     //Backward
     s_align local_aln = gappedLocalAlignBackward(currentTarget, qIdx, tIdx, cigar, xdrop);
-    
+    // Backward failed: the CIGAR was not (re)written, so do not walk it (it would be stale).
+    if (local_aln.evalue < 0) {
+        return local_aln;
+    }
+
     int aaIds = 0;
     size_t cigarLength = block_len_cigar(cigar);
     int queryPos = 0;
@@ -530,9 +565,13 @@ BlockAligner::bandedalign(
     int covMode
 ) {
     //Forward
-    s_align local_aln;
+    s_align local_aln = {};   // zero every field so failure returns never expose garbage (e.g. identicalAACnt)
     std::string backtrace_forward;
     s_align local_aln_Forward = bandedalignForward(currentTarget, qIdx, tIdx, backtrace_forward, xdrop);
+    if (local_aln_Forward.evalue < 0) {   // forward extension failed
+        local_aln.evalue = -1.0f;
+        return local_aln;
+    }
     float tmpqcov = SmithWaterman::computeCov(0, local_aln_Forward.qEndPos1, currentQuery->L);
     float tmptcov = SmithWaterman::computeCov(0, local_aln_Forward.dbEndPos1, currentTarget->L);
     bool hasCov = Util::hasCoverage(covThr, covMode, tmpqcov, tmptcov);
@@ -545,8 +584,9 @@ BlockAligner::bandedalign(
     }
 
     //Backward
-    s_align local_aln_Backward;
+    s_align local_aln_Backward = {};
     std::string backtrace_backward;
+    const bool backwardStitched = (qIdx > 0 && tIdx > 0);
     if (qIdx > 0 && tIdx > 0) {
         local_aln_Backward = bandedalignBackward(currentTarget, qIdx, tIdx, backtrace_backward, xdrop);
 
@@ -555,6 +595,10 @@ BlockAligner::bandedalign(
         local_aln_Backward.dbStartPos1 = tIdx;
         local_aln_Backward.score1 = 0;
         local_aln_Backward.identicalAACnt = 0;
+    }
+    if (backwardStitched && local_aln_Backward.evalue < 0) {   // backward extension failed
+        local_aln.evalue = -1.0f;
+        return local_aln;
     }
 
     if (backtrace_backward.empty() == false && backtrace_backward.back() != 'M') {
@@ -583,13 +627,21 @@ BlockAligner::bandedalign(
     local_aln.dbStartPos1 = local_aln_Backward.dbStartPos1;
     local_aln.qEndPos1 = local_aln_Forward.qEndPos1;
     local_aln.dbEndPos1 = local_aln_Forward.dbEndPos1;
-    local_aln.score1 = local_aln_Forward.score1 + local_aln_Backward.score1; // temporary
-    local_aln.identicalAACnt = local_aln_Forward.identicalAACnt + local_aln_Backward.identicalAACnt -1 ;
+    // Keep the raw (pre-bitscore) score signed while stitching; seedScore can be negative.
+    int rawScore = static_cast<int>(local_aln_Forward.score1) + static_cast<int>(local_aln_Backward.score1);
+    local_aln.identicalAACnt = local_aln_Forward.identicalAACnt + local_aln_Backward.identicalAACnt;
+    if (backwardStitched) {
+        // Seed cell is counted by both forward and backward extensions; subtract one copy.
+        const int seedScore = subMat->subMatrix[currentQuery->numSequence[qIdx]][currentTarget->numSequence[tIdx]]
+                            + (compBiasCorrection ? queryCompBias[qIdx] : 0);
+        rawScore -= seedScore;
+        local_aln.identicalAACnt -= 1;
+    }
     
     float qcov = SmithWaterman::computeCov(local_aln.qStartPos1, local_aln.qEndPos1, currentQuery->L);
     float tcov = SmithWaterman::computeCov(local_aln.dbStartPos1, local_aln.dbEndPos1, currentTarget->L);
-    double evalue = evaluer->computeEvalue(local_aln.score1, currentQuery->L);
-    int bitScore = static_cast<int>(evaluer->computeBitScore(local_aln.score1) + 0.5);
+    double evalue = evaluer->computeEvalue(rawScore, currentQuery->L);
+    int bitScore = static_cast<int>(evaluer->computeBitScore(rawScore) + 0.5);
     
     local_aln.qCov = qcov;
     local_aln.tCov = tcov;
