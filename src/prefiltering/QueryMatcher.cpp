@@ -205,38 +205,33 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId
             unsigned int maxDiagonalScoreThr = (UCHAR_MAX - ungappedAlignment->getQueryBias());
             bool scoreIsTruncated = (diagonalThr >= maxDiagonalScoreThr);
             size_t availableSpace = foundDiagonalsSize - (resultReadPos - foundDiagonals);
-            bool rescored = false;
 
             if (scoreIsTruncated) {
-                // Count truncated-score hits from already-computed scoreSizes
-                size_t truncatedCount = 0;
-                for (unsigned int s = maxDiagonalScoreThr; s < SCORE_RANGE; s++) {
-                    truncatedCount += scoreSizes[s];
-                }
-
-                if (truncatedCount * 2 <= availableSpace) {
-                    // Filter in-place to only truncated-score hits
-                    size_t filteredSize = 0;
-                    for (size_t i = 0; i < resultSize; i++) {
-                        if (resultReadPos[i].count >= maxDiagonalScoreThr) {
-                            resultReadPos[filteredSize] = resultReadPos[i];
-                            filteredSize++;
-                        }
+                // Filter in-place to only truncated-score hits
+                size_t filteredSize = 0;
+                for (size_t i = 0; i < resultSize; i++) {
+                    if (resultReadPos[i].count >= maxDiagonalScoreThr) {
+                        resultReadPos[filteredSize] = resultReadPos[i];
+                        filteredSize++;
                     }
-                    // Now we have room for double-buffer rescoring
-                    resultWritePos = resultReadPos + filteredSize;
-                    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-                    std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, resultReadPos, filteredSize, ungappedAlignment, maxDiagonalScoreThr);
-                    size_t newResultSize = rescoreResult.first;
-                    unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
-                    size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, resultWritePos, 0, resultReadPos, newResultSize);
-                    std::swap(resultReadPos, resultWritePos);
-                    queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(resultReadPos, elementsCntAboveDiagonalThr, identityId, 0, ungappedAlignment, maxSelfScoreMinusDiag);
-                    rescored = true;
                 }
-            }
-
-            if (!rescored) {
+                memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
+                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, resultReadPos, filteredSize, ungappedAlignment, maxDiagonalScoreThr);
+                size_t newResultSize = rescoreResult.first;
+                unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
+                size_t elementsCntAboveDiagonalThr;
+                if (filteredSize * 2 <= availableSpace) {
+                    // Room for the second buffer, radix sort the rescored hits
+                    resultWritePos = resultReadPos + filteredSize;
+                    elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, resultWritePos, 0, resultReadPos, newResultSize);
+                    std::swap(resultReadPos, resultWritePos);
+                } else {
+                    // Too many truncated hits to double buffer, sort in-place instead
+                    SORT_SERIAL(resultReadPos, resultReadPos + newResultSize, CounterResult::sortScore);
+                    elementsCntAboveDiagonalThr = newResultSize;
+                }
+                queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(resultReadPos, elementsCntAboveDiagonalThr, identityId, 0, ungappedAlignment, maxSelfScoreMinusDiag);
+            } else {
                 size_t resultPos = 0;
                 for (size_t i = 0; i < resultSize; i++) {
                     resultReadPos[resultPos].id = resultReadPos[i].id;
