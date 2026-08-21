@@ -344,6 +344,9 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
 }
 #endif
 
+// How many primary ranked hits get the aux channel added
+static const size_t AUX_RESCORE_TOP_N = 100000;
+
 static int scoreAuxOnDiagonal(const unsigned char *qAux, int qLen,
                                const unsigned char *tAux, int tLen,
                                BaseMatrix *subMatAux, int diagonal) {
@@ -379,11 +382,12 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
     Debug::Progress progress(qdbr->getSize());
     const int targetSeqType = tdbr->getDbtype();
     const int querySeqType = qdbr->getDbtype();
-    // Score the primary alphabet over every target, keep the top
-    // (--gpu-rescore-topk-mult * --max-seqs), add the aux channel to those, re-rank, then
-    // truncate to --max-seqs. Set only when the target DB is packed and aux scoring is on; the
-    // *query* must carry the aux channel too, which profile queries do not (mirrors
-    // rescoreCount is shared across the team.
+    // Score the primary alphabet over every target, keep the top AUX_RESCORE_TOP_N, add the aux
+    // channel to those on their best primary diagonal, re-rank, then truncate to --max-seqs.
+    // Only the top N can gain the aux term, so N is what decides how far down the primary
+    // ranking the aux channel is still able to promote a hit.
+    // The target DB must be packed and aux scoring on, and the *query* must carry the aux
+    // channel too, which profile queries do not.
     const bool queryHasAux = (Sequence::getAuxInfo(querySeqType) != NULL)
                              && (Sequence::getAuxInfo(querySeqType)->auxRemap != NULL);
     const bool targetHasAux = (Sequence::getAuxInfo(targetSeqType) != NULL)
@@ -396,9 +400,10 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                            << "(needs a non-profile query with the aux channel and --alignment-mode 0); "
                            << "scoring the primary alphabet only\n";
     }
-    const size_t topNAux = useAux
-        ? std::max((size_t)1, (size_t)par.gpuRescoreTopkMult * par.maxResListLen)
-        : 0;
+
+    const size_t topNAux = useAux ? AUX_RESCORE_TOP_N : 0;
+    const unsigned char auxMaskNum = (subMatAux != NULL)
+            ? (unsigned char)subMatAux->aa2num[(int)'X'] : 0;
     size_t rescoreCount = 0;
 #ifdef OPENMP
     omp_set_nested(1);
@@ -417,6 +422,10 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
         SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize,
                               par.compBiasCorrection, par.compBiasCorrectionScale, NULL);
 
+        // A packed DB doesn't have left-over space for masking
+        Masker masker(*subMat);
+        const bool maskPacked = (par.maskNrepeats > 0) && targetHasAux;
+
         std::string resultBuffer;
         resultBuffer.reserve(262144);
         for (size_t id = 0; id < qdbr->getSize(); id++) {
@@ -425,6 +434,14 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
             unsigned int querySeqLen = qdbr->getSeqLen(id);
 
             qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
+            if (maskPacked && queryHasAux && qSeq.numSequenceAux != NULL) {
+                masker.maskSequence(qSeq, false, par.maskProb, false, par.maskNrepeats);
+                for (int i = 0; i < qSeq.L; i++) {
+                    if (qSeq.numSequence[i] == (unsigned char)masker.maskLetterNum) {
+                        qSeq.numSequenceAux[i] = auxMaskNum;
+                    }
+                }
+            }
 //            qSeq.printProfileStatePSSM();
             if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ){
                 aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat);
@@ -458,6 +475,9 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                         for (int i = 0; i < tSeq.L; i++) {
                             tSeq.numSequence[i] = ((targetSeq[i] >= 32 && targetSeq[i] <= 52) || targetSeq[i] >= 97)  ? xChar : tSeq.numSequence[i];
                         }
+                    }
+                    if (maskPacked) {
+                        masker.maskSequence(tSeq, false, par.maskProb, false, par.maskNrepeats);
                     }
                 }else{
                     tSeq.mapSequence(tId, targetKey, sequenceLookup->getSequence(tId));
@@ -683,8 +703,11 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
             Debug(Debug::ERROR) << "Cannot find the auxiliary substitution matrix for the prefilter\n";
             EXIT(EXIT_FAILURE);
         }
+        std::string matName("aux.out");
         std::string matData(reinterpret_cast<const char*>(auxInfoTarget->auxMatData), auxInfoTarget->auxMatDataLen);
-        subMatAux = new SubstitutionMatrix(matData.c_str(), 2.0, -0.2f);
+        char *serialized = BaseMatrix::serialize(matName, matData);
+        subMatAux = new SubstitutionMatrix(serialized, 2.0, -0.2f);
+        free(serialized);
     }
 
     QueryMatcherTaxonomyHook * taxonomyHook = NULL;
