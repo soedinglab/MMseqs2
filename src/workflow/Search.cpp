@@ -593,8 +593,8 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(program.c_str(), translated_search_sh, translated_search_sh_len);
     }else if(searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE &&
             searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE){
-        if (par.gpu != 0) {
-            Debug(Debug::ERROR) << "No GPU support in nucleotide search\n";
+        if (par.gpu != 0 && par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
+            Debug(Debug::ERROR) << "GPU nucleotide search only supports ungapped prefilter mode\n";
             EXIT(EXIT_FAILURE);
         }
         FileUtil::writeFile(tmpDir + "/blastn.sh", blastn_sh, blastn_sh_len);
