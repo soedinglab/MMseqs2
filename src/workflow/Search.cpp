@@ -588,6 +588,8 @@ int search(int argc, const char **argv, const Command& command) {
         } else {
             cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         }
+        cmd.addVariable("GPU", par.gpu ? "TRUE" : NULL);
+        cmd.addVariable("MAKEPADDEDSEQDB_PAR", par.createParameterString(par.makepaddedseqdb).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
         FileUtil::writeFile(program.c_str(), translated_search_sh, translated_search_sh_len);
