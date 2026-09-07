@@ -19,8 +19,8 @@
 #include <fcntl.h>
 
 namespace {
-const char RUN_TABLE_MAGIC[8] = {'M', 'M', 'R', 'U', 'N', 'S', '\0', '\0'};
-const uint32_t RUN_TABLE_VERSION = 4;
+const char RANGE_TABLE_MAGIC[8] = {'M', 'M', 'R', 'A', 'N', 'G', 'E', 'S'};
+const uint32_t RANGE_TABLE_VERSION = 4;
 
 struct Header {
     char magic[8];
@@ -28,190 +28,190 @@ struct Header {
     uint32_t keyWidth;
     uint32_t nodeCount;
     uint32_t filesPerNode;
-    uint64_t segmentCount;
+    uint64_t rangeCount;
     uint64_t entryCount;
     uint64_t byteCount;
 };
 }
 
-SequenceLocator::SequenceLocator() : entries(0), bytes(0), nodes(1), perNodeFiles(1) {}
+Lin8DbIndex::Lin8DbIndex() : sequenceCount(0), dataBytes(0), nodes(1), perNodeFiles(1) {}
 
-void SequenceLocator::reserve(size_t count) {
-    runs.reserve(count);
+void Lin8DbIndex::reserve(size_t count) {
+    ranges.reserve(count);
     byteStarts.reserve(count + 1);
 }
 
-void SequenceLocator::append(uint64_t rankBase, uint32_t len, uint64_t byteBase, uint32_t file,
+void Lin8DbIndex::append(uint64_t rankBase, uint32_t len, uint64_t byteBase, uint32_t file,
                       uint64_t hdrBase) {
     if (rankBase > MAX_RANK || byteBase > MAX_BYTE || file > MAX_FILE || len > MAX_ENTRY_LEN) {
-        Debug(Debug::ERROR) << "Run table segment out of repRankBlock: rank " << rankBase << " byte "
+        Debug(Debug::ERROR) << "Range table entry out of repRankBlock: rank " << rankBase << " byte "
                             << byteBase << " file " << file << " length " << len << "\n";
         EXIT(EXIT_FAILURE);
     }
-    if (runs.empty() == false && rankBase <= runs.back().rankBase()) {
-        Debug(Debug::ERROR) << "Run table runs must ascend by rank, got " << rankBase
-                            << " after " << runs.back().rankBase() << "\n";
+    if (ranges.empty() == false && rankBase <= ranges.back().firstRank()) {
+        Debug(Debug::ERROR) << "Range table ranges must ascend by rank, got " << rankBase
+                            << " after " << ranges.back().firstRank() << "\n";
         EXIT(EXIT_FAILURE);
     }
-    LengthRun segment;
-    segment.rankAndLen = rankBase | (static_cast<uint64_t>(len) << RANK_BITS);
-    segment.byteAndFile = byteBase | (static_cast<uint64_t>(file) << 48);
-    segment.hdrByte = hdrBase;
-    runs.push_back(segment);
-    byteStarts.push_back(bytes);
-    if (runs.size() > 1) {
-        const LengthRun &previous = runs[runs.size() - 2];
-        bytes += (rankBase - previous.rankBase()) * previous.seqLen();
-        byteStarts.back() = bytes;
+    LengthRange range;
+    range.rankAndLength = rankBase | (static_cast<uint64_t>(len) << RANK_BITS);
+    range.offsetAndFile = byteBase | (static_cast<uint64_t>(file) << 48);
+    range.headerByte = hdrBase;
+    ranges.push_back(range);
+    byteStarts.push_back(dataBytes);
+    if (ranges.size() > 1) {
+        const LengthRange &previous = ranges[ranges.size() - 2];
+        dataBytes += (rankBase - previous.firstRank()) * previous.getSeqLen();
+        byteStarts.back() = dataBytes;
     }
-    entries = rankBase;
+    sequenceCount = rankBase;
 }
 
-void SequenceLocator::checkLengthsDescend() const {
-    for (size_t i = 1; i < runs.size(); i++) {
-        if (runs[i].seqLen() > runs[i - 1].seqLen()) {
-            Debug(Debug::ERROR) << "Length run " << i << " holds length " << runs[i].seqLen()
-                                << " after " << runs[i - 1].seqLen()
+void Lin8DbIndex::checkLengthsDescend() const {
+    for (size_t i = 1; i < ranges.size(); i++) {
+        if (ranges[i].getSeqLen() > ranges[i - 1].getSeqLen()) {
+            Debug(Debug::ERROR) << "Length range " << i << " holds length " << ranges[i].getSeqLen()
+                                << " after " << ranges[i - 1].getSeqLen()
                                 << ", the database is not sorted by length descending\n";
             EXIT(EXIT_FAILURE);
         }
     }
 }
 
-void SequenceLocator::finish(uint64_t totalEntries) {
+void Lin8DbIndex::finish(uint64_t totalEntries) {
     if (totalEntries > MAX_RANK + 1) {
-        Debug(Debug::ERROR) << "Run table holds " << totalEntries << " entries, the rank field fits "
+        Debug(Debug::ERROR) << "Range table holds " << totalEntries << " entries, the rank field fits "
                             << (MAX_RANK + 1) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    entries = totalEntries;
+    sequenceCount = totalEntries;
     rebuildByteStarts();
 }
 
-void SequenceLocator::rebuildByteStarts() {
-    byteStarts.assign(runs.size(), 0);
-    bytes = 0;
-    for (size_t i = 0; i < runs.size(); i++) {
-        byteStarts[i] = bytes;
-        const uint64_t next = (i + 1 < runs.size()) ? runs[i + 1].rankBase() : entries;
-        bytes += (next - runs[i].rankBase()) * runs[i].seqLen();
+void Lin8DbIndex::rebuildByteStarts() {
+    byteStarts.assign(ranges.size(), 0);
+    dataBytes = 0;
+    for (size_t i = 0; i < ranges.size(); i++) {
+        byteStarts[i] = dataBytes;
+        const uint64_t next = (i + 1 < ranges.size()) ? ranges[i + 1].firstRank() : sequenceCount;
+        dataBytes += (next - ranges[i].firstRank()) * ranges[i].getSeqLen();
     }
 }
 
-size_t SequenceLocator::runOf(uint64_t rank) const {
-    if (runs.empty() || rank >= entries) {
-        Debug(Debug::ERROR) << "Run table lookup for rank " << rank << " of " << entries << "\n";
+size_t Lin8DbIndex::rangeIndexOf(uint64_t rank) const {
+    if (ranges.empty() || rank >= sequenceCount) {
+        Debug(Debug::ERROR) << "Range table lookup for rank " << rank << " of " << sequenceCount << "\n";
         EXIT(EXIT_FAILURE);
     }
     size_t low = 0;
-    size_t high = runs.size() - 1;
+    size_t high = ranges.size() - 1;
     while (low < high) {
         const size_t mid = low + (high - low + 1) / 2;
-        low = (runs[mid].rankBase() <= rank) ? mid : low;
-        high = (runs[mid].rankBase() <= rank) ? high : mid - 1;
+        low = (ranges[mid].firstRank() <= rank) ? mid : low;
+        high = (ranges[mid].firstRank() <= rank) ? high : mid - 1;
     }
     return low;
 }
 
-size_t SequenceLocator::runOfFrom(uint64_t rank, size_t cursor) const {
-    if (rank < runs[cursor].rankBase()) {
-        return runOf(rank);
+size_t Lin8DbIndex::rangeIndexFrom(uint64_t rank, size_t cursor) const {
+    if (rank < ranges[cursor].firstRank()) {
+        return rangeIndexOf(rank);
     }
-    while (cursor + 1 < runs.size() && runs[cursor + 1].rankBase() <= rank) {
+    while (cursor + 1 < ranges.size() && ranges[cursor + 1].firstRank() <= rank) {
         cursor++;
     }
     return cursor;
 }
 
-uint64_t SequenceLocator::offsetIn(size_t segment, uint64_t rank) const {
-    const LengthRun &at = runs[segment];
-    return at.byteBase() + (rank - at.rankBase()) * at.seqLen();
+uint64_t Lin8DbIndex::offsetInRange(size_t range, uint64_t rank) const {
+    const LengthRange &at = ranges[range];
+    return at.dataOffset() + (rank - at.firstRank()) * at.getSeqLen();
 }
 
-uint64_t SequenceLocator::byteAtRank(uint64_t rank) const {
-    if (rank >= entries) {
-        return bytes;
+uint64_t Lin8DbIndex::byteAtRank(uint64_t rank) const {
+    if (rank >= sequenceCount) {
+        return dataBytes;
     }
-    const size_t segment = runOf(rank);
-    return byteStarts[segment] + (rank - runs[segment].rankBase()) * runs[segment].seqLen();
+    const size_t range = rangeIndexOf(rank);
+    return byteStarts[range] + (rank - ranges[range].firstRank()) * ranges[range].getSeqLen();
 }
 
-uint64_t SequenceLocator::rankAtByte(uint64_t globalByte) const {
-    if (runs.empty() || globalByte >= bytes) {
-        return entries;
+uint64_t Lin8DbIndex::rankAtByte(uint64_t globalByte) const {
+    if (ranges.empty() || globalByte >= dataBytes) {
+        return sequenceCount;
     }
-    const size_t segment = static_cast<size_t>(
+    const size_t range = static_cast<size_t>(
         std::upper_bound(byteStarts.begin(), byteStarts.end(), globalByte) - byteStarts.begin() - 1);
-    const uint64_t inRun = (globalByte - byteStarts[segment]) / runs[segment].seqLen();
-    return runs[segment].rankBase() + inRun;
+    const uint64_t inRange = (globalByte - byteStarts[range]) / ranges[range].getSeqLen();
+    return ranges[range].firstRank() + inRange;
 }
 
-void SequenceLocator::write(const std::string &path) const {
+void Lin8DbIndex::write(const std::string &path) const {
     char host[HOST_NAME_MAX + 1];
     memset(host, 0, sizeof(host));
     gethostname(host, HOST_NAME_MAX);
     const std::string tmp = path + ".tmp" + host + "." + SSTR(getpid());
     FILE *out = FileUtil::openAndDelete(tmp.c_str(), "wb");
     Header header;
-    memcpy(header.magic, RUN_TABLE_MAGIC, sizeof(header.magic));
-    header.version = RUN_TABLE_VERSION;
+    memcpy(header.magic, RANGE_TABLE_MAGIC, sizeof(header.magic));
+    header.version = RANGE_TABLE_VERSION;
     header.keyWidth = static_cast<uint32_t>(sizeof(DBKeyType));
     header.nodeCount = nodes;
     header.filesPerNode = perNodeFiles;
-    header.segmentCount = runs.size();
-    header.entryCount = entries;
-    header.byteCount = bytes;
+    header.rangeCount = ranges.size();
+    header.entryCount = sequenceCount;
+    header.byteCount = dataBytes;
     if (fwrite(&header, sizeof(Header), 1, out) != 1) {
-        Debug(Debug::ERROR) << "Cannot write the sequence locator header to " << path << "\n";
+        Debug(Debug::ERROR) << "Cannot write the range table header to " << path << "\n";
         EXIT(EXIT_FAILURE);
     }
-    if (runs.empty() == false
-        && fwrite(runs.data(), sizeof(LengthRun), runs.size(), out) != runs.size()) {
-        Debug(Debug::ERROR) << "Cannot write the length runs to " << path << "\n";
+    if (ranges.empty() == false
+        && fwrite(ranges.data(), sizeof(LengthRange), ranges.size(), out) != ranges.size()) {
+        Debug(Debug::ERROR) << "Cannot write the length ranges to " << path << "\n";
         EXIT(EXIT_FAILURE);
     }
     if (fclose(out) != 0) {
-        Debug(Debug::ERROR) << "Cannot close the sequence locator " << tmp << "\n";
+        Debug(Debug::ERROR) << "Cannot close the range table " << tmp << "\n";
         EXIT(EXIT_FAILURE);
     }
     FileUtil::publishAtomically(tmp, path);
 }
 
-void SequenceLocator::read(const std::string &path) {
+void Lin8DbIndex::read(const std::string &path) {
     FILE *in = fopen(path.c_str(), "rb");
     if (in == NULL) {
-        Debug(Debug::ERROR) << "Cannot open the sequence locator " << path << "\n";
+        Debug(Debug::ERROR) << "Cannot open the range table " << path << "\n";
         EXIT(EXIT_FAILURE);
     }
     Header header;
     if (fread(&header, sizeof(Header), 1, in) != 1
-        || memcmp(header.magic, RUN_TABLE_MAGIC, sizeof(header.magic)) != 0) {
-        Debug(Debug::ERROR) << "File " << path << " is not a sequence locator\n";
+        || memcmp(header.magic, RANGE_TABLE_MAGIC, sizeof(header.magic)) != 0) {
+        Debug(Debug::ERROR) << "File " << path << " is not a range table\n";
         EXIT(EXIT_FAILURE);
     }
-    if (header.version != RUN_TABLE_VERSION) {
-        Debug(Debug::ERROR) << "Run table " << path << " has version " << header.version
-                            << ", expected " << RUN_TABLE_VERSION << "\n";
+    if (header.version != RANGE_TABLE_VERSION) {
+        Debug(Debug::ERROR) << "Range table " << path << " has version " << header.version
+                            << ", expected " << RANGE_TABLE_VERSION << "\n";
         EXIT(EXIT_FAILURE);
     }
     if (header.keyWidth != sizeof(DBKeyType)) {
-        Debug(Debug::ERROR) << "Run table " << path << " was written with a " << header.keyWidth
+        Debug(Debug::ERROR) << "Range table " << path << " was written with a " << header.keyWidth
                             << " byte key, this build uses " << sizeof(DBKeyType) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    runs.resize(header.segmentCount);
-    if (header.segmentCount > 0
-        && fread(runs.data(), sizeof(LengthRun), runs.size(), in) != runs.size()) {
-        Debug(Debug::ERROR) << "Run table " << path << " is truncated\n";
+    ranges.resize(header.rangeCount);
+    if (header.rangeCount > 0
+        && fread(ranges.data(), sizeof(LengthRange), ranges.size(), in) != ranges.size()) {
+        Debug(Debug::ERROR) << "Range table " << path << " is truncated\n";
         EXIT(EXIT_FAILURE);
     }
     fclose(in);
-    entries = header.entryCount;
+    sequenceCount = header.entryCount;
     nodes = (header.nodeCount > 0) ? header.nodeCount : 1;
     perNodeFiles = (header.filesPerNode > 0) ? header.filesPerNode : 1;
     rebuildByteStarts();
-    if (bytes != header.byteCount) {
-        Debug(Debug::ERROR) << "Run table " << path << " covers " << bytes << " byte, header says "
+    if (dataBytes != header.byteCount) {
+        Debug(Debug::ERROR) << "Range table " << path << " covers " << dataBytes << " byte, header says "
                             << header.byteCount << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -542,7 +542,7 @@ void publishAllAtomically(std::vector<std::pair<std::string, std::string> > &pen
     pending.clear();
 }
 
-void requireArena(const std::string &what, size_t bytes, size_t budget,
+void requireMemory(const std::string &what, size_t bytes, size_t budget,
                   const std::string &narrower) {
     if (bytes <= budget) {
         return;
@@ -664,7 +664,7 @@ std::vector<uint64_t> readSubBucketCounts(const std::string &path, size_t entrie
     return counts;
 }
 
-BucketCounts::BucketCounts(const std::string &prefix, unsigned int nodes, size_t subBuckets,
+SubBucketCounts::SubBucketCounts(const std::string &prefix, unsigned int nodes, size_t subBuckets,
                            size_t buckets)
     : files(nodes, NULL), paths(nodes), subBuckets(subBuckets) {
     for (unsigned int node = 0; node < nodes; node++) {
@@ -684,7 +684,7 @@ BucketCounts::BucketCounts(const std::string &prefix, unsigned int nodes, size_t
     }
 }
 
-BucketCounts::~BucketCounts() {
+SubBucketCounts::~SubBucketCounts() {
     for (size_t node = 0; node < files.size(); node++) {
         if (files[node] != NULL) {
             fclose(files[node]);
@@ -692,7 +692,7 @@ BucketCounts::~BucketCounts() {
     }
 }
 
-std::vector<uint64_t> BucketCounts::of(size_t bucket, size_t node) const {
+std::vector<uint64_t> SubBucketCounts::of(size_t bucket, size_t node) const {
     std::vector<uint64_t> counts(subBuckets, 0);
     const long at = static_cast<long>((3 + bucket * subBuckets) * sizeof(uint64_t));
     if (fseek(files[node], at, SEEK_SET) != 0
@@ -704,7 +704,7 @@ std::vector<uint64_t> BucketCounts::of(size_t bucket, size_t node) const {
     return counts;
 }
 
-std::vector<uint64_t> BucketCounts::of(size_t bucket) const {
+std::vector<uint64_t> SubBucketCounts::of(size_t bucket) const {
     std::vector<uint64_t> counts(subBuckets, 0);
     std::vector<uint64_t> one(subBuckets, 0);
     const long at = static_cast<long>((3 + bucket * subBuckets) * sizeof(uint64_t));
@@ -753,7 +753,7 @@ void publishProgress(const std::string &path, uint64_t value) {
     }
 }
 
-void dropConsumed(const std::string &prefix, unsigned int nodes, size_t from, size_t until,
+void removeConsumedBuckets(const std::string &prefix, unsigned int nodes, size_t from, size_t until,
                   size_t step) {
     for (size_t at = from; at < until; at += step) {
         for (unsigned int node = 0; node < nodes; node++) {
@@ -803,16 +803,16 @@ void waitEveryNodeDone(const std::string &path, unsigned int nodes, unsigned int
     }
 }
 
-std::vector<size_t> nodeFileSlots(const SequenceLocator &runs, const NodePlacement &node,
+std::vector<size_t> nodeFileSlots(const Lin8DbIndex &ranges, const NodePlacement &node,
                                   const std::function<uint64_t(uint32_t)> &costOfLength) {
-    std::vector<uint64_t> weight(runs.filesPerNode(), 0);
+    std::vector<uint64_t> weight(ranges.filesPerNode(), 0);
     uint64_t total = 0;
-    for (size_t i = 0; i < runs.size(); i++) {
-        const uint64_t ranks = runs.rankEnd(i) - runs[i].rankBase();
+    for (size_t i = 0; i < ranges.rangeCount(); i++) {
+        const uint64_t ranks = ranges.rankAfter(i) - ranges[i].firstRank();
         const uint64_t span = costOfLength
-                                  ? ranks * costOfLength(runs[i].seqLen())
-                                  : ranks * runs[i].seqLen();
-        weight[runs[i].fileIdx() % runs.filesPerNode()] += span;
+                                  ? ranks * costOfLength(ranges[i].getSeqLen())
+                                  : ranks * ranges[i].getSeqLen();
+        weight[ranges[i].fileIndex() % ranges.filesPerNode()] += span;
         total += span;
     }
     std::vector<size_t> mine;
@@ -867,8 +867,8 @@ static uint64_t unpackAdjacentClasses(uint64_t packed, unsigned int classCount) 
 }
 
 
-void KmerSlabCodec::encode(const std::vector<KmerRecord> &records, std::vector<unsigned char> &out,
-                           SlabHeader &header) const {
+void KmerSegmentCodec::encode(const std::vector<KmerRecord> &records, std::vector<unsigned char> &out,
+                           SegmentHeader &header) const {
     memset(&header, 0, sizeof(header));
     header.magic = MAGIC;
     header.records = records.size();
@@ -877,12 +877,12 @@ void KmerSlabCodec::encode(const std::vector<KmerRecord> &records, std::vector<u
     const unsigned int adjacentBits = adjacentBitsFor(classCount);
     out.clear();
     unsigned int sub = 0;
-    uint64_t keys[SlabHeader::BLOCK_RECORDS];
+    uint64_t keys[SegmentHeader::BLOCK_RECORDS];
     for (size_t at = 0; at < records.size();) {
         const unsigned int here = records[at].subBucket();
         markSubStart(header, sub, here, out.size());
         size_t end = at + 1;
-        while (end < records.size() && end - at < SlabHeader::BLOCK_RECORDS && records[end].subBucket() == here) {
+        while (end < records.size() && end - at < SegmentHeader::BLOCK_RECORDS && records[end].subBucket() == here) {
             end++;
         }
         uint64_t widestPos = 0;
@@ -908,10 +908,10 @@ void KmerSlabCodec::encode(const std::vector<KmerRecord> &records, std::vector<u
         bits.finish();
         at = end;
     }
-    markSubStart(header, sub, SlabHeader::SUBS, out.size());
+    markSubStart(header, sub, SegmentHeader::SUBS, out.size());
 }
 
-size_t KmerSlabCodec::decode(const unsigned char *from, const unsigned char *to, const SlabHeader &header,
+size_t KmerSegmentCodec::decode(const unsigned char *from, const unsigned char *to, const SegmentHeader &header,
                              KmerRecord *into, size_t capacity) {
     const unsigned int adjacentBits = adjacentBitsFor(header.classCount);
     size_t count = 0;
@@ -923,12 +923,12 @@ size_t KmerSlabCodec::decode(const unsigned char *from, const unsigned char *to,
         from += block.payloadBytes(KmerRecord::KEY_BITS, header.rankBits + block.widthBits + adjacentBits);
         const size_t n = block.records;
         if (count + n > capacity) {
-            Debug(Debug::ERROR) << "A k-mer slab holds more records than its bucket counts allow\n";
+            Debug(Debug::ERROR) << "A k-mer segment holds more records than its bucket counts allow\n";
             EXIT(EXIT_FAILURE);
         }
-        uint64_t key[SlabHeader::BLOCK_RECORDS];
-        uint64_t rank[SlabHeader::BLOCK_RECORDS];
-        uint64_t pos[SlabHeader::BLOCK_RECORDS];
+        uint64_t key[SegmentHeader::BLOCK_RECORDS];
+        uint64_t rank[SegmentHeader::BLOCK_RECORDS];
+        uint64_t pos[SegmentHeader::BLOCK_RECORDS];
         getKeys(bits, key, n, KmerRecord::KEY_BITS, block.keyBits);
         for (size_t i = 0; i < n; i++) {
             rank[i] = bits.get(header.rankBits);
@@ -943,20 +943,20 @@ size_t KmerSlabCodec::decode(const unsigned char *from, const unsigned char *to,
     return count;
 }
 
-void PairSlabCodec::encode(const std::vector<PairRecord> &records, std::vector<unsigned char> &out,
-                           SlabHeader &header) const {
+void PairSegmentCodec::encode(const std::vector<PairRecord> &records, std::vector<unsigned char> &out,
+                           SegmentHeader &header) const {
     memset(&header, 0, sizeof(header));
     header.magic = MAGIC;
     header.records = records.size();
     header.rankBits = rankBits;
     out.clear();
     unsigned int sub = 0;
-    uint64_t reps[SlabHeader::BLOCK_RECORDS];
+    uint64_t reps[SegmentHeader::BLOCK_RECORDS];
     for (size_t at = 0; at < records.size();) {
         const unsigned int here = PairRecord::repRankSubBlockOf(records[at].rep(), ranks, repRankBlocks);
         markSubStart(header, sub, here, out.size());
         size_t end = at + 1;
-        while (end < records.size() && end - at < SlabHeader::BLOCK_RECORDS
+        while (end < records.size() && end - at < SegmentHeader::BLOCK_RECORDS
                && PairRecord::repRankSubBlockOf(records[end].rep(), ranks, repRankBlocks) == here) {
             end++;
         }
@@ -980,10 +980,10 @@ void PairSlabCodec::encode(const std::vector<PairRecord> &records, std::vector<u
         bits.finish();
         at = end;
     }
-    markSubStart(header, sub, SlabHeader::SUBS, out.size());
+    markSubStart(header, sub, SegmentHeader::SUBS, out.size());
 }
 
-size_t PairSlabCodec::decode(const unsigned char *from, const unsigned char *to, const SlabHeader &header,
+size_t PairSegmentCodec::decode(const unsigned char *from, const unsigned char *to, const SegmentHeader &header,
                              PairRecord *into, size_t capacity) {
     size_t count = 0;
     while (from < to) {
@@ -994,11 +994,11 @@ size_t PairSlabCodec::decode(const unsigned char *from, const unsigned char *to,
         from += block.payloadBytes(header.rankBits, header.rankBits + block.widthBits);
         const size_t n = block.records;
         if (count + n > capacity) {
-            Debug(Debug::ERROR) << "A pair slab holds more records than its bucket counts allow\n";
+            Debug(Debug::ERROR) << "A pair segment holds more records than its bucket counts allow\n";
             EXIT(EXIT_FAILURE);
         }
-        uint64_t rep[SlabHeader::BLOCK_RECORDS];
-        uint64_t member[SlabHeader::BLOCK_RECORDS];
+        uint64_t rep[SegmentHeader::BLOCK_RECORDS];
+        uint64_t member[SegmentHeader::BLOCK_RECORDS];
         getKeys(bits, rep, n, header.rankBits, block.keyBits);
         for (size_t i = 0; i < n; i++) {
             member[i] = bits.get(header.rankBits);

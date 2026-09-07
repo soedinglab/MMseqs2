@@ -20,7 +20,7 @@
 #include <omp.h>
 #endif
 
-class SequenceLocator {
+class Lin8DbIndex {
 public:
     static const unsigned int RANK_BITS = 44;
     static const uint64_t MAX_RANK = (1ull << RANK_BITS) - 1;
@@ -29,44 +29,44 @@ public:
     static const uint32_t MAX_SEQ_LEN = 32764;
     static const uint32_t MAX_ENTRY_LEN = 65535;
 
-    struct LengthRun {
-        uint64_t rankAndLen;
-        uint64_t byteAndFile;
-        uint64_t hdrByte;
+    struct LengthRange {
+        uint64_t rankAndLength;
+        uint64_t offsetAndFile;
+        uint64_t headerByte;
 
-        uint64_t rankBase() const { return rankAndLen & MAX_RANK; }
-        uint32_t seqLen() const { return static_cast<uint32_t>((rankAndLen >> RANK_BITS) & 0xFFFFu); }
-        uint64_t byteBase() const { return byteAndFile & MAX_BYTE; }
-        uint32_t fileIdx() const { return static_cast<uint32_t>(byteAndFile >> 48); }
-        uint64_t hdrBase() const { return hdrByte; }
+        uint64_t firstRank() const { return rankAndLength & MAX_RANK; }
+        uint32_t getSeqLen() const { return static_cast<uint32_t>((rankAndLength >> RANK_BITS) & 0xFFFFu); }
+        uint64_t dataOffset() const { return offsetAndFile & MAX_BYTE; }
+        uint32_t fileIndex() const { return static_cast<uint32_t>(offsetAndFile >> 48); }
+        uint64_t headerOffset() const { return headerByte; }
     };
 
-    SequenceLocator();
+    Lin8DbIndex();
 
-    void reserve(size_t runs);
+    void reserve(size_t rangeCount);
     void append(uint64_t rankBase, uint32_t seqLen, uint64_t byteBase, uint32_t fileIdx,
                 uint64_t hdrBase);
 
-    size_t size() const { return runs.size(); }
-    uint64_t entryCount() const { return entries; }
-    const LengthRun *data() const { return runs.data(); }
-    const LengthRun &operator[](size_t at) const { return runs[at]; }
+    size_t rangeCount() const { return ranges.size(); }
+    uint64_t getSize() const { return sequenceCount; }
+    const LengthRange *data() const { return ranges.data(); }
+    const LengthRange &operator[](size_t at) const { return ranges[at]; }
 
-    size_t runOf(uint64_t rank) const;
-    size_t runOfFrom(uint64_t rank, size_t cursor) const;
+    size_t rangeIndexOf(uint64_t rank) const;
+    size_t rangeIndexFrom(uint64_t rank, size_t cursor) const;
 
-    uint32_t seqLen(uint64_t rank) const { return runs[runOf(rank)].seqLen(); }
-    uint32_t maxSeqLen() const { return runs.empty() ? 0 : runs[0].seqLen(); }
-    uint32_t fileIdx(uint64_t rank) const { return runs[runOf(rank)].fileIdx(); }
-    uint64_t fileOffset(uint64_t rank) const { return offsetIn(runOf(rank), rank); }
-    uint64_t offsetIn(size_t segment, uint64_t rank) const;
-    uint64_t rankEnd(size_t segment) const {
-        return (segment + 1 < runs.size()) ? runs[segment + 1].rankBase() : entries;
+    uint32_t getSeqLen(uint64_t rank) const { return ranges[rangeIndexOf(rank)].getSeqLen(); }
+    uint32_t getMaxSeqLen() const { return ranges.empty() ? 0 : ranges[0].getSeqLen(); }
+    uint32_t getFileIndex(uint64_t rank) const { return ranges[rangeIndexOf(rank)].fileIndex(); }
+    uint64_t getOffset(uint64_t rank) const { return offsetInRange(rangeIndexOf(rank), rank); }
+    uint64_t offsetInRange(size_t range, uint64_t rank) const;
+    uint64_t rankAfter(size_t range) const {
+        return (range + 1 < ranges.size()) ? ranges[range + 1].firstRank() : sequenceCount;
     }
 
     uint64_t rankAtByte(uint64_t globalByte) const;
     uint64_t byteAtRank(uint64_t rank) const;
-    uint64_t totalBytes() const { return bytes; }
+    uint64_t getDataSize() const { return dataBytes; }
 
     void write(const std::string &path) const;
     void read(const std::string &path);
@@ -81,10 +81,10 @@ public:
     void checkLengthsDescend() const;
 
 private:
-    std::vector<LengthRun> runs;
+    std::vector<LengthRange> ranges;
     std::vector<uint64_t> byteStarts;
-    uint64_t entries;
-    uint64_t bytes;
+    uint64_t sequenceCount;
+    uint64_t dataBytes;
     unsigned int nodes;
     unsigned int perNodeFiles;
 
@@ -97,7 +97,7 @@ struct __attribute__((packed)) KmerRecord {
 
     static const unsigned int BUCKET_BITS = 13;
     static const unsigned int KEY_BITS = 51 - BUCKET_BITS;
-    static const unsigned int RANK_BITS = SequenceLocator::RANK_BITS;
+    static const unsigned int RANK_BITS = Lin8DbIndex::RANK_BITS;
     static const unsigned int POS_BITS = 15;
 
     static const unsigned int SUB_BUCKET_BITS = 8;
@@ -176,7 +176,7 @@ struct __attribute__((packed)) PairRecord {
     }
 
     static const unsigned int REP_RANK_SUB_BLOCK_BITS = 8;
-    static_assert(SequenceLocator::RANK_BITS + 12 + REP_RANK_SUB_BLOCK_BITS <= 64,
+    static_assert(Lin8DbIndex::RANK_BITS + 12 + REP_RANK_SUB_BLOCK_BITS <= 64,
                   "a rank times the repRankBlock count times the sub repRankBlock count is over 64 bits");
     static const size_t REP_RANK_SUB_BLOCKS = size_t(1) << REP_RANK_SUB_BLOCK_BITS;
     static size_t fineOf(uint64_t rep, uint64_t ranks, size_t repRankBlocks) {
@@ -337,7 +337,7 @@ public:
 
     static const size_t DESCRIPTOR_SLACK = 512;
 
-    size_t lendDescriptors() const {
+    size_t openableBuckets() const {
         struct rlimit limit;
         if (getrlimit(RLIMIT_NOFILE, &limit) != 0) {
             return 0;
@@ -366,7 +366,7 @@ public:
     }
 
     void openAt(const std::vector<uint64_t> &keepBytes, const std::vector<uint64_t> &keepIndexBytes) {
-        const size_t lent = lendDescriptors();
+        const size_t lent = openableBuckets();
         kept.assign(buckets, -1);
         for (size_t i = 0; i < buckets; i++) {
             const int fd = openBucket(i);
@@ -412,7 +412,7 @@ public:
         }
     }
 
-    void endChunk(unsigned int threads) {
+    void finishChunk(unsigned int threads) {
 #pragma omp parallel for schedule(dynamic, 16) num_threads(threads)
         for (size_t bucket = 0; bucket < buckets; bucket++) {
             for (size_t thread = 0; thread < staged.size(); thread++) {
@@ -596,7 +596,7 @@ size_t readRecords(Record *into, size_t count, FILE *in) {
 void publishAllAtomically(std::vector<std::pair<std::string, std::string> > &pending,
                           unsigned int threads);
 
-void requireArena(const std::string &what, size_t bytes, size_t budget,
+void requireMemory(const std::string &what, size_t bytes, size_t budget,
                   const std::string &narrower);
 static const uint64_t PUBLISH_BATCH_BYTES = 4ull * 1024 * 1024 * 1024;
 static const size_t PUBLISH_BATCH_FILES = 64;
@@ -677,7 +677,7 @@ void markNodeDone(const std::string &path, unsigned int node);
 // a counter rewritten in place, because a new name on NFS is a negative dentry another node caches
 void publishProgress(const std::string &path, uint64_t value);
 
-void dropConsumed(const std::string &prefix, unsigned int nodes, size_t from, size_t until,
+void removeConsumedBuckets(const std::string &prefix, unsigned int nodes, size_t from, size_t until,
                   size_t step);
 void requireEveryNodeDone(const std::string &path, unsigned int nodes);
 void waitNodeDone(const std::string &path, unsigned int node, unsigned int limitSeconds);
@@ -687,17 +687,17 @@ void writeSubBucketCounts(const std::string &path, const std::vector<uint64_t> &
                           const std::vector<std::vector<uint64_t> > &perThread, size_t chunks);
 std::vector<uint64_t> readSubBucketCounts(const std::string &path, size_t entries, size_t &chunks);
 
-class BucketCounts {
+class SubBucketCounts {
 public:
-    BucketCounts(const std::string &prefix, unsigned int nodes, size_t subBuckets,
+    SubBucketCounts(const std::string &prefix, unsigned int nodes, size_t subBuckets,
                  size_t buckets);
-    ~BucketCounts();
+    ~SubBucketCounts();
     std::vector<uint64_t> of(size_t bucket) const;
     std::vector<uint64_t> of(size_t bucket, size_t node) const;
 
 private:
-    BucketCounts(const BucketCounts &);
-    BucketCounts &operator=(const BucketCounts &);
+    SubBucketCounts(const SubBucketCounts &);
+    SubBucketCounts &operator=(const SubBucketCounts &);
     std::vector<FILE *> files;
     std::vector<std::string> paths;
     size_t subBuckets;
@@ -731,8 +731,8 @@ private:
 
 void preadFully(int fd, void *into, size_t bytes, uint64_t at, const std::string &what);
 
-// a slab is one sorted flush, bit-packed in blocks that never cross a sub-bucket, sliced by subStart
-struct SlabHeader {
+// a segment is one sorted flush, bit-packed in blocks that never cross a sub-bucket, sliced by subStart
+struct SegmentHeader {
     static const size_t SUBS = 256;
     static const size_t BLOCK_RECORDS = 128;
 
@@ -742,8 +742,8 @@ struct SlabHeader {
     uint32_t classCount;
     uint64_t subStart[SUBS + 1];
 };
-static_assert(KmerRecord::SUB_BUCKET_COUNT == SlabHeader::SUBS && PairRecord::REP_RANK_SUB_BLOCKS == SlabHeader::SUBS,
-              "slabs are sliced by the same 256 sub-buckets both record types are counted in");
+static_assert(KmerRecord::SUB_BUCKET_COUNT == SegmentHeader::SUBS && PairRecord::REP_RANK_SUB_BLOCKS == SegmentHeader::SUBS,
+              "segments are sliced by the same 256 sub-buckets both record types are counted in");
 
 // a block's rows share a key column: a flag per row after the first says whether the key changed
 struct BlockHeader {
@@ -840,7 +840,7 @@ inline void putKeys(BitWriter &bits, const uint64_t *keys, size_t n, unsigned in
 }
 
 inline void getKeys(BitReader &bits, uint64_t *keys, size_t n, unsigned int firstBits, unsigned int deltaBits) {
-    bool fresh[SlabHeader::BLOCK_RECORDS];
+    bool fresh[SegmentHeader::BLOCK_RECORDS];
     for (size_t i = 1; i < n; i++) {
         fresh[i] = bits.get(1) != 0;
     }
@@ -856,39 +856,38 @@ inline void putBlockHeader(std::vector<unsigned char> &out, const BlockHeader &b
 }
 
 // call at every block start and once at the end to fill header.subStart
-inline void markSubStart(SlabHeader &header, unsigned int &sub, unsigned int upTo, size_t at) {
+inline void markSubStart(SegmentHeader &header, unsigned int &sub, unsigned int upTo, size_t at) {
     while (sub <= upTo) {
         header.subStart[sub++] = at;
     }
 }
 
-// sorts a flush with the codec's order and packs it as one slab for BucketWriter
 template <class Codec>
-struct SlabEncoder {
+struct SegmentEncoder {
     Codec codec;
-    SlabEncoder(const Codec &codec) : codec(codec) {}
+    SegmentEncoder(const Codec &codec) : codec(codec) {}
     void operator()(std::vector<typename Codec::Record> &records, std::vector<unsigned char> &out,
                     std::vector<unsigned char> &index) const {
         std::sort(records.begin(), records.end(), Codec::less);
-        SlabHeader header;
+        SegmentHeader header;
         codec.encode(records, out, header);
         index.assign(reinterpret_cast<const unsigned char *>(&header),
                      reinterpret_cast<const unsigned char *>(&header) + sizeof(header));
     }
 };
 
-struct Slab {
+struct Segment {
     int fd;
     uint64_t at;
     uint64_t bytes;
-    SlabHeader header;
+    SegmentHeader header;
 };
 
-// the slabs one bucket holds across the writer nodes, read from the .idx files
+// the segments one bucket holds across the writer nodes, read from the .idx files
 template <class Codec>
-class BucketSlabs {
+class BucketSegments {
 public:
-    BucketSlabs(const std::string &prefix, unsigned int nodes, size_t bucket) : fds(nodes, -1) {
+    BucketSegments(const std::string &prefix, unsigned int nodes, size_t bucket) : fds(nodes, -1) {
         for (unsigned int node = 0; node < nodes; node++) {
             const std::string path = prefix + "." + SSTR(node) + "." + SSTR(bucket);
             fds[node] = open(path.c_str(), O_RDONLY);
@@ -899,7 +898,7 @@ public:
                 EXIT(EXIT_FAILURE);
             }
             const std::string indexPath = path + ".idx";
-            const size_t entry = 2 * sizeof(uint64_t) + sizeof(SlabHeader);
+            const size_t entry = 2 * sizeof(uint64_t) + sizeof(SegmentHeader);
             const uint64_t indexSize = FileUtil::fileExists(indexPath.c_str()) ? FileUtil::getFileSize(indexPath) : 0;
             const uint64_t bodySize = FileUtil::getFileSize(path);
             if (indexSize % entry != 0 || (indexSize == 0 && bodySize != 0)) {
@@ -914,22 +913,22 @@ public:
                 close(indexFd);
             }
             for (size_t at = 0; at < indexSize; at += entry) {
-                Slab slab;
-                slab.fd = fds[node];
-                memcpy(&slab.at, &index[at], sizeof(uint64_t));
-                memcpy(&slab.bytes, &index[at + sizeof(uint64_t)], sizeof(uint64_t));
-                memcpy(&slab.header, &index[at + 2 * sizeof(uint64_t)], sizeof(SlabHeader));
-                if (slab.header.magic != Codec::MAGIC || slab.at + slab.bytes > bodySize
-                    || slab.header.subStart[SlabHeader::SUBS] != slab.bytes) {
+                Segment segment;
+                segment.fd = fds[node];
+                memcpy(&segment.at, &index[at], sizeof(uint64_t));
+                memcpy(&segment.bytes, &index[at + sizeof(uint64_t)], sizeof(uint64_t));
+                memcpy(&segment.header, &index[at + 2 * sizeof(uint64_t)], sizeof(SegmentHeader));
+                if (segment.header.magic != Codec::MAGIC || segment.at + segment.bytes > bodySize
+                    || segment.header.subStart[SegmentHeader::SUBS] != segment.bytes) {
                     Debug(Debug::ERROR) << indexPath << " entry " << (at / entry) << " does not fit " << path
                                         << ". Was " << Codec::PRODUCER << " still running?\n";
                     EXIT(EXIT_FAILURE);
                 }
-                slabs.push_back(slab);
+                segments.push_back(segment);
             }
         }
     }
-    ~BucketSlabs() {
+    ~BucketSegments() {
         for (size_t i = 0; i < fds.size(); i++) {
             close(fds[i]);
         }
@@ -937,13 +936,13 @@ public:
 
     uint64_t packedBytes(size_t sub) const {
         uint64_t bytes = 0;
-        for (size_t r = 0; r < slabs.size(); r++) {
-            bytes += slabs[r].header.subStart[sub + 1] - slabs[r].header.subStart[sub];
+        for (size_t r = 0; r < segments.size(); r++) {
+            bytes += segments[r].header.subStart[sub + 1] - segments[r].header.subStart[sub];
         }
         return bytes;
     }
 
-    std::vector<Slab> slabs;
+    std::vector<Segment> segments;
 
 private:
     std::vector<int> fds;
@@ -951,19 +950,19 @@ private:
 
 // cuts the sub-buckets into ranges whose packed bytes, records and merge scratch fit the budget
 template <class Codec>
-std::vector<size_t> planRanges(const BucketSlabs<Codec> &bucketSlabs, const std::vector<uint64_t> &subCounts,
+std::vector<size_t> planWindows(const BucketSegments<Codec> &bucketSegments, const std::vector<uint64_t> &subCounts,
                                size_t budget, unsigned int threads, const std::string &what, const char *narrower) {
     typedef typename Codec::Record Record;
     std::vector<size_t> cuts(1, 0);
     size_t widest = 0;
-    for (size_t sub = 0; sub < SlabHeader::SUBS; sub++) {
+    for (size_t sub = 0; sub < SegmentHeader::SUBS; sub++) {
         widest = std::max<size_t>(widest, subCounts[sub]);
     }
     size_t held = 0;
     size_t heldRecords = 0;
-    for (size_t sub = 0; sub < SlabHeader::SUBS; sub++) {
-        const size_t need = subCounts[sub] * sizeof(Record) + bucketSlabs.packedBytes(sub);
-        requireArena(what + " prefix " + SSTR(sub), need + subCounts[sub] * sizeof(Record), budget, narrower);
+    for (size_t sub = 0; sub < SegmentHeader::SUBS; sub++) {
+        const size_t need = subCounts[sub] * sizeof(Record) + bucketSegments.packedBytes(sub);
+        requireMemory(what + " prefix " + SSTR(sub), need + subCounts[sub] * sizeof(Record), budget, narrower);
         const size_t scratch = std::min<size_t>((size_t) threads * widest, heldRecords + subCounts[sub]) * sizeof(Record);
         if (held + need + scratch > budget) {
             cuts.push_back(sub);
@@ -973,35 +972,35 @@ std::vector<size_t> planRanges(const BucketSlabs<Codec> &bucketSlabs, const std:
         held += need;
         heldRecords += subCounts[sub];
     }
-    cuts.push_back(size_t(SlabHeader::SUBS));
+    cuts.push_back(size_t(SegmentHeader::SUBS));
     return cuts;
 }
 
-// reads one slice of every slab for [from, to) and merges each sub-bucket into the order the sort made
+// reads one slice of every segment for [from, to) and merges each sub-bucket into the order the sort made
 template <class Codec>
-void loadRange(const BucketSlabs<Codec> &bucketSlabs, const std::vector<uint64_t> &subCounts, size_t from, size_t to,
+void loadWindow(const BucketSegments<Codec> &bucketSegments, const std::vector<uint64_t> &subCounts, size_t from, size_t to,
                unsigned int threads, const std::string &what, RawArray<typename Codec::Record> &into) {
     typedef typename Codec::Record Record;
-    const std::vector<Slab> &slabs = bucketSlabs.slabs;
+    const std::vector<Segment> &segments = bucketSegments.segments;
     std::vector<size_t> starts(to - from + 1, 0);
     for (size_t sub = from; sub < to; sub++) {
         starts[sub - from + 1] = starts[sub - from] + subCounts[sub];
     }
     into.resize(starts.back());
 
-    std::vector<std::vector<unsigned char> > packed(slabs.size());
+    std::vector<std::vector<unsigned char> > packed(segments.size());
 #pragma omp parallel for schedule(dynamic, 1) num_threads(threads)
-    for (size_t r = 0; r < slabs.size(); r++) {
-        const SlabHeader &header = slabs[r].header;
+    for (size_t r = 0; r < segments.size(); r++) {
+        const SegmentHeader &header = segments[r].header;
         packed[r].resize(header.subStart[to] - header.subStart[from]);
-        preadFully(slabs[r].fd, packed[r].data(), packed[r].size(), slabs[r].at + header.subStart[from], what);
+        preadFully(segments[r].fd, packed[r].data(), packed[r].size(), segments[r].at + header.subStart[from], what);
     }
 
 #pragma omp parallel num_threads(threads)
     {
         std::vector<Record> scratch;
-        std::vector<size_t> begin(slabs.size()), end(slabs.size()), heap;
-        // the heap keeps the slab whose next record sorts first on top
+        std::vector<size_t> begin(segments.size()), end(segments.size()), heap;
+        // the heap keeps the segment whose next record sorts first on top
         const auto later = [&](size_t a, size_t b) { return Codec::less(scratch[begin[b]], scratch[begin[a]]); };
 #pragma omp for schedule(dynamic, 1)
         for (size_t sub = from; sub < to; sub++) {
@@ -1012,8 +1011,8 @@ void loadRange(const BucketSlabs<Codec> &bucketSlabs, const std::vector<uint64_t
             size_t got = 0;
             heap.clear();
             scratch.resize(want);
-            for (size_t r = 0; r < slabs.size(); r++) {
-                const SlabHeader &header = slabs[r].header;
+            for (size_t r = 0; r < segments.size(); r++) {
+                const SegmentHeader &header = segments[r].header;
                 const unsigned char *slice = packed[r].data() + (header.subStart[sub] - header.subStart[from]);
                 begin[r] = got;
                 got += Codec::decode(slice, slice + (header.subStart[sub + 1] - header.subStart[sub]), header,
@@ -1049,23 +1048,23 @@ void loadRange(const BucketSlabs<Codec> &bucketSlabs, const std::vector<uint64_t
 unsigned int adjacentBitsFor(unsigned int classCount);
 
 // k-mer records by key and rank, the key as a column and the rest bit-packed per block
-struct KmerSlabCodec {
+struct KmerSegmentCodec {
     typedef KmerRecord Record;
     static const uint64_t MAGIC = 0x4C494E384B52554Eull;
     static constexpr const char *PRODUCER = "lin8-extractkmers";
 
     unsigned int rankBits;
     unsigned int classCount;
-    KmerSlabCodec(unsigned int rankBits, unsigned int classCount) : rankBits(rankBits), classCount(classCount) {}
+    KmerSegmentCodec(unsigned int rankBits, unsigned int classCount) : rankBits(rankBits), classCount(classCount) {}
 
     static bool less(const KmerRecord &a, const KmerRecord &b) { return KmerRecord::byKeyAndRank(a, b); }
-    void encode(const std::vector<KmerRecord> &records, std::vector<unsigned char> &out, SlabHeader &header) const;
-    static size_t decode(const unsigned char *from, const unsigned char *to, const SlabHeader &header,
+    void encode(const std::vector<KmerRecord> &records, std::vector<unsigned char> &out, SegmentHeader &header) const;
+    static size_t decode(const unsigned char *from, const unsigned char *to, const SegmentHeader &header,
                          KmerRecord *into, size_t capacity);
 };
 
 // pairs by representative and member, the rep as a column and the rest bit-packed per block
-struct PairSlabCodec {
+struct PairSegmentCodec {
     typedef PairRecord Record;
     static const uint64_t MAGIC = 0x4C494E385052554Eull;
     static constexpr const char *PRODUCER = "lin8-assignedpairs";
@@ -1073,12 +1072,12 @@ struct PairSlabCodec {
     unsigned int rankBits;
     uint64_t ranks;
     size_t repRankBlocks;
-    PairSlabCodec(unsigned int rankBits, uint64_t ranks, size_t repRankBlocks)
+    PairSegmentCodec(unsigned int rankBits, uint64_t ranks, size_t repRankBlocks)
         : rankBits(rankBits), ranks(ranks), repRankBlocks(repRankBlocks) {}
 
     static bool less(const PairRecord &a, const PairRecord &b) { return PairRecord::byRepAndMember(a, b); }
-    void encode(const std::vector<PairRecord> &records, std::vector<unsigned char> &out, SlabHeader &header) const;
-    static size_t decode(const unsigned char *from, const unsigned char *to, const SlabHeader &header,
+    void encode(const std::vector<PairRecord> &records, std::vector<unsigned char> &out, SegmentHeader &header) const;
+    static size_t decode(const unsigned char *from, const unsigned char *to, const SegmentHeader &header,
                          PairRecord *into, size_t capacity);
 };
 

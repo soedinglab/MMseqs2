@@ -26,7 +26,6 @@
 #endif
 
 static const size_t STREAM_ROWS = 1u << 16;
-static const size_t BATCH_ROWS = 1u << 22;
 static const size_t ARENA_BYTES = 64u << 20;
 
 static const size_t MEMBERS_PER_ALIGN_BATCH = 1024;
@@ -307,7 +306,7 @@ static bool rescueWithGaps(uint64_t member, uint32_t queryLen, uint32_t targetLe
     return true;
 }
 
-static size_t startMemberBatch(const RunDbReader &reader, uint64_t rep, const PairRecord *rows,
+static size_t startMemberBatch(const Lin8DbReader &reader, uint64_t rep, const PairRecord *rows,
                                size_t count, const ClusterAssignmentBitmap &assignedCluster, const Parameters &par,
                                unsigned int thread, unsigned int lane, Candidates &candidates, GateCounts &gate) {
     candidates.clear();
@@ -338,7 +337,7 @@ static size_t startMemberBatch(const RunDbReader &reader, uint64_t rep, const Pa
     return reader.startBatch(rep, candidates.members.data(), candidates.members.size(), thread, lane);
 }
 
-static void alignMemberBatch(const RunDbReader &reader, uint64_t rep, size_t got,
+static void alignMemberBatch(const Lin8DbReader &reader, uint64_t rep, size_t got,
                        const ClusterAssignmentBitmap &assignedCluster, Sequence &query, Sequence &target,
                        BlockAligner &aligner, const Parameters &par, unsigned int thread,
                        unsigned int lane, Candidates &candidates,
@@ -427,7 +426,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
     readPipelineShape(par.db2, writerNodes, repRankBlocks, ranks);
     requireEveryNodeDone(par.db2, writerNodes);
 
-    RunDbReader reader(par.db1);
+    Lin8DbReader reader(par.db1);
     reader.open();
     if (reader.getSize() != ranks) {
         Debug(Debug::ERROR) << "The database holds " << reader.getSize()
@@ -435,13 +434,16 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
     const unsigned int threads = par.threads;
+    // a batch fills every lane four times over, so the fork and join are lost in the aligning
+    const size_t batchRows = (size_t) threads * Lin8DbReader::LANES * MEMBERS_PER_ALIGN_BATCH * 4;
+    Debug(Debug::INFO) << "Batches of " << batchRows << " rows\n";
     reader.openBatch(threads, ARENA_BYTES, Util::computeMemory(par.splitMemoryLimit),
-                     RunDbReader::READ_AGAIN);
+                     Lin8DbReader::READ_AGAIN);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
-    EvalueComputation evaluer(reader.getTotalBytes(), &subMat);
-    const size_t maxLen = std::max<size_t>(reader.getSequenceLocator().maxSeqLen(), 1);
+    EvalueComputation evaluer(reader.getDataSize(), &subMat);
+    const size_t maxLen = std::max<size_t>(reader.getIndex().getMaxSeqLen(), 1);
 
     size_t firstRepRankBlock = par.lin8RepRankBlock < 0 ? 0 : (size_t) par.lin8RepRankBlock;
     const size_t lastRepRankBlock =
@@ -461,8 +463,9 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Resuming at rank block " << firstRepRankBlock << "\n";
         }
     }
-    Debug(Debug::INFO) << "Node " << node.index << " of " << node.count << " takes "
-                       << (lastRepRankBlock - firstRepRankBlock) << " of " << repRankBlocks << " rank blocks\n";
+    Debug(Debug::INFO) << node.says("takes")
+                       << node.share(lastRepRankBlock - firstRepRankBlock, repRankBlocks)
+                       << " rank blocks\n";
 
     ClusterAssignmentBitmap assignedCluster;
     assignedCluster.open(par.db4 + ".align_assigned_" + SSTR(node.index), ranks);
@@ -474,7 +477,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
         assignedCluster.catchUpToAvailable(par.db4, firstRepRankBlock, floor);
         assignedCluster.save(0);
     }
-    const BucketCounts prefCounts(par.db2, writerNodes, PairRecord::REP_RANK_SUB_BLOCKS, repRankBlocks);
+    const SubBucketCounts prefCounts(par.db2, writerNodes, PairRecord::REP_RANK_SUB_BLOCKS, repRankBlocks);
 
     Timer timer;
     uint64_t aligned = 0;
@@ -491,10 +494,11 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
     std::vector<std::vector<std::string> > batchSurvivorLines;
     std::string text;
     double spentReading = 0, spentAligning = 0, spentDeciding = 0, spentWriting = 0;
+    uint64_t wastedPasses = 0;
     double aligningThreadSeconds = 0;
     Debug::Progress progress(repRankBlocks);
     std::vector<std::vector<Candidates> > candidates(threads,
-                                                     std::vector<Candidates>(RunDbReader::LANES));
+                                                     std::vector<Candidates>(Lin8DbReader::LANES));
     std::vector<PairRecord> outBuffer;
     std::vector<AlignWorker *> workers(threads, NULL);
     std::vector<GateCounts> gate(threads);
@@ -568,7 +572,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                 assignedCluster.catchUpToAvailable(par.db4, repRankBlock,
                                                    repRankBlock > lookahead ? repRankBlock - lookahead : 0);
             }
-            const bool more = stream.fillBatch(batch, BATCH_ROWS, myUntil);
+            const bool more = stream.fillBatch(batch, batchRows, myUntil);
             spentReading += omp_get_wtime() - mark;
             if (more == false) {
                 break;
@@ -697,6 +701,13 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                 aligned += starts[g + 1] - starts[g];
                 passed += survivors[g].size();
                 if (decideHere) {
+                    if (assignedCluster.isAssigned(rep)) {
+                        wastedPasses += survivors[g].size();
+                    } else {
+                        for (size_t k = 0; k < survivors[g].size(); k++) {
+                            wastedPasses += survivors[g][k] != rep && assignedCluster.isAssigned(survivors[g][k]);
+                        }
+                    }
                     const size_t before = outBuffer.size();
                     const bool made = assignCluster(rep, survivors[g].data(), survivors[g].size(),
                                                     assignedCluster, outBuffer, assigned);
@@ -771,7 +782,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                 || repRankBlock + 1 == lastRepRankBlock) {
                 publishAllAtomically(pendingOut, threads);
                 if (par.removeTmpFiles) {
-                    dropConsumed(par.db2, writerNodes, pendingFirst, repRankBlock + 1, 1);
+                    removeConsumedBuckets(par.db2, writerNodes, pendingFirst, repRankBlock + 1, 1);
                 }
                 pendingFirst = repRankBlock + 1;
                 pendingBytes = 0;
@@ -837,6 +848,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
     if (decideHere) {
         Debug(Debug::INFO) << "Made " << clusters << " clusters holding " << (clusters + assigned)
                            << " sequences\n";
+        Debug(Debug::INFO) << wastedPasses << " passed alignments were for members another group in the same batch had already taken\n";
     }
     for (size_t i = 0; i < workers.size(); i++) {
         delete workers[i];

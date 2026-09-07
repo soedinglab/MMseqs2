@@ -45,7 +45,7 @@ int lin8createrepseqfasta(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    RunDbReader reader(par.db1, true);
+    Lin8DbReader reader(par.db1, true);
     reader.open();
 
     const size_t splits = par.fastaSplits > 1 ? (size_t) par.fastaSplits : 1;
@@ -67,8 +67,8 @@ int lin8createrepseqfasta(int argc, const char **argv, const Command &command) {
 
     Timer timer;
     FILE *index = FileUtil::openFileOrDie(par.db2Index.c_str(), "r", true);
-    RunDbReader::HeaderStream headers(reader);
-    RunDbReader::Cursor cursor;
+    Lin8DbReader::HeaderStream headers(reader);
+    Lin8DbReader::Cursor cursor;
     Debug::Progress progress;
     const char *begin = NULL;
     size_t length = 0;

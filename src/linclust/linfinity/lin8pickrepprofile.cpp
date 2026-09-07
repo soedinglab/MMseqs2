@@ -47,11 +47,11 @@ int lin8pickrepprofile(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    RunDbReader reader(par.db1);
+    Lin8DbReader reader(par.db1);
     reader.open();
     const unsigned int threads = std::max<unsigned int>(1, par.threads);
     reader.openBatch(threads, ARENA_BYTES, Util::computeMemory(par.splitMemoryLimit),
-                     RunDbReader::READ_ONCE);
+                     Lin8DbReader::READ_ONCE);
 
     DBReader<DBKeyType> clusters(par.db3.c_str(), par.db3Index.c_str(), threads,
                                  DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
@@ -63,7 +63,7 @@ int lin8pickrepprofile(int argc, const char **argv, const Command &command) {
     // the -0.2 match state adjustment result2profile trims its alignments with
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     const size_t maxSetSize = clusters.maxCount('\n') + 1;
-    const size_t maxSeqLen = std::max<size_t>(reader.getSequenceLocator().maxSeqLen(), 1);
+    const size_t maxSeqLen = std::max<size_t>(reader.getIndex().getMaxSeqLen(), 1);
     Debug(Debug::INFO) << "Scoring the members of " << clusters.getSize()
                        << " clusters by profile PSSM, minimum coverage: " << par.covThr << "\n";
 
@@ -134,7 +134,7 @@ int lin8pickrepprofile(int argc, const char **argv, const Command &command) {
                 size_t got = sorted.empty()
                                  ? 0
                                  : reader.startBatch(rep, sorted.data(), sorted.size(), part, 0);
-                RunDbReader::Cursor cursor;
+                Lin8DbReader::Cursor cursor;
                 while (from < sorted.size()) {
                     reader.awaitBatch(part, 0);
                     if (from == 0) {

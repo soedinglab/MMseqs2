@@ -42,7 +42,7 @@ static void readNodeRepRankBlock(const std::string &prefix, unsigned int node, s
         sleep(1);
     }
     const size_t bytes = FileUtil::getFileSize(path);
-    requireArena("Representative rank block " + SSTR(repRankBlock),
+    requireMemory("Representative rank block " + SSTR(repRankBlock),
                  bytes / PairRecord::DISK_BYTES * sizeof(PairRecord), budget, "raise --pair-splits");
     rows.reserve(bytes / PairRecord::DISK_BYTES);
     std::vector<PairRecord> buffer(1u << 16);
@@ -205,7 +205,7 @@ int lin8align2clustmulti(int argc, const char **argv, const Command &command) {
         FileUtil::publishAtomically(outTmp, outPath);
         publishProgress(par.db3 + ".progress", repRankBlock + 1);
         if (par.removeTmpFiles) {
-            dropConsumed(par.db2, alignNodes, repRankBlock, repRankBlock + 1, 1);
+            removeConsumedBuckets(par.db2, alignNodes, repRankBlock, repRankBlock + 1, 1);
         }
         progress.updateProgress(repRankBlock);
     }

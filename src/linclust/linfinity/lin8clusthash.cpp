@@ -72,11 +72,11 @@ struct ClusterPair {
     }
 };
 
-static std::pair<size_t, size_t> runsInFileSlot(const SequenceLocator &runs, size_t fileSlot) {
-    size_t begin = runs.size();
+static std::pair<size_t, size_t> rangesInFileSlot(const Lin8DbIndex &index, size_t fileSlot) {
+    size_t begin = index.rangeCount();
     size_t end = 0;
-    for (size_t i = 0; i < runs.size(); i++) {
-        if (runs[i].fileIdx() % runs.filesPerNode() == fileSlot) {
+    for (size_t i = 0; i < index.rangeCount(); i++) {
+        if (index[i].fileIndex() % index.filesPerNode() == fileSlot) {
             begin = std::min(begin, i);
             end = std::max(end, i + 1);
         }
@@ -183,7 +183,7 @@ static bool sequencesMatch(const char *left, const char *right, uint32_t length,
     return same >= need;
 }
 
-static void reduceOneHashBucket(const RunDbReader &reader, const HashEntry *bucket, size_t size,
+static void reduceOneHashBucket(const Lin8DbReader &reader, const HashEntry *bucket, size_t size,
                           uint32_t length, float identity,
                           std::vector<char> &claimed, std::vector<ClusterPair> &out) {
     if (size < 2) {
@@ -314,7 +314,7 @@ static unsigned int threadsWorthStarting(size_t work, unsigned int threads) {
     return (unsigned int) std::max<size_t>(1, std::min<size_t>(threads, want));
 }
 
-static void reduceEntriesToClusters(const RunDbReader &reader, std::vector<HashEntry> &entries,
+static void reduceEntriesToClusters(const Lin8DbReader &reader, std::vector<HashEntry> &entries,
                            uint32_t length, float identity,
                            unsigned int threads, std::vector<ClusterPair> &out, size_t &crowded) {
     double mark = omp_get_wtime();
@@ -359,20 +359,20 @@ static void reduceEntriesToClusters(const RunDbReader &reader, std::vector<HashE
     }
 }
 
-static void hashRankRange(const RunDbReader &reader, uint64_t from, uint64_t until, uint32_t length,
+static void hashRankRange(const Lin8DbReader &reader, uint64_t from, uint64_t until, uint32_t length,
                           const unsigned char *aa2num, uint32_t anchorK, unsigned int thread,
                           std::vector<HashEntry> &into) {
     const size_t perBatch = std::max<size_t>(1, reader.batchRoomFor(length));
-    std::vector<uint64_t> want[RunDbReader::LANES];
-    size_t took[RunDbReader::LANES] = {0, 0};
+    std::vector<uint64_t> want[Lin8DbReader::LANES];
+    size_t took[Lin8DbReader::LANES] = {0, 0};
     unsigned int lane = 0;
     uint64_t at = from;
     struct Fill {
-        static size_t run(const RunDbReader &reader, uint64_t &at, uint64_t until, size_t perBatch,
+        static size_t load(const Lin8DbReader &reader, uint64_t &at, uint64_t until, size_t perBatch,
                           unsigned int thread, unsigned int lane, std::vector<uint64_t> &want) {
             want.clear();
             while (at < until && want.size() < perBatch) {
-                if (reader.isValid(at)) {
+                if (reader.isKept(at)) {
                     want.push_back(at);
                 }
                 at++;
@@ -387,10 +387,10 @@ static void hashRankRange(const RunDbReader &reader, uint64_t from, uint64_t unt
             return took;
         }
     };
-    took[lane] = Fill::run(reader, at, until, perBatch, thread, lane, want[lane]);
+    took[lane] = Fill::load(reader, at, until, perBatch, thread, lane, want[lane]);
     while (took[lane] > 0) {
         const unsigned int next = lane ^ 1u;
-        took[next] = Fill::run(reader, at, until, perBatch, thread, next, want[next]);
+        took[next] = Fill::load(reader, at, until, perBatch, thread, next, want[next]);
         reader.awaitBatch(thread, lane);
         for (size_t i = 0; i < took[lane]; i++) {
             const char *data = (i == 0) ? reader.batchQueryAt(thread, lane)
@@ -414,11 +414,11 @@ static void hashRankRange(const RunDbReader &reader, uint64_t from, uint64_t unt
     }
 }
 
-static void reduceSequencesOfOneLength(const RunDbReader &reader, uint64_t rankBegin, uint64_t rankEnd,
+static void reduceSequencesOfOneLength(const Lin8DbReader &reader, uint64_t rankBegin, uint64_t rankAfter,
                              uint32_t length, const unsigned char *aa2num, float identity,
                              uint32_t anchorK, size_t budget, unsigned int threads, const std::string &tmpPrefix,
                              std::vector<ClusterPair> &out, size_t &crowded) {
-    const size_t count = static_cast<size_t>(rankEnd - rankBegin);
+    const size_t count = static_cast<size_t>(rankAfter - rankBegin);
     if (count < 2) {
         return;
     }
@@ -434,7 +434,7 @@ static void reduceSequencesOfOneLength(const RunDbReader &reader, uint64_t rankB
 #ifdef OPENMP
             thread = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-            const uint64_t span = rankEnd - rankBegin;
+            const uint64_t span = rankAfter - rankBegin;
             const uint64_t from = rankBegin + span * thread / useThreads;
             const uint64_t until = rankBegin + span * (thread + 1) / useThreads;
             hashRankRange(reader, from, until, length, aa2num, anchorK, thread, perThread[thread]);
@@ -461,10 +461,10 @@ static void reduceSequencesOfOneLength(const RunDbReader &reader, uint64_t rankB
 #ifdef OPENMP
         thread = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        RunDbReader::Cursor cursor;
+        Lin8DbReader::Cursor cursor;
 #pragma omp for schedule(static)
-        for (uint64_t rank = rankBegin; rank < rankEnd; rank++) {
-            if (reader.isValid(rank) == false) {
+        for (uint64_t rank = rankBegin; rank < rankAfter; rank++) {
+            if (reader.isKept(rank) == false) {
                 continue;
             }
             const char *data = reader.getData(rank, cursor);
@@ -501,10 +501,10 @@ static void reduceSequencesOfOneLength(const RunDbReader &reader, uint64_t rankB
 }
 
 static uint64_t mergeNodeShards(const std::string &base, const std::string &keptBitmap,
-                            unsigned int nodes, const RunDbReader &reader, const std::string &tag) {
+                            unsigned int nodes, const Lin8DbReader &reader, const std::string &tag) {
     std::vector<uint64_t> valid;
-    if (reader.hasValid()) {
-        valid.assign(reader.validWords(), reader.validWords() + reader.validWordCount());
+    if (reader.hasKeptBitmap()) {
+        valid.assign(reader.keptWords(), reader.keptWords() + reader.keptWordCount());
     } else {
         valid.assign(reader.getSize() / 64 + (reader.getSize() % 64 != 0), UINT64_MAX);
         if (reader.getSize() % 64 != 0) {
@@ -560,7 +560,7 @@ static uint64_t mergeNodeShards(const std::string &base, const std::string &kept
 
     const std::string keptTmp = keptBitmap + ".tmp" + tag;
     FILE *bits = FileUtil::openAndDelete(keptTmp.c_str(), "wb");
-    const uint64_t validHeader[3] = {RunDbReader::VALID_MAGIC, reader.getSize(), 1};
+    const uint64_t validHeader[3] = {Lin8DbReader::KEPT_BITMAP_MAGIC, reader.getSize(), 1};
     if (fwrite(validHeader, sizeof(uint64_t), 3, bits) != 3) {
         Debug(Debug::ERROR) << "Cannot write the kept bitmap header to " << keptTmp << "\n";
         EXIT(EXIT_FAILURE);
@@ -593,7 +593,7 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
     const NodePlacement node = NodePlacement::resolve(par);
     // a retry only waits for the other nodes; skip the reader, the matrix and the header it prints
     const bool alreadyFolded = FileUtil::fileExists(nodeDonePath(par.db2, node.index).c_str());
-    RunDbReader reader(par.db1);
+    Lin8DbReader reader(par.db1);
     // node 0 merges even on a retry, and the merge needs the reader's size and valid bitmap
     if (alreadyFolded == false || node.index == 0) {
         reader.open();
@@ -615,7 +615,7 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
         identity = reduced != NULL ? (float) par.seqIdThr : 1.0f;
         Debug(Debug::INFO) << "Reducing to a " << hashMat->alphabetSize << "-letter alphabet at identity " << identity << "\n";
         Debug(Debug::INFO) << "Database size: " << reader.getSize() << " sequences in "
-                           << reader.getSequenceLocator().size() << " length groups, budget "
+                           << reader.getIndex().rangeCount() << " length groups, budget "
                            << (budget / (1024 * 1024)) << " MB\n";
     }
 
@@ -633,11 +633,11 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
         }
 
         Timer timer;
-        reader.openBatch(par.threads, READ_ARENA_BYTES, budget, RunDbReader::READ_AGAIN);
-        const SequenceLocator &runs = reader.getSequenceLocator();
-        const std::vector<size_t> mine = nodeFileSlots(runs, node);
-        Debug(Debug::INFO) << "Node " << node.index << " of " << node.count << " takes " << mine.size()
-                           << " of " << runs.filesPerNode() << " length groups\n";
+        reader.openBatch(par.threads, READ_ARENA_BYTES, budget, Lin8DbReader::READ_AGAIN);
+        const Lin8DbIndex &index = reader.getIndex();
+        const std::vector<size_t> mine = nodeFileSlots(index, node);
+        Debug(Debug::INFO) << node.says("takes") << node.share(mine.size(), index.filesPerNode())
+                           << " length groups\n";
 
         std::vector<ClusterPair> pairs;
         uint64_t written = 0;
@@ -647,27 +647,27 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
         size_t stayed = 0;
         size_t lengths = 0;
         for (size_t at = 0; at < mine.size(); at++) {
-            const std::pair<size_t, size_t> span = runsInFileSlot(runs, mine[at]);
-            for (size_t segment = span.first; segment < span.second; segment++) {
-                lengths += (segment == span.first || runs[segment].seqLen() != runs[segment - 1].seqLen());
+            const std::pair<size_t, size_t> span = rangesInFileSlot(index, mine[at]);
+            for (size_t range = span.first; range < span.second; range++) {
+                lengths += (range == span.first || index[range].getSeqLen() != index[range - 1].getSeqLen());
             }
         }
         Debug(Debug::INFO) << "Hashing and comparing " << lengths << " length groups\n";
         Debug::Progress progress(lengths);
         for (size_t at = 0; at < mine.size(); at++) {
-            const std::pair<size_t, size_t> span = runsInFileSlot(runs, mine[at]);
-            for (size_t segment = span.first; segment < span.second;) {
-                const uint32_t length = runs[segment].seqLen();
-                const uint64_t rankBegin = runs[segment].rankBase();
-                size_t next = segment + 1;
-                while (next < span.second && runs[next].seqLen() == length) {
+            const std::pair<size_t, size_t> span = rangesInFileSlot(index, mine[at]);
+            for (size_t range = span.first; range < span.second;) {
+                const uint32_t length = index[range].getSeqLen();
+                const uint64_t rankBegin = index[range].firstRank();
+                size_t next = range + 1;
+                while (next < span.second && index[next].getSeqLen() == length) {
                     next++;
                 }
-                const uint64_t rankEnd = runs.rankEnd(next - 1);
-                if (hashPartitionCount(static_cast<size_t>(rankEnd - rankBegin), budget) > 1) {
+                const uint64_t rankAfter = index.rankAfter(next - 1);
+                if (hashPartitionCount(static_cast<size_t>(rankAfter - rankBegin), budget) > 1) {
                     oversized++;
                 }
-                reduceSequencesOfOneLength(reader, rankBegin, rankEnd, length, hashMat->aa2num, identity,
+                reduceSequencesOfOneLength(reader, rankBegin, rankAfter, length, hashMat->aa2num, identity,
                                  anchorLength(identity), budget,
                                  par.threads, par.db2 + ".part" + uniqueTmpSuffix(), pairs, crowded);
                 SORT_PARALLEL(pairs.begin(), pairs.end(), ClusterPair::byMemberAndRepresentative);
@@ -712,7 +712,7 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
                     pairs.clear();
                 }
                 progress.updateProgress();
-                segment = next;
+                range = next;
             }
             reader.releaseFileSlot(mine[at]);
         }
@@ -749,7 +749,7 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Folding done, merging the other nodes\n";
     waitEveryNodeDone(par.db2, node.count, 86400);
 
-    const uint64_t all = mergeNodeShards(par.db2, par.db1 + RunDbReader::KEPT_BITMAP_SUFFIX,
+    const uint64_t all = mergeNodeShards(par.db2, par.db1 + Lin8DbReader::KEPT_BITMAP_SUFFIX,
                                          node.count, reader, uniqueTmpSuffix());
     if (lengthGroupsSeen > 0)
     Debug(Debug::INFO) << "Time for hashing: " << (uint64_t) spentHashing

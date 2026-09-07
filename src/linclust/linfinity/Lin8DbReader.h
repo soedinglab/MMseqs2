@@ -47,9 +47,9 @@ private:
     unsigned inflight;
 };
 
-class RunDbReader {
+class Lin8DbReader {
 public:
-    static const uint64_t VALID_MAGIC;
+    static const uint64_t KEPT_BITMAP_MAGIC;
 
     class Cursor {
     public:
@@ -59,17 +59,17 @@ public:
 
     static const char *KEPT_BITMAP_SUFFIX;
 
-    RunDbReader(const std::string &db, bool withHeaders = false);
-    ~RunDbReader();
+    Lin8DbReader(const std::string &db, bool withHeaders = false);
+    ~Lin8DbReader();
 
     void open();
     void close();
 
-    uint64_t getSize() const { return runs.entryCount(); }
-    uint64_t getTotalBytes() const { return runs.totalBytes(); }
-    const SequenceLocator &getSequenceLocator() const { return runs; }
+    uint64_t getSize() const { return index.getSize(); }
+    uint64_t getDataSize() const { return index.getDataSize(); }
+    const Lin8DbIndex &getIndex() const { return index; }
 
-    uint32_t getSeqLen(uint64_t rank) const { return runs.seqLen(rank); }
+    uint32_t getSeqLen(uint64_t rank) const { return index.getSeqLen(rank); }
     const char *getData(uint64_t rank) const;
 
     uint32_t getSeqLen(uint64_t rank, Cursor &cursor) const;
@@ -89,15 +89,15 @@ public:
 
     static const unsigned int LANES = 2;
 
-    bool isValid(uint64_t rank) const;
-    uint64_t countValid() const;
-    bool hasValid() const { return validLoaded; }
-    const uint64_t *validWords() const { return valid; }
-    size_t validWordCount() const { return validCount; }
+    bool isKept(uint64_t rank) const;
+    uint64_t countKept() const;
+    bool hasKeptBitmap() const { return keptLoaded; }
+    const uint64_t *keptWords() const { return kept; }
+    size_t keptWordCount() const { return keptCount; }
 
     void releaseFileSlot(size_t suffix);
 
-    uint64_t rankAtByte(uint64_t globalByte) const { return runs.rankAtByte(globalByte); }
+    uint64_t rankAtByte(uint64_t globalByte) const { return index.rankAtByte(globalByte); }
 
     // --compressed header files: zstd frames plus a table keyed by uncompressed offset
     struct HeaderFrame {
@@ -110,13 +110,13 @@ public:
 
     class HeaderStream {
     public:
-        HeaderStream(const RunDbReader &owner);
-        // begin stays valid only until the next call
+        HeaderStream(const Lin8DbReader &owner);
+        // begin stays kept only until the next call
         bool next(const char *&begin, size_t &length);
     private:
         const char *frameText(uint32_t file, size_t &avail);
-        const RunDbReader &owner;
-        size_t segment;
+        const Lin8DbReader &owner;
+        size_t range;
         uint64_t left;
         size_t at;
         uint32_t frameFile;
@@ -146,7 +146,7 @@ private:
 
     std::string db;
     bool withHeaders;
-    SequenceLocator runs;
+    Lin8DbIndex index;
     mutable std::vector<char *> data;
     mutable std::vector<int> dataFd;
     mutable std::vector<int> directFd;
@@ -157,11 +157,11 @@ private:
     mutable std::vector<std::vector<HeaderFrame> > headerFrames;
     mutable std::vector<uint64_t> headerRawSize;
     void loadHeaderFrames(uint32_t file, const char *mapped) const;
-    const uint64_t *valid;
-    void *validMap;
-    size_t validSize;
-    size_t validCount;
-    bool validLoaded;
+    const uint64_t *kept;
+    void *keptMap;
+    size_t keptSize;
+    size_t keptCount;
+    bool keptLoaded;
     mutable bool wantDirect;
 };
 

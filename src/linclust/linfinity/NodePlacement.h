@@ -7,20 +7,39 @@
 
 #include <climits>
 #include <cstddef>
+#include <cctype>
 #include <cstring>
 #include <string>
 #include <functional>
 #include <unistd.h>
 #include <vector>
 
-class SequenceLocator;
+class Lin8DbIndex;
 
 struct NodePlacement {
     unsigned int index;
     unsigned int count;
 
+    // with one node there is no node to name, so the sentence opens with its verb instead
+    std::string says(const char *verb) const;
+    // one node's share of anything is all of it
+    std::string share(size_t mine, size_t total) const;
+
     static NodePlacement resolve(const Parameters &par);
 };
+
+inline std::string NodePlacement::says(const char *verb) const {
+    if (count == 1) {
+        std::string opening(verb);
+        opening[0] = static_cast<char>(toupper(opening[0]));
+        return opening + " ";
+    }
+    return "Node " + SSTR(index) + " of " + SSTR(count) + " " + verb + " ";
+}
+
+inline std::string NodePlacement::share(size_t mine, size_t total) const {
+    return mine == total ? SSTR(total) : SSTR(mine) + " of " + SSTR(total);
+}
 
 inline NodePlacement NodePlacement::resolve(const Parameters &par) {
     NodePlacement placement;
@@ -81,12 +100,15 @@ inline NodePlacement NodePlacement::resolve(const Parameters &par) {
                             << placement.count << "\n";
         EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::INFO) << "This is host " << host << ", node " << placement.index
-                       << " of " << placement.count << "\n";
+    Debug(Debug::INFO) << "This is host " << host;
+    if (placement.count > 1) {
+        Debug(Debug::INFO) << ", node " << placement.index << " of " << placement.count;
+    }
+    Debug(Debug::INFO) << "\n";
     return placement;
 }
 
-std::vector<size_t> nodeFileSlots(const SequenceLocator &runs, const NodePlacement &node,
+std::vector<size_t> nodeFileSlots(const Lin8DbIndex &index, const NodePlacement &node,
                                   const std::function<uint64_t(uint32_t)> &costOfLength = NULL);
 
 #endif
