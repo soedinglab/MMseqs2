@@ -14,5 +14,6 @@ set(linclust_source_files
         linclust/linfinity/lin8pickrepprofile.cpp
         linclust/linfinity/lin8createtsv.cpp
         linclust/linfinity/lin8createrepseqfasta.cpp
+        linclust/linfinity/lin8monitor.cpp
         PARENT_SCOPE
         )

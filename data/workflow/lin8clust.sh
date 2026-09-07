@@ -86,6 +86,25 @@ ALIGN_TEXT=""
 
 mkdir -p "$TMP/kmer" "$TMP/pairs" "$TMP/pref" "$TMP/aln" "$TMP/clu_accepted"
 
+# every machine samples its own process tree from /proc while the passes run, one line an interval,
+# appended beside the output so a rerun continues the same file; a summary a phase closes it
+MONITOR_INTERVAL="${MONITOR_INTERVAL:-5}"
+MONITOR_PID=""
+stopMonitor() {
+    if [ -n "$MONITOR_PID" ]; then
+        kill "$MONITOR_PID" 2>/dev/null || true
+        wait "$MONITOR_PID" 2>/dev/null || true
+        MONITOR_PID=""
+    fi
+    return 0
+}
+if [ "$MONITOR_INTERVAL" -gt 0 ] 2>/dev/null; then
+    "$MMSEQS" lin8-monitor "$OUT.monitor.$NODE.tsv" --monitor-pid "$$" \
+        --monitor-interval "$MONITOR_INTERVAL" -v 1 &
+    MONITOR_PID=$!
+    trap stopMonitor EXIT
+fi
+
 # two rounds: every machine writes a histogram, then places sequences, so this is a retry loop
 _waited=0
 _said=""

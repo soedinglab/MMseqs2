@@ -107,6 +107,7 @@ extern int lin8createclusterdb(int argc, const char **argv, const Command& comma
 extern int lin8pickrepprofile(int argc, const char **argv, const Command& command);
 extern int lin8createtsv(int argc, const char **argv, const Command& command);
 extern int lin8createrepseqfasta(int argc, const char **argv, const Command& command);
+extern int lin8monitor(int argc, const char **argv, const Command& command);
 extern int msa2result(int argc, const char **argv, const Command& command);
 extern int multihitdb(int argc, const char **argv, const Command& command);
 extern int multihitsearch(int argc, const char **argv, const Command& command);

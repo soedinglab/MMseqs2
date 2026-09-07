@@ -707,6 +707,8 @@ public:
     int lin8RepRankBlockCount;
     int lin8RepRankBlockLookahead;
     int lin8RepRankBlocks;
+    int lin8MonitorPid;
+    int lin8MonitorInterval;
 
     // splitsequence
     int sequenceOverlap;
@@ -1196,6 +1198,8 @@ public:
     PARAMETER(PARAM_LIN8_REP_RANK_BLOCK)
     PARAMETER(PARAM_LIN8_REP_RANK_BLOCK_COUNT)
     PARAMETER(PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD)
+    PARAMETER(PARAM_LIN8_MONITOR_PID)
+    PARAMETER(PARAM_LIN8_MONITOR_INTERVAL)
     PARAMETER(PARAM_WRITE_LOOKUP)
 
     // convert2fasta
@@ -1431,6 +1435,7 @@ public:
     std::vector<MMseqsParameter*> lin8pickrepprofile;
     std::vector<MMseqsParameter*> lin8createtsv;
     std::vector<MMseqsParameter*> lin8createrepseqfasta;
+    std::vector<MMseqsParameter*> lin8monitor;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;

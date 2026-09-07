@@ -29,6 +29,8 @@ static bool scriptOwns(const Parameters &par, const MMseqsParameter *p) {
                          par.PARAM_LIN8_REP_RANK_BLOCK_COUNT.uniqid,
                          par.PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD.uniqid,
                          par.PARAM_LIN8_REP_RANK_BLOCKS.uniqid,
+                         par.PARAM_LIN8_MONITOR_PID.uniqid,
+                         par.PARAM_LIN8_MONITOR_INTERVAL.uniqid,
                          par.PARAM_THREADS.uniqid,
                          par.PARAM_MIN_SEQ_ID.uniqid,
                          par.PARAM_C.uniqid,
@@ -95,6 +97,7 @@ int lin8clust(int argc, const char **argv, const Command &command) {
                                                 ? SSTR(par.lin8RepRankBlockLookahead).c_str()
                                                 : NULL);
     cmd.addVariable("THREADS", SSTR(par.threads).c_str());
+    cmd.addVariable("MONITOR_INTERVAL", SSTR(par.lin8MonitorInterval).c_str());
     cmd.addVariable("SEQID", SSTR(par.seqIdThr).c_str());
     cmd.addVariable("HASHSEQID", SSTR(std::max(0.9f, par.seqIdThr)).c_str());
     cmd.addVariable("COV", SSTR(par.covThr).c_str());
