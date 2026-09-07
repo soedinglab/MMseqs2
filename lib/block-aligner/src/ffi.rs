@@ -312,6 +312,7 @@ macro_rules! gen_functions {
      $align_profile_name:ident, $align_profile_doc:expr,
      $align_aa_name:ident, $align_aa_doc:expr,
      $align_3di_name:ident, $align_3di_doc:expr,
+     $align_3di_12st_name:ident, $align_3di_12st_doc:expr,
      $res_name:ident, $res_doc:expr,
      $trace_name:ident, $trace_doc:expr,
      $trace_eq_name:ident, $trace_eq_doc:expr,
@@ -384,6 +385,27 @@ macro_rules! gen_functions {
             aligner.align_3di(&*q, &*q_3di, &*q_bias, &*r, &*r_3di, &*r_bias, &*m, &*m_3di, g, s.min..=s.max, x);
         }
 
+        #[doc = $align_3di_12st_doc]
+        #[no_mangle]
+        pub unsafe extern fn $align_3di_12st_name(b: BlockHandle,
+                                             q: *const PaddedBytes,
+                                             q_3di: *const PaddedBytes,
+                                             q_12st: *const PaddedBytes,
+                                             q_bias: *const PosBias,
+                                             r: *const PaddedBytes,
+                                             r_3di: *const PaddedBytes,
+                                             r_12st: *const PaddedBytes,
+                                             r_bias: *const PosBias,
+                                             m: *const $matrix,
+                                             m_3di: *const $matrix,
+                                             m_12st: *const $matrix,
+                                             g: Gaps,
+                                             s: SizeRange,
+                                             x: i32) {
+            let aligner = &mut *(b as *mut Block<$trace, $x_drop>);
+            aligner.align_3di_12st(&*q, &*q_3di, &*q_12st, &*q_bias, &*r, &*r_3di, &*r_12st, &*r_bias, &*m, &*m_3di, &*m_12st, g, s.min..=s.max, x);
+        }
+
         #[doc = $res_doc]
         #[no_mangle]
         pub unsafe extern fn $res_name(b: BlockHandle) -> AlignResult {
@@ -424,6 +446,8 @@ gen_functions!(
     "Global alignment of two amino acid strings with posbias (no traceback).",
     block_align_3di_aa,
     "Global alignment of two amino acid strings with 3di (no traceback).",
+    block_align_3di_12st_aa,
+    "Global alignment of two amino acid strings with 3di and 12st (no traceback).",
     block_res_aa,
     "Retrieves the result of global alignment of two amino acid strings (no traceback).",
     _block_cigar_aa,
@@ -446,6 +470,8 @@ gen_functions!(
     "X-drop alignment of two amino acid strings with posbias (no traceback).",
     block_align_3di_aa_xdrop,
     "X-drop alignment of two amino acid strings with 3di (no traceback).",
+    block_align_3di_12st_aa_xdrop,
+    "X-drop alignment of two amino acid strings with 3di and 12st (no traceback).",
     block_res_aa_xdrop,
     "Retrieves the result of X-drop alignment of two amino acid strings (no traceback).",
     _block_cigar_aa_xdrop,
@@ -468,6 +494,8 @@ gen_functions!(
     "Global alignment of two amino acid strings, with traceback.",
     block_align_3di_aa_trace,
     "Global alignment of two amino acid strings with 3di, with traceback.",
+    block_align_3di_12st_aa_trace,
+    "Global alignment of two amino acid strings with 3di and 12st, with traceback.",
     block_res_aa_trace,
     "Retrieves the result of global alignment of two amino acid strings, with traceback.",
     block_cigar_aa_trace,
@@ -490,6 +518,8 @@ gen_functions!(
     "X-drop alignment of two amino acid strings with traceback with posbias.",
     block_align_3di_aa_trace_xdrop,
     "X-drop alignment of two amino acid strings with 3di, with traceback.",
+    block_align_3di_12st_aa_trace_xdrop,
+    "X-drop alignment of two amino acid strings with 3di and 12st, with traceback.",
     block_res_aa_trace_xdrop,
     "Retrieves the result of X-drop alignment of two amino acid strings, with traceback.",
     block_cigar_aa_trace_xdrop,
