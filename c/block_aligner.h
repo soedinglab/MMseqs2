@@ -410,6 +410,25 @@ void block_align_3di_aa(BlockHandle b,
                         int32_t x);
 
 /**
+ *Global alignment of two amino acid strings with 3di and 12st (no traceback).
+ */
+void block_align_3di_12st_aa(BlockHandle b,
+                        const struct PaddedBytes *q,
+                        const struct PaddedBytes *q_3di,
+                        const struct PaddedBytes *q_12st,
+                        const struct PosBias *q_bias,
+                        const struct PaddedBytes *r,
+                        const struct PaddedBytes *r_3di,
+                        const struct PaddedBytes *r_12st,
+                        const struct PosBias *r_bias,
+                        const struct AAMatrix *m,
+                        const struct AAMatrix *m_3di,
+                        const struct AAMatrix *m_12st,
+                        struct Gaps g,
+                        struct SizeRange s,
+                        int32_t x);
+
+/**
  *Retrieves the result of global alignment of two amino acid strings (no traceback).
  */
 struct AlignResult block_res_aa(BlockHandle b);
@@ -479,6 +498,25 @@ void block_align_3di_aa_xdrop(BlockHandle b,
                               int32_t x);
 
 /**
+ *X-drop alignment of two amino acid strings with 3di and 12st (no traceback).
+ */
+void block_align_3di_12st_aa_xdrop(BlockHandle b,
+                              const struct PaddedBytes *q,
+                              const struct PaddedBytes *q_3di,
+                              const struct PaddedBytes *q_12st,
+                              const struct PosBias *q_bias,
+                              const struct PaddedBytes *r,
+                              const struct PaddedBytes *r_3di,
+                              const struct PaddedBytes *r_12st,
+                              const struct PosBias *r_bias,
+                              const struct AAMatrix *m,
+                              const struct AAMatrix *m_3di,
+                              const struct AAMatrix *m_12st,
+                              struct Gaps g,
+                              struct SizeRange s,
+                              int32_t x);
+
+/**
  *Retrieves the result of X-drop alignment of two amino acid strings (no traceback).
  */
 struct AlignResult block_res_aa_xdrop(BlockHandle b);
@@ -543,6 +581,25 @@ void block_align_3di_aa_trace(BlockHandle b,
                               const struct PosBias *r_bias,
                               const struct AAMatrix *m,
                               const struct AAMatrix *m_3di,
+                              struct Gaps g,
+                              struct SizeRange s,
+                              int32_t x);
+
+/**
+ *Global alignment of two amino acid strings with 3di and 12st, with traceback.
+ */
+void block_align_3di_12st_aa_trace(BlockHandle b,
+                              const struct PaddedBytes *q,
+                              const struct PaddedBytes *q_3di,
+                              const struct PaddedBytes *q_12st,
+                              const struct PosBias *q_bias,
+                              const struct PaddedBytes *r,
+                              const struct PaddedBytes *r_3di,
+                              const struct PaddedBytes *r_12st,
+                              const struct PosBias *r_bias,
+                              const struct AAMatrix *m,
+                              const struct AAMatrix *m_3di,
+                              const struct AAMatrix *m_12st,
                               struct Gaps g,
                               struct SizeRange s,
                               int32_t x);
@@ -628,6 +685,25 @@ void block_align_3di_aa_trace_xdrop(BlockHandle b,
                                     const struct PosBias *r_bias,
                                     const struct AAMatrix *m,
                                     const struct AAMatrix *m_3di,
+                                    struct Gaps g,
+                                    struct SizeRange s,
+                                    int32_t x);
+
+/**
+ *X-drop alignment of two amino acid strings with 3di and 12st, with traceback.
+ */
+void block_align_3di_12st_aa_trace_xdrop(BlockHandle b,
+                                    const struct PaddedBytes *q,
+                                    const struct PaddedBytes *q_3di,
+                                    const struct PaddedBytes *q_12st,
+                                    const struct PosBias *q_bias,
+                                    const struct PaddedBytes *r,
+                                    const struct PaddedBytes *r_3di,
+                                    const struct PaddedBytes *r_12st,
+                                    const struct PosBias *r_bias,
+                                    const struct AAMatrix *m,
+                                    const struct AAMatrix *m_3di,
+                                    const struct AAMatrix *m_12st,
                                     struct Gaps g,
                                     struct SizeRange s,
                                     int32_t x);
