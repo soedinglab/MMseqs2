@@ -174,7 +174,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         if (!keepRunningClient) {
             break;
         }
-        size_t queryKey = qdbr->getDbKey(id);
+        DBKeyType queryKey = qdbr->getDbKey(id);
         unsigned int querySeqLen = qdbr->getSeqLen(id);
         char *querySeqData = qdbr->getData(id, 0);
         qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
@@ -374,7 +374,7 @@ static int scoreAuxOnDiagonal(const unsigned char *qAux, int qLen,
 }
 
 void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAux, int8_t * tinySubMat,
-                    DBReader<unsigned int> * qdbr, DBReader<unsigned int> * tdbr,
+                    DBReader<DBKeyType> * qdbr, DBReader<DBKeyType> * tdbr,
                     SequenceLookup * sequenceLookup, bool sameDB, DBWriter & resultWriter, EvalueComputation * evaluer,
                     QueryMatcherTaxonomyHook *taxonomyHook, int alignmentMode){
     std::vector<hit_t> shortResults;
@@ -430,7 +430,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
         resultBuffer.reserve(262144);
         for (size_t id = 0; id < qdbr->getSize(); id++) {
             char *querySeqData = qdbr->getData(id, thread_idx);
-            size_t queryKey = qdbr->getDbKey(id);
+            DBKeyType queryKey = qdbr->getDbKey(id);
             unsigned int querySeqLen = qdbr->getSeqLen(id);
 
             qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
@@ -587,11 +587,10 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                 // kept, matching phase 1 and the GPU path)
 #pragma omp master
                 {
-                    const unsigned int qKey = queryKey;
                     const bool keepIdentity = (par.includeIdentity || sameDB);
                     size_t kept = 0;
                     for (size_t i = 0; i < shortResults.size(); i++) {
-                        const bool isIdentity = (qKey == shortResults[i].seqId) && keepIdentity;
+                        const bool isIdentity = (queryKey == shortResults[i].seqId) && keepIdentity;
                         if (isIdentity || shortResults[i].prefScore > par.minDiagScoreThr) {
                             shortResults[kept++] = shortResults[i];
                         }
