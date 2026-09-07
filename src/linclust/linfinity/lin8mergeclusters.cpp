@@ -80,10 +80,10 @@ int lin8mergehashredundancy(int argc, const char **argv, const Command &command)
         BucketWriter<JoinRow> members(byMember, repRankBlocks, par.threads, budget);
         BucketWriter<JoinRow> kept(byKept, repRankBlocks, par.threads, budget);
         std::vector<uint64_t> nothing(repRankBlocks, 0);
-        members.openAt(nothing);
-        kept.openAt(nothing);
+        members.openAt(nothing, nothing);
+        kept.openAt(nothing, nothing);
 
-        Debug(Debug::INFO) << "Routing " << repRankBlocks << " blocks by rank\n";
+        Debug(Debug::INFO) << "Indexing clusters and their near-duplicates in " << repRankBlocks << " rank groups\n";
         Debug::Progress routeProgress(repRankBlocks);
 #pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads)
         for (size_t repRankBlock = 0; repRankBlock < repRankBlocks; repRankBlock++) {
@@ -114,45 +114,64 @@ int lin8mergehashredundancy(int argc, const char **argv, const Command &command)
             fclose(in);
             routeProgress.updateProgress();
         }
+        Debug(Debug::INFO) << "  indexed cluster members: " << timer.lap() << "\n";
 
-        FILE *in = fopen(par.db2.c_str(), "r");
-        if (in == NULL) {
+        FILE *probe = fopen(par.db2.c_str(), "r");
+        if (probe == NULL) {
             Debug(Debug::ERROR) << "Cannot open " << par.db2 << ". Run lin8clusthash first\n";
             EXIT(EXIT_FAILURE);
         }
         PairFileHeader header;
-        if (fread(&header, sizeof(PairFileHeader), 1, in) != 1
+        if (fread(&header, sizeof(PairFileHeader), 1, probe) != 1
             || header.magic != LINCLUSTHASH_MAGIC) {
             Debug(Debug::ERROR) << par.db2 << " is not a set of redundancy pairs\n";
             EXIT(EXIT_FAILURE);
         }
-        std::vector<JoinRow> redundancy(1u << 16);
-        size_t read = 0;
-        while ((read = fread(redundancy.data(), sizeof(JoinRow), redundancy.size(), in)) > 0) {
-            for (size_t k = 0; k < read; k++) {
+        fclose(probe);
+        const size_t redundantCount = header.pairs;
+        const size_t REDUNDANCY_CHUNK = 1u << 22;
+        const size_t redundancyChunks =
+            redundantCount == 0 ? 0 : (redundantCount + REDUNDANCY_CHUNK - 1) / REDUNDANCY_CHUNK;
+#pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads)
+        for (size_t c = 0; c < redundancyChunks; c++) {
+            unsigned int thread = 0;
+#ifdef OPENMP
+            thread = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+            const size_t from = c * REDUNDANCY_CHUNK;
+            const size_t take = std::min<size_t>(REDUNDANCY_CHUNK, redundantCount - from);
+            FILE *in = fopen(par.db2.c_str(), "r");
+            if (in == NULL
+                || fseeko(in, (off_t) sizeof(PairFileHeader) + (off_t) (from * sizeof(JoinRow)), SEEK_SET) != 0) {
+                Debug(Debug::ERROR) << "Cannot read " << par.db2 << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            std::vector<JoinRow> redundancy(take);
+            if (fread(redundancy.data(), sizeof(JoinRow), take, in) != take) {
+                Debug(Debug::ERROR) << "Cannot read " << par.db2 << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            fclose(in);
+            for (size_t k = 0; k < take; k++) {
                 JoinRow row;
                 row.on = redundancy[k].carried;
                 row.carried = redundancy[k].on;
-                kept.add(0, row, PairRecord::repRankBlockOf(row.on, ranks, repRankBlocks));
+                kept.add(thread, row, PairRecord::repRankBlockOf(row.on, ranks, repRankBlocks));
             }
         }
-        if (ferror(in) != 0) {
-            Debug(Debug::ERROR) << "Cannot read " << par.db2 << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(in);
         members.flushAll(par.threads);
         kept.flushAll(par.threads);
         members.close();
         kept.close();
+        Debug(Debug::INFO) << "  indexed near-duplicates: " << timer.lap() << "\n";
     }
 
     uint64_t added = 0;
     {
         BucketWriter<PairRecord> writer(extra, repRankBlocks, par.threads, budget);
         std::vector<uint64_t> nothing(repRankBlocks, 0);
-        writer.openAt(nothing);
-        Debug(Debug::INFO) << "Putting redundant sequences back into " << repRankBlocks << " blocks\n";
+        writer.openAt(nothing, nothing);
+        Debug(Debug::INFO) << "Matching near-duplicates to their clusters\n";
         Debug::Progress backProgress(repRankBlocks);
 #pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads) reduction(+ : added)
         for (size_t repRankBlock = 0; repRankBlock < repRankBlocks; repRankBlock++) {
@@ -186,49 +205,83 @@ int lin8mergehashredundancy(int argc, const char **argv, const Command &command)
         }
         writer.flushAll(par.threads);
         writer.close();
+        Debug(Debug::INFO) << "  matched near-duplicates to clusters: " << timer.lap() << "\n";
     }
 
     uint64_t rows = 0;
-    std::vector<std::pair<std::string, std::string> > pending;
-    uint64_t pendingBytes = 0;
+    Debug(Debug::INFO) << "Adding near-duplicates back into their clusters\n";
+    Debug::Progress mergeProgress(repRankBlocks);
+#pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads) reduction(+ : rows)
     for (size_t repRankBlock = 0; repRankBlock < repRankBlocks; repRankBlock++) {
-        std::vector<PairRecord> all;
+        // the additions are small next to clu_accepted, so sort them by rank
+        std::vector<PairRecord> add;
         std::vector<PairRecord> buffer(1u << 16);
-        const std::string a = par.db1 + ".0." + SSTR(repRankBlock);
-        const std::string b = extra + "." + SSTR(repRankBlock);
-        for (int which = 0; which < 2; which++) {
-            const std::string path = (which == 0) ? a : b;
-            FILE *in = fopen(path.c_str(), "r");
-            if (in == NULL) {
-                continue;
-            }
+        FILE *extraIn = fopen((extra + "." + SSTR(repRankBlock)).c_str(), "r");
+        if (extraIn != NULL) {
             size_t read = 0;
-            while ((read = readRecords(buffer.data(), buffer.size(), in)) > 0) {
-                all.insert(all.end(), buffer.begin(), buffer.begin() + read);
+            while ((read = readRecords(buffer.data(), buffer.size(), extraIn)) > 0) {
+                add.insert(add.end(), buffer.begin(), buffer.begin() + read);
             }
-            fclose(in);
+            fclose(extraIn);
         }
-        SORT_PARALLEL(all.begin(), all.end(), PairRecord::byRepAndMember);
+        SORT_SERIAL(add.begin(), add.end(), PairRecord::byRepAndMember);
+
         const std::string outPath = par.db3 + ".0." + SSTR(repRankBlock);
         const std::string outTmp = outPath + ".tmp";
         FILE *out = FileUtil::openAndDelete(outTmp.c_str(), "w");
-        if (all.empty() == false
-            && writeRecords(all.data(), all.size(), out) != all.size()) {
-            Debug(Debug::ERROR) << "Cannot write " << outTmp << "\n";
-            EXIT(EXIT_FAILURE);
+        std::vector<PairRecord> outBuf;
+        outBuf.reserve(1u << 16);
+        uint64_t written = 0;
+        size_t at = 0;
+        bool haveRep = false;
+        uint64_t lastRep = 0;
+        // clu_accepted is already grouped by representative rank, so splice the sorted additions in
+        FILE *in = fopen((par.db1 + ".0." + SSTR(repRankBlock)).c_str(), "r");
+        if (in != NULL) {
+            size_t read = 0;
+            while ((read = readRecords(buffer.data(), buffer.size(), in)) > 0) {
+                for (size_t k = 0; k < read; k++) {
+                    const uint64_t rep = buffer[k].rep();
+                    if (haveRep && rep < lastRep) {
+                        Debug(Debug::ERROR) << "clu_accepted is not in representative order at block "
+                                            << repRankBlock << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    while (at < add.size() && add[at].rep() < rep) {
+                        outBuf.push_back(add[at++]);
+                    }
+                    outBuf.push_back(buffer[k]);
+                    lastRep = rep;
+                    haveRep = true;
+                    if (outBuf.size() >= (1u << 16)) {
+                        if (writeRecords(outBuf.data(), outBuf.size(), out) != outBuf.size()) {
+                            Debug(Debug::ERROR) << "Cannot write " << outTmp << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        written += outBuf.size();
+                        outBuf.clear();
+                    }
+                }
+            }
+            fclose(in);
+        }
+        while (at < add.size()) {
+            outBuf.push_back(add[at++]);
+        }
+        if (outBuf.empty() == false) {
+            if (writeRecords(outBuf.data(), outBuf.size(), out) != outBuf.size()) {
+                Debug(Debug::ERROR) << "Cannot write " << outTmp << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            written += outBuf.size();
         }
         if (fclose(out) != 0) {
             Debug(Debug::ERROR) << "Cannot close " << outTmp << "\n";
             EXIT(EXIT_FAILURE);
         }
-        pending.push_back(std::make_pair(outTmp, outPath));
-        pendingBytes += all.size() * PairRecord::DISK_BYTES;
-        if (pendingBytes >= PUBLISH_BATCH_BYTES || pending.size() >= PUBLISH_BATCH_FILES
-            || repRankBlock + 1 == repRankBlocks) {
-            publishAllAtomically(pending, par.threads);
-            pendingBytes = 0;
-        }
-        rows += all.size();
+        FileUtil::publishAtomically(outTmp, outPath);
+        rows += written;
+        mergeProgress.updateProgress();
     }
 
     const std::string shapeTmp = par.db3 + ".shape.tmp";
@@ -240,8 +293,8 @@ int lin8mergehashredundancy(int argc, const char **argv, const Command &command)
     }
     FileUtil::publishAtomically(shapeTmp, par.db3);
 
-    Debug(Debug::INFO) << "Put back " << added << " redundant sequences, " << rows
-                       << " rows in all, in " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "Added " << added << " near-duplicate sequences back, " << rows
+                       << " cluster rows, in " << timer.lap() << "\n";
     return EXIT_SUCCESS;
 }
 

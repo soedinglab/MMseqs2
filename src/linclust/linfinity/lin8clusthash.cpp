@@ -184,7 +184,7 @@ static bool sequencesMatch(const char *left, const char *right, uint32_t length,
 }
 
 static void reduceOneHashBucket(const RunDbReader &reader, const HashEntry *bucket, size_t size,
-                          uint32_t length, const unsigned char *aa2num, float identity,
+                          uint32_t length, float identity,
                           std::vector<char> &claimed, std::vector<ClusterPair> &out) {
     if (size < 2) {
         return;
@@ -315,7 +315,7 @@ static unsigned int threadsWorthStarting(size_t work, unsigned int threads) {
 }
 
 static void reduceEntriesToClusters(const RunDbReader &reader, std::vector<HashEntry> &entries,
-                           uint32_t length, const unsigned char *aa2num, float identity,
+                           uint32_t length, float identity,
                            unsigned int threads, std::vector<ClusterPair> &out, size_t &crowded) {
     double mark = omp_get_wtime();
     SORT_PARALLEL(entries.begin(), entries.end(), HashEntry::byHashAndRank);
@@ -349,7 +349,7 @@ static void reduceEntriesToClusters(const RunDbReader &reader, std::vector<HashE
 #pragma omp for schedule(dynamic, 1)
         for (size_t b = 0; b < bucketStart.size() / 2; b++) {
             reduceOneHashBucket(reader, entries.data() + bucketStart[2 * b],
-                              bucketStart[2 * b + 1] - bucketStart[2 * b], length, aa2num, identity,
+                              bucketStart[2 * b + 1] - bucketStart[2 * b], length, identity,
                               claimed, pairsPerThread[thread]);
         }
     }
@@ -448,7 +448,7 @@ static void reduceSequencesOfOneLength(const RunDbReader &reader, uint64_t rankB
         hashingThreadSeconds += took * useThreads;
         lengthGroupsSeen++;
         lengthGroupsOnOneThread += (useThreads == 1);
-        reduceEntriesToClusters(reader, entries, length, aa2num, identity, threads, out, crowded);
+        reduceEntriesToClusters(reader, entries, length, identity, threads, out, crowded);
         return;
     }
 
@@ -496,7 +496,7 @@ static void reduceSequencesOfOneLength(const RunDbReader &reader, uint64_t rankB
         mark = omp_get_wtime();
         parts.load(at, entries);
         spentSpilling += omp_get_wtime() - mark;
-        reduceEntriesToClusters(reader, entries, length, aa2num, identity, threads, out, crowded);
+        reduceEntriesToClusters(reader, entries, length, identity, threads, out, crowded);
     }
 }
 
@@ -613,9 +613,9 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
         }
         budget = static_cast<size_t>(Util::computeMemory(par.splitMemoryLimit) * 0.95);
         identity = reduced != NULL ? (float) par.seqIdThr : 1.0f;
-        Debug(Debug::INFO) << "Reducing on alphabet " << hashMat->alphabetSize << " at identity " << identity << "\n";
+        Debug(Debug::INFO) << "Reducing to a " << hashMat->alphabetSize << "-letter alphabet at identity " << identity << "\n";
         Debug(Debug::INFO) << "Database size: " << reader.getSize() << " sequences in "
-                           << reader.getSequenceLocator().size() << " runs, budget "
+                           << reader.getSequenceLocator().size() << " length groups, budget "
                            << (budget / (1024 * 1024)) << " MB\n";
     }
 
@@ -637,7 +637,7 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
         const SequenceLocator &runs = reader.getSequenceLocator();
         const std::vector<size_t> mine = nodeFileSlots(runs, node);
         Debug(Debug::INFO) << "Node " << node.index << " of " << node.count << " takes " << mine.size()
-                           << " of " << runs.filesPerNode() << " lengthBlocks\n";
+                           << " of " << runs.filesPerNode() << " length groups\n";
 
         std::vector<ClusterPair> pairs;
         uint64_t written = 0;
@@ -717,14 +717,14 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
             reader.releaseFileSlot(mine[at]);
         }
         if (oversized > 0) {
-            Debug(Debug::INFO) << "Split " << oversized << " lengths by hash to fit the budget\n";
+            Debug(Debug::INFO) << "Split " << oversized << " length groups by hash to fit the memory budget\n";
         }
         if (moved > 0) {
             Debug(Debug::INFO) << "Chained members: " << moved << ", " << stayed
-                               << " did not match the root and stayed representatives\n";
+                               << " did not match their representative and stayed on their own\n";
         }
         if (crowded > 0) {
-            Debug(Debug::INFO) << "Skipped " << crowded << " anchors shared by more than " << ANCHOR_BUCKET_MAX
+            Debug(Debug::INFO) << "Skipped " << crowded << " k-mers shared by more than " << ANCHOR_BUCKET_MAX
                                << " sequences of one length\n";
         }
         header.pairs = written;
@@ -755,10 +755,10 @@ int lin8clusthash(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Time for hashing: " << (uint64_t) spentHashing
                        << "s sorting: " << (uint64_t) spentSorting << "s grouping: "
                        << (uint64_t) spentGrouping << "s comparing: " << (uint64_t) spentComparing
-                       << "s spilling: " << (uint64_t) spentSpilling << "s\n";
+                       << "s writing: " << (uint64_t) spentSpilling << "s\n";
     if (lengthGroupsSeen > 0)
     Debug(Debug::INFO) << "Hashing used " << (spentHashing > 0 ? hashingThreadSeconds / spentHashing : 0)
-                       << " threads on average over " << lengthGroupsSeen << " length runs, "
+                       << " threads on average over " << lengthGroupsSeen << " length groups, "
                        << lengthGroupsOnOneThread << " on one thread\n";
     Debug(Debug::INFO) << "Kept " << all << " of " << reader.getSize() << " sequences ("
                        << (100.0 * static_cast<double>(reader.getSize() - all)

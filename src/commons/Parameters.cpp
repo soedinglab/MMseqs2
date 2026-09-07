@@ -1010,6 +1010,7 @@ Parameters::Parameters():
     lin8createdb.push_back(&PARAM_LINCLUSTERDB_NODE_COUNT);
     lin8createdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     lin8createdb.push_back(&PARAM_MAX_SEQ_LEN);
+    lin8createdb.push_back(&PARAM_COMPRESSED);
     lin8createdb.push_back(&PARAM_THREADS);
     lin8createdb.push_back(&PARAM_V);
 

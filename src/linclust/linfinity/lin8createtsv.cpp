@@ -75,18 +75,19 @@ int lin8createtsv(int argc, const char **argv, const Command &command) {
     const size_t budget = Util::computeMemory(par.splitMemoryLimit);
     const size_t need = reader.getSize() * (sizeof(uint64_t) + 24);
     if (need > budget) {
-        Debug(Debug::ERROR) << "Naming " << reader.getSize() << " sequences needs about "
-                            << (need >> 30) << " GB of names and the limit is " << (budget >> 30)
-                            << " GB. The cluster database and lin8-createrepseqfasta hold the same answer "
-                            << "without a name for every sequence\n";
-        EXIT(EXIT_FAILURE);
+        // no room to name every sequence, so skip the tsv instead of ending the run
+        Debug(Debug::WARNING) << "Naming " << reader.getSize() << " sequences would need about "
+                              << (need >> 30) << " GB and the limit is " << (budget >> 30)
+                              << " GB, so no tsv was written. Use the cluster database (by rank) or "
+                              << "lin8-createrepseqfasta instead\n";
+        reader.close();
+        return EXIT_SUCCESS;
     }
 
     Timer timer;
     const unsigned int threads = std::max<unsigned int>(1, par.threads);
     PackedNames nameOfRank(reader.getSize());
     const size_t NAME_BATCH = 1u << 16;
-    std::vector<const char *> beginOf(NAME_BATCH, NULL);
     std::vector<std::string> parsed(NAME_BATCH);
     RunDbReader::HeaderStream headers(reader);
     Debug(Debug::INFO) << "Naming " << reader.getSize() << " sequences\n";
@@ -102,7 +103,7 @@ int lin8createtsv(int argc, const char **argv, const Command &command) {
                                     << " the sequence locator names\n";
                 EXIT(EXIT_FAILURE);
             }
-            beginOf[got] = begin;
+            parsed[got].assign(begin, length);
             got++;
         }
         if (got == 0) {
@@ -111,7 +112,7 @@ int lin8createtsv(int argc, const char **argv, const Command &command) {
         nameProgress.updateProgress();
 #pragma omp parallel for schedule(static) num_threads(threads)
         for (size_t i = 0; i < got; i++) {
-            parsed[i] = Util::parseFastaHeader(beginOf[i]);
+            parsed[i] = Util::parseFastaHeader(parsed[i].c_str());
         }
         for (size_t i = 0; i < got; i++) {
             nameOfRank.at[rank + i] = nameOfRank.end;

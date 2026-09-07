@@ -582,7 +582,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                     ? getCovSeqidQscPercMinDiag()
                                     : getCovSeqidQscPercMinDiagTargetCov();
                                     
-    float scorePerColThreshold = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
+    float scorePerColThreshold = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.98);
     Debug(Debug::INFO) << "Score per column threshold for filtering: " << scorePerColThreshold << "\n";
     
     EvalueComputation evaluer(seqDbr->getAminoAcidDBSize(), subMat);
@@ -750,6 +750,8 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     size_t db_maxseqlen = (cluSeqDbr != nullptr)
         ? std::max(seqDbr->getMaxSeqLen(), cluSeqDbr->getMaxSeqLen())
         : seqDbr->getMaxSeqLen();
+    // queries are drawn in increasing order so the two held results cannot deadlock
+    std::atomic<size_t> nextQuery(0);
 #pragma omp parallel
     {
         unsigned int threadIdx = 0;
@@ -771,9 +773,23 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             uint32_t slot;
             unsigned short diagonal;
         };
-        std::vector<TargetHit> targetsWithDiagonal;
-        targetsWithDiagonal.reserve(1000);
-        std::vector<size_t> batchIds;
+        // one parsed query per lane, kept while its member reads are in flight
+        struct QueryWork {
+            ClusterResult result;
+            size_t representativeId;
+            DBKeyType queryKey;
+            int queryLength;
+            std::vector<TargetHit> targets;
+            std::vector<size_t> batchIds;
+            size_t loaded;
+            bool pending;
+            bool skipped;
+        };
+        QueryWork works[DBReader<DBKeyType>::BATCH_LANES];
+        for (unsigned int lane = 0; lane < DBReader<DBKeyType>::BATCH_LANES; lane++) {
+            works[lane].targets.reserve(1000);
+            works[lane].pending = false;
+        }
 
         const bool includeAlignFiles = (alnWriter != nullptr);
         const bool needTargetKey = includeAlignFiles || cluDbr != nullptr;
@@ -786,17 +802,17 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             alnLineBuffer.resize(1024 + 32768 * 4);
         }
 
-        for (size_t epochStart = 0; epochStart < endRange || epochStart == 0; epochStart += alnEpoch) {
-            const size_t epochEnd = std::min(endRange, epochStart + alnEpoch);
-#pragma omp for schedule(dynamic, 1) nowait
-        for (size_t i = epochStart; i < epochEnd; i++) {
+        // parses one query and puts its member reads in flight
+        auto prepare = [&](size_t i, QueryWork &work, unsigned int lane) {
             progress.updateProgress();
-            ClusterResult clusterResult;
+            ClusterResult &clusterResult = work.result;
             clusterResult.sequenceIdx = i;
+            clusterResult.memberIds.clear();
+            std::vector<TargetHit> &targetsWithDiagonal = work.targets;
+            std::vector<size_t> &batchIds = work.batchIds;
             targetsWithDiagonal.clear();
-            if (includeAlignFiles) {
-                alnResultBuffer.clear();
-            }
+            work.loaded = 0;
+            work.pending = true;
 
             size_t representativeId;
             const bool needQueryKey = !localPrefilterIds || includeAlignFiles;
@@ -816,24 +832,25 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 clusterResult.prefSize = 0;                         // greedy has no currentPrefSize gate
             }
             clusterResult.representativeId = representativeId;
+            work.representativeId = representativeId;
+            work.queryKey = queryKey;
 
             // Representative already assigned to another cluster: this cluster is discarded
             // by the cluster thread anyway, so skip parsing and aligning it entirely. prefSize
             // is already set (precomputed for set-cover), so the currentPrefSize gate stays
             // correct.
-            if (isAssigned(assignedCluster, representativeId)) {
-                pushClusterResult(std::move(clusterResult));
-                continue;
+            work.skipped = isAssigned(assignedCluster, representativeId);
+            if (work.skipped) {
+                return;
             }
 
             const size_t alignmentId = localPrefilterIds ? representativeId
                 : requireId(alnDbr.getId(queryKey), "Alignment DB", queryKey);
             char *alignmentData = alnDbr.getData(alignmentId, threadIdx);
-            size_t queryId = representativeId;
+            const size_t queryId = representativeId;
             // index-only, so it is known without faulting the body in; Sequence::mapSequence sets L to it
             const int queryLength = static_cast<int>(seqDbr->getSeqLen(queryId));
-            // the body is loaded lazily below, on the first target that actually reaches alignment
-            const char *querySequence = nullptr;
+            work.queryLength = queryLength;
 
             batchIds.clear();
             batchIds.push_back(queryId);
@@ -868,6 +885,35 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 prefSize++;
             }
             clusterResult.prefSize = prefSize;
+            // the identity hit needs no bytes, so a query without a candidate reads nothing
+            if (batchIds.size() > 1) {
+                work.loaded = seqDbr->startBatch(batchIds.data(), batchIds.size(), threadIdx, lane);
+            }
+        };
+
+        auto align = [&](QueryWork &work, unsigned int lane) {
+            if (work.pending == false) {
+                return;
+            }
+            ClusterResult &clusterResult = work.result;
+            // only the aligner pushes, so a thread never waits on the consumer while it holds another result
+            if (work.skipped) {
+                pushClusterResult(std::move(clusterResult));
+                work.pending = false;
+                return;
+            }
+            const size_t i = clusterResult.sequenceIdx;
+            const size_t representativeId = work.representativeId;
+            const size_t queryId = representativeId;
+            const DBKeyType queryKey = work.queryKey;
+            const int queryLength = work.queryLength;
+            std::vector<TargetHit> &targetsWithDiagonal = work.targets;
+            std::vector<size_t> &batchIds = work.batchIds;
+            if (includeAlignFiles) {
+                alnResultBuffer.clear();
+            }
+            // the body is mapped below, on the first target that actually reaches alignment
+            const char *querySequence = nullptr;
 
             // [windowStart, windowEnd) indexes batchIds and describes the current batch arena.
             size_t windowStart = 0;
@@ -912,15 +958,16 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 }
                 const size_t targetLength = seqDbr->getSeqLen(targetId);
 
-                // batchIds[0] is the query, so copy it out before the next loadBatch reuses the arena
+                // batchIds[0] is the query, so copy it out before the next batch reuses the arena
                 if (querySequence == nullptr) {
+                    seqDbr->awaitBatch(threadIdx, lane);
                     windowStart = 0;
-                    windowEnd = seqDbr->loadBatch(batchIds.data(), batchIds.size(), threadIdx);
+                    windowEnd = work.loaded;
                     if (windowEnd == 0) {
                         Debug(Debug::ERROR) << "Failed to batch-load query " << queryKey << "\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    queryCopy.assign(seqDbr->batchAt(threadIdx, 0), queryLength);
+                    queryCopy.assign(seqDbr->batchAt(threadIdx, lane, 0), queryLength);
                     querySequence = queryCopy.c_str();
                     query.mapSequence(queryId, queryKey, querySequence, queryLength);
                     blockAligner.initQuery(&query);
@@ -929,9 +976,10 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
 
                 if (slot < windowStart || slot >= windowEnd) {
                     windowStart = slot;
-                    windowEnd = slot + seqDbr->loadBatch(&batchIds[slot], batchIds.size() - slot, threadIdx);
+                    windowEnd = slot + seqDbr->startBatch(&batchIds[slot], batchIds.size() - slot, threadIdx, lane);
+                    seqDbr->awaitBatch(threadIdx, lane);
                 }
-                const char *targetSequence = seqDbr->batchAt(threadIdx, slot - windowStart);
+                const char *targetSequence = seqDbr->batchAt(threadIdx, lane, slot - windowStart);
 
                 const DBKeyType targetKey = needTargetKey ? seqDbr->getDbKey(targetId) : DB_KEY_INVALID;
                 target.mapSequence(targetId, targetKey, targetSequence, targetLength);
@@ -1186,6 +1234,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 alnWriter->writeData(alnResultBuffer.c_str(), alnResultBuffer.length(), queryKey, threadIdx);
             }
             pushClusterResult(std::move(clusterResult));
+            work.pending = false;
 
             if (identityOrder && i > reorderCapacity && (i % ALIGN2CLUST_CACHE_DROP_STRIDE) == 0) {
                 // a producer here is not blocked, so every entry this far back is already consumed
@@ -1198,18 +1247,34 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                seqDbr->getOffset(coverageBandStart(seqDbr, safeEnd, par.covThr, par.covMode)));
                 }
             }
-        }
-            if (lengthOrder != nullptr || dropAlnCache) {
+        };
+
+        for (size_t epochStart = 0; epochStart < endRange || epochStart == 0; epochStart += alnEpoch) {
+            const size_t epochEnd = std::min(endRange, epochStart + alnEpoch);
+            // a thread submits the reads of the query it just drew, then aligns the one it still holds
+            unsigned int lane = 0;
+            bool holding = false;
+            for (size_t i = nextQuery.fetch_add(1); i < epochEnd; i = nextQuery.fetch_add(1)) {
+                prepare(i, works[lane], lane);
+                if (holding) {
+                    align(works[lane ^ 1u], lane ^ 1u);
+                }
+                holding = true;
+                lane ^= 1u;
+            }
+            if (holding) {
+                align(works[lane ^ 1u], lane ^ 1u);
+            }
 #pragma omp barrier
 #pragma omp single
-                {
-                    if (lengthOrder != nullptr) {
-                        discardLengthOrderPrefix(lengthOrder, epochStart, epochEnd);
-                    }
-                    if (dropAlnCache) {
-                        alnDbr.dropCacheAll();
-                    }
+            {
+                if (lengthOrder != nullptr) {
+                    discardLengthOrderPrefix(lengthOrder, epochStart, epochEnd);
                 }
+                if (dropAlnCache) {
+                    alnDbr.dropCacheAll();
+                }
+                nextQuery.store(epochEnd);
             }
         }
     }

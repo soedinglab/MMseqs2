@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <ctime>
 
 struct IoRing {
     struct Read {
@@ -98,15 +99,29 @@ public:
 
     uint64_t rankAtByte(uint64_t globalByte) const { return runs.rankAtByte(globalByte); }
 
+    // --compressed header files: zstd frames plus a table keyed by uncompressed offset
+    struct HeaderFrame {
+        uint64_t rawAt;
+        uint64_t packedAt;
+        uint64_t rawSize;
+        uint64_t packedSize;
+    };
+    static const uint64_t HEADER_FRAMES_MAGIC;
+
     class HeaderStream {
     public:
         HeaderStream(const RunDbReader &owner);
+        // begin stays valid only until the next call
         bool next(const char *&begin, size_t &length);
     private:
+        const char *frameText(uint32_t file, size_t &avail);
         const RunDbReader &owner;
         size_t segment;
         uint64_t left;
         size_t at;
+        uint32_t frameFile;
+        size_t frame;
+        std::vector<char> raw;
     };
 
 private:
@@ -139,6 +154,9 @@ private:
     std::vector<size_t> dataSize;
     mutable std::vector<char *> headers;
     std::vector<size_t> headerSize;
+    mutable std::vector<std::vector<HeaderFrame> > headerFrames;
+    mutable std::vector<uint64_t> headerRawSize;
+    void loadHeaderFrames(uint32_t file, const char *mapped) const;
     const uint64_t *valid;
     void *validMap;
     size_t validSize;
@@ -240,8 +258,12 @@ public:
                 if (at >= floorRepRankBlock) {
                     break;
                 }
-                if (waited == 30) {
-                    Debug(Debug::INFO) << "Waiting for " << path << "\n";
+                static time_t lastWaitLog = 0;
+                const time_t nowSec = time(NULL);
+                if (waited >= 30 && nowSec - lastWaitLog >= 60) {
+                    Debug(Debug::INFO) << "Still waiting for the decider to publish block " << at
+                                       << " (" << waited << "s)\n";
+                    lastWaitLog = nowSec;
                 }
                 if (waited >= 3600) {
                     Debug(Debug::ERROR) << "Waited " << waited << "s for " << path

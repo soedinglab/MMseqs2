@@ -56,7 +56,7 @@ int lin8createrepseqfasta(int argc, const char **argv, const Command &command) {
         if (splits == 1) {
             path[split] = par.db3;
         } else {
-            char suffix[16];
+            char suffix[32];
             snprintf(suffix, sizeof(suffix), ".%05zu", split);
             path[split] = par.db3 + suffix;
         }

@@ -1,6 +1,7 @@
 #include "Lin8DbReader.h"
 
 #include "Debug.h"
+#include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -12,6 +13,7 @@
 #include "Util.h"
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <zstd.h>
 
 #if defined(__linux__) && defined(HAVE_LINUX_IO_URING)
 
@@ -264,6 +266,7 @@ void IoRing::await(const char *what) {
 }
 
 const uint64_t RunDbReader::VALID_MAGIC = 0x4C494E4356414C44ull;
+const uint64_t RunDbReader::HEADER_FRAMES_MAGIC = 0x4C494E3848445246ull;
 
 namespace {
 size_t fileSizeIfExists(const std::string &path, bool &exists) {
@@ -340,6 +343,8 @@ void RunDbReader::open() {
             headerSize.push_back(fileSizeIfExists(db + "_h." + SSTR(i), exists));
             headers.push_back(NULL);
             headerFd.push_back(-1);
+            headerFrames.push_back(std::vector<HeaderFrame>());
+            headerRawSize.push_back(headerSize.back());
             if (exists == false) {
                 Debug(Debug::ERROR) << "Header file " << (db + "_h." + SSTR(i)) << " is missing\n";
                 EXIT(EXIT_FAILURE);
@@ -413,6 +418,8 @@ void RunDbReader::close() {
     dataSize.clear();
     headers.clear();
     headerSize.clear();
+    headerFrames.clear();
+    headerRawSize.clear();
 }
 
 void RunDbReader::mapFile(uint32_t file) const {
@@ -435,10 +442,7 @@ void RunDbReader::mapFile(uint32_t file) const {
 }
 
 void RunDbReader::mapHeader(uint32_t file) const {
-    char *at = NULL;
-#pragma omp atomic read
-    at = headers[file];
-    if (at != NULL || headerSize[file] == 0) {
+    if (__atomic_load_n(&headers[file], __ATOMIC_ACQUIRE) != NULL || headerSize[file] == 0) {
         return;
     }
 #pragma omp critical(rundb_map)
@@ -447,10 +451,40 @@ void RunDbReader::mapHeader(uint32_t file) const {
             int fd = -1;
             char *mapped = mapFileReadOnly(db + "_h." + SSTR(file), headerSize[file], fd);
             headerFd[file] = fd;
-#pragma omp atomic write
-            headers[file] = mapped;
+            loadHeaderFrames(file, mapped);
+            __atomic_store_n(&headers[file], mapped, __ATOMIC_RELEASE);
         }
     }
+}
+
+void RunDbReader::loadHeaderFrames(uint32_t file, const char *mapped) const {
+    const size_t footer = 2 * sizeof(uint64_t);
+    if (headerSize[file] < footer) {
+        return;
+    }
+    uint64_t tail[2];
+    memcpy(tail, mapped + headerSize[file] - footer, footer);
+    if (tail[1] != HEADER_FRAMES_MAGIC) {
+        return;
+    }
+    const uint64_t count = tail[0];
+    if (count > (headerSize[file] - footer) / sizeof(HeaderFrame)) {
+        Debug(Debug::ERROR) << "Header file " << file << " of " << db << " declares " << count
+                            << " frames but is only " << headerSize[file] << " byte long\n";
+        EXIT(EXIT_FAILURE);
+    }
+    const size_t table = count * sizeof(HeaderFrame);
+    headerFrames[file].resize(count);
+    memcpy(headerFrames[file].data(), mapped + headerSize[file] - footer - table, table);
+    for (size_t i = 0; i < count; i++) {
+        const HeaderFrame &f = headerFrames[file][i];
+        if (f.packedAt + f.packedSize > headerSize[file] - footer - table
+            || (i > 0 && f.rawAt != headerFrames[file][i - 1].rawAt + headerFrames[file][i - 1].rawSize)) {
+            Debug(Debug::ERROR) << "Header file " << file << " of " << db << " has a broken frame table at " << i << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    headerRawSize[file] = count == 0 ? 0 : headerFrames[file].back().rawAt + headerFrames[file].back().rawSize;
 }
 
 const char *RunDbReader::fileData(uint32_t file, uint64_t offset) const {
@@ -506,11 +540,37 @@ uint64_t RunDbReader::countValid() const {
 }
 
 RunDbReader::HeaderStream::HeaderStream(const RunDbReader &owner)
-    : owner(owner), segment(0), left(0), at(0) {
+    : owner(owner), segment(0), left(0), at(0), frameFile(0), frame(0) {
     if (owner.headers.empty()) {
         Debug(Debug::ERROR) << "Headers of " << owner.db << " were not opened\n";
         EXIT(EXIT_FAILURE);
     }
+}
+
+// the text holding uncompressed offset `at`, straight from the mapping or from the frame that covers it
+const char *RunDbReader::HeaderStream::frameText(uint32_t file, size_t &avail) {
+    const std::vector<HeaderFrame> &frames = owner.headerFrames[file];
+    if (frames.empty()) {
+        avail = owner.headerSize[file] - at;
+        return owner.headers[file] + at;
+    }
+    if (raw.empty() || file != frameFile || at < frames[frame].rawAt
+        || at >= frames[frame].rawAt + frames[frame].rawSize) {
+        frame = std::upper_bound(frames.begin(), frames.end(), at,
+                                 [](uint64_t a, const HeaderFrame &f) { return a < f.rawAt; }) - frames.begin() - 1;
+        frameFile = file;
+        const HeaderFrame &f = frames[frame];
+        raw.resize(f.rawSize);
+        const size_t got = ZSTD_decompress(raw.data(), raw.size(), owner.headers[file] + f.packedAt, f.packedSize);
+        if (ZSTD_isError(got) || got != f.rawSize) {
+            Debug(Debug::ERROR) << "Header file " << file << " of " << owner.db << " frame " << frame
+                                << " does not decompress: " << (ZSTD_isError(got) ? ZSTD_getErrorName(got) : "short") << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    const size_t in = at - frames[frame].rawAt;
+    avail = frames[frame].rawSize - in;
+    return raw.data() + in;
 }
 
 bool RunDbReader::HeaderStream::next(const char *&begin, size_t &length) {
@@ -523,14 +583,20 @@ bool RunDbReader::HeaderStream::next(const char *&begin, size_t &length) {
         segment++;
     }
     const uint32_t file = owner.runs[segment - 1].fileIdx();
-    if (file >= owner.headers.size() || at >= owner.headerSize[file]) {
+    if (file >= owner.headers.size()) {
         Debug(Debug::ERROR) << "Length run " << (segment - 1) << " of " << owner.db
                             << " points past header file " << file << "\n";
         EXIT(EXIT_FAILURE);
     }
     owner.mapHeader(file);
-    const char *from = owner.headers[file] + at;
-    const char *end = static_cast<const char *>(memchr(from, '\n', owner.headerSize[file] - at));
+    if (at >= owner.headerRawSize[file]) {
+        Debug(Debug::ERROR) << "Length run " << (segment - 1) << " of " << owner.db
+                            << " points past header file " << file << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    size_t avail = 0;
+    const char *from = frameText(file, avail);
+    const char *end = static_cast<const char *>(memchr(from, '\n', avail));
     if (end == NULL) {
         Debug(Debug::ERROR) << "Header file " << file << " of " << owner.db
                             << " does not end with a newline\n";
@@ -561,8 +627,8 @@ void RunDbReader::openBatch(unsigned int threads, size_t arenaBytes,
     wantDirect = revisit == READ_ONCE && sequenceBytes > budget / 2;
     Debug(Debug::INFO) << "Sequence data: " << (sequenceBytes >> 30) << " GB, budget "
                        << (budget >> 30) << " GB after " << (arenaTotal >> 20)
-                       << " MB read arena, reading "
-                       << (wantDirect ? "past the page cache" : "through the page cache") << "\n";
+                       << " MB read buffer, reading "
+                       << (wantDirect ? "past the OS cache" : "through the OS cache") << "\n";
     const size_t laneBytes = arenaBytes / LANES;
     const size_t longest = 2 * ((size_t) runs.maxSeqLen() + DIRECT_BLOCK);
     if (laneBytes < longest) {

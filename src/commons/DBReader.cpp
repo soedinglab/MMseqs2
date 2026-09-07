@@ -828,9 +828,9 @@ static void dbReaderRingFree(DBReaderRing &r) {
 }
 #endif
 
-// how many reads one thread keeps in flight; the device saturates at 4, past that only memory grows
-static const unsigned DBREADER_BATCH_DEPTH = 8;
-// one thread's arena, so a batch of a few hundred short entries never has to be split
+// a lane is submitted whole, so its reads fly while the caller works on the other lane
+static const unsigned DBREADER_BATCH_DEPTH = 1024;
+// one lane's arena, so a batch of a few hundred short entries never has to be split
 static const size_t DBREADER_BATCH_ARENA = 1 * 1024 * 1024;
 
 template <typename T>
@@ -849,7 +849,7 @@ struct DBReader<T>::IoBatch {
         size_t length;
         size_t required;
     };
-    struct Worker {
+    struct Lane {
         char *arena;
         size_t capacity;
         std::vector<Slot> slots;
@@ -859,7 +859,14 @@ struct DBReader<T>::IoBatch {
 #endif
         bool ringReady;
         bool ringProbed;
-        Worker() : arena(NULL), capacity(0), ringReady(false), ringProbed(false) {}
+        // requests handed to the kernel, completions reaped, and how many are between the two
+        size_t queued;
+        size_t done;
+        unsigned inflight;
+        Lane() : arena(NULL), capacity(0), ringReady(false), ringProbed(false), queued(0), done(0), inflight(0) {}
+    };
+    struct Worker {
+        Lane lane[BATCH_LANES];
     };
     std::vector<Worker> workers;
 };
@@ -869,34 +876,43 @@ template <typename T> void DBReader<T>::freeIoBatch() {
         return;
     }
     for (size_t i = 0; i < ioBatch->workers.size(); i++) {
-        typename IoBatch::Worker &w = ioBatch->workers[i];
-        if (w.arena != NULL) {
-            free(w.arena);
-            decrementMemory(w.capacity);
-        }
+        for (unsigned int l = 0; l < BATCH_LANES; l++) {
+            // a read still in flight would land in the arena after it is freed
+            awaitBatch(i, l);
+            typename IoBatch::Lane &lane = ioBatch->workers[i].lane[l];
+            if (lane.arena != NULL) {
+                free(lane.arena);
+                decrementMemory(lane.capacity);
+            }
 #if defined(__linux__) && defined(HAVE_IO_URING)
-        if (w.ringReady) {
-            dbReaderRingFree(w.ring);
-        }
+            if (lane.ringReady) {
+                dbReaderRingFree(lane.ring);
+            }
 #endif
+        }
     }
     delete ioBatch;
     ioBatch = NULL;
 }
 
 template <typename T>
-size_t DBReader<T>::loadBatch(const size_t *ids, size_t n, unsigned int thrIdx) {
+size_t DBReader<T>::startBatch(const size_t *ids, size_t n, unsigned int thrIdx, unsigned int laneIdx) {
     if (n == 0) {
         return 0;
     }
-    if (static_cast<int>(thrIdx) >= threads) {
-        Debug(Debug::ERROR) << "loadBatch: thread index (" << thrIdx << ") >= threads (" << threads << ")\n";
+    if (static_cast<int>(thrIdx) >= threads || laneIdx >= BATCH_LANES) {
+        Debug(Debug::ERROR) << "startBatch: thread " << thrIdx << " lane " << laneIdx
+                            << " is outside " << threads << " threads with " << BATCH_LANES << " lanes\n";
         EXIT(EXIT_FAILURE);
     }
-    // open() builds this, because loadBatch is called from inside a parallel region
-    typename IoBatch::Worker &worker = ioBatch->workers[thrIdx];
-    worker.slots.clear();
-    worker.requests.clear();
+    // the arena is about to be rewritten, so nothing of the last batch may still be landing in it
+    awaitBatch(thrIdx, laneIdx);
+    // open() builds this, because startBatch is called from inside a parallel region
+    typename IoBatch::Lane &lane = ioBatch->workers[thrIdx].lane[laneIdx];
+    lane.slots.clear();
+    lane.requests.clear();
+    lane.queued = 0;
+    lane.done = 0;
     // on mmap the bytes are already addressable, so the batch is only a list of ids
     if ((dataMode & USE_DIRECT_IO) == 0) {
         for (size_t i = 0; i < n; i++) {
@@ -905,27 +921,35 @@ size_t DBReader<T>::loadBatch(const size_t *ids, size_t n, unsigned int thrIdx) 
             slot.delta = 0;
             slot.avail = 0;
             slot.id = ids[i];
-            worker.slots.push_back(slot);
+            lane.slots.push_back(slot);
         }
         return n;
     }
-    return loadBatchDirect(ids, n, thrIdx);
+    return startBatchDirect(ids, n, thrIdx, laneIdx);
 }
 
 template <typename T>
-size_t DBReader<T>::loadBatchDirect(const size_t *ids, size_t n, unsigned int thrIdx) {
-    typename IoBatch::Worker &worker = ioBatch->workers[thrIdx];
+void DBReader<T>::awaitBatch(unsigned int thrIdx, unsigned int laneIdx) {
+    typename IoBatch::Lane &lane = ioBatch->workers[thrIdx].lane[laneIdx];
+    if (lane.done < lane.requests.size()) {
+        pumpBatch(thrIdx, laneIdx, true);
+    }
+}
+
+template <typename T>
+size_t DBReader<T>::startBatchDirect(const size_t *ids, size_t n, unsigned int thrIdx, unsigned int laneIdx) {
+    typename IoBatch::Lane &lane = ioBatch->workers[thrIdx].lane[laneIdx];
     // buffered descriptors need no alignment, but posix_memalign still demands a pointer-sized one
     const size_t arenaAlign = std::max(directIoAlign, sizeof(void *));
-    if (worker.arena == NULL) {
+    if (lane.arena == NULL) {
         void *mem = NULL;
         if (posix_memalign(&mem, arenaAlign, DBREADER_BATCH_ARENA) != 0 || mem == NULL) {
             Debug(Debug::ERROR) << "Cannot allocate " << DBREADER_BATCH_ARENA << " byte batch arena\n";
             EXIT(EXIT_FAILURE);
         }
-        worker.arena = static_cast<char *>(mem);
-        worker.capacity = DBREADER_BATCH_ARENA;
-        incrementMemory(worker.capacity);
+        lane.arena = static_cast<char *>(mem);
+        lane.capacity = DBREADER_BATCH_ARENA;
+        incrementMemory(lane.capacity);
     }
 
     // one Slot per input id even after merging spans, so batchAt keeps the caller's order
@@ -948,14 +972,14 @@ size_t DBReader<T>::loadBatchDirect(const size_t *ids, size_t n, unsigned int th
         const size_t readEnd = alignedOffset + readLen;
 
         bool merged = false;
-        if (worker.requests.empty() == false) {
-            typename IoBatch::Request &request = worker.requests.back();
+        if (lane.requests.empty() == false) {
+            typename IoBatch::Request &request = lane.requests.back();
             const size_t requestEnd = request.offset + request.length;
             // Only merge forward. Arbitrary callers still work; they simply get one request per id.
             if (request.file == file && alignedOffset >= request.offset && alignedOffset <= requestEnd) {
                 const size_t mergedEnd = std::max(requestEnd, readEnd);
                 const size_t extra = mergedEnd - requestEnd;
-                if (used + extra <= worker.capacity) {
+                if (used + extra <= lane.capacity) {
                     request.length += extra;
                     request.required = std::max(request.required, fileOffset + length - request.offset);
                     used += extra;
@@ -965,7 +989,7 @@ size_t DBReader<T>::loadBatchDirect(const size_t *ids, size_t n, unsigned int th
                     slot.delta = fileOffset - request.offset;
                     slot.avail = length;
                     slot.id = id;
-                    worker.slots.push_back(slot);
+                    lane.slots.push_back(slot);
                     merged = true;
                 }
             }
@@ -974,21 +998,21 @@ size_t DBReader<T>::loadBatchDirect(const size_t *ids, size_t n, unsigned int th
             continue;
         }
 
-        if (used + readLen > worker.capacity) {
+        if (used + readLen > lane.capacity) {
             if (taken > 0) {
                 break;
             }
             // one entry wider than the arena still has to be read, so grow to exactly it
-            free(worker.arena);
-            decrementMemory(worker.capacity);
+            free(lane.arena);
+            decrementMemory(lane.capacity);
             void *mem = NULL;
             if (posix_memalign(&mem, arenaAlign, readLen) != 0 || mem == NULL) {
                 Debug(Debug::ERROR) << "Cannot allocate " << readLen << " byte batch arena\n";
                 EXIT(EXIT_FAILURE);
             }
-            worker.arena = static_cast<char *>(mem);
-            worker.capacity = readLen;
-            incrementMemory(worker.capacity);
+            lane.arena = static_cast<char *>(mem);
+            lane.capacity = readLen;
+            incrementMemory(lane.capacity);
         }
 
         typename IoBatch::Request request;
@@ -997,114 +1021,124 @@ size_t DBReader<T>::loadBatchDirect(const size_t *ids, size_t n, unsigned int th
         request.offset = alignedOffset;
         request.length = readLen;
         request.required = delta + length;
-        worker.requests.push_back(request);
+        lane.requests.push_back(request);
 
         typename IoBatch::Slot slot;
         slot.arenaOffset = used;
         slot.delta = delta;
         slot.avail = length;
         slot.id = id;
-        worker.slots.push_back(slot);
+        lane.slots.push_back(slot);
         used += readLen;
     }
 
-    const size_t requestCount = worker.requests.size();
-    bool submitted = false;
+    const size_t requestCount = lane.requests.size();
 #if defined(__linux__) && defined(HAVE_IO_URING)
-    if (requestCount > 1) {
-        if (worker.ringProbed == false) {
-            worker.ringProbed = true;
-            worker.ringReady = dbReaderRingInit(worker.ring, DBREADER_BATCH_DEPTH * 2);
-        }
-        if (worker.ringReady) {
-            DBReaderRing &r = worker.ring;
-            const unsigned sqMask = *r.sqMask;
-            const unsigned cqMask = *r.cqMask;
-            size_t next = 0;
-            size_t done = 0;
-            unsigned inflight = 0;
-            while (done < requestCount) {
-                unsigned queued = 0;
-                while (inflight + queued < DBREADER_BATCH_DEPTH && next < requestCount) {
-                    const typename IoBatch::Request &request = worker.requests[next];
-                    const unsigned sqeIdx = static_cast<unsigned>(next % r.entries);
-                    struct io_uring_sqe *sqe = &r.sqes[sqeIdx];
-                    memset(sqe, 0, sizeof(*sqe));
-                    sqe->opcode = IORING_OP_READ;
-                    sqe->fd = dataFds[request.file];
-                    sqe->off = request.offset;
-                    sqe->addr = (uint64_t) (uintptr_t) (worker.arena + request.arenaOffset);
-                    sqe->len = static_cast<unsigned>(request.length);
-                    sqe->user_data = next;
-                    const unsigned tail = *r.sqTail;
-                    r.sqArray[tail & sqMask] = sqeIdx;
-                    __atomic_store_n(r.sqTail, tail + 1, __ATOMIC_RELEASE);
-                    queued++;
-                    next++;
-                }
-                const unsigned waitFor = (next >= requestCount) ? (inflight + queued) : 1u;
-                long ret;
-                do {
-                    ret = syscall(__NR_io_uring_enter, r.fd, queued, waitFor,
-                                  IORING_ENTER_GETEVENTS, NULL, 0);
-                } while (ret < 0 && errno == EINTR);
-                if (ret < 0) {
-                    Debug(Debug::ERROR) << "io_uring_enter failed for " << dataFileName << ". Error " << errno << ".\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                inflight += queued;
-                unsigned head = *r.cqHead;
-                const unsigned cqTail = __atomic_load_n(r.cqTail, __ATOMIC_ACQUIRE);
-                while (head != cqTail) {
-                    struct io_uring_cqe *cqe = &r.cqes[head & cqMask];
-                    const size_t requestIdx = (cqe->res < 0) ? 0 : static_cast<size_t>(cqe->user_data);
-                    const typename IoBatch::Request &request = worker.requests[requestIdx];
-                    if (cqe->res < 0) {
-                        Debug(Debug::ERROR) << "Failed to read from " << dataFileName << ". Error " << -cqe->res << ".\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    if (static_cast<size_t>(cqe->res) < request.required) {
-                        Debug(Debug::ERROR) << "Short batch read of " << cqe->res << " byte from "
-                                            << dataFileName << " at offset " << request.offset << "\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    head++;
-                    inflight--;
-                    done++;
-                }
-                __atomic_store_n(r.cqHead, head, __ATOMIC_RELEASE);
-            }
-            submitted = true;
-        }
+    if (lane.ringProbed == false) {
+        lane.ringProbed = true;
+        lane.ringReady = dbReaderRingInit(lane.ring, DBREADER_BATCH_DEPTH);
+    }
+    if (lane.ringReady) {
+        pumpBatch(thrIdx, laneIdx, false);
+        return taken;
     }
 #endif
-    if (submitted == false) {
-        // one pread per coalesced span; near EOF a short read is fine if it covers every slot in it
-        for (size_t i = 0; i < requestCount; i++) {
-            const typename IoBatch::Request &request = worker.requests[i];
-            ssize_t got;
-            do {
-                got = pread(dataFds[request.file], worker.arena + request.arenaOffset,
-                            request.length, request.offset);
-            } while (got < 0 && errno == EINTR);
-            if (got < 0 || static_cast<size_t>(got) < request.required) {
-                Debug(Debug::ERROR) << "Failed batch read of " << request.required << " byte from "
-                                    << dataFileName << " at offset " << request.offset
-                                    << ". Error " << errno << ".\n";
-                EXIT(EXIT_FAILURE);
-            }
+    // near EOF a short read is fine if it covers every slot in the span
+    for (size_t i = 0; i < requestCount; i++) {
+        const typename IoBatch::Request &request = lane.requests[i];
+        ssize_t got;
+        do {
+            got = pread(dataFds[request.file], lane.arena + request.arenaOffset,
+                        request.length, request.offset);
+        } while (got < 0 && errno == EINTR);
+        if (got < 0 || static_cast<size_t>(got) < request.required) {
+            Debug(Debug::ERROR) << "Failed batch read of " << request.required << " byte from "
+                                << dataFileName << " at offset " << request.offset
+                                << ". Error " << errno << ".\n";
+            EXIT(EXIT_FAILURE);
         }
     }
+    lane.done = requestCount;
     return taken;
 }
 
 template <typename T>
-const char *DBReader<T>::batchAt(unsigned int thrIdx, size_t k) {
-    const typename IoBatch::Slot &slot = ioBatch->workers[thrIdx].slots[k];
+void DBReader<T>::pumpBatch(unsigned int thrIdx, unsigned int laneIdx, bool untilDone) {
+#if defined(__linux__) && defined(HAVE_IO_URING)
+    typename IoBatch::Lane &lane = ioBatch->workers[thrIdx].lane[laneIdx];
+    DBReaderRing &r = lane.ring;
+    const unsigned sqMask = *r.sqMask;
+    const unsigned cqMask = *r.cqMask;
+    const size_t requestCount = lane.requests.size();
+    do {
+        unsigned queued = 0;
+        while (lane.inflight + queued < r.entries && lane.queued < requestCount) {
+            const typename IoBatch::Request &request = lane.requests[lane.queued];
+            const unsigned sqeIdx = static_cast<unsigned>(lane.queued % r.entries);
+            struct io_uring_sqe *sqe = &r.sqes[sqeIdx];
+            memset(sqe, 0, sizeof(*sqe));
+            sqe->opcode = IORING_OP_READ;
+            sqe->fd = dataFds[request.file];
+            sqe->off = request.offset;
+            sqe->addr = (uint64_t) (uintptr_t) (lane.arena + request.arenaOffset);
+            sqe->len = static_cast<unsigned>(request.length);
+            sqe->user_data = lane.queued;
+            const unsigned tail = *r.sqTail;
+            r.sqArray[tail & sqMask] = sqeIdx;
+            __atomic_store_n(r.sqTail, tail + 1, __ATOMIC_RELEASE);
+            queued++;
+            lane.queued++;
+        }
+        unsigned waitFor = 0;
+        if (untilDone) {
+            waitFor = (lane.queued >= requestCount) ? (lane.inflight + queued) : 1u;
+        }
+        long ret;
+        do {
+            ret = syscall(__NR_io_uring_enter, r.fd, queued, waitFor,
+                          waitFor > 0 ? IORING_ENTER_GETEVENTS : 0u, NULL, 0);
+        } while (ret < 0 && errno == EINTR);
+        if (ret < 0) {
+            Debug(Debug::ERROR) << "io_uring_enter failed for " << dataFileName << ". Error " << errno << ".\n";
+            EXIT(EXIT_FAILURE);
+        }
+        lane.inflight += queued;
+        unsigned head = *r.cqHead;
+        const unsigned cqTail = __atomic_load_n(r.cqTail, __ATOMIC_ACQUIRE);
+        while (head != cqTail) {
+            struct io_uring_cqe *cqe = &r.cqes[head & cqMask];
+            const size_t requestIdx = (cqe->res < 0) ? 0 : static_cast<size_t>(cqe->user_data);
+            const typename IoBatch::Request &request = lane.requests[requestIdx];
+            if (cqe->res < 0) {
+                Debug(Debug::ERROR) << "Failed to read from " << dataFileName << ". Error " << -cqe->res << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (static_cast<size_t>(cqe->res) < request.required) {
+                Debug(Debug::ERROR) << "Short batch read of " << cqe->res << " byte from "
+                                    << dataFileName << " at offset " << request.offset << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            head++;
+            lane.inflight--;
+            lane.done++;
+        }
+        __atomic_store_n(r.cqHead, head, __ATOMIC_RELEASE);
+    } while (untilDone && lane.done < requestCount);
+#else
+    (void) thrIdx;
+    (void) laneIdx;
+    (void) untilDone;
+#endif
+}
+
+template <typename T>
+const char *DBReader<T>::batchAt(unsigned int thrIdx, unsigned int laneIdx, size_t k) {
+    const typename IoBatch::Lane &lane = ioBatch->workers[thrIdx].lane[laneIdx];
+    const typename IoBatch::Slot &slot = lane.slots[k];
     if ((dataMode & USE_DIRECT_IO) == 0) {
         return getData(slot.id, thrIdx);
     }
-    return ioBatch->workers[thrIdx].arena + slot.arenaOffset + slot.delta;
+    return lane.arena + slot.arenaOffset + slot.delta;
 }
 
 

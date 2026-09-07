@@ -181,12 +181,17 @@ static size_t draw(size_t &counter) {
 }
 
 struct GateCounts {
-    GateCounts() : seen(0), rejected(0), rescued(0), kept(0), stale(0) {}
+    GateCounts() : seen(0), rejected(0), rescued(0), kept(0), stale(0),
+                   selfRow(0), targetSkip(0), covSkip(0), querySkip(0) {}
     uint64_t seen;
     uint64_t rejected;
     uint64_t rescued;
     uint64_t kept;
     uint64_t stale;
+    uint64_t selfRow;
+    uint64_t targetSkip;
+    uint64_t covSkip;
+    uint64_t querySkip;
 };
 
 static float lookupScorePerColumn(const std::string &table, double seqId, double cov,
@@ -304,7 +309,7 @@ static bool rescueWithGaps(uint64_t member, uint32_t queryLen, uint32_t targetLe
 
 static size_t startMemberBatch(const RunDbReader &reader, uint64_t rep, const PairRecord *rows,
                                size_t count, const ClusterAssignmentBitmap &assignedCluster, const Parameters &par,
-                               unsigned int thread, unsigned int lane, Candidates &candidates) {
+                               unsigned int thread, unsigned int lane, Candidates &candidates, GateCounts &gate) {
     candidates.clear();
     if (assignedCluster.isAssigned(rep)) {
         return 0;
@@ -312,10 +317,16 @@ static size_t startMemberBatch(const RunDbReader &reader, uint64_t rep, const Pa
     const uint32_t queryLen = reader.getSeqLen(rep);
     for (size_t i = 0; i < count; i++) {
         const uint64_t member = rows[i].member();
-        if (member == rep || assignedCluster.isAssigned(member)) {
+        if (member == rep) {
+            gate.selfRow++;
+            continue;
+        }
+        if (assignedCluster.isAssigned(member)) {
+            gate.targetSkip++;
             continue;
         }
         if (Util::canBeCovered(par.covThr, par.covMode, queryLen, reader.getSeqLen(member)) == false) {
+            gate.covSkip++;
             continue;
         }
         candidates.members.push_back(member);
@@ -447,11 +458,11 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
             firstRepRankBlock++;
         }
         if (firstRepRankBlock > 0) {
-            Debug(Debug::INFO) << "Resuming at repRankBlock " << firstRepRankBlock << "\n";
+            Debug(Debug::INFO) << "Resuming at rank block " << firstRepRankBlock << "\n";
         }
     }
     Debug(Debug::INFO) << "Node " << node.index << " of " << node.count << " takes "
-                       << (lastRepRankBlock - firstRepRankBlock) << " of " << repRankBlocks << " repRankBlocks\n";
+                       << (lastRepRankBlock - firstRepRankBlock) << " of " << repRankBlocks << " rank blocks\n";
 
     ClusterAssignmentBitmap assignedCluster;
     assignedCluster.open(par.db4 + ".align_assigned_" + SSTR(node.index), ranks);
@@ -467,6 +478,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
 
     Timer timer;
     uint64_t aligned = 0;
+    uint64_t querySkipped = 0;
     uint64_t passed = 0;
     std::vector<PairRecord> batch;
     std::vector<size_t> starts;
@@ -586,7 +598,11 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                     survivorLines[g].clear();
                 }
                 const uint64_t rep = batch[starts[g]].rep();
-                if (rep < myFrom || rep >= myUntil || assignedCluster.isAssigned(rep)) {
+                if (rep < myFrom || rep >= myUntil) {
+                    continue;
+                }
+                if (assignedCluster.isAssigned(rep)) {
+                    querySkipped += starts[g + 1] - starts[g];
                     continue;
                 }
                 const size_t rows = starts[g + 1] - starts[g];
@@ -627,7 +643,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                     const size_t at = starts[item.group];
                     got = startMemberBatch(reader, batch[at].rep(), &batch[at + item.from],
                                            item.count, assignedCluster, par, thread, lane,
-                                           candidates[thread][lane]);
+                                           candidates[thread][lane], gate[thread]);
                 }
                 while (here < work.size()) {
                     const size_t next = draw(drawn);
@@ -638,7 +654,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                         const size_t at = starts[item.group];
                         nextGot = startMemberBatch(reader, batch[at].rep(), &batch[at + item.from],
                                                    item.count, assignedCluster, par, thread, nextLane,
-                                                   candidates[thread][nextLane]);
+                                                   candidates[thread][nextLane], gate[thread]);
                     }
                     const MemberBatch &item = work[here];
                     const size_t at = starts[item.group];
@@ -796,7 +812,18 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Ungapped filter: " << all.seen << " pairs, "
                        << (all.seen - all.rejected + all.kept) << " accepted; " << all.rescued
                        << " of the failures retried with gaps and " << all.kept << " passed\n";
-    Debug(Debug::INFO) << "Dropped " << all.stale << " reads a decided block had already clustered\n";
+    all.selfRow = 0; all.targetSkip = 0; all.covSkip = 0; all.querySkip = 0;
+    for (int i = 0; i < par.threads; i++) {
+        all.selfRow += gate[i].selfRow; all.targetSkip += gate[i].targetSkip;
+        all.covSkip += gate[i].covSkip; all.querySkip += gate[i].querySkip;
+    }
+    all.querySkip = querySkipped;
+    Debug(Debug::INFO) << "Before aligning: " << all.querySkip << " rows whose representative was already clustered, "
+                       << all.targetSkip << " members already clustered, " << all.selfRow
+                       << " self rows, " << all.covSkip << " that no alignment could cover\n";
+    if (all.stale > 0) {
+        Debug(Debug::INFO) << "Raced with another node on " << all.stale << " candidate pairs it clustered first\n";
+    }
     Debug(Debug::INFO) << "Time for reading: " << (uint64_t) spentReading << "s aligning: "
                        << (uint64_t) spentAligning << "s deciding: " << (uint64_t) spentDeciding
                        << "s writing: " << (uint64_t) spentWriting << "s\n";
@@ -805,7 +832,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
                        << " of " << threads << " threads on average, "
                        << (uint64_t) (spentAligning * threads - aligningThreadSeconds)
                        << " thread seconds idle\n";
-    Debug(Debug::INFO) << "Aligned " << aligned << " candidates, " << passed << " passed, in "
+    Debug(Debug::INFO) << "Read " << aligned << " candidate rows, " << passed << " passed, in "
                        << timer.lap() << "\n";
     if (decideHere) {
         Debug(Debug::INFO) << "Made " << clusters << " clusters holding " << (clusters + assigned)

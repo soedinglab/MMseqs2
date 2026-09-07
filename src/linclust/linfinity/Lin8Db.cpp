@@ -8,6 +8,7 @@
 #include "Util.h"
 #include "IndexTypes.h"
 #include <climits>
+#include <ctime>
 #include <unistd.h>
 #include <algorithm>
 #include <cstdio>
@@ -555,6 +556,7 @@ void requireArena(const std::string &what, size_t bytes, size_t budget,
 }
 
 void writeBucketManifest(const std::string &path, const std::vector<uint64_t> &counts,
+                         const std::vector<uint64_t> &bytes, const std::vector<uint64_t> &indexBytes,
                          const std::string &spanKey, uint64_t spanBegin, uint64_t spanEnd) {
     const std::string tmp = path + ".tmp";
     FILE *out = FileUtil::openAndDelete(tmp.c_str(), "w");
@@ -563,7 +565,8 @@ void writeBucketManifest(const std::string &path, const std::vector<uint64_t> &c
             counts.size());
     for (size_t i = 0; i < counts.size(); i++) {
         if (counts[i] > 0) {
-            fprintf(out, "%zu\t%zu\n", i, static_cast<size_t>(counts[i]));
+            fprintf(out, "%zu\t%zu\t%zu\t%zu\n", i, static_cast<size_t>(counts[i]), static_cast<size_t>(bytes[i]),
+                    static_cast<size_t>(indexBytes[i]));
         }
     }
     if (fclose(out) != 0) {
@@ -574,7 +577,7 @@ void writeBucketManifest(const std::string &path, const std::vector<uint64_t> &c
 }
 
 size_t readBucketManifests(const std::string &prefix, size_t chunks,
-                           std::vector<uint64_t> &into, uint64_t *resumeAt) {
+                           std::vector<uint64_t> &bytesInto, std::vector<uint64_t> &indexBytesInto, uint64_t *resumeAt) {
     size_t done = 0;
     for (; done < chunks; done++) {
         const std::string path = prefix + "." + SSTR(done) + ".manifest";
@@ -589,9 +592,9 @@ size_t readBucketManifests(const std::string &prefix, size_t chunks,
                 *resumeAt = spanEnd;
             }
             size_t width = 0;
-            if (sscanf(line, "#buckets\t%zu", &width) == 1 && width != into.size()) {
+            if (sscanf(line, "#buckets\t%zu", &width) == 1 && width != bytesInto.size()) {
                 Debug(Debug::ERROR) << path << " was written with " << width << " of them and this "
-                                    << "run has " << into.size() << ". Start over rather than "
+                                    << "run has " << bytesInto.size() << ". Start over rather than "
                                     << "resume: the counts would name different files\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -600,11 +603,14 @@ size_t readBucketManifests(const std::string &prefix, size_t chunks,
             }
             size_t bucket = 0;
             size_t count = 0;
-            if (sscanf(line, "%zu\t%zu", &bucket, &count) != 2 || bucket >= into.size()) {
-                Debug(Debug::ERROR) << path << " names " << bucket << " of " << into.size() << "\n";
+            size_t bytes = 0;
+            size_t indexBytes = 0;
+            if (sscanf(line, "%zu\t%zu\t%zu\t%zu", &bucket, &count, &bytes, &indexBytes) != 4 || bucket >= bytesInto.size()) {
+                Debug(Debug::ERROR) << path << " names " << bucket << " of " << bytesInto.size() << "\n";
                 EXIT(EXIT_FAILURE);
             }
-            into[bucket] += count;
+            bytesInto[bucket] += bytes;
+            indexBytesInto[bucket] += indexBytes;
         }
         fclose(in);
     }
@@ -755,6 +761,9 @@ void dropConsumed(const std::string &prefix, unsigned int nodes, size_t from, si
             if (FileUtil::fileExists(path.c_str())) {
                 FileUtil::remove(path.c_str());
             }
+            if (FileUtil::fileExists((path + ".idx").c_str())) {
+                FileUtil::remove((path + ".idx").c_str());
+            }
         }
     }
 }
@@ -778,8 +787,11 @@ void waitNodeDone(const std::string &path, unsigned int node, unsigned int limit
             Debug(Debug::ERROR) << done << " did not appear within " << limitSeconds << "s\n";
             EXIT(EXIT_FAILURE);
         }
-        if (waited == 30) {
-            Debug(Debug::INFO) << "Waiting for " << done << "\n";
+        static time_t lastWaitLog = 0;
+        const time_t nowSec = time(NULL);
+        if (waited >= 30 && nowSec - lastWaitLog >= 60) {
+            Debug(Debug::INFO) << "Still waiting for " << done << " (" << waited << "s)\n";
+            lastWaitLog = nowSec;
         }
         sleep(1);
         waited++;
@@ -815,4 +827,185 @@ std::vector<size_t> nodeFileSlots(const SequenceLocator &runs, const NodePlaceme
         at += weight[fileSlot];
     }
     return mine;
+}
+
+void preadFully(int fd, void *into, size_t bytes, uint64_t at, const std::string &what) {
+    size_t got = 0;
+    while (got < bytes) {
+        const ssize_t read = pread(fd, static_cast<char *>(into) + got, bytes - got, static_cast<off_t>(at + got));
+        if (read <= 0) {
+            Debug(Debug::ERROR) << "Cannot read " << what << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        got += static_cast<size_t>(read);
+    }
+}
+
+unsigned int adjacentBitsFor(unsigned int classCount) {
+    uint64_t span = 1;
+    for (unsigned int slot = 0; slot < KmerRecord::ADJACENT_COUNT; slot++) {
+        span *= classCount;
+    }
+    return bitsFor(span - 1);
+}
+
+static uint64_t packAdjacentClasses(const KmerRecord &record, unsigned int classCount) {
+    uint64_t packed = 0;
+    for (unsigned int slot = KmerRecord::ADJACENT_COUNT; slot-- > 0;) {
+        packed = packed * classCount + record.adjacentAt(slot);
+    }
+    return packed;
+}
+
+static uint64_t unpackAdjacentClasses(uint64_t packed, unsigned int classCount) {
+    uint64_t adjacent = 0;
+    for (unsigned int slot = 0; slot < KmerRecord::ADJACENT_COUNT; slot++) {
+        adjacent |= (packed % classCount) << (slot * KmerRecord::ADJACENT_BITS);
+        packed /= classCount;
+    }
+    return adjacent;
+}
+
+
+void KmerSlabCodec::encode(const std::vector<KmerRecord> &records, std::vector<unsigned char> &out,
+                           SlabHeader &header) const {
+    memset(&header, 0, sizeof(header));
+    header.magic = MAGIC;
+    header.records = records.size();
+    header.rankBits = rankBits;
+    header.classCount = classCount;
+    const unsigned int adjacentBits = adjacentBitsFor(classCount);
+    out.clear();
+    unsigned int sub = 0;
+    uint64_t keys[SlabHeader::BLOCK_RECORDS];
+    for (size_t at = 0; at < records.size();) {
+        const unsigned int here = records[at].subBucket();
+        markSubStart(header, sub, here, out.size());
+        size_t end = at + 1;
+        while (end < records.size() && end - at < SlabHeader::BLOCK_RECORDS && records[end].subBucket() == here) {
+            end++;
+        }
+        uint64_t widestPos = 0;
+        for (size_t i = at; i < end; i++) {
+            keys[i - at] = records[i].key();
+            widestPos = std::max(widestPos, records[i].pos());
+        }
+        BlockHeader block;
+        countKeys(keys, end - at, block);
+        block.widthBits = static_cast<uint8_t>(bitsFor(widestPos));
+        putBlockHeader(out, block);
+        BitWriter bits(out);
+        putKeys(bits, keys, end - at, KmerRecord::KEY_BITS, block.keyBits);
+        for (size_t i = at; i < end; i++) {
+            bits.put(records[i].rank(), rankBits);
+        }
+        for (size_t i = at; i < end; i++) {
+            bits.put(records[i].pos(), block.widthBits);
+        }
+        for (size_t i = at; i < end; i++) {
+            bits.put(packAdjacentClasses(records[i], classCount), adjacentBits);
+        }
+        bits.finish();
+        at = end;
+    }
+    markSubStart(header, sub, SlabHeader::SUBS, out.size());
+}
+
+size_t KmerSlabCodec::decode(const unsigned char *from, const unsigned char *to, const SlabHeader &header,
+                             KmerRecord *into, size_t capacity) {
+    const unsigned int adjacentBits = adjacentBitsFor(header.classCount);
+    size_t count = 0;
+    while (from < to) {
+        BlockHeader block;
+        memcpy(&block, from, sizeof(block));
+        from += sizeof(block);
+        BitReader bits(from);
+        from += block.payloadBytes(KmerRecord::KEY_BITS, header.rankBits + block.widthBits + adjacentBits);
+        const size_t n = block.records;
+        if (count + n > capacity) {
+            Debug(Debug::ERROR) << "A k-mer slab holds more records than its bucket counts allow\n";
+            EXIT(EXIT_FAILURE);
+        }
+        uint64_t key[SlabHeader::BLOCK_RECORDS];
+        uint64_t rank[SlabHeader::BLOCK_RECORDS];
+        uint64_t pos[SlabHeader::BLOCK_RECORDS];
+        getKeys(bits, key, n, KmerRecord::KEY_BITS, block.keyBits);
+        for (size_t i = 0; i < n; i++) {
+            rank[i] = bits.get(header.rankBits);
+        }
+        for (size_t i = 0; i < n; i++) {
+            pos[i] = bits.get(block.widthBits);
+        }
+        for (size_t i = 0; i < n; i++) {
+            into[count++].set(key[i], rank[i], pos[i], unpackAdjacentClasses(bits.get(adjacentBits), header.classCount));
+        }
+    }
+    return count;
+}
+
+void PairSlabCodec::encode(const std::vector<PairRecord> &records, std::vector<unsigned char> &out,
+                           SlabHeader &header) const {
+    memset(&header, 0, sizeof(header));
+    header.magic = MAGIC;
+    header.records = records.size();
+    header.rankBits = rankBits;
+    out.clear();
+    unsigned int sub = 0;
+    uint64_t reps[SlabHeader::BLOCK_RECORDS];
+    for (size_t at = 0; at < records.size();) {
+        const unsigned int here = PairRecord::repRankSubBlockOf(records[at].rep(), ranks, repRankBlocks);
+        markSubStart(header, sub, here, out.size());
+        size_t end = at + 1;
+        while (end < records.size() && end - at < SlabHeader::BLOCK_RECORDS
+               && PairRecord::repRankSubBlockOf(records[end].rep(), ranks, repRankBlocks) == here) {
+            end++;
+        }
+        uint64_t widestDiagonal = 0;
+        for (size_t i = at; i < end; i++) {
+            reps[i - at] = records[i].rep();
+            widestDiagonal = std::max(widestDiagonal, zigzag(records[i].diagonal()));
+        }
+        BlockHeader block;
+        countKeys(reps, end - at, block);
+        block.widthBits = static_cast<uint8_t>(bitsFor(widestDiagonal));
+        putBlockHeader(out, block);
+        BitWriter bits(out);
+        putKeys(bits, reps, end - at, rankBits, block.keyBits);
+        for (size_t i = at; i < end; i++) {
+            bits.put(records[i].member(), rankBits);
+        }
+        for (size_t i = at; i < end; i++) {
+            bits.put(zigzag(records[i].diagonal()), block.widthBits);
+        }
+        bits.finish();
+        at = end;
+    }
+    markSubStart(header, sub, SlabHeader::SUBS, out.size());
+}
+
+size_t PairSlabCodec::decode(const unsigned char *from, const unsigned char *to, const SlabHeader &header,
+                             PairRecord *into, size_t capacity) {
+    size_t count = 0;
+    while (from < to) {
+        BlockHeader block;
+        memcpy(&block, from, sizeof(block));
+        from += sizeof(block);
+        BitReader bits(from);
+        from += block.payloadBytes(header.rankBits, header.rankBits + block.widthBits);
+        const size_t n = block.records;
+        if (count + n > capacity) {
+            Debug(Debug::ERROR) << "A pair slab holds more records than its bucket counts allow\n";
+            EXIT(EXIT_FAILURE);
+        }
+        uint64_t rep[SlabHeader::BLOCK_RECORDS];
+        uint64_t member[SlabHeader::BLOCK_RECORDS];
+        getKeys(bits, rep, n, header.rankBits, block.keyBits);
+        for (size_t i = 0; i < n; i++) {
+            member[i] = bits.get(header.rankBits);
+        }
+        for (size_t i = 0; i < n; i++) {
+            into[count++].set(rep[i], member[i], static_cast<int>(unzigzag(bits.get(block.widthBits))));
+        }
+    }
+    return count;
 }

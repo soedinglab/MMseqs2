@@ -211,11 +211,22 @@ public:
     // same for one range, rounded inward: a partial page still holds live neighbours
     void dropCacheRange(size_t beginOffset, size_t endOffset);
 
-    // one io_uring submission for ids[0..n); returns how many fit the arena, so the caller advances and calls again
-    size_t loadBatch(const size_t *ids, size_t n, unsigned int thrIdx);
+    static const unsigned int BATCH_LANES = 2;
 
-    // the k-th entry of the batch loadBatch just returned
-    const char *batchAt(unsigned int thrIdx, size_t k);
+    // submits ids[0..n) into one lane and returns how many fit the arena
+    size_t startBatch(const size_t *ids, size_t n, unsigned int thrIdx, unsigned int lane);
+    void awaitBatch(unsigned int thrIdx, unsigned int lane);
+
+    // the k-th entry of the batch that lane last started
+    const char *batchAt(unsigned int thrIdx, unsigned int lane, size_t k);
+
+    // start and await in lane 0 for a caller with nothing to overlap
+    size_t loadBatch(const size_t *ids, size_t n, unsigned int thrIdx) {
+        const size_t taken = startBatch(ids, n, thrIdx, 0);
+        awaitBatch(thrIdx, 0);
+        return taken;
+    }
+    const char *batchAt(unsigned int thrIdx, size_t k) { return batchAt(thrIdx, 0, k); }
 
     bool isDirectIo() const { return (dataMode & USE_DIRECT_IO) != 0; }
 
@@ -554,7 +565,9 @@ private:
     char* readDirect(size_t offset, size_t length, int thrIdx);
 
     // falls back to a pread loop when io_uring is unavailable, so the batch api always works
-    size_t loadBatchDirect(const size_t *ids, size_t n, unsigned int thrIdx);
+    size_t startBatchDirect(const size_t *ids, size_t n, unsigned int thrIdx, unsigned int lane);
+    // submits what the ring has room for and reaps completions
+    void pumpBatch(unsigned int thrIdx, unsigned int lane, bool untilDone);
     void freeIoBatch();
 
     // grows one thread's bounce buffer, alignment 1 means malloc, keepBytes are carried over

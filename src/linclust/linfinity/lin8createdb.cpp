@@ -1,4 +1,5 @@
 #include "Lin8Db.h"
+#include "Lin8DbReader.h"
 #include "Parameters.h"
 #include "DBReader.h"
 #include "DBWriter.h"
@@ -17,6 +18,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <vector>
+#include <zstd.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -321,13 +323,61 @@ static void planDatabaseLayout(const std::vector<NodeSequenceDistribution> &node
     bytePlan.headerBytesTotal = headerByteAt;
 }
 
+static void pwriteAll(int fd, const unsigned char *data, size_t bytes, off_t at, const char *what) {
+    static const size_t WRITE_CHUNK = 1ull << 30;
+    size_t done = 0;
+    while (done < bytes) {
+        const size_t chunk = std::min<size_t>(bytes - done, WRITE_CHUNK);
+        const ssize_t wrote = pwrite(fd, data + done, chunk, at + static_cast<off_t>(done));
+        if (wrote <= 0) {
+            Debug(Debug::ERROR) << "Cannot write " << chunk << " byte to " << what << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        done += static_cast<size_t>(wrote);
+    }
+}
+
+// --compressed: zstd frames in finish order, a table keyed by uncompressed offset last
+class HeaderPacker {
+public:
+    static const size_t FRAME_BYTES = 8ull << 20;
+    static const int LEVEL = 3;
+
+    HeaderPacker(const std::vector<int> &fd) : fd(fd), packedEnd(fd.size(), 0), frames(fd.size()) {}
+
+    void append(unsigned int file, uint64_t rawAt, const unsigned char *packed, size_t packedSize, size_t rawSize) {
+        const RunDbReader::HeaderFrame frame = {rawAt, __sync_fetch_and_add(&packedEnd[file], packedSize), rawSize, packedSize};
+#pragma omp critical(header_frames)
+        frames[file].push_back(frame);
+        pwriteAll(fd[file], packed, packedSize, static_cast<off_t>(frame.packedAt), "header file");
+    }
+
+    void finish() {
+        for (size_t file = 0; file < fd.size(); file++) {
+            std::vector<RunDbReader::HeaderFrame> &table = frames[file];
+            SORT_SERIAL(table.begin(), table.end(),
+                        [](const RunDbReader::HeaderFrame &a, const RunDbReader::HeaderFrame &b) { return a.rawAt < b.rawAt; });
+            const uint64_t tail[2] = {table.size(), RunDbReader::HEADER_FRAMES_MAGIC};
+            const size_t bytes = table.size() * sizeof(RunDbReader::HeaderFrame);
+            pwriteAll(fd[file], reinterpret_cast<const unsigned char *>(table.data()), bytes,
+                      static_cast<off_t>(packedEnd[file]), "header file");
+            pwriteAll(fd[file], reinterpret_cast<const unsigned char *>(tail), sizeof(tail),
+                      static_cast<off_t>(packedEnd[file] + bytes), "header file");
+        }
+    }
+
+private:
+    const std::vector<int> &fd;
+    std::vector<uint64_t> packedEnd;
+    std::vector<std::vector<RunDbReader::HeaderFrame> > frames;
+};
+
 class SequenceWriter {
 public:
-    static const size_t WRITE_CHUNK = 1ull << 30;
-
-    SequenceWriter(const std::vector<int> &seqFd, const std::vector<int> &hdrFd,
+    SequenceWriter(const std::vector<int> &seqFd, const std::vector<int> &hdrFd, HeaderPacker *packer,
                const NodeSequenceDistribution &nodeDistribution, const BytePlan &bytePlan, unsigned int file, size_t budget)
-        : seqFd(seqFd), hdrFd(hdrFd), bytePlan(bytePlan), file(file) {
+        : seqFd(seqFd), hdrFd(hdrFd), packer(packer), cctx(packer == NULL ? NULL : ZSTD_createCCtx()),
+          bytePlan(bytePlan), file(file) {
         seqBuf.resize(LINCLUSTERDB_HISTOGRAM_SIZE);
         hdrBuf.resize(LINCLUSTERDB_HISTOGRAM_SIZE);
         seqRoom.assign(LINCLUSTERDB_HISTOGRAM_SIZE, 0);
@@ -357,6 +407,12 @@ public:
         }
     }
 
+    ~SequenceWriter() {
+        if (cctx != NULL) {
+            ZSTD_freeCCtx(cctx);
+        }
+    }
+
     void add(size_t length, const unsigned char *sequence, const char *header, size_t headerLen) {
         seqBuf[length].insert(seqBuf[length].end(), sequence, sequence + length);
         hdrBuf[length].insert(hdrBuf[length].end(), header, header + headerLen);
@@ -382,11 +438,46 @@ private:
             seqBuf[length].clear();
         }
         if (hdrBuf[length].empty() == false) {
-            writeLength(hdrFd, bytePlan.headerFileStart, bytePlan.fileOfLength[length],
-                        headerByteAt[length], hdrBuf[length]);
+            if (packer != NULL) {
+                packHeaders(bytePlan.fileOfLength[length], headerByteAt[length], hdrBuf[length]);
+            } else {
+                writeLength(hdrFd, bytePlan.headerFileStart, bytePlan.fileOfLength[length],
+                            headerByteAt[length], hdrBuf[length]);
+            }
             headerByteAt[length] += hdrBuf[length].size();
             hdrBuf[length].clear();
         }
+    }
+
+    // frames end on a header boundary so a reader never needs two frames for one name
+    void packHeaders(unsigned int file, uint64_t at, const std::vector<unsigned char> &data) {
+        const std::vector<uint64_t> &fileStart = bytePlan.headerFileStart;
+        if (at < fileStart[file] || at + data.size() > fileStart[file + 1]) {
+            Debug(Debug::ERROR) << "Write of " << data.size() << " byte at " << at
+                                << " does not fit header file " << file << ", which holds "
+                                << fileStart[file] << " to " << fileStart[file + 1] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        size_t done = 0;
+        while (done < data.size()) {
+            size_t take = std::min<size_t>(data.size() - done, HeaderPacker::FRAME_BYTES);
+            if (done + take < data.size()) {
+                const void *cut = memrchr(data.data() + done, '\n', take);
+                if (cut == NULL) {
+                    cut = memchr(data.data() + done + take, '\n', data.size() - done - take);
+                }
+                take = static_cast<const unsigned char *>(cut) - (data.data() + done) + 1;
+            }
+            packed.resize(ZSTD_compressBound(take));
+            const size_t got = ZSTD_compressCCtx(cctx, packed.data(), packed.size(), data.data() + done, take, HeaderPacker::LEVEL);
+            if (ZSTD_isError(got)) {
+                Debug(Debug::ERROR) << "Cannot compress headers: " << ZSTD_getErrorName(got) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            packer->append(file, at + done - bytePlan.headerFileStart[file], packed.data(), got, take);
+            done += take;
+        }
+        written += data.size();
     }
 
     void writeLength(const std::vector<int> &fd, const std::vector<uint64_t> &fileStart,
@@ -397,23 +488,15 @@ private:
                                 << fileStart[file] << " to " << fileStart[file + 1] << "\n";
             EXIT(EXIT_FAILURE);
         }
-        size_t done = 0;
-        while (done < data.size()) {
-            const size_t chunk = std::min<size_t>(data.size() - done, WRITE_CHUNK);
-            const ssize_t wrote = pwrite(fd[file], data.data() + done, chunk,
-                                         static_cast<off_t>(at + done - fileStart[file]));
-            if (wrote <= 0) {
-                Debug(Debug::ERROR) << "Cannot write " << chunk << " byte to data file " << file
-                                    << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            done += static_cast<size_t>(wrote);
-        }
+        pwriteAll(fd[file], data.data(), data.size(), static_cast<off_t>(at - fileStart[file]), "data file");
         written += data.size();
     }
 
     const std::vector<int> &seqFd;
     const std::vector<int> &hdrFd;
+    HeaderPacker *packer;
+    ZSTD_CCtx *cctx;
+    std::vector<unsigned char> packed;
     const BytePlan &bytePlan;
     unsigned int file;
     uint64_t written = 0;
@@ -427,7 +510,7 @@ private:
 
 static void writeSequencesAndHeaders(const std::vector<std::string> &filenames, const std::vector<InputSplit> &nodeInputSplits,
                       const NodeSequenceDistribution &nodeDistribution, const BytePlan &bytePlan,
-                      const std::vector<int> &seqFd, const std::vector<int> &hdrFd,
+                      const std::vector<int> &seqFd, const std::vector<int> &hdrFd, HeaderPacker *packer,
                       unsigned int threads, size_t budget, uint32_t maxSeqLen) {
     uint64_t written = 0;
     Debug::Progress progress(nodeDistribution.sequenceCount / PROGRESS_STEP + 1);
@@ -436,9 +519,10 @@ static void writeSequencesAndHeaders(const std::vector<std::string> &filenames, 
         std::string header;
 #pragma omp for schedule(dynamic, 1)
         for (size_t split = 0; split < nodeInputSplits.size(); split++) {
-            SequenceWriter writer(seqFd, hdrFd, nodeDistribution, bytePlan,
+            const size_t room = std::max<size_t>(budget / threads, 1u << 20);
+            SequenceWriter writer(seqFd, hdrFd, packer, nodeDistribution, bytePlan,
                               static_cast<unsigned int>(split),
-                              std::max<size_t>(budget / threads, 1u << 20));
+                              packer == NULL ? room : room - std::min(room / 2, HeaderPacker::FRAME_BYTES));
             InputSplitReader reader(filenames[nodeInputSplits[split].file],
                                     nodeInputSplits[split]);
             const char *name = NULL;
@@ -476,7 +560,7 @@ static void writeSequencesAndHeaders(const std::vector<std::string> &filenames, 
 
 static std::vector<int> openDataFiles(const std::string &prefix, unsigned int fileBase,
                                       unsigned int files,
-                                      const std::vector<uint64_t> &fileStart) {
+                                      const std::vector<uint64_t> &fileStart, bool sized) {
     std::vector<int> fd(files, -1);
     for (unsigned int i = 0; i < files; i++) {
         const std::string path = prefix + "." + SSTR(fileBase + i);
@@ -485,7 +569,7 @@ static std::vector<int> openDataFiles(const std::string &prefix, unsigned int fi
             Debug(Debug::ERROR) << "Cannot open " << path << " for writing\n";
             EXIT(EXIT_FAILURE);
         }
-        if (ftruncate(fd[i], static_cast<off_t>(fileStart[i + 1] - fileStart[i])) != 0) {
+        if (sized && ftruncate(fd[i], static_cast<off_t>(fileStart[i + 1] - fileStart[i])) != 0) {
             Debug(Debug::ERROR) << "Cannot size " << path << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -622,7 +706,7 @@ int lin8createdb(int argc, const char **argv, const Command &command) {
     }
 
     if (isNodeDone == false) {
-        for (unsigned int file = 0; file < par.threads; file++) {
+        for (int file = 0; file < par.threads; file++) {
             const std::string data = db + "." + SSTR(node.index * par.threads + file);
             if (FileUtil::fileExists(data.c_str()) && FileUtil::getFileSize(data) > 0) {
                 Debug(Debug::ERROR) << data << " holds data but node " << node.index
@@ -637,17 +721,22 @@ int lin8createdb(int argc, const char **argv, const Command &command) {
                            node.index * par.threads, bytePlan, nodeLocator);
         nodeLocator.setLayout(node.count, par.threads);
         nodeLocator.finish(ranks.sequenceCount);
-        Debug(Debug::INFO) << "Planned " << nodeLocator.size() << " runs over " << par.threads
-                           << " data files, " << bytePlan.sequenceBytes << " byte\n";
+        Debug(Debug::INFO) << "This node writes " << (bytePlan.sequenceBytes >> 30)
+                           << " GB of sequences\n";
 
         timer.reset();
+        const bool pack = par.compressed != 0;
         std::vector<int> seqFd = openDataFiles(db, node.index * par.threads, par.threads,
-                                               bytePlan.sequenceFileStart);
+                                               bytePlan.sequenceFileStart, true);
         std::vector<int> hdrFd = openDataFiles(headerDb, node.index * par.threads, par.threads,
-                                               bytePlan.headerFileStart);
+                                               bytePlan.headerFileStart, pack == false);
+        HeaderPacker packer(hdrFd);
         Debug(Debug::INFO) << "Placing " << nodeDistribution.sequenceCount << " sequences by length\n";
-        writeSequencesAndHeaders(filenames, nodeInputSplits, nodeDistribution, bytePlan, seqFd, hdrFd, par.threads, budget,
-                                 maxSeqLen);
+        writeSequencesAndHeaders(filenames, nodeInputSplits, nodeDistribution, bytePlan, seqFd, hdrFd,
+                                 pack ? &packer : NULL, par.threads, budget, maxSeqLen);
+        if (pack) {
+            packer.finish();
+        }
         dropCacheAndCloseFiles(seqFd);
         dropCacheAndCloseFiles(hdrFd);
         nodeLocator.write(nodePartName(db, "runs", node.index));
@@ -668,8 +757,8 @@ int lin8createdb(int argc, const char **argv, const Command &command) {
         const std::string dbtypeBase = db + ".new" + uniqueTmpSuffix();
         DBWriter::writeDbtypeFile(dbtypeBase.c_str(), dbtype, false);
         FileUtil::publishAtomically(dbtypeBase + ".dbtype", db + ".dbtype");
-        Debug(Debug::INFO) << "Database holds " << ranks.sequenceCount << " sequences in "
-                           << ranks.bytes << " byte\n";
+        Debug(Debug::INFO) << "Database holds " << ranks.sequenceCount << " sequences, "
+                           << (ranks.bytes >> 30) << " GB\n";
     } else {
         Debug(Debug::INFO) << "Wrote the parts of node " << node.index << ", waiting for the other nodes\n";
     }
