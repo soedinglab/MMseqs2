@@ -1172,6 +1172,7 @@ Parameters::Parameters():
     pickrepprofile.push_back(&PARAM_GAP_PSEUDOCOUNT);
 #endif
     pickrepprofile.push_back(&PARAM_PRELOAD_MODE);
+    pickrepprofile.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     pickrepprofile.push_back(&PARAM_COMPRESSED);
     pickrepprofile.push_back(&PARAM_THREADS);
     pickrepprofile.push_back(&PARAM_V);

@@ -30,7 +30,12 @@ int pickrepprofile(int argc, const char **argv, const Command &command) {
 
     DBReader<DBKeyType> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
     seqReader.open(DBReader<DBKeyType>::NOSORT);
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+    bool preloadSequences = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
+    if (par.preloadMode == Parameters::PRELOAD_MODE_AUTO) {
+        // AUTO is the default, so it must not fault in a database that does not fit
+        preloadSequences = seqReader.getDataSize() < Util::computeMemory(par.splitMemoryLimit) / 2;
+    }
+    if (preloadSequences) {
         seqReader.readMmapedDataInMemory();
     }
 
