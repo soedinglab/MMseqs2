@@ -530,12 +530,12 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
         for (size_t sub = 0; sub < subRows.size(); sub++) {
             blockRows += subRows[sub];
         }
-        // cut the block where the rows are, not where the ranks are: the front of a block holds the
-        // longer sequences, so equal rank spans hand the first machine the heavier half
+        // cut the block where the rows are, not where the ranks are, and weigh the first node by --first-node-share
         size_t subFrom = 0, subUntil = 0;
         uint64_t skipRows = 0, seenRows = 0;
         for (size_t sub = 0, at = 0; at <= node.count; ) {
-            const uint64_t want = blockRows * at / node.count;
+            const double before = at == 0 ? 0.0 : par.lin8FirstNodeShare + (at - 1);
+            const uint64_t want = (uint64_t) (blockRows * before / (par.lin8FirstNodeShare + (node.count - 1)));
             if (seenRows >= want) {
                 if (at == node.index) { subFrom = sub; skipRows = seenRows; }
                 if (at == node.index + 1) { subUntil = sub; }

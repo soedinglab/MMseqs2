@@ -706,6 +706,7 @@ public:
     int lin8RepRankBlock;
     int lin8RepRankBlockCount;
     int lin8RepRankBlockLookahead;
+    float lin8FirstNodeShare;
     int lin8RepRankBlocks;
     int lin8MonitorPid;
     int lin8MonitorInterval;
@@ -1198,6 +1199,7 @@ public:
     PARAMETER(PARAM_LIN8_REP_RANK_BLOCK)
     PARAMETER(PARAM_LIN8_REP_RANK_BLOCK_COUNT)
     PARAMETER(PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD)
+    PARAMETER(PARAM_LIN8_FIRST_NODE_SHARE)
     PARAMETER(PARAM_LIN8_MONITOR_PID)
     PARAMETER(PARAM_LIN8_MONITOR_INTERVAL)
     PARAMETER(PARAM_WRITE_LOOKUP)

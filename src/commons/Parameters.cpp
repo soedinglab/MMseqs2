@@ -307,6 +307,7 @@ Parameters::Parameters():
         PARAM_LIN8_REP_RANK_BLOCK(PARAM_LIN8_REP_RANK_BLOCK_ID, "--pair-split", "Pair split", "Which piece of the candidate pairs this invocation works on", typeid(int), (void *) &lin8RepRankBlock, "^-?[0-9]+$", MMseqsParameter::COMMAND_COMMON),
         PARAM_LIN8_REP_RANK_BLOCK_COUNT(PARAM_LIN8_REP_RANK_BLOCK_COUNT_ID, "--pair-split-count", "Pair splits an invocation takes", "How many consecutive pieces of the candidate pairs this invocation decides, so the assignment bitmap is read and written once for all of them instead of once each. 0 runs through the last piece in one invocation", typeid(int), (void *) &lin8RepRankBlockCount, "^[0-9]+$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD(PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD_ID, "--pair-split-lookahead", "Pair splits aligning may run ahead", "How many of the pieces before this one may still be undecided when aligning starts, so aligning overlaps deciding. The skipped pieces only cost the pairs deciding then throws away", typeid(int), (void *) &lin8RepRankBlockLookahead, "^[0-9]+$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_LIN8_FIRST_NODE_SHARE(PARAM_LIN8_FIRST_NODE_SHARE_ID, "--first-node-share", "First node share", "Share of a block's rows the first node aligns, against 1 for every other node; the decider reads its chunk first, so a smaller share lets deciding start earlier", typeid(float), (void *) &lin8FirstNodeShare, "^0\\.[0-9]+$|^1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_LIN8_MONITOR_PID(PARAM_LIN8_MONITOR_PID_ID, "--monitor-pid", "Monitored pid", "Process whose tree lin8-monitor samples; it stops when that process is gone", typeid(int), (void *) &lin8MonitorPid, "^[0-9]+$", MMseqsParameter::COMMAND_MISC),
         PARAM_LIN8_MONITOR_INTERVAL(PARAM_LIN8_MONITOR_INTERVAL_ID, "--monitor-interval", "Monitor interval", "Seconds between resource samples every machine appends to <out>.monitor.<node>.tsv, 0 turns the monitor off", typeid(int), (void *) &lin8MonitorInterval, "^[0-9]+$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_WRITE_LOOKUP(PARAM_WRITE_LOOKUP_ID, "--write-lookup", "Write lookup file", "write .lookup file containing mapping from internal id, fasta id and file number", typeid(int), (void *) &writeLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
@@ -1081,6 +1082,7 @@ Parameters::Parameters():
     lin8align2clust.push_back(&PARAM_LIN8_REP_RANK_BLOCK);
     lin8align2clust.push_back(&PARAM_LIN8_REP_RANK_BLOCK_COUNT);
     lin8align2clust.push_back(&PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD);
+    lin8align2clust.push_back(&PARAM_LIN8_FIRST_NODE_SHARE);
     lin8align2clust.push_back(&PARAM_INCLUDE_ALIGN_FILES);
     lin8align2clust.push_back(&PARAM_REMOVE_TMP_FILES);
     lin8align2clust.push_back(&PARAM_V);
@@ -1749,6 +1751,7 @@ Parameters::Parameters():
     linclustoneshotworkflow.push_back(&PARAM_LIN8_REP_RANK_BLOCKS);
     linclustoneshotworkflow.push_back(&PARAM_LIN8_REP_RANK_BLOCK_COUNT);
     linclustoneshotworkflow.push_back(&PARAM_LIN8_REP_RANK_BLOCK_LOOKAHEAD);
+    linclustoneshotworkflow.push_back(&PARAM_LIN8_FIRST_NODE_SHARE);
     linclustoneshotworkflow.push_back(&PARAM_LIN8_MONITOR_INTERVAL);
     linclustoneshotworkflow.push_back(&PARAM_MIN_SEQ_ID);
     linclustoneshotworkflow.push_back(&PARAM_C);
@@ -3109,6 +3112,7 @@ void Parameters::setDefaults() {
     lin8RepRankBlock = -1;
     lin8RepRankBlockCount = 0;
     lin8RepRankBlockLookahead = 0;
+    lin8FirstNodeShare = 1.0f;
     lin8RepRankBlocks = (int) PairRecord::DEFAULT_REP_RANK_BLOCKS;
     lin8MonitorPid = 0;
     lin8MonitorInterval = 5;
