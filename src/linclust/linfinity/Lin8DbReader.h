@@ -90,6 +90,10 @@ public:
                       unsigned int lane) const;
     void awaitBatch(unsigned int thread, unsigned int lane) const;
     const char *batchQueryAt(unsigned int thread, unsigned int lane) const;
+    // lays ranks sorted by file position out in one arena, one read a run of touched blocks; NULL arena only measures
+    size_t layoutReads(const uint64_t *ranks, size_t n, char *arena, std::vector<IoRing::Read> &reads,
+                       std::vector<const char *> &at) const;
+    void submitReads(unsigned int thread, unsigned int lane, const IoRing::Read *reads, size_t n) const;
     const char *batchAt(unsigned int thread, unsigned int lane, size_t member) const;
 
     static const unsigned int LANES = 2;

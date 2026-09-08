@@ -748,6 +748,55 @@ bool Lin8DbReader::appendBatchRead(BatchLane &lane, uint64_t rank, Cursor &curso
     return true;
 }
 
+size_t Lin8DbReader::layoutReads(const uint64_t *ranks, size_t n, char *arena, std::vector<IoRing::Read> &reads,
+                                std::vector<const char *> &at) const {
+    reads.clear();
+    at.resize(n);
+    char *aligned = arena;
+    if (arena != NULL) {
+        const size_t off = reinterpret_cast<uintptr_t>(arena) % DIRECT_BLOCK;
+        aligned = arena + (off == 0 ? 0 : DIRECT_BLOCK - off);
+    }
+    Cursor cursor;
+    size_t used = 0;
+    for (size_t i = 0; i < n; i++) {
+        cursor.at = index.rangeIndexFrom(ranks[i], cursor.at);
+        const uint64_t offset = index.offsetInRange(cursor.at, ranks[i]);
+        const size_t length = index[cursor.at].getSeqLen();
+        const int fd = directOf(index[cursor.at].fileIndex());
+        const uint64_t blockFrom = offset - offset % DIRECT_BLOCK;
+        const uint64_t blockUntil = ((offset + length + DIRECT_BLOCK - 1) / DIRECT_BLOCK) * DIRECT_BLOCK;
+        if (reads.empty() == false && reads.back().fd == fd && reads.back().offset <= blockFrom
+            && blockFrom <= reads.back().offset + reads.back().length) {
+            IoRing::Read &last = reads.back();
+            const uint64_t end = last.offset + last.length;
+            if (blockUntil > end) {
+                last.length += (size_t) (blockUntil - end);
+                used += (size_t) (blockUntil - end);
+            }
+            last.required = std::max(last.required, (size_t) (offset + length - last.offset));
+            at[i] = static_cast<char *>(last.into) + (size_t) (offset - last.offset);
+            continue;
+        }
+        IoRing::Read read;
+        read.into = aligned + used;
+        read.fd = fd;
+        read.offset = blockFrom;
+        read.length = (size_t) (blockUntil - blockFrom);
+        read.required = (size_t) (offset + length - blockFrom);
+        reads.push_back(read);
+        at[i] = aligned + used + (size_t) (offset - blockFrom);
+        used += read.length;
+    }
+    return used + DIRECT_BLOCK;
+}
+
+void Lin8DbReader::submitReads(unsigned int thread, unsigned int lane, const IoRing::Read *reads, size_t n) const {
+    BatchLane &at = batch[thread]->lane[lane];
+    at.ring.list().assign(reads, reads + n);
+    at.ring.submit(db.c_str());
+}
+
 size_t Lin8DbReader::startBatch(uint64_t queryRank, const uint64_t *members, size_t n,
                               unsigned int thread, unsigned int lane) const {
     BatchLane &at = batch[thread]->lane[lane];
