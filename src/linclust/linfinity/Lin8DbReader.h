@@ -77,7 +77,12 @@ public:
 
     static const int READ_ONCE = 0;
     static const int READ_AGAIN = 1;
-    void openBatch(unsigned int threads, size_t arenaBytes, size_t memoryBudget, int revisit = READ_ONCE);
+    // how the batch reads walk the data: a parallel file system prefetches whole blocks unless told the reads are random
+    static const int ACCESS_UNHINTED = 0;
+    static const int ACCESS_SEQUENTIAL = 1;
+    static const int ACCESS_RANDOM = 2;
+    void openBatch(unsigned int threads, size_t arenaBytes, size_t memoryBudget, int revisit = READ_ONCE,
+                   int access = ACCESS_UNHINTED);
 
     size_t batchRoomFor(uint32_t seqLen) const;
 
@@ -163,6 +168,7 @@ private:
     size_t keptCount;
     bool keptLoaded;
     mutable bool wantDirect;
+    int batchAccess;
 };
 
 class ClusterAssignmentBitmap {

@@ -438,7 +438,7 @@ int lin8align2clust(int argc, const char **argv, const Command &command) {
     const size_t batchRows = (size_t) threads * Lin8DbReader::LANES * MEMBERS_PER_ALIGN_BATCH * 4;
     Debug(Debug::INFO) << "Batches of " << batchRows << " rows\n";
     reader.openBatch(threads, ARENA_BYTES, Util::computeMemory(par.splitMemoryLimit),
-                     Lin8DbReader::READ_AGAIN);
+                     Lin8DbReader::READ_AGAIN, Lin8DbReader::ACCESS_RANDOM);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);

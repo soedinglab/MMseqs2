@@ -316,7 +316,7 @@ const char *Lin8DbReader::KEPT_BITMAP_SUFFIX = ".clusthash_kept";
 Lin8DbReader::Lin8DbReader(const std::string &db, bool withHeaders)
     : db(db), withHeaders(withHeaders), kept(NULL),
       keptMap(NULL), keptSize(0), keptCount(0), keptLoaded(false),
-      wantDirect(true) {}
+      wantDirect(true), batchAccess(ACCESS_UNHINTED) {}
 
 Lin8DbReader::~Lin8DbReader() {
     close();
@@ -613,8 +613,9 @@ static const size_t DIRECT_BLOCK = 512;
 static const unsigned RING_DEPTH = 1024;
 
 void Lin8DbReader::openBatch(unsigned int threads, size_t arenaBytes,
-                            size_t memoryBudget, int revisit) {
+                            size_t memoryBudget, int revisit, int access) {
     directFd.assign(data.size(), -1);
+    batchAccess = access;
     const size_t arenaTotal = (size_t) threads * (arenaBytes + LANES * DIRECT_BLOCK);
     if (arenaTotal >= memoryBudget) {
         Debug(Debug::ERROR) << "Read arenas for " << threads << " thread need "
@@ -628,7 +629,8 @@ void Lin8DbReader::openBatch(unsigned int threads, size_t arenaBytes,
     Debug(Debug::INFO) << "Sequence data: " << (sequenceBytes >> 30) << " GB, budget "
                        << (budget >> 30) << " GB after " << (arenaTotal >> 20)
                        << " MB read buffer, reading "
-                       << (wantDirect ? "past the OS cache" : "through the OS cache") << "\n";
+                       << (wantDirect ? "past the OS cache" : "through the OS cache")
+                       << (access == ACCESS_RANDOM ? ", advising random access" : access == ACCESS_SEQUENTIAL ? ", advising sequential access" : "") << "\n";
     const size_t laneBytes = arenaBytes / LANES;
     const size_t longest = 2 * ((size_t) index.getMaxSeqLen() + DIRECT_BLOCK);
     if (laneBytes < longest) {
@@ -668,6 +670,11 @@ int Lin8DbReader::directOf(uint32_t file) const {
                     Debug(Debug::ERROR) << "Cannot open " << path << " for reading\n";
                     EXIT(EXIT_FAILURE);
                 }
+            }
+            if (batchAccess == ACCESS_RANDOM) {
+                posix_fadvise(opened, 0, 0, POSIX_FADV_RANDOM);
+            } else if (batchAccess == ACCESS_SEQUENTIAL) {
+                posix_fadvise(opened, 0, 0, POSIX_FADV_SEQUENTIAL);
             }
 #pragma omp atomic write
             directFd[file] = opened;

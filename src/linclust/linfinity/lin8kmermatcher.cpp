@@ -494,7 +494,8 @@ int lin8extractkmers(int argc, const char **argv, const Command &command) {
                                                         std::vector<uint64_t>(subBucketCountEntryCount, 0));
 
     Timer timer;
-    reader.openBatch(par.threads, BATCH_READ_ARENA_BYTES, workingMemoryBudgetBytes, Lin8DbReader::READ_AGAIN);
+    reader.openBatch(par.threads, BATCH_READ_ARENA_BYTES, workingMemoryBudgetBytes, Lin8DbReader::READ_AGAIN,
+                     Lin8DbReader::ACCESS_SEQUENTIAL);
     const KmerSegmentCodec codec(bitsFor(reader.getSize()), reducedAlphabetSize);
     BucketWriter<KmerRecord, SegmentEncoder<KmerSegmentCodec> > writer(nodeBucketFilePrefix, KmerRecord::BUCKET_COUNT, par.threads,
                                     workingMemoryBudgetBytes - (size_t) par.threads * BATCH_READ_ARENA_BYTES,
