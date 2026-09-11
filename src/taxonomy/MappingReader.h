@@ -27,9 +27,7 @@ public:
         }
         char *data = (char *) file->getData();
         size_t dataSize = file->size();
-        if (file->size() > magicLen && (memcmp(data, magic, magicLen) == 0 
-            // We have to deal with legacy mapping files as well
-            || sizeof(DBKeyType) == sizeof(uint32_t) && memcmp(data, legacy_magic, magicLen) == 0)) {
+        if (file->size() > magicLen && memcmp(data, magic, magicLen) == 0) {
             entries = reinterpret_cast<Pair*>(data + magicLen);
             count = (dataSize - magicLen) / sizeof(Pair);
             return;
@@ -101,10 +99,7 @@ private:
     Pair* entries;
     size_t count;
     //                    T  A   X   M  Version
-    const char magic[5] = {19, 0, 23, 12, sizeof(DBKeyType) == sizeof(uint64_t) ? 2 : 1};
-    // magic number for Legacy mapping file has 0 for last value, which is not compatible
-    // leave legacy magic number for compatibility
-    const char legacy_magic[5] = {19, 0, 23, 12, 0}; 
+    const char magic[5] = {19, 0, 23, 12, sizeof(DBKeyType) == sizeof(uint64_t) ? 2 : 0};
     const size_t magicLen = 5;
     static bool compareTaxa(const Pair &lhs, const Pair &rhs) {
         return (lhs.dbkey <= rhs.dbkey);
