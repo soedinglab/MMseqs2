@@ -491,7 +491,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
         #endif   
-            Matcher matcher(tProteinSeqType, par.maxSeqLen, &subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
+            Matcher matcher(tProteinSeqType, tProteinDB.getMaxSeqLen(), &subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
             Sequence query(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             std::vector <unsigned int> localsharedEntryCount(proteomeList.size(), 0);

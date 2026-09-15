@@ -419,7 +419,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
         std::vector<hit_t> threadShortResults;
         Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
-        SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize,
+        SmithWaterman aligner(std::max(qdbr->getMaxSeqLen(), tdbr->getMaxSeqLen()), subMat->alphabetSize,
                               par.compBiasCorrection, par.compBiasCorrectionScale, NULL);
 
         // A packed DB doesn't have left-over space for masking

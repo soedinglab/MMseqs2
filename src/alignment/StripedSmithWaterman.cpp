@@ -915,14 +915,13 @@ s_align SmithWaterman::alignScoreEndPos (
 	// 2. word
 	if (bests.first.score == 255) {
 		bests = sw_sse2_word<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
-                    profile->profile_word, USHRT_MAX, maskLen, simdData);
+                    profile->profile_word, INT16_MAX, maskLen, simdData);
         r.word = 1;
 	}
 	// 3. int
-	// Comment out int32_t now for benchmark
 	if (bests.first.score == INT16_MAX) {
 		bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
-					profile->profile_int, USHRT_MAX, maskLen, simdData);
+					profile->profile_int, UINT32_MAX, maskLen, simdData);
 		r.word = 2;
 	}
 
@@ -1173,9 +1172,7 @@ s_align SmithWaterman::alignStartPosBacktrace (
 		bests_reverse = sw_sse2_word<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
 										   gap_extend, profile->profile_rev_word,
 										   r.score1, maskLen, simdData);
-	}
-	// Comment out int32_t now for benchmark
-	else if (r.word == 2) {
+	} else if (r.word == 2) {
         if ((type == PROFILE_SEQ)) {
 			createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
 																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
@@ -1792,13 +1789,16 @@ s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputa
 	r.qCov =  1.0;
 	r.tCov = 1.0;
     r.cigar = NULL;
-	short score = 0;
+	int32_t score = 0;
+	int32_t maxScore = 0;
 	for(int pos = 0; pos < L; pos++){
 		int currScore = profile->profile_word_linear[dbSeq[pos]][pos];
 		score += currScore;
+		score = (score <= 0) ? 0 : score;
+		maxScore = std::max(maxScore, score);
         backtrace.push_back('M');
 	}
-	r.score1=score;
+	r.score1=maxScore;
 	r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
     r.identicalAACnt = L;
 	return r;
