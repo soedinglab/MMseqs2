@@ -74,7 +74,7 @@ typedef struct {
 } s_align;
 
 typedef struct {
-    uint16_t score;
+    uint32_t score;
     int32_t ref;    //0-based position
     int32_t read;   //alignment ending position on read, 0-based
 } alignment_end;
