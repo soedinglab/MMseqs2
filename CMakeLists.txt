@@ -22,8 +22,11 @@ set(USE_SYSTEM_ZSTD 0 CACHE BOOL "Use zstd provided by system instead of bundled
 set(IGNORE_RUST_VERSION 0 CACHE BOOL "Ignore Rust version check")
 set(ENABLE_HIP 0 CACHE BOOL "Enable HIP")
 set(ENABLE_CUDA 0 CACHE BOOL "Enable CUDA")
+set(AVX512_DISPATCH "AUTO" CACHE STRING "Runtime-dispatched AVX512 kernels: AUTO, ON, OFF")
+set_property(CACHE AVX512_DISPATCH PROPERTY STRINGS "AUTO" "ON" "OFF")
 set(FORCE_STATIC_DEPS 0 CACHE BOOL "Force static linking of deps")
 set(MMSEQS_INT64_IDS 0 CACHE BOOL "Use 64-bit internal sequence/database IDs")
+
 
 if(ENABLE_HIP)
     set(ENABLE_CUDA 1)
@@ -73,10 +76,17 @@ set(MMSEQS_CXX_FLAGS "-fsigned-char")
 # SIMD instruction sets support
 set(MMSEQS_ARCH "")
 if (HAVE_AVX512)
-    if (CMAKE_COMPILER_IS_CLANG)
-        set(MMSEQS_ARCH "${MMSEQS_ARCH} -mavx512f -mavx512bw -mfma -mcx16")
+    # With runtime dispatch the baseline stays at AVX2: only UngappedAlignerAVX512.cpp and
+    # FwbwAVX512.cpp are built for AVX512, and the CPU decides at startup which backend runs.
+    if (AVX512_DISPATCH STREQUAL "OFF")
+        set(MMSEQS_AVX512_BASE "-mavx512f -mavx512bw")
     else ()
-        set(MMSEQS_ARCH "${MMSEQS_ARCH} -mavx512f -mavx512bw -mfma -mcx16 -Wa,-q")
+        set(MMSEQS_AVX512_BASE "-mavx2")
+    endif ()
+    if (CMAKE_COMPILER_IS_CLANG)
+        set(MMSEQS_ARCH "${MMSEQS_ARCH} ${MMSEQS_AVX512_BASE} -mfma -mcx16")
+    else ()
+        set(MMSEQS_ARCH "${MMSEQS_ARCH} ${MMSEQS_AVX512_BASE} -mfma -mcx16 -Wa,-q")
     endif ()
     set(X64 1 CACHE INTERNAL "")
 elseif (HAVE_AVX2)
@@ -142,6 +152,13 @@ if (NATIVE_ARCH)
             set(MMSEQS_ARCH "${SSE_FLAGS}")
         else()
             set(MMSEQS_ARCH "-march=native")
+            if (HAVE_AVX2_EXTENSIONS AND NOT AVX512_DISPATCH STREQUAL "OFF")
+                # Keep -march=native's tuning and everything below AVX512, but hold the baseline
+                # at AVX2 so the Default backends stay the fallback and the binary still runs on
+                # an AVX2 machine. -mno-avx512f clears the whole AVX512 family; the per-source
+                # flags on the two AVX512 TUs are emitted later and re-enable it there.
+                set(MMSEQS_ARCH "${MMSEQS_ARCH} -mno-avx512f")
+            endif ()
         endif()
     elseif (PPC64 OR ARM)
         set(MMSEQS_ARCH "-mcpu=native")
@@ -161,6 +178,47 @@ set(MMSEQS_ARCH ${MMSEQS_ARCH} CACHE INTERNAL "")
 
 if (NOT (MMSEQS_ARCH STREQUAL ""))
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} ${MMSEQS_ARCH}")
+endif ()
+
+# Runtime-dispatched AVX512 kernels (gapless alignment, fwbw). Those translation units are
+# compiled with their own -m flags and are only entered when the CPU reports the features at
+# runtime, so the rest of the binary keeps its baseline instruction set. If the toolchain cannot
+# compile them the sources are dropped and MMSEQS_HAVE_AVX512_DISPATCH stays undefined, which
+# compiles the dispatch away.
+set(MMSEQS_AVX512_DISPATCH_FLAGS "" CACHE INTERNAL "")
+set(MMSEQS_WANT_AVX512_DISPATCH 0)
+if ((NOT AVX512_DISPATCH STREQUAL "OFF") AND (X86 OR X64))
+    if (AVX512_DISPATCH STREQUAL "ON" OR HAVE_AVX512 OR HAVE_AVX2)
+        # explicit baseline of AVX2 or better
+        set(MMSEQS_WANT_AVX512_DISPATCH 1)
+    elseif (NATIVE_ARCH AND HAVE_AVX2_EXTENSIONS)
+        # -march=native on a host that CheckSSEFeatures proved can run AVX2
+        set(MMSEQS_WANT_AVX512_DISPATCH 1)
+    endif ()
+endif ()
+if (MMSEQS_WANT_AVX512_DISPATCH)
+    include(CheckCXXSourceCompiles)
+    set(MMSEQS_AVX512_DISPATCH_FLAGS_TRY "-mavx512f -mavx512bw -mavx512dq -mavx512vl")
+    set(OLD_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+    set(CMAKE_REQUIRED_FLAGS "${MMSEQS_AVX512_DISPATCH_FLAGS_TRY}")
+    check_cxx_source_compiles("
+        #include <immintrin.h>
+        int main() {
+            __m512i a = _mm512_set1_epi8(1);
+            a = _mm512_adds_epu8(a, a);
+            __m256i b = _mm256_maskz_set1_epi8(_mm256_cmpgt_epi8_mask(_mm512_castsi512_si256(a), _mm256_setzero_si256()), 1);
+            return _mm_cvtsi128_si32(_mm256_castsi256_si128(b));
+        }"
+        HAVE_AVX512_DISPATCH)
+    set(CMAKE_REQUIRED_FLAGS "${OLD_CMAKE_REQUIRED_FLAGS}")
+    if (HAVE_AVX512_DISPATCH)
+        set(MMSEQS_AVX512_DISPATCH_FLAGS "${MMSEQS_AVX512_DISPATCH_FLAGS_TRY}" CACHE INTERNAL "")
+        message("-- AVX512 runtime dispatch enabled")
+    else ()
+        message("-- AVX512 runtime dispatch not available with this compiler")
+    endif ()
+else ()
+    message("-- AVX512 runtime dispatch disabled (baseline below AVX2, or turned off)")
 endif ()
 
 if (CYGWIN OR ARM OR PPC64)

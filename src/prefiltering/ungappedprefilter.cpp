@@ -15,6 +15,7 @@
 #include "SubstitutionMatrixProfileStates.h"
 #include "IndexReader.h"
 #include "QueryMatcherTaxonomyHook.h"
+#include "UngappedAligner.h"
 #include "Masker.h"
 
 #include <fcntl.h>
@@ -408,6 +409,9 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
 #ifdef OPENMP
     omp_set_nested(1);
 #endif
+    if (alignmentMode == 0) {
+        Debug(Debug::INFO) << "SIMD architecture: " << UngappedAligner::simdArchitecture() << "\n";
+    }
 
 #pragma omp parallel
     {
@@ -421,6 +425,10 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
         SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize,
                               par.compBiasCorrection, par.compBiasCorrectionScale, NULL);
+        // The gapless scan has its own runtime-dispatched implementation; the striped
+        // Smith-Waterman aligner above is only needed for alignmentMode != 0.
+        UngappedAligner ungappedAligner(par.maxSeqLen, subMat->alphabetSize,
+                                        par.compBiasCorrection, par.compBiasCorrectionScale);
 
         // A packed DB doesn't have left-over space for masking
         Masker masker(*subMat);
@@ -443,10 +451,12 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                 }
             }
 //            qSeq.printProfileStatePSSM();
-            if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ){
-                aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat);
-            }else{
-                aligner.ssw_init(&qSeq, tinySubMat, subMat);
+            const int8_t *queryMat = Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE)
+                                     ? qSeq.getAlignmentProfile() : tinySubMat;
+            if (alignmentMode == 0) {
+                ungappedAligner.initQuery(&qSeq, queryMat, subMat);
+            } else {
+                aligner.ssw_init(&qSeq, queryMat, subMat);
             }
 #pragma omp for schedule(static) nowait
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {
@@ -495,9 +505,9 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                     if (useAux) {
                         // ask for the diagonal too: the aux rescore needs the alignment this pass
                         // found, and recovering it afterwards would mean rescanning the matrix
-                        score = aligner.ungapped_alignment(tSeq.numSequence, tSeq.L, bestPrimaryDiagonal);
+                        score = ungappedAligner.score(tSeq.numSequence, tSeq.L, bestPrimaryDiagonal);
                     } else {
-                        score = aligner.ungapped_alignment(tSeq.numSequence, tSeq.L);
+                        score = ungappedAligner.score(tSeq.numSequence, tSeq.L);
                     }
                 } else {
                     std::string backtrace;

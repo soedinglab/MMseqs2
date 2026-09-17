@@ -1,7 +1,39 @@
 //
 // Created by mad on 12/15/15.
 
+#include "simd.h"
 #include "UngappedAlignment.h"
+
+// Bin size of the diagonal scoring. It follows the vector width, so it cannot live in the
+// header any more (that would pull simd.h into every includer of UngappedAlignment.h).
+#ifdef AVX512
+static const unsigned int DIAGONALBINSIZE = 16;
+#elif defined(AVX2)
+static const unsigned int DIAGONALBINSIZE = 8;
+#else
+static const unsigned int DIAGONALBINSIZE = 4;
+#endif
+
+
+static void extractScores(unsigned int *score_arr, simd_int score) {
+#ifdef AVX512
+    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(_mm512_extracti64x4_epi64(score, i <= 7 ? 0 : 1), i <= 7 ? i : i - 8) //might not work as it extracts 64 bit ints not 32, bt 32 is not avaibale on avx512F/BW
+    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
+    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
+    EXTRACT_AVX(8);  EXTRACT_AVX(9);  EXTRACT_AVX(10);  EXTRACT_AVX(11);
+    EXTRACT_AVX(12);  EXTRACT_AVX(13);  EXTRACT_AVX(14);  EXTRACT_AVX(15);
+#undef EXTRACT_AVX
+#elif defined(AVX2)
+    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(score, i)
+    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
+    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
+#undef EXTRACT_AVX
+#else
+#define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi32(score, i)
+    EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
+#undef EXTRACT_SSE
+#endif
+}
 
 UngappedAlignment::UngappedAlignment(const unsigned int maxSeqLen,
                                      BaseMatrix *substitutionMatrix, SequenceLookup *sequenceLookup,
@@ -604,25 +636,6 @@ unsigned short UngappedAlignment::distanceFromDiagonal(const unsigned short diag
     return std::min(dist1 , dist2);
 }
 
-void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
-#ifdef AVX512
-    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(_mm512_extracti64x4_epi64(score, i <= 7 ? 0 : 1), i <= 7 ? i : i - 8) //might not work as it extracts 64 bit ints not 32, bt 32 is not avaibale on avx512F/BW
-    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
-    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
-    EXTRACT_AVX(8);  EXTRACT_AVX(9);  EXTRACT_AVX(10);  EXTRACT_AVX(11);
-    EXTRACT_AVX(12);  EXTRACT_AVX(13);  EXTRACT_AVX(14);  EXTRACT_AVX(15);
-#undef EXTRACT_AVX
-#elif defined(AVX2)
-    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(score, i)
-    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
-    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
-#undef EXTRACT_AVX
-#else
-#define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi32(score, i)
-    EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
-#undef EXTRACT_SSE
-#endif
-}
 
 
 template <bool HasRemap>

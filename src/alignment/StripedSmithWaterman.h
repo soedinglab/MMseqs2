@@ -41,6 +41,7 @@
 #endif
 
 #include "BaseMatrix.h"
+#include "Util.h"
 
 #include "Sequence.h"
 #include "EvalueComputation.h"
@@ -179,41 +180,6 @@ public:
                         const int32_t maskLen);
 
 
-    /*!	@function computed ungapped alignment score
-
-   @param	db_sequence	pointer to the target sequence; the target sequence needs to be numbers and corresponding to the mat parameter of
-   function ssw_init
-
-   @param	db_length	length of the target sequence
-   @return	max diagonal score
-   */
-   int ungapped_alignment(const unsigned char *db_sequence,
-                          int32_t db_length);
-
-  /*!	@function	Same as ungapped_alignment, but additionally reports where the maximum was
-   found, as the diagonal of the best-scoring cell:
-
-       bestDiagonal = queryPos - dbPos
-
-   Callers that want to score a second channel along the alignment the ungapped pass found would
-   otherwise have to rescan the whole matrix to recover that diagonal, which is O(qLen * dbLen);
-   this hands it over for the price of one horizontal max per db position. The score returned is
-   identical to the 2-argument form -- use that one whenever the diagonal is not needed, so the
-   hot path stays untouched.
-
-   Note the score saturates at 255 - profile->bias (the accumulator is unsigned 8-bit), so on
-   strongly matching pairs several diagonals can reach the ceiling; the reported one is then the
-   first to get there rather than the true argmax.
-
-   @param	db_sequence	target sequence in numeric encoding
-   @param	db_length	length of the target sequence
-   @param	bestDiagonal	out: diagonal of the best-scoring cell (0 when the score is 0)
-   @return	max diagonal score
-   */
-   int ungapped_alignment(const unsigned char *db_sequence,
-                          int32_t db_length,
-                          int &bestDiagonal);
-
   /*!	@function	Create the query profile using the query sequence.
    @param	read	pointer to the query sequence; the query sequence needs to be numbers
    @param	readLen	length of the query sequence
@@ -277,12 +243,6 @@ public:
     const static unsigned int PROFILE_SEQ = 4;
 
 private:
-   // Shared body of the two ungapped_alignment overloads. TrackDiagonal is a compile-time flag so
-   // the non-tracking path generates exactly the code it did before this was added.
-   template <bool TrackDiagonal>
-   int ungapped_alignment_impl(const unsigned char *db_sequence, int32_t db_length,
-                               int *bestDiagonalOut);
-
     simd_data* simdData;
 
     typedef struct {
@@ -340,4 +300,40 @@ private:
 
     void reverseMat(int8_t *rev_mat, const int8_t *mat, const int32_t aaSize, const int32_t target_length);
 };
+
+/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch.
+   Defined here (and not in StripedSmithWaterman.cpp) because the runtime-dispatched gapless
+   aligner builds the same striped profile at its own vector width. The body is plain scalar
+   code -- Elements is just a number -- so it carries no SIMD types and each translation unit
+   instantiates it for the width it was compiled for. */
+template <typename T, size_t Elements, unsigned int type, typename ProfileT>
+void createQueryProfile(ProfileT *profile, const int8_t *query_sequence, const int8_t *composition_bias,
+                        const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias,
+                        const int32_t offset, const int32_t entryLength) {
+	const int32_t segLen = (query_length + Elements - 1) / Elements;
+	T* t = (T*) profile;
+	for (int32_t nt = 0; LIKELY(nt < aaSize); nt++) {
+		for (int32_t i = 0; i < segLen; i++) {
+			int32_t  j = i;
+			for (size_t segNum = 0; LIKELY(segNum < Elements) ; segNum++) {
+				// if will be optmized out by compiler
+				if (type == SmithWaterman::SUBSTITUTIONMATRIX) {    // substitution score for query_seq constrained by nt
+					// query_sequence starts from 1 to n
+					if (j >= query_length) {
+						*t++ = bias;
+					} else {
+						const int q = query_sequence[j + offset];
+						const float cb = composition_bias[j + offset];
+						*t++ = mat[nt * aaSize + q] + cb + bias;
+					}
+				} if (type == SmithWaterman::PROFILE) {
+					// profile starts by 0
+					*t++ = (j >= query_length) ? bias : mat[nt * entryLength + j + offset] + bias;
+				}
+				j += segLen;
+			}
+		}
+	}
+}
+
 #endif /* SMITH_WATERMAN_SSE2_H */
