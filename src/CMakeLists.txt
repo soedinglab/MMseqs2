@@ -55,6 +55,12 @@ target_include_directories(mmseqs-framework PUBLIC taxonomy)
 target_include_directories(mmseqs-framework PUBLIC util)
 target_include_directories(mmseqs-framework PUBLIC .)
 
+if (NOT (MMSEQS_AVX512_DISPATCH_FLAGS STREQUAL ""))
+    # PUBLIC: the dispatch lives inline in UngappedAligner.h/Fwbw.h, so every includer
+    # (including the test targets) needs to see the same decision.
+    target_compile_definitions(mmseqs-framework PUBLIC -DMMSEQS_HAVE_AVX512_DISPATCH=1)
+endif ()
+
 if (USE_PCH)
     if (CMAKE_VERSION VERSION_LESS "3.16")
         message(WARNING "-- USE_PCH needs CMake >= 3.16, ignoring")

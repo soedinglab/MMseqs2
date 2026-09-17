@@ -2,7 +2,7 @@
 #include "Parameters.h"
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
-#include "StripedSmithWaterman.h"
+#include "UngappedAligner.h"
 
 #include <sys/time.h>
 
@@ -67,10 +67,10 @@ int main (int, const char**) {
             Util::decomposeDomain(targets, thread_idx, par.threads, &ignore, &total);
             sanityCheck += total;
 
-            SmithWaterman aligner(seqLen, subMat.alphabetSize, false, 1.0, &subMat);
+            UngappedAligner aligner(seqLen, subMat.alphabetSize, false, 1.0);
             Sequence qSeq(seqLen, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, false);
             qSeq.mapSequence(0, 0, seq, seqLen);
-            aligner.ssw_init(&qSeq, tinySubMat, &subMat);
+            aligner.initQuery(&qSeq, tinySubMat, &subMat);
 
             unsigned int tseed = 42 + thread_idx;
             unsigned char** targetSeqs = new unsigned char*[total];
@@ -83,7 +83,7 @@ int main (int, const char**) {
             struct timeval end;
             gettimeofday(&start, NULL);
             for (size_t i = 0; i < total; i++) {
-                score = aligner.ungapped_alignment(targetSeqs[i], seqLen);
+                score = aligner.score(targetSeqs[i], seqLen);
             }
             gettimeofday(&end, NULL);
             double diff = (end.tv_sec - start.tv_sec) + 1e-6 * (end.tv_usec - start.tv_usec);

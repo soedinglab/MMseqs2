@@ -1,3 +1,4 @@
+#include "simd.h"
 #include "SubstitutionMatrix.h"
 #include "QueryMatcher.h"
 #include "FastSort.h"
