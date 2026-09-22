@@ -270,7 +270,7 @@ bool findReferenceProteome(std::vector<ProteomeEntry>& proteomeList, DBKeyType& 
         float weightCC = (par.weightClusterCount > 0) ? par.weightClusterCount : par.proteomeWeightClusterCount;
         for (auto& key : availableProteomeKeys) {
             ProteomeEntry& proteome = proteomeList[proteomekeyToIndex[key]];
-            float tmpNormalizedClusterCount = static_cast<float>(proteome.clusterCount) / totalClusterCount;
+            float tmpNormalizedClusterCount = static_cast<float>(proteome.clusterCount) / std::max(totalClusterCount, 1u);
             float score = static_cast<float> (proteome.ppsWeight) + tmpNormalizedClusterCount * weightCC;
             
             if (score > maxScore) {
@@ -425,7 +425,9 @@ int proteomecluster(int argc, const char **argv, const Command &command){
 
     std::cout << "Number of clusters from protein clustering: " << linResDB.getSize() << "\n";
     std::cout << "Total Cluster Count(no singleton): " << totalClusterCount << "\n";
-
+    if (totalClusterCount == 0) {
+        Debug(Debug::WARNING) << "No cluster spans more than one proteome, all cluster count ratios are reported as 0\n";
+    }
     for (size_t i = 0; i < clusterReps.size(); i++) { // Need to erase later 
         if (clusterReps[i].memberProteins.size() == 0) {
             std::cout << "Cluster Reps " << i << " has no member proteins!!" << std::endl;
@@ -445,7 +447,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     timer.reset();
     // Output Write1. Generate clusterCount Report as output
     for (size_t idx=0; idx < proteomeList.size(); idx++){ // we can apply multithread but then id sequences are shuffled(not sorted). Is there any smart way to do this?
-        float clusterCountRatio = static_cast<float> (proteomeList[idx].clusterCount) / static_cast<float> (totalClusterCount);
+        float clusterCountRatio = static_cast<float> (proteomeList[idx].clusterCount) / static_cast<float> (std::max(totalClusterCount, 1u));
         char proteomeBuffer[1024];
         clusterCountWriter.writeStart();
         char *basePos = proteomeBuffer;
