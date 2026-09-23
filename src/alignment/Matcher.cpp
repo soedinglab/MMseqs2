@@ -351,7 +351,8 @@ void Matcher::updateResultByRescoringBacktrace(const char *querySeq, const char 
         char letter = result.backtrace[pos];
         int curr;
         if (letter == 'M') {
-            curr = subMat[static_cast<int>(querySeq[queryPos])][static_cast<int>(targetSeq[targetPos])];
+            curr = subMat[static_cast<unsigned char>(querySeq[queryPos])]
+                         [static_cast<unsigned char>(targetSeq[targetPos])];
             identicalAAs += (querySeq[queryPos] == targetSeq[targetPos]);
             isGapOpen = false;
         } else {

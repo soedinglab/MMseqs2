@@ -21,11 +21,11 @@ public:
         if (globalAlignment)
         {
             for(unsigned int pos = 0; pos < length; pos++){
-                max += subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
+                max += subMat[static_cast<unsigned char>(seq1[pos])][static_cast<unsigned char>(seq2[pos])];
             }
         } else {
             for(unsigned int pos = 0; pos < length; pos++){
-                int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
+                int curr = subMat[static_cast<unsigned char>(seq1[pos])][static_cast<unsigned char>(seq2[pos])];
                 score = curr  + score;
                 score = (score < 0) ? 0 : score;
                 max = (score > max)? score : max;
@@ -186,7 +186,7 @@ public:
 //        int maxMinPos = 0;
         int score = 0;
         for(unsigned int pos = 0; pos < length; pos++){
-            int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
+            int curr = subMat[static_cast<unsigned char>(seq1[pos])][static_cast<unsigned char>(seq2[pos])];
             score = curr  + score;
             const bool isMinScore = (score <= 0);
             score =  (isMinScore) ? 0 : score;
@@ -211,7 +211,7 @@ public:
             last--;
         int64_t score = 0;
         for(unsigned int pos = first; pos <= last; pos++){
-            int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
+            int curr = subMat[static_cast<unsigned char>(seq1[pos])][static_cast<unsigned char>(seq2[pos])];
             score += curr;
         }
         score = std::max(score, (int64_t) 0);
@@ -263,7 +263,7 @@ public:
 
         }
         for(unsigned int pos = maxStartPos; pos < maxEndPos; pos++){
-            int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
+            int curr = subMat[static_cast<unsigned char>(seq1[pos])][static_cast<unsigned char>(seq2[pos])];
             maxScore += curr;
         }
 

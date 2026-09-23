@@ -4,6 +4,7 @@
 #include "LambdaCalculation.h"
 
 #include <cstring>
+#include <cctype>
 #include <algorithm>
 #include <fstream>
 #include <cmath>
@@ -45,10 +46,10 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
     if(mappingHasAminoAcidLetters()){
         setupLetterMapping();
     }else {
-        for (int letter = 0; letter < UCHAR_MAX; letter++) {
-            char upperLetter = toupper(static_cast<char>(letter));
+        for (size_t letter = 0; letter <= UCHAR_MAX; letter++) {
+            int upperLetter = std::toupper(static_cast<unsigned char>(letter));
             aa2num[letter] = (aa2num[static_cast<unsigned char>(upperLetter)] == UCHAR_MAX)
-                             ? alphabetSize-1 : aa2num[static_cast<int>(upperLetter)];
+                             ? alphabetSize-1 : aa2num[static_cast<unsigned char>(upperLetter)];
         }
     }
 
@@ -255,8 +256,8 @@ bool SubstitutionMatrix::mappingHasAminoAcidLetters(){
 }
 
 void SubstitutionMatrix::setupLetterMapping(){
-    for(int letter = 0; letter < UCHAR_MAX; letter++){
-        char upperLetter = toupper(static_cast<char>(letter));
+    for(size_t letter = 0; letter <= UCHAR_MAX; letter++){
+        int upperLetter = std::toupper(static_cast<unsigned char>(letter));
         switch(upperLetter){
             case 'A':
             case 'T':
@@ -279,19 +280,19 @@ void SubstitutionMatrix::setupLetterMapping(){
             case 'W':
             case 'Y':
             case 'X':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>(upperLetter)];
+                this->aa2num[letter] = this->aa2num[static_cast<unsigned char>(upperLetter)];
                 break;
             case 'J':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'L'];
+                this->aa2num[letter] = this->aa2num[(int)'L'];
                 break;
             case 'U':
             case 'O':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'X'];
+                this->aa2num[letter] = this->aa2num[(int)'X'];
                 break;
-            case 'Z': this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'E']; break;
-            case 'B': this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'D']; break;
+            case 'Z': this->aa2num[letter] = this->aa2num[(int)'E']; break;
+            case 'B': this->aa2num[letter] = this->aa2num[(int)'D']; break;
             default:
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'X'];
+                this->aa2num[letter] = this->aa2num[(int)'X'];
                 break;
         }
     }
@@ -301,9 +302,9 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *num2aa, int *aa2num) {
     char *charReader = word;
     int minAAInt = INT_MAX;
     // find amino acid with minimal int value
-    while (isalpha(*charReader)) {
+    while (std::isalpha(static_cast<unsigned char>(*charReader))) {
         const char aa = *charReader;
-        const int intAA = aa2num[static_cast<int>(aa)];
+        const int intAA = aa2num[static_cast<unsigned char>(aa)];
         minAAInt = std::max(minAAInt, intAA);
         charReader++;
     }
@@ -313,10 +314,10 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *num2aa, int *aa2num) {
     char minAAChar = num2aa[minAAInt];
     // do alphabet reduction
     charReader = word;
-    while (isalpha(*charReader)) {
+    while (std::isalpha(static_cast<unsigned char>(*charReader))) {
         const char aa = *charReader;
-        const int intAA = aa2num[static_cast<int>(aa)];
-        aa2num[static_cast<int>(aa)] = minAAInt;
+        const int intAA = aa2num[static_cast<unsigned char>(aa)];
+        aa2num[static_cast<unsigned char>(aa)] = minAAInt;
         num2aa[intAA] = minAAChar;
         charReader++;
     }
@@ -356,11 +357,11 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
             continue;
         }
         if (wordCnt > 1 && probMatrixStart == true) {
-            if (isalpha(words[0][0]) == false) {
+            if (std::isalpha(static_cast<unsigned char>(words[0][0])) == false) {
                 Debug(Debug::ERROR) << "First element in probability line must be an alphabet letter.\n";
                 EXIT(EXIT_FAILURE);
             }
-            int aa = static_cast<int>(aa2num[toupper(words[0][0])]);
+            int aa = static_cast<int>(aa2num[std::toupper(static_cast<unsigned char>(words[0][0]))]);
             for (int i = 0; i < alphabetSize; i++) {
                 double f = strtod(words[i + 1], NULL);
                 probMatrix[aa][i] = f; // divided by 2 because we scale bit/2 ot bit
@@ -431,11 +432,11 @@ std::pair<int, bool> SubstitutionMatrix::setAaMappingDetectAlphSize(std::string 
         }
         if (wordCnt > 1) {
             for (size_t i = 0; i < wordCnt; i++) {
-                if (isalpha(words[i][0]) == false) {
+                if (std::isalpha(static_cast<unsigned char>(words[i][0])) == false) {
                     Debug(Debug::ERROR) << "Probability matrix must start with alphabet header.\n";
                     EXIT(EXIT_FAILURE);
                 }
-                int aa = toupper(words[i][0]);
+                int aa = std::toupper(static_cast<unsigned char>(words[i][0]));
                 aa2num[aa] = static_cast<unsigned char>(i);
                 num2aa[i] = aa;
                 if (aa == 'X') {
@@ -449,7 +450,6 @@ std::pair<int, bool> SubstitutionMatrix::setAaMappingDetectAlphSize(std::string 
     }
     return std::make_pair(-1, false);
 }
-
 
 
 
