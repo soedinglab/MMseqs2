@@ -70,7 +70,6 @@ struct s_profile {
 	int32_t alphabetSize;
 	uint8_t bias;
 	short ** profile_word_linear;
-	int32_t ** profile_int_linear;
 };
 
 struct s_block {
@@ -653,23 +652,72 @@ std::pair<alignment_end, alignment_end> sw_sse2_int(
 
 SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
                              float aaBiasCorrectionScale, SubstitutionMatrix * subMat) {
-	maxSequenceLength += 1;
 	this->subMat = subMat;
+	this->aaSize = aaSize;
     this->aaBiasCorrectionScale = aaBiasCorrectionScale;
 	this->aaBiasCorrection = aaBiasCorrection;
+	queryCapacity = maxSequenceLength + 1;
+	targetCapacity = maxSequenceLength + 1;
+	blockQueryCapacity = 0;
+	blockTargetCapacity = 0;
 
-	// int32_t alignment needs larger seqSize, was +7/8 for word before
-    segSize = (maxSequenceLength+3)/4;
 	simdData = new simd_data();
+	profile = new s_profile();
+	block = new s_block();
+	profile->profile_word_linear = new short*[aaSize];
+	block->mat_aa = block_new_simple_aamatrix(1, -1);
+
+	allocQuery();
+	allocTarget();
+}
+
+SmithWaterman::~SmithWaterman(){
+	freeQuery();
+	freeTarget();
+	freeBlockTrace();
+	block_free_aamatrix(block->mat_aa);
+	delete [] profile->profile_word_linear;
+	delete profile;
+	delete simdData;
+	delete block;
+}
+
+void SmithWaterman::resizeQuery(size_t queryLen) {
+	if (queryLen + 1 <= queryCapacity) {
+		return;
+	}
+	freeQuery();
+	queryCapacity = queryLen + 1;
+	allocQuery();
+}
+
+void SmithWaterman::resizeTarget(size_t targetLen) {
+	if (targetLen + 1 <= targetCapacity) {
+		return;
+	}
+	freeTarget();
+	targetCapacity = targetLen + 1;
+	allocTarget();
+}
+
+void SmithWaterman::resizeBlockTrace(size_t queryLen, size_t targetLen) {
+	if (queryLen <= blockQueryCapacity && targetLen <= blockTargetCapacity) {
+		return;
+	}
+	freeBlockTrace();
+	blockQueryCapacity = std::max(blockQueryCapacity, queryLen + 1);
+	blockTargetCapacity = std::max(blockTargetCapacity, targetLen + 1);
+	block->block_trace = block_new_aa_trace_xdrop(blockQueryCapacity, blockTargetCapacity, MAX_SIZE);
+}
+
+void SmithWaterman::allocQuery() {
+	// int32_t alignment needs larger seqSize, was +7/8 for word before
+	segSize = (queryCapacity + 3) / 4;
 	simdData->vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	simdData->vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	simdData->vE      = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	simdData->vHmax   = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 
-    isQueryProfile = false;
-
-    // setting up query
-	profile = new s_profile();
 	// query profile
 	profile->profile_byte = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 	profile->profile_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
@@ -680,39 +728,30 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	profile->profile_rev_int = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 
 	// query sequence
-    profile->query_sequence     = new int8_t[maxSequenceLength];
-	profile->query_rev_sequence = new int8_t[maxSequenceLength];
-	profile->composition_bias   = new int8_t[maxSequenceLength];
-	profile->composition_bias_rev   = new int8_t[maxSequenceLength];
-	profile->profile_word_linear = new short*[aaSize];
-	profile_word_linear_data = new short[aaSize*maxSequenceLength];
-	profile->profile_int_linear = new int32_t*[aaSize];
-	profile_int_linear_data = new int32_t[aaSize*maxSequenceLength];
-	profile->mat_rev            = new int8_t[std::max(maxSequenceLength, (size_t)aaSize) * aaSize * 2]; // why multiply 2?
-	profile->mat                = new int8_t[std::max(maxSequenceLength, (size_t)aaSize) * aaSize * 2];
-	tmp_composition_bias   = new float[maxSequenceLength];
-    scorePerCol = new int8_t[maxSequenceLength];
-    /* array to record the largest score of each reference position */
-	simdData->maxColumn = new uint8_t[maxSequenceLength*sizeof(uint32_t)];
-	memset(simdData->maxColumn, 0, maxSequenceLength*sizeof(uint32_t));
-	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->mat_rev, 0, maxSequenceLength * aaSize);
-	memset(profile->composition_bias, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->composition_bias_rev, 0, maxSequenceLength * sizeof(int8_t));
+    profile->query_sequence     = new int8_t[queryCapacity];
+	profile->query_rev_sequence = new int8_t[queryCapacity];
+	profile->composition_bias   = new int8_t[queryCapacity];
+	profile->composition_bias_rev   = new int8_t[queryCapacity];
+	profile_word_linear_data = new short[aaSize*queryCapacity];
+	profile->mat_rev            = new int8_t[std::max(queryCapacity, (size_t)aaSize) * aaSize * 2]; // why multiply 2?
+	profile->mat                = new int8_t[std::max(queryCapacity, (size_t)aaSize) * aaSize * 2];
+	tmp_composition_bias   = new float[queryCapacity];
+    scorePerCol = new int8_t[queryCapacity];
+	memset(profile->query_sequence, 0, queryCapacity * sizeof(int8_t));
+	memset(profile->query_rev_sequence, 0, queryCapacity * sizeof(int8_t));
+	memset(profile->mat_rev, 0, queryCapacity * aaSize);
+	memset(profile->composition_bias, 0, queryCapacity * sizeof(int8_t));
+	memset(profile->composition_bias_rev, 0, queryCapacity * sizeof(int8_t));
 
 	// blockaligner
-	block = new s_block();
-	block->query = block_new_padded_aa(maxSequenceLength, MAX_SIZE);
-	block->query_bias = block_new_pos_bias(maxSequenceLength, MAX_SIZE);
-	block->mat_aa = block_new_simple_aamatrix(1, -1);
-	block->block_trace = block_new_aa_trace_xdrop(maxSequenceLength, maxSequenceLength, MAX_SIZE);
-	block->query_bias_arr = new int16_t[maxSequenceLength];
+	block->query = block_new_padded_aa(queryCapacity, MAX_SIZE);
+	block->query_bias = block_new_pos_bias(queryCapacity, MAX_SIZE);
+	block->query_bias_arr = new int16_t[queryCapacity];
 
-	profile->pos_aa_rev = new int8_t[maxSequenceLength * 32];
+	profile->pos_aa_rev = new int8_t[queryCapacity * 32];
 }
 
-SmithWaterman::~SmithWaterman(){
+void SmithWaterman::freeQuery() {
 	free(simdData->vHStore);
 	free(simdData->vHLoad);
 	free(simdData->vE);
@@ -727,25 +766,33 @@ SmithWaterman::~SmithWaterman(){
 	delete [] profile->query_sequence;
 	delete [] profile->composition_bias;
 	delete [] profile->composition_bias_rev;
-	delete [] profile->profile_word_linear;
 	delete [] profile_word_linear_data;
-	delete [] profile->profile_int_linear;
-	delete [] profile_int_linear_data;
 	delete [] profile->mat_rev;
 	delete [] profile->mat;
 	delete [] tmp_composition_bias;
 	delete [] scorePerCol;
-	delete [] simdData->maxColumn;
 	delete [] profile->pos_aa_rev;
-	delete profile;
-	delete simdData;
 
 	block_free_padded_aa(block->query);
 	block_free_pos_bias(block->query_bias);
-	block_free_aamatrix(block->mat_aa);
-	block_free_aa_trace_xdrop(block->block_trace);
 	delete [] block->query_bias_arr;
-	delete block;
+}
+
+void SmithWaterman::allocTarget() {
+	/* array to record the largest score of each reference position */
+	simdData->maxColumn = new uint8_t[targetCapacity*sizeof(uint32_t)];
+	memset(simdData->maxColumn, 0, targetCapacity*sizeof(uint32_t));
+}
+
+void SmithWaterman::freeTarget() {
+	delete [] simdData->maxColumn;
+}
+
+void SmithWaterman::freeBlockTrace() {
+	if (block->block_trace != NULL) {
+		block_free_aa_trace_xdrop(block->block_trace);
+		block->block_trace = NULL;
+	}
 }
 
 
@@ -815,6 +862,7 @@ s_align SmithWaterman::ssw_align (
         EvalueComputation * evaluer,
         const int covMode, const float covThr, const float correlationScoreWeight,
         const int32_t maskLen) {
+    resizeTarget(db_length);
     s_align alignment;
     // check if both query and target are profiles
 	if (profile->isProfile) {
@@ -862,9 +910,8 @@ s_align SmithWaterman::ssw_align_private (
 		return align;
 	}
 
-	// run very shot and long overflowing alignments with SW instead of block aligner
-	// short alignments are very fast with byte SW, long alignments produce slightly different scores FIXME
-	if (align.word != 1) {
+	// byte SW is faster than the block aligner on the short alignments it can score
+	if (align.word == 0) {
 		return alignStartPosBacktrace<type>(db_sequence, db_length, gap_open, gap_extend, alignmentMode, backtrace, align, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
 	}
 
@@ -960,6 +1007,8 @@ s_align SmithWaterman::alignStartPosBacktraceBlock(
 	// set query
 	int32_t queryAlnLen = r.qEndPos1 + 1;
 	int32_t queryStartPos = query_len - queryAlnLen;
+	int32_t targetAlnLen = r.dbEndPos1 + 1;
+	resizeBlockTrace(queryAlnLen, targetAlnLen);
 	if (type == PROFILE_SEQ) {
 		queryProfile = block_new_aaprofile(queryAlnLen, MAX_SIZE, gaps.extend);
 		// Fill pos_aa_block and aa_pos_block with the relevant range(0-qEndPos, queryAlnLen)
@@ -996,7 +1045,6 @@ s_align SmithWaterman::alignStartPosBacktraceBlock(
 		block_set_pos_bias(block->query_bias, block->query_bias_arr + queryStartPos, queryAlnLen);
 	}
 	// set target
-	int32_t targetAlnLen = r.dbEndPos1 + 1;
 	int32_t targetStartPos = target_len - targetAlnLen;
 	PaddedBytes* target = block_new_padded_aa(target_len, MAX_SIZE);
 
@@ -1361,6 +1409,7 @@ int SmithWaterman::computeCorrelationScore(int8_t * scorePreCol, size_t length){
 void SmithWaterman::ssw_init(const Sequence* q,
 							 const int8_t* mat,
 							 const BaseMatrix *m) {
+	resizeQuery(q->L);
 	//init profile
     profile->bias = 0;
 	profile->query_length = q->L;

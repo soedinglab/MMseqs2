@@ -54,6 +54,7 @@ int alignall(int argc, const char **argv, const Command &command) {
     resultWriter.open();
 
     EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
+    const size_t maxMatcherSeqLen = std::min(par.maxSeqLen, (size_t)tdbr.getMaxSeqLen());
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
 
@@ -67,7 +68,7 @@ int alignall(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-            Matcher matcher(targetSeqType, tdbr.getMaxSeqLen(), subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
+            Matcher matcher(targetSeqType, maxMatcherSeqLen, subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
 
             Sequence query(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
