@@ -285,12 +285,6 @@ private:
 
     simd_data* simdData;
 
-    // target variables
-    int segSize;
-
-    // needed for type checking query and target databases
-    bool isQueryProfile;
-
     typedef struct {
         uint32_t* seq;
         int32_t length;
@@ -321,11 +315,26 @@ private:
     float *tmp_composition_bias;
     int8_t * scorePerCol;
     short * profile_word_linear_data;
-    int32_t * profile_int_linear_data;
+
+    int segSize;
+    size_t queryCapacity;
+    size_t targetCapacity;
+    size_t blockQueryCapacity;
+    size_t blockTargetCapacity;
+    int aaSize;
 
     bool aaBiasCorrection;
     float aaBiasCorrectionScale;
     SubstitutionMatrix * subMat;
+
+    void resizeQuery(size_t queryLen);
+    void resizeTarget(size_t targetLen);
+    void resizeBlockTrace(size_t queryLen, size_t targetLen);
+    void allocQuery();
+    void freeQuery();
+    void allocTarget();
+    void freeTarget();
+    void freeBlockTrace();
 
     uint8_t computeBias(const int32_t target_length, const int8_t *mat, const int32_t aaSize);
 

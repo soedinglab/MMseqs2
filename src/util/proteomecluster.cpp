@@ -480,6 +480,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     Debug(Debug::INFO) << "Start Proteome Clustering " << "\n";
     timer.reset();
     DBKeyType referenceProteomeKey = DB_KEY_INVALID;
+    const size_t maxMatcherSeqLen = std::min(par.maxSeqLen, (size_t)tProteinDB.getMaxSeqLen());
     //Main Loop - alignment
     while (findReferenceProteome(proteomeList, referenceProteomeKey, tProteinDB, par, availableProteomeKeys, proteomekeyToIndex, totalClusterCount)) {
         Debug(Debug::INFO) << "Reference Proteome. Key: " << referenceProteomeKey <<  ", Name: " << tProteinDB.getSourceFileName(static_cast<size_t>(referenceProteomeKey)) << "\n";
@@ -493,7 +494,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
         #endif   
-            Matcher matcher(tProteinSeqType, tProteinDB.getMaxSeqLen(), &subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
+            Matcher matcher(tProteinSeqType, maxMatcherSeqLen, &subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
             Sequence query(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             std::vector <unsigned int> localsharedEntryCount(proteomeList.size(), 0);
