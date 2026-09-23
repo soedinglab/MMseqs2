@@ -14,6 +14,7 @@
 #include "Parameters.h"
 
 #include <iomanip>
+#include <sstream>
 #include <climits>
 #include <cassert>
 
