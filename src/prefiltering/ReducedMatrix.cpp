@@ -13,8 +13,8 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     initMatrixMemory(orgAlphabetSize);
     // swap the matrix and alphabet mappings
     this->origAlphabetSize = orgAlphabetSize;
-    this->orig_aa2num = new unsigned char[UCHAR_MAX];
-    memcpy(orig_aa2num, aa2num, sizeof(unsigned char) * UCHAR_MAX);
+    this->orig_aa2num = new unsigned char[static_cast<size_t>(UCHAR_MAX) + 1];
+    memcpy(orig_aa2num, aa2num, sizeof(unsigned char) * (static_cast<size_t>(UCHAR_MAX) + 1));
     this->orig_num2aa = new char[orgAlphabetSize];
     memcpy(orig_num2aa, num2aa, sizeof(char) * orgAlphabetSize);
 
@@ -25,7 +25,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     }
     // initialize new matrices and alphabet mappings
     this->alphabetSize = reducedAlphabetSize;
-    for (size_t i = 0; i < UCHAR_MAX; ++i) { this->aa2num[i] = orig_aa2num[i]; };
+    for (size_t i = 0; i <= UCHAR_MAX; ++i) { this->aa2num[i] = orig_aa2num[i]; };
     for (size_t i = 0; i < origAlphabetSize; ++i){
         this->num2aa[i] = orig_num2aa[i];
         reducedAlphabet.push_back(this->num2aa[i]);
@@ -76,7 +76,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
                 this->num2aa[i]=reduced_aa;
             }
         }
-        for (int i =0; i < UCHAR_MAX; i++) {
+        for (size_t i = 0; i <= UCHAR_MAX; i++) {
             if (this->aa2num[i]==lost_int) {
                 this->aa2num[i] = (int) reduced_int;
             }
@@ -94,7 +94,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     for(size_t i = 0; i<reducedAlphabet.size(); i++){
         const char representative_aa = reducedAlphabet.at(i);
         Debug(Debug::INFO) << "(" << representative_aa;
-        for(size_t j =0; j < UCHAR_MAX; j++){
+        for(size_t j = 0; j <= UCHAR_MAX; j++){
             if(this->aa2num[static_cast<int>(j)] == this->aa2num[static_cast<int>(representative_aa)]){
                 if(j>=65 && j <=90 && static_cast<char>(j) != representative_aa && representative_aa != 'X'){ // only upper case letters
                     Debug(Debug::INFO) << " " << static_cast<char>(j);

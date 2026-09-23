@@ -1,4 +1,5 @@
 #include "NucleotideMatrix.h"
+#include <cctype>
 #include <climits>
 
 NucleotideMatrix::NucleotideMatrix(const char* scoringMatrixFileName, float bitFactor, float scoreBias)
@@ -15,8 +16,8 @@ NucleotideMatrix::NucleotideMatrix(const char* scoringMatrixFileName, float bitF
 
 
 void NucleotideMatrix::setupLetterMapping(){
-    for(int letter = 0; letter < UCHAR_MAX; letter++){
-        char upperLetter = toupper(static_cast<char>(letter));
+    for(size_t letter = 0; letter <= UCHAR_MAX; letter++){
+        int upperLetter = std::toupper(static_cast<unsigned char>(letter));
         /*
          * R.................A or G
          * Y.................C or T
@@ -34,11 +35,11 @@ void NucleotideMatrix::setupLetterMapping(){
             case 'T':
             case 'G':
             case 'C':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>(upperLetter)];
+                this->aa2num[letter] = this->aa2num[static_cast<unsigned char>(upperLetter)];
                 break;
             case 'U':
             case 'W':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('T')];
+                this->aa2num[letter] = this->aa2num[static_cast<int>('T')];
                 break;
             case 'K':
             case 'B':
@@ -46,15 +47,15 @@ void NucleotideMatrix::setupLetterMapping(){
             case 'V':
             case 'R':
             case 'S':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('G')];
+                this->aa2num[letter] = this->aa2num[static_cast<int>('G')];
                 break;
             case 'M':
             case 'Y':
             case 'H':
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('C')];
+                this->aa2num[letter] = this->aa2num[static_cast<int>('C')];
                 break;
             default:
-                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('X')];
+                this->aa2num[letter] = this->aa2num[static_cast<int>('X')];
                 break;
         }
     }
@@ -64,4 +65,3 @@ void NucleotideMatrix::setupLetterMapping(){
 NucleotideMatrix::~NucleotideMatrix(){
     delete [] reverseLookup;
 }
-

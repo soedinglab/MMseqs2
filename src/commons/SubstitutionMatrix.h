@@ -52,7 +52,7 @@ public:
         {}
     };
 
-    // Build a table covering every byte value that aa2num maps (0..UCHAR_MAX-1), not just
+    // Build a table covering every byte value that aa2num maps (0..UCHAR_MAX), not just
     // the printable-ASCII range up to 'z'. DistanceCalculator.h's ungapped scoring functions
     // index this table directly with raw, untranslated byte values (not routed through
     // aa2num first), so any byte the table doesn't cover reads past the end of `matrix` and
@@ -60,7 +60,7 @@ public:
     // already sends every unmapped byte to the 'X' index, so widening this table is safe.
     static FastMatrix createAsciiSubMat(BaseMatrix & submat){
         const size_t asciiStart = 0;
-        const size_t asciiEnd = UCHAR_MAX;
+        const size_t asciiEnd = static_cast<size_t>(UCHAR_MAX) + 1;
         const size_t range = asciiEnd-asciiStart;
         char ** matrix = new char *[range];
         char * matrixData = new char[range*range];
