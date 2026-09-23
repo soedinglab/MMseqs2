@@ -13,8 +13,8 @@ BaseMatrix::BaseMatrix(){
     // init [amino acid <-> int] mappings
 
     num2aa = new char[255];
-    aa2num = new unsigned char[UCHAR_MAX];
-    for (int i = 0; i < UCHAR_MAX; ++i) {
+    aa2num = new unsigned char[static_cast<size_t>(UCHAR_MAX) + 1];
+    for (size_t i = 0; i <= UCHAR_MAX; ++i) {
         aa2num[i] = UCHAR_MAX;
     }
 }
