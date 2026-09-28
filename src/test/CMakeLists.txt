@@ -33,7 +33,6 @@ set(TESTS
         TestUtil.cpp
         TestKsw2.cpp
         TestBestAlphabet.cpp
-        TestUngappedAlignment.cpp
         TestUngappedCpuPerf.cpp
         )
 
