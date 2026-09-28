@@ -263,15 +263,16 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
 
         // update score
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
-            hits[seqs[hitIdx].id]->count = static_cast<unsigned char>(std::min(static_cast<unsigned int>(255),
-                                                                               score_arr[hitIdx]));
+            CounterResult *const hit = hits[seqs[hitIdx].id];
+            hit->count = static_cast<unsigned char>(std::min(static_cast<unsigned int>(255),
+                                                           score_arr[hitIdx]));
             if(seqs[hitIdx].seqLen == 0){
                 unsigned int dbLen2;
-                const unsigned char *dbPtr2 = getDbSeq<HasRemap>(hits[hitIdx]->id, dbLen2);
+                const unsigned char *dbPtr2 = getDbSeq<HasRemap>(hit->id, dbLen2);
                 if(dbLen2 >= 32768){
                     std::pair<const unsigned char *, const unsigned int> dbSeq2 = std::make_pair(dbPtr2, dbLen2);
                     int max = computeLongScore(queryProfile, queryLen, dbSeq2, diagonal);
-                    hits[seqs[hitIdx].id]->count = static_cast<unsigned char>(std::min(255, max));
+                    hit->count = static_cast<unsigned char>(std::min(255, max));
                 }
             }
         }
