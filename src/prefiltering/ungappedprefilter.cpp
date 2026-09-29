@@ -405,7 +405,6 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
     const unsigned char auxMaskNum = (subMatAux != NULL)
             ? (unsigned char)subMatAux->aa2num[(int)'X'] : 0;
     size_t rescoreCount = 0;
-    const size_t maxAlignerSeqLen = std::min(par.maxSeqLen, (size_t)std::max(qdbr->getMaxSeqLen(), tdbr->getMaxSeqLen()));
 #ifdef OPENMP
     omp_set_nested(1);
 #endif
@@ -420,7 +419,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
         std::vector<hit_t> threadShortResults;
         Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
-        SmithWaterman aligner(maxAlignerSeqLen, subMat->alphabetSize,
+        SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize,
                               par.compBiasCorrection, par.compBiasCorrectionScale, NULL);
 
         // A packed DB doesn't have left-over space for masking
