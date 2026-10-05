@@ -91,10 +91,15 @@ void setClusterAutomagicParameters(Parameters& par) {
     if (par.PARAM_INCLUDE_COUNTTABLE.wasSet == false) {
         if (nonsymetric) {
             par.includeCountTable = false;
+            par.countTableIteration = 0;
         } else {
             par.includeCountTable = true;
         }
         par.PARAM_INCLUDE_COUNTTABLE.wasSet = true;
+    }
+    if (par.PARAM_INCLUDE_ADJACENCY.wasSet == false && par.PARAM_NUM_ADJACENCY.wasSet == false) {
+        par.adjIteration = nonsymetric ? Parameters::CLUST_LINEAR_DEFAULT_NUM_ADJACENCY
+                                       : Parameters::CLUST_LINEAR_SYMMETRIC_NUM_ADJACENCY;
     }
     if (nonsymetric && par.clusteringMode != Parameters::GREEDY && par.clusteringMode != Parameters::GREEDY_MEM) {
         Debug(Debug::WARNING) << "Combining cluster mode " << par.clusteringMode
@@ -278,6 +283,9 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             // so the switch happens only once on the final cascaded clustering
             bool prevSwitch = par.switchConsensusRep;
             par.switchConsensusRep = false;
+            if (par.PARAM_CLUST_HASH.wasSet == false) {
+                par.clustHash = (par.linclustVersion == Parameters::LINCLUST_VERSION2);
+            }
             cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
             par.switchConsensusRep = prevSwitch;
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
