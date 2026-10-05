@@ -21,11 +21,16 @@ set(USE_SYSTEM_ZSTD 0 CACHE BOOL "Use zstd provided by system instead of bundled
 set(IGNORE_RUST_VERSION 0 CACHE BOOL "Ignore Rust version check")
 set(ENABLE_HIP 0 CACHE BOOL "Enable HIP")
 set(ENABLE_CUDA 0 CACHE BOOL "Enable CUDA")
+set(ENABLE_MPS 0 CACHE BOOL "Enable Metal/MPS GPU backend (Apple Silicon)")
 set(FORCE_STATIC_DEPS 0 CACHE BOOL "Force static linking of deps")
 set(MMSEQS_INT64_IDS 0 CACHE BOOL "Use 64-bit internal sequence/database IDs")
 
 if(ENABLE_HIP)
     set(ENABLE_CUDA 1)
+endif()
+
+if(ENABLE_CUDA AND ENABLE_MPS)
+    message(FATAL_ERROR "ENABLE_CUDA and ENABLE_MPS are mutually exclusive")
 endif()
 
 if(FORCE_STATIC_DEPS)
@@ -310,6 +315,12 @@ if (ENABLE_CUDA)
     include_directories(lib/libmarv/src)
     add_subdirectory(lib/libmarv/src EXCLUDE_FROM_ALL)
     set_target_properties(marv PROPERTIES POSITION_INDEPENDENT_CODE ON)
+elseif (ENABLE_MPS)
+    # Metal/MPS backend for Apple Silicon; reuses the same marv.h interface
+    # as lib/libmarv so downstream code (GpuUtil, gpuserver, ungappedprefilter)
+    # needs no changes beyond the HAVE_MPS compile definition.
+    include_directories(lib/libmarv/src)
+    add_subdirectory(lib/libmarv-mps EXCLUDE_FROM_ALL)
 endif ()
 
 add_subdirectory(lib/alp)

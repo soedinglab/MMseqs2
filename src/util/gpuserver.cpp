@@ -7,7 +7,7 @@
 #include "NucleotideMatrix.h"
 
 // #define HAVE_CUDA 1
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
 #include "GpuUtil.h"
 #endif
 
@@ -24,7 +24,7 @@ void intHandler(int) {
 int gpuserver(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader dbrIdx(par.db1, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     DBReader<DBKeyType>* dbr = dbrIdx.sequenceReader;
