@@ -5,6 +5,7 @@ set(util_source_files
         util/apply.cpp
         util/calculatelambda.cpp
         util/clusthash.cpp
+        util/clusthashfast.cpp
         util/compress.cpp
         util/convert2fasta.cpp
         util/convertalignments.cpp
