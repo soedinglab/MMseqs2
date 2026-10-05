@@ -19,6 +19,7 @@ public:
     ~BlockAligner();
 
     void initQuery(Sequence* query);
+    void setQuery(Sequence* query);
 
     typedef struct UngappedAln_res {
         int bitScore;
@@ -140,6 +141,7 @@ private:
     int16_t* targetCompBias;
     float *tmpCompBias;
     int8_t* queryRevNumSeq;
+    int8_t* targetRevNumSeq;
     int16_t* queryCompBiasRev;
     
 };

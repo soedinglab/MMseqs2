@@ -1099,14 +1099,14 @@ s_align SmithWaterman::alignStartPosBacktraceBlock(
 
 	size_t cigar_len, queryPos, targetPos;
 	uint32_t aaIds;
+	Cigar* cigar = NULL;
 
-	Cigar* cigar = block_new_cigar(res.query_idx, res.reference_idx);
-	// char ops_char[] = {' ', 'M', '=', 'X', 'I', 'D'};
 	if (res.score != target_score && !(target_score == INT16_MAX && res.score >= target_score)) {
 		r.score1 = UINT32_MAX;
 		goto cleanup;
 	}
 
+	cigar = block_new_cigar(res.query_idx, res.reference_idx);
 	block_cigar_aa_trace_xdrop(block->block_trace, res.query_idx, res.reference_idx, cigar);
 	cigar_len = block_len_cigar(cigar);
 
@@ -1163,7 +1163,9 @@ s_align SmithWaterman::alignStartPosBacktraceBlock(
 
 cleanup:
 	block_free_padded_aa(target);
-	block_free_cigar(cigar);
+	if (cigar != NULL) {
+		block_free_cigar(cigar);
+	}
 	if (type == PROFILE_SEQ) {
 		block_free_aaprofile(queryProfile);
 	} else if (type == SEQ_SEQ) {
@@ -1189,7 +1191,7 @@ s_align SmithWaterman::alignStartPosBacktrace (
     int32_t query_length = profile->query_length;
     int32_t queryOffset = query_length - r.qEndPos1 - 1;
 
-	std::pair<alignment_end, alignment_end> bests_reverse;
+	std::pair<alignment_end, alignment_end> bests_reverse = {};
 
     // Find the beginning position of the best alignment.
     if (r.word == 0) {
@@ -1231,6 +1233,9 @@ s_align SmithWaterman::alignStartPosBacktrace (
 		bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
 											gap_extend, profile->profile_rev_int,
 											r.score1, maskLen, simdData);
+	} else {
+		Debug(Debug::ERROR) << "Unknown precision in alignStartPosBacktrace: " << r.word << "\n";
+		EXIT(EXIT_FAILURE);
 	}
 
     if(bests_reverse.first.score != r.score1){

@@ -83,7 +83,7 @@ class Sorter<Cfg>::BucketPointers {
     template <bool kAtomic>
     std::pair<diff_t, diff_t> incWrite() {
         if (kAtomic) {
-            const auto p = __atomic_fetch_add(&all_, Cfg::kBlockSize, __ATOMIC_RELAXED);
+            const auto p = __atomic_fetch_add(&all_, Cfg::kBlockSize, __ATOMIC_ACQUIRE);
             const diff_t w = p & kMask;
             const diff_t r = (p >> kShift);
             return {w, r};
@@ -104,7 +104,7 @@ class Sorter<Cfg>::BucketPointers {
             // another thread writing to our block, because isReading() returns false.
             num_reading_.fetch_add(1, std::memory_order_acquire);
             const auto p = __atomic_fetch_sub(&all_,
-                    static_cast<atomic_type>(Cfg::kBlockSize) << kShift, __ATOMIC_RELAXED);
+                    static_cast<atomic_type>(Cfg::kBlockSize) << kShift, __ATOMIC_RELEASE);
             const diff_t w = p & kMask;
             const diff_t r = (p >> kShift) & ~(Cfg::kBlockSize - 1);
             return {w, r};

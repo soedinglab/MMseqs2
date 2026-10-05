@@ -31,6 +31,7 @@ BlockAligner::BlockAligner(
     queryBias = block_new_pos_bias(maxSequenceLength, range.max);
     queryRevNumSeq = new int8_t[maxSequenceLength];
     memset(queryRevNumSeq, 0, maxSequenceLength * sizeof(int8_t));
+    targetRevNumSeq = new int8_t[maxSequenceLength];
     
     if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE) == false) {
         querySeqType = Parameters::DBTYPE_AMINO_ACIDS;
@@ -76,6 +77,7 @@ BlockAligner::~BlockAligner() {
     delete[] targetCompBias;
     delete[] tmpCompBias;
     delete[] queryRevNumSeq;
+    delete[] targetRevNumSeq;
     delete[] queryCompBiasRev;
 }
 
@@ -99,6 +101,14 @@ void BlockAligner::initQuery(Sequence* query){
         memset(this->queryCompBiasRev, 0, this->maxSequenceLength * sizeof(int16_t));
         std::reverse_copy(queryCompBias, queryCompBias + this->queryLength, queryCompBiasRev);
     }
+}
+
+// the ungapped alignment only reads the query, so it can skip the reverse and composition bias of initQuery
+void BlockAligner::setQuery(Sequence* query){
+    currentQuery = query;
+    querySeq = query->getSeqData();
+    queryNumSeq = query->numSequence;
+    queryLength = query->L;
 }
 
 // note: traceback cigar string will be reversed, but UngappedAln_res will contain correct start and end positions
@@ -162,7 +172,6 @@ s_align BlockAligner::gappedLocalAlign(
     int btargetAlnLen = tEnd +1;
     int btargetStartPos = tLen - btargetAlnLen;
 
-    int8_t* targetRevNumSeq = new int8_t[tLen];
 	std::reverse_copy(tNum, tNum + tLen, targetRevNumSeq);
 
     block_set_bytes_padded_aa_numsequence(query, (uint8_t*)(queryRevNumSeq + bqueryStartPos), bqueryAlnLen, range.max);
@@ -174,10 +183,9 @@ s_align BlockAligner::gappedLocalAlign(
 
     block_align_aa_trace_xdrop_posbias(blockTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop);
     res = block_res_aa_trace_xdrop(blockTrace);
-    // Validate the backward result before tracing back / freeing (avoid stale CIGAR + leak).
+    // Validate the backward result before tracing back (avoid stale CIGAR).
     if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX
         || res.query_idx == 0 || res.reference_idx == 0) {
-        delete[] targetRevNumSeq;
         local_aln.score1 = 0.0f;
         local_aln.qCov = 0.0f;
         local_aln.tCov = 0.0f;
@@ -195,7 +203,6 @@ s_align BlockAligner::gappedLocalAlign(
     local_aln.qEndPos1 = qEnd;
     local_aln.dbEndPos1 = tEnd;
     local_aln.evalue = evalue;
-    delete[] targetRevNumSeq;
     return local_aln;
 }
 
@@ -407,7 +414,6 @@ s_align BlockAligner::gappedLocalAlignBackward(
     int fqueryStartPos = qLen - fqueryAlnLen;
     int ftargetAlnLen = tIdx +1;
     int ftargetStartPos = tLen - ftargetAlnLen;
-    int8_t* targetRevNumSeq = new int8_t[tLen];
 	std::reverse_copy(tNum, tNum + tLen, targetRevNumSeq);
 
     block_set_bytes_padded_aa_numsequence(query, (uint8_t*)(queryRevNumSeq + fqueryStartPos), fqueryAlnLen, range.max);
@@ -419,10 +425,9 @@ s_align BlockAligner::gappedLocalAlignBackward(
 
     block_align_aa_trace_xdrop_posbias(blockTrace, query, queryBias, target, targetBias, matrix, gaps, range, x_drop);
     res = block_res_aa_trace_xdrop(blockTrace);
-    // Validate BEFORE tracing back; free the reversed target on the failure path (was leaked).
+    // Validate BEFORE tracing back.
     if (res.query_idx == SIZE_MAX || res.reference_idx == SIZE_MAX
         || res.query_idx == 0 || res.reference_idx == 0) {
-        delete[] targetRevNumSeq;
         local_aln.score1 = 0.0f;
         local_aln.qCov = 0.0f;
         local_aln.tCov = 0.0f;
@@ -432,7 +437,6 @@ s_align BlockAligner::gappedLocalAlignBackward(
 
     block_cigar_aa_trace_xdrop(blockTrace, res.query_idx, res.reference_idx, cigar);
     local_aln.score1 = res.score;
-    delete[] targetRevNumSeq;
     return local_aln;
 }
 
