@@ -676,29 +676,15 @@ size_t assignGroup(KmerPosition<T, includeAdjacency, IncludeSeqLen> *hashSeqPair
                                     }
                                 } else {
                                     if (writeSeqPair != NULL) {
-                                        if (queryLen < hashSeqPair[i].sl.getSeqLen(hashSeqPair[i].id) && covMode == Parameters::COV_MODE_TARGET) {
-                                            writeSeqPair[localWritePos[thread]].kmer = hashSeqPair[i].id;
-                                            writeSeqPair[localWritePos[thread]].pos = -diagonal;
-                                            writeSeqPair[localWritePos[thread]].sl.setSeqLen(targetLen);
-                                            writeSeqPair[localWritePos[thread]].id = rId;
-                                        } else {
-                                            writeSeqPair[localWritePos[thread]].kmer = rId;
-                                            writeSeqPair[localWritePos[thread]].pos = diagonal;
-                                            writeSeqPair[localWritePos[thread]].sl.setSeqLen(targetLen);
-                                            writeSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
-                                        }
+                                        writeSeqPair[localWritePos[thread]].kmer = rId;
+                                        writeSeqPair[localWritePos[thread]].pos = diagonal;
+                                        writeSeqPair[localWritePos[thread]].sl.setSeqLen(targetLen);
+                                        writeSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
                                     } else {
-                                        if (queryLen < hashSeqPair[i].sl.getSeqLen(hashSeqPair[i].id) && covMode == Parameters::COV_MODE_TARGET) {
-                                            hashSeqPair[localWritePos[thread]].kmer = hashSeqPair[i].id;
-                                            hashSeqPair[localWritePos[thread]].pos = -diagonal;
-                                            hashSeqPair[localWritePos[thread]].sl.setSeqLen(targetLen);
-                                            hashSeqPair[localWritePos[thread]].id = rId;
-                                        } else {
-                                            hashSeqPair[localWritePos[thread]].kmer = rId;
-                                            hashSeqPair[localWritePos[thread]].pos = diagonal;
-                                            hashSeqPair[localWritePos[thread]].sl.setSeqLen(targetLen);
-                                            hashSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
-                                        }
+                                        hashSeqPair[localWritePos[thread]].kmer = rId;
+                                        hashSeqPair[localWritePos[thread]].pos = diagonal;
+                                        hashSeqPair[localWritePos[thread]].sl.setSeqLen(targetLen);
+                                        hashSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
                                     }
                                     localWritePos[thread]++;
                                 }
@@ -848,14 +834,16 @@ static void runIteration(
         size_t qSplitSize = seqDbr.getSize() / par.threads;
         threadQueryOffsets[0] = 0;
 
+        const bool isNucleotide =
+            Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
         if (par.needWriteBuffer) {
 #pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads)
             for (int thread = 1; thread < par.threads; thread++) {
                 size_t startqid = qSplitSize * thread;
                 KmerPosition<T, false, IncludeSeqLen> *it = std::lower_bound(
                     writeSeqPair, writeSeqPair + writePos, startqid,
-                    [](const KmerPosition<T, false, IncludeSeqLen> &elem, size_t k) {
-                        return elem.kmer < k;
+                    [isNucleotide](const KmerPosition<T, false, IncludeSeqLen> &elem, size_t k) {
+                        return (isNucleotide ? BIT_CLEAR(elem.kmer, 63) : elem.kmer) < k;
                     });
                 threadQueryOffsets[thread] = it - writeSeqPair;
             }
@@ -865,8 +853,8 @@ static void runIteration(
                 size_t startqid = qSplitSize * thread;
                 KmerPosition<T, includeAdjacency, IncludeSeqLen> *it = std::lower_bound(
                     hashSeqPair, hashSeqPair + writePos, startqid,
-                    [](const KmerPosition<T, includeAdjacency, IncludeSeqLen> &elem, size_t k) {
-                        return elem.kmer < k;
+                    [isNucleotide](const KmerPosition<T, includeAdjacency, IncludeSeqLen> &elem, size_t k) {
+                        return (isNucleotide ? BIT_CLEAR(elem.kmer, 63) : elem.kmer) < k;
                     });
                 threadQueryOffsets[thread] = it - hashSeqPair;
             }
@@ -983,14 +971,14 @@ KmerPosition<T, includeAdjacency, IncludeSeqLen> *doComputation(
             break;
         }
 
-        if (seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+        if (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
             prevHash = BIT_SET(prevHash, 63);
         }
 
         bool wasSet = false;
         for (size_t pos = thread * splitSize; pos < elementsToSort; pos++) {
             size_t currKmer = hashSeqPair[pos].kmer;
-            if (seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+            if (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                 currKmer = BIT_SET(currKmer, 63);
             }
             if (prevHash != currKmer) {
@@ -1621,7 +1609,9 @@ void writeKmerMatcherResult(DBWriter & dbw,
             int bestReverMask = reverMask;
             while(lastTargetId != targetId
                   && kmerPos+kmerOffset < threadOffsets[thread+1]
-                  && hashSeqPair[kmerPos+kmerOffset].kmer == repSeqId
+                  && (TYPE == Parameters::DBTYPE_NUCLEOTIDES
+                          ? BIT_CLEAR(hashSeqPair[kmerPos+kmerOffset].kmer, 63)
+                          : hashSeqPair[kmerPos+kmerOffset].kmer) == repSeqId
                   && hashSeqPair[kmerPos+kmerOffset].id == targetId){
                 if(prevDiagonal == hashSeqPair[kmerPos+kmerOffset].pos){
                     diagonalCnt++;
@@ -1993,7 +1983,10 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, includeAdjac
                         reverse += (isReverse == true);
                     }
                     kmerPos++;
-                } while (repSeqId == hashSeqPair[kmerPos].kmer &&
+                } while (diagonalScore < UCHAR_MAX &&
+                        repSeqId == (TYPE == Parameters::DBTYPE_NUCLEOTIDES
+                                         ? BIT_CLEAR(hashSeqPair[kmerPos].kmer, 63)
+                                         : hashSeqPair[kmerPos].kmer) &&
                         targetId == hashSeqPair[kmerPos].id &&
                         hashSeqPair[kmerPos].pos == diagonal &&
                         kmerPos < endIdx && hashSeqPair[kmerPos].kmer != SIZE_T_MAX);
