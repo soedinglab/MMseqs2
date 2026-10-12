@@ -1,4 +1,5 @@
 #include "Fwbw.h"
+#include "FwbwScaled.h"
 #include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
@@ -846,6 +847,13 @@ void FwBwAligner::runFwBw<true, 0>() {
 
 template<>
 void FwBwAligner::runFwBw<false, 0>() {
+    if (scaled) {
+        static thread_local FwBwScaled::Workspace ws;
+        P = zm;
+        if (FwBwScaled::run(scoreForward, (int)rowSeqLen, (int)colSeqLen, exp_go, exp_ge, zm, maxP, ws) == 0) {
+            return;
+        }
+    }
     forward<false>();
     backward<false>();
     computeProbabilityMatrix<false>();
