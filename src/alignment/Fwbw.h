@@ -69,6 +69,9 @@ public:
 
     float maxP;
     float temperature;
+    // runFwBw<false, 0>: scaled-mantissa forward-backward (FwbwScaled.h) instead of the log-space
+    // blocks; falls back to the latter when a call overflows
+    bool scaled = false;
 
 private:
 
