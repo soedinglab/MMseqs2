@@ -261,20 +261,22 @@ char* Util::fastSeqIdToBuffer(float seqId, char* buffer) {
         *(buffer) = '0';
         buffer++;
         *(buffer) = '\0';
+        buffer++;
     } else {
+        const int scaledSeqId = static_cast<int>(seqId * 1000);
         *(buffer) = '0';
         buffer++;
         *(buffer) = '.';
         buffer++;
-        if (seqId < 0.10) {
+        if (scaledSeqId < 100) {
             *(buffer) = '0';
             buffer++;
         }
-        if (seqId < 0.01) {
+        if (scaledSeqId < 10) {
             *(buffer) = '0';
             buffer++;
         }
-        buffer = Itoa::i32toa_sse2((int)(seqId * 1000), buffer);
+        buffer = Itoa::i32toa_sse2(scaledSeqId, buffer);
     }
     return buffer;
 }

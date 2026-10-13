@@ -14,6 +14,7 @@
 #include "Parameters.h"
 
 #include <iomanip>
+#include <sstream>
 #include <climits>
 #include <cassert>
 
@@ -407,7 +408,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.addBacktrace = true;
         int originalNumIterations = par.numIterations;
         par.numIterations = 1;
-        int originalEval = par.evalThr;
+        double originalEval = par.evalThr;
         int originalPcmode = par.pcmode;
         par.pcmode = 0;
         //does expandaln's gap-open cost affect the score? -> NO!

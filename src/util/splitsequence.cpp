@@ -39,11 +39,22 @@ int splitsequence(int argc, const char **argv, const Command& command) {
         return EXIT_SUCCESS;
     }
 
+    if (par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && reader.isCompressed()) {
+        Debug(Debug::ERROR) << "Cannot soft-split compressed input database " << par.db1 << ".\n"
+                            << "The database contains sequences exceeding --max-seq-len (" << par.maxSeqLen
+                            << "), but --sequence-split-mode 1 requires uncompressed sequence data.\n"
+                            << "Use an uncompressed input database or hard splitting with '--sequence-split-mode 0'.\n"
+                            << "Warning: hard splitting writes a new sequence database and may require substantial additional disk space.\n";
+        reader.close();
+        return EXIT_FAILURE;
+    }
+
     DBReader<DBKeyType> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
     headerReader.open(DBReader<DBKeyType>::NOSORT);
 
     if (par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.compressed == true) {
-        Debug(Debug::WARNING) << "Sequence split mode (--sequence-split-mode 0) and compressed (--compressed 1) can not be combined.\nTurn compressed to 0";
+        Debug(Debug::WARNING) << "Soft splitting (--sequence-split-mode 1) cannot create a compressed output database.\n"
+                              << "Continuing with --compressed 0.\n";
         par.compressed = 0;
     }
 

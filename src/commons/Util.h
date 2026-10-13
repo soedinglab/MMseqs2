@@ -145,6 +145,8 @@ public:
         return sign * val;
     }
 
+    // Writes a null-terminated identity with three fractional digits for values in [0.0f, 1.0f]
+    // and returns one byte past the terminator.
     static char* fastSeqIdToBuffer(float seqId, char* buffer);
 
     static bool isNumber(const std::string& s)

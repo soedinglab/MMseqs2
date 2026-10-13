@@ -160,7 +160,8 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                         case 'M':
                             for (int bt = 0; bt < cnt * 3; bt++) {
                                 idCnt += (nuclQuerySeq[qPos] == nuclTargetSeq[tPos]);
-                                score += fastMatrix.matrix[(int)nuclQuerySeq[qPos]][(int)nuclTargetSeq[tPos]];
+                                score += fastMatrix.matrix[static_cast<unsigned char>(nuclQuerySeq[qPos])]
+                                                          [static_cast<unsigned char>(nuclTargetSeq[tPos])];
                                 tPos++;
                                 qPos++;
                             }

@@ -213,7 +213,7 @@ public:
 
     static void readAlignmentResults(std::vector<result_t> &result, char *data, bool readCompressed = false);
 
-    static float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
+    static float estimateSeqIdByScorePerCol(uint32_t score, unsigned int qLen, unsigned int tLen);
 
     static std::string compressAlignment(const std::string &bt);
 

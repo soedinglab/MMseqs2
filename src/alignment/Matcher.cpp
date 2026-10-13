@@ -159,7 +159,7 @@ int Matcher::computeAlnLength(int qStart, int qEnd, int dbStart, int dbEnd) {
     return std::max(abs(qEnd - qStart), abs(dbEnd - dbStart)) + 1;
 }
 
-float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen) {
+float Matcher::estimateSeqIdByScorePerCol(uint32_t score, unsigned int qLen, unsigned int tLen) {
     float estimatedSeqId = (score / static_cast<float>(std::max(qLen, tLen))) * 0.1656 + 0.1141;
     estimatedSeqId = std::min(estimatedSeqId, 1.0f);
     return std::max(0.0f, estimatedSeqId);
@@ -351,7 +351,8 @@ void Matcher::updateResultByRescoringBacktrace(const char *querySeq, const char 
         char letter = result.backtrace[pos];
         int curr;
         if (letter == 'M') {
-            curr = subMat[static_cast<int>(querySeq[queryPos])][static_cast<int>(targetSeq[targetPos])];
+            curr = subMat[static_cast<unsigned char>(querySeq[queryPos])]
+                         [static_cast<unsigned char>(targetSeq[targetPos])];
             identicalAAs += (querySeq[queryPos] == targetSeq[targetPos]);
             isGapOpen = false;
         } else {

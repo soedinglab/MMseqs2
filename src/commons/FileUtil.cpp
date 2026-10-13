@@ -278,6 +278,8 @@ char *FileUtil::allocPageBufferWithAdvice(int input_desc, size_t insize) {
     if (posix_fadvise(input_desc, 0, 0, POSIX_FADV_SEQUENTIAL) != 0) {
         Debug(Debug::ERROR) << "posix_fadvise returned an error\n";
     }
+#else
+    (void)input_desc;
 #endif
     return static_cast<char *>(inbuf);
 }

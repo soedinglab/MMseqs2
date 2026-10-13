@@ -1,5 +1,7 @@
 #ifndef ReducedMatrix_H
 #define ReducedMatrix_H
+#include <cctype>
+#include <climits>
 #include "BaseMatrix.h"
 #include "Debug.h"
 
@@ -11,8 +13,8 @@ class ReducedMatrix : public BaseMatrix {
         virtual ~ReducedMatrix();
 
         void setupLetterMapping() {
-                for(int letter = 0; letter < UCHAR_MAX; letter++){
-                        char upperLetter = toupper(static_cast<char>(letter));
+                for(size_t letter = 0; letter <= UCHAR_MAX; letter++){
+                        int upperLetter = std::toupper(static_cast<unsigned char>(letter));
                         switch(upperLetter){
                                 case 'A':
                                 case 'T':
@@ -35,19 +37,19 @@ class ReducedMatrix : public BaseMatrix {
                                 case 'W':
                                 case 'Y':
                                 case 'X':
-                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>(upperLetter)];
+                                        this->aa2num[letter] = this->aa2num[static_cast<unsigned char>(upperLetter)];
                                 break;
                                 case 'J':
-                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('L')];
+                                        this->aa2num[letter] = this->aa2num[static_cast<int>('L')];
                                 break;
                                 case 'U':
                                 case 'O':
-                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('X')];
+                                        this->aa2num[letter] = this->aa2num[static_cast<int>('X')];
                                 break;
-                                case 'Z': this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('E')]; break;
-                                case 'B': this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('D')]; break;
+                                case 'Z': this->aa2num[letter] = this->aa2num[static_cast<int>('E')]; break;
+                                case 'B': this->aa2num[letter] = this->aa2num[static_cast<int>('D')]; break;
                                 default:
-                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('X')];
+                                        this->aa2num[letter] = this->aa2num[static_cast<int>('X')];
                                 break;
                         }
                 }
