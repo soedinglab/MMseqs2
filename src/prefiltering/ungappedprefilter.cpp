@@ -409,6 +409,9 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
 #ifdef OPENMP
     omp_set_nested(1);
 #endif
+    if (alignmentMode == 0) {
+        Debug(Debug::INFO) << "SIMD architecture: " << UngappedAligner::simdArchitecture() << "\n";
+    }
 
 #pragma omp parallel
     {

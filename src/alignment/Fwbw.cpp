@@ -45,11 +45,11 @@ int fwbw(int argc, const char **argv, const Command &command) {
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(alnRes.getSize()) / static_cast<double>(flushSize)));
     Debug(Debug::INFO) << "Processing " << iterations << " iterations\n";
+    Debug(Debug::INFO) << "SIMD architecture: " << FwBwAligner::simdArchitecture() << "\n";
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(alnRes.getSize() - (i * flushSize), flushSize);
         Debug::Progress progress(bucketSize);
-
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;

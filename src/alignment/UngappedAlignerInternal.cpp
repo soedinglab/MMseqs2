@@ -11,6 +11,18 @@ inline F hmax(const F *in, unsigned int n) {
     return current;
 }
 
+const char *simdArchitecture() {
+#if defined(AVX512)
+    return "AVX512 512-bit";
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    return "AVX512VL 256-bit";
+#elif defined(AVX2)
+    return "AVX2 256-bit";
+#else
+    return "SSE4.1 128-bit";
+#endif
+}
+
 class Impl final : public UngappedAligner::Impl {
 public:
     Impl(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, float aaBiasCorrectionScale)

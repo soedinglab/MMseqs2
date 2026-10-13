@@ -66,6 +66,9 @@ public:
     // Row/column capacity to start from, sized to the vector width of the selected backend.
     static size_t suggestedCapacity();
 
+    // Name of the SIMD backend the dispatcher selected, for debug output.
+    static const char *simdArchitecture();
+
     void reallocateProfile(size_t newColsCapacity) { impl->reallocateProfile(newColsCapacity); }
     void resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, size_t newColsCapacity) {
         impl->resizeMatrix(profile, backtrace, newRowsCapacity, newColsCapacity);
@@ -102,6 +105,7 @@ FwBwAligner::Impl *createImpl(SubstitutionMatrix &subMat, float gapOpen, float g
 FwBwAligner::Impl *createImpl(float gapOpen, float gapExtend, float temperature, float mact,
                               size_t rowsCapacity, size_t colsCapacity, size_t length, int backtrace);
 size_t suggestedCapacity();
+const char *simdArchitecture();
 }
 
 #ifdef MMSEQS_HAVE_AVX512_DISPATCH
@@ -111,6 +115,7 @@ FwBwAligner::Impl *createImpl(SubstitutionMatrix &subMat, float gapOpen, float g
 FwBwAligner::Impl *createImpl(float gapOpen, float gapExtend, float temperature, float mact,
                               size_t rowsCapacity, size_t colsCapacity, size_t length, int backtrace);
 size_t suggestedCapacity();
+const char *simdArchitecture();
 }
 #endif
 
@@ -145,6 +150,13 @@ inline size_t FwBwAligner::suggestedCapacity() {
     }
 #endif
     return FwBwDefault::suggestedCapacity();
+}
+
+inline const char *FwBwAligner::simdArchitecture() {
+#ifdef MMSEQS_HAVE_AVX512_DISPATCH
+    if (cpuHasAVX512()) { return FwBwAVX512::simdArchitecture(); }
+#endif
+    return FwBwDefault::simdArchitecture();
 }
 
 #endif //FWBW_H

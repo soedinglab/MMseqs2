@@ -14,6 +14,18 @@ struct FWBWState {
     const static bool BACKWARD = false;
 };
 
+const char *simdArchitecture() {
+#if defined(AVX512)
+    return "AVX512 512-bit";
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    return "AVX512VL 256-bit";
+#elif defined(AVX2)
+    return "AVX2 256-bit";
+#else
+    return "SSE4.1 128-bit";
+#endif
+}
+
 inline void calculate_max4(float& max, float& term1, float& term2, float& term3, float& term4, uint8_t& state) {
     if (term1 > term2) { max = term1; state = States::STOP; }
     else { max = term2; state = States::M; }

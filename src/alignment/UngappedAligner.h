@@ -50,6 +50,9 @@ public:
         return impl->score(db_sequence, db_length, bestDiagonal);
     }
 
+    // Name of the SIMD backend the dispatcher selected, for debug output.
+    static const char *simdArchitecture();
+
 private:
     Impl *impl;
 };
@@ -57,12 +60,14 @@ private:
 namespace UngappedDefault {
 UngappedAligner::Impl *createImpl(size_t maxSequenceLength, int aaSize,
                                   bool aaBiasCorrection, float aaBiasCorrectionScale);
+const char *simdArchitecture();
 }
 
 #ifdef MMSEQS_HAVE_AVX512_DISPATCH
 namespace UngappedAVX512 {
 UngappedAligner::Impl *createImpl(size_t maxSequenceLength, int aaSize,
                                   bool aaBiasCorrection, float aaBiasCorrectionScale);
+const char *simdArchitecture();
 }
 #endif
 
@@ -76,6 +81,15 @@ inline UngappedAligner::UngappedAligner(size_t maxSequenceLength, int aaSize,
     }
 #endif
     impl = UngappedDefault::createImpl(maxSequenceLength, aaSize, aaBiasCorrection, aaBiasCorrectionScale);
+}
+
+inline const char *UngappedAligner::simdArchitecture() {
+#ifdef MMSEQS_HAVE_AVX512_DISPATCH
+    if (cpuHasAVX512()) {
+        return UngappedAVX512::simdArchitecture();
+    }
+#endif
+    return UngappedDefault::simdArchitecture();
 }
 
 #endif //MMSEQS_UNGAPPEDALIGNER_H
