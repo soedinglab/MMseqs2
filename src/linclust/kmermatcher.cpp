@@ -142,6 +142,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, Flank, L> * kmer
             generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1,  par.kmerSize);
+        const size_t alphabetSize = subMat->alphabetSize - 1;
+        const size_t kmerIdxRange = idxer.powers[par.kmerSize - 1] * alphabetSize;
+        const bool kmerWindowIsNumSequence = (TYPE == Parameters::DBTYPE_AMINO_ACIDS) && seq.getEffectiveKmerSize() == static_cast<unsigned int>(par.kmerSize);
         const unsigned int BUFFER_SIZE = static_cast<unsigned int>(KMER_STAGING_BUFFER_SIZE);
         size_t bufferPos = 0;
         KmerPosition<T, Flank, L> * threadKmerBuffer = NULL;
@@ -178,7 +181,39 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, Flank, L> * kmer
                 }
                 size_t seqKmerCount = 0;
                 DBKeyType seqId = seq.getDbKey();
-                while (seq.hasNextKmer()) {
+                if (static_cast<size_t>(seq.L) > kmersArraySize) {
+                    kmersArraySize = seq.getMaxLen();
+                    SequencePosition *newKmers = (SequencePosition *) realloc(kmers, (par.pickNbest * (kmersArraySize + 1) + 1) * sizeof(SequencePosition) * 2);
+                    Util::checkAllocation(newKmers, "Can not reallocate kmers memory in fillKmerPositionArray");
+                    kmers = newKmers;
+                }
+                if (kmerWindowIsNumSequence && seq.L >= par.kmerSize) {
+                    const unsigned char *numSequence = seq.numSequence;
+                    const int lastPos = seq.L - par.kmerSize;
+                    size_t kmerIdx = idxer.int2index(numSequence, lastPos, seq.L);
+                    (kmers + lastPos)->kmer = kmerIdx;
+                    for (int pos = lastPos - 1; pos >= 0; pos--) {
+                        kmerIdx = numSequence[pos] + alphabetSize * kmerIdx - numSequence[pos + par.kmerSize] * kmerIdxRange;
+                        (kmers + pos)->kmer = kmerIdx;
+                    }
+                    int residuesSinceX = 0;
+                    for (int i = 0; i < seq.L; i++) {
+                        residuesSinceX = (numSequence[i] == maskedIndex) ? 0 : residuesSinceX + 1;
+                        if (residuesSinceX < par.kmerSize) {
+                            continue;
+                        }
+                        const int pos = i - par.kmerSize + 1;
+                        kmerIdx = (kmers + pos)->kmer;
+                        (kmers + seqKmerCount)->kmer = kmerIdx;
+                        (kmers + seqKmerCount)->pos = pos;
+                        const unsigned short hash = hashUInt64(kmerIdx, par.hashShift);
+                        (kmers + seqKmerCount)->score = hash;
+                        scoreDist[hash]++;
+                        hierarchicalScoreDist[hash >> 9]++;
+                        seqKmerCount++;
+                    }
+                }
+                while (kmerWindowIsNumSequence == false && seq.hasNextKmer()) {
                     unsigned char *kmer = (unsigned char*) seq.nextKmer();
                     if(seq.kmerContainsX()){
                         continue;
@@ -244,13 +279,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, Flank, L> * kmer
                         hierarchicalScoreDist[hash >> 9]++;
                         seqKmerCount++;
                     }
-                    if(seqKmerCount >= kmersArraySize){
-                        kmersArraySize = seq.getMaxLen();
-                        SequencePosition *newKmers = (SequencePosition *) realloc(kmers, (par.pickNbest * (kmersArraySize + 1) + 1) * sizeof(SequencePosition) * 2);
-                        Util::checkAllocation(newKmers, "Can not reallocate kmers memory in fillKmerPositionArray");
-                        kmers = newKmers;
-                    }
-
                 }
                 float kmersPerSequenceScale = (TYPE == Parameters::DBTYPE_NUCLEOTIDES) ? par.kmersPerSequenceScale.values.nucleotide()
                                                                                        : par.kmersPerSequenceScale.values.aminoacid();
