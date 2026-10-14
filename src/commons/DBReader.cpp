@@ -10,12 +10,14 @@
 #include <sys/stat.h>
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "MemoryMapped.h"
 #include "Debug.h"
 #include "Util.h"
 #include "FileUtil.h"
 #include "itoa.h"
+#include "BatchReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -26,8 +28,8 @@ DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int
 threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         indexFileName(strdup(indexFileName_)), size(0), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0),
         totalDataSize(0), dataSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
-        compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), id2local(NULL), local2id(NULL),
-        dataMapped(false), accessType(0), externalData(false), didMlock(false)
+        compressedBuffers(NULL), compressedBufferSizes(NULL), indexSize(0), index(NULL), id2local(NULL), local2id(NULL),
+        index2dbfile(NULL), batchReader(NULL), loadedData(NULL), loadedDataCapacity(0), loadedFrom(0), loadedSize(0), dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
 
 template <typename T>
@@ -35,8 +37,8 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, size_t size, size_t dataSize, T
         int dbType, size_t maxSeqLen, int threads) :
         threads(threads), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
         size(size), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0), totalDataSize(0), dataSize(dataSize), lastKey(lastKey),
-        maxSeqLen(maxSeqLen), closed(1), dbtype(dbType), compressedBuffers(NULL), compressedBufferSizes(NULL), index(index), sortedByOffset(true),
-        id2local(NULL), local2id(NULL), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
+        maxSeqLen(maxSeqLen), closed(1), dbtype(dbType), compressedBuffers(NULL), compressedBufferSizes(NULL), indexSize(size), index(index), sortedByOffset(true),
+        id2local(NULL), local2id(NULL), index2dbfile(NULL), batchReader(NULL), loadedData(NULL), loadedDataCapacity(0), loadedFrom(0), loadedSize(0), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
 
 template <typename T>
@@ -101,8 +103,19 @@ template <typename T> DBReader<T>::~DBReader(){
 template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
+    bool isLinfinity = false;
     if (dataFileName != NULL) {
         dbtype = FileUtil::parseDbType(dataFileName);
+        isLinfinity = getExtendedDbtype(dbtype) & Parameters::DBTYPE_EXTENDED_LINFINITY;
+        if (isLinfinity && (dataMode & USE_LINFINITY) == 0) {
+            Debug(Debug::ERROR) << "Database " << dataFileName << " was created with --createdb-mode 3, which this command does not support\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // a mode 3 database is only read in key order
+        if (isLinfinity && accessType != NOSORT && accessType != HARDNOSORT && accessType != LINEAR_ACCCESS) {
+            accessType = NOSORT;
+            this->accessType = NOSORT;
+        }
     }
     if (dataMode & USE_DATA) {
         dataFileNames = FileUtil::findDatafiles(dataFileName);
@@ -115,6 +128,11 @@ template <typename T> bool DBReader<T>::open(int accessType){
         dataSizeOffset = new size_t[dataFileNames.size() + 1];
         dataFiles = new char*[dataFileNames.size()];
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
+            if (isLinfinity) {
+                dataFiles[fileIdx] = NULL;
+                dataSizeOffset[fileIdx] = 0;
+                continue;
+            }
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
             if (dataFile == NULL) {
                 Debug(Debug::ERROR) << "Cannot open data file " << dataFileName << "!\n";
@@ -188,22 +206,80 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size_t indexDataSize = indexData.size();
         size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
-        index = new(std::nothrow) Index[size];
+        indexSize = size;
+        index = new(std::nothrow) Index[indexSize];
         Util::checkAllocation(index, "Cannot allocate index memory in DBReader");
-        incrementMemory(sizeof(Index) * size);
+        incrementMemory(sizeof(Index) * indexSize);
 
-        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, dataSize);
-        indexData.close();
+        if (isLinfinity) {
+            if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_GENERIC_DB)) {
+                Debug(Debug::ERROR) << "Cannot open the headers of a --createdb-mode 3 database: " << indexFileName << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            index2dbfile = new(std::nothrow) unsigned int[indexSize];
+            Util::checkAllocation(index2dbfile, "Cannot allocate index memory in DBReader");
+            incrementMemory(indexSize * sizeof(unsigned int));
 
-        // sortIndex also handles access modes that don't require sorting
-        sortIndex(isSortedById);
+            const char *cols[5];
+            size = 0;
+            dataSize = 0;
+            maxSeqLen = 0;
+            sortedByOffset = false;
+            for (size_t i = 0; i < indexSize; i++) {
+                Util::getWordsOfLine(indexDataChar, cols, 5);
+                readIndexId(&index[i].id, indexDataChar, cols);
+                index[i].offset = Util::fast_atoi<size_t>(cols[1]);
+                index[i].length = Util::fast_atoi<size_t>(cols[2]);
+                const size_t count = Util::fast_atoi<size_t>(cols[3]);
+                index2dbfile[i] = Util::fast_atoi<unsigned int>(cols[4]);
+                if (count == 0 || indexIdToNum(&index[i].id) != size) {
+                    Debug(Debug::ERROR) << "Keys in index file " << indexFileName << " are not consecutive at line " << i << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if ((dataMode & USE_DATA) && index2dbfile[i] >= dataFileNames.size()) {
+                    Debug(Debug::ERROR) << "Index file " << indexFileName << " refers to missing data file " << dataFileName << "." << index2dbfile[i] << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                size += count;
+                dataSize += count * index[i].length;
+                maxSeqLen = std::max(maxSeqLen, index[i].length);
+                indexDataChar = Util::skipLine(indexDataChar);
+            }
+            lastKey = (size == 0) ? 0 : size - 1;
+            if (dataMode & USE_DATA) {
+                const bool direct = dataSize > Util::getTotalSystemMemory() / 2;
+                for (size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++) {
+                    int fd = -1;
+#ifdef O_DIRECT
+                    if (direct) {
+                        fd = ::open(dataFileNames[fileIdx].c_str(), O_RDONLY | O_CLOEXEC | O_DIRECT);
+                    }
+#endif
+                    if (fd < 0) {
+                        fd = ::open(dataFileNames[fileIdx].c_str(), O_RDONLY | O_CLOEXEC);
+                    }
+                    if (fd < 0) {
+                        Debug(Debug::ERROR) << "Cannot open data file " << dataFileNames[fileIdx] << "!\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    dataFds.push_back(fd);
+                }
+                batchReader = new BatchReader(threads);
+            }
+        } else {
+            bool isSortedById = readIndex(indexDataChar, indexDataSize, index, dataSize);
 
-        size_t prevOffset = 0; // makes 0 or empty string
-        sortedByOffset = true;
-        for (size_t i = 0; i < size; i++) {
-            sortedByOffset = sortedByOffset && index[i].offset >= prevOffset;
-            prevOffset = index[i].offset;
+            // sortIndex also handles access modes that don't require sorting
+            sortIndex(isSortedById);
+
+            size_t prevOffset = 0; // makes 0 or empty string
+            sortedByOffset = true;
+            for (size_t i = 0; i < size; i++) {
+                sortedByOffset = sortedByOffset && index[i].offset >= prevOffset;
+                prevOffset = index[i].offset;
+            }
         }
+        indexData.close();
     }
 
     compression = isCompressed(dbtype);
@@ -288,7 +364,7 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
 }
 
 template <typename T> void DBReader<T>::remapData(){
-    if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
+    if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0 && index2dbfile == NULL) {
         unmapData();
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
@@ -338,8 +414,24 @@ template <typename T> void DBReader<T>::close(){
 
     if(externalData == false) {
         delete[] index;
-        decrementMemory(size*sizeof(Index));
+        decrementMemory(indexSize * sizeof(Index));
     }
+
+    if (index2dbfile != NULL) {
+        delete[] index2dbfile;
+        decrementMemory(indexSize * sizeof(unsigned int));
+    }
+    for (size_t fileIdx = 0; fileIdx < dataFds.size(); fileIdx++) {
+        ::close(dataFds[fileIdx]);
+    }
+    dataFds.clear();
+    delete batchReader;
+    batchReader = NULL;
+    free(loadedData);
+    decrementMemory(loadedDataCapacity);
+    loadedData = NULL;
+    loadedDataCapacity = 0;
+    loadedFrom = loadedSize = 0;
     closed = 1;
 }
 
@@ -452,6 +544,15 @@ template <typename T> char* DBReader<T>::getDataUncompressed(size_t id){
 
     if (local2id != NULL) {
         return getDataByOffset(index[local2id[id]].offset);
+    }else if (index2dbfile != NULL) {
+        if (id < loadedFrom || id >= loadedFrom + loadedSize) {
+            Debug(Debug::ERROR) << "getData: local id (" << id << ") was not read by loadData from " << dataFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const size_t range = findIdRange(id);
+        const size_t firstId = indexIdToNum(&index[range].id);
+        const unsigned int file = index2dbfile[range];
+        return dataFiles[file] + (index[range].offset + (id - firstId) * index[range].length - loadedFileOffsets[file]);
     }else{
         return getDataByOffset(index[id].offset);
     }
@@ -518,6 +619,10 @@ template <typename T> T DBReader<T>::getDbKey (size_t id){
     }
     if (local2id != NULL) {
         id = local2id[id];
+    } else if (index2dbfile != NULL) {
+        T key = T();
+        key += id;
+        return key;
     }
     return index[id].id;
 }
@@ -643,6 +748,10 @@ template <typename T> void DBReader<T>::sortSourceByFileName(){
 }
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
+    if (index2dbfile != NULL) {
+        const size_t id = indexIdToNum(&dbKey);
+        return (id < size) ? id : DB_ENTRY_NOT_FOUND;
+    }
     size_t id = bsearch(index, size, dbKey);
     if (id2local != NULL) {
         return (id < size && index[id].id == dbKey) ? id2local[id] : DB_ENTRY_NOT_FOUND;
@@ -704,6 +813,61 @@ template <typename T> void DBReader<T>::checkClosed() const {
         Debug(Debug::ERROR) << "Trying to read a closed database.\n";
         EXIT(EXIT_FAILURE);
     }
+}
+
+template <typename T> size_t DBReader<T>::findIdRange(size_t id) {
+    const T key = getDbKey(id);
+    const size_t range = bsearch(index, indexSize, key);
+    return (range < indexSize && index[range].id == key) ? range : range - 1;
+}
+
+template <typename T> void DBReader<T>::loadData(size_t dbFrom, size_t dbSize) {
+    if (index2dbfile == NULL || (dataMode & USE_DATA) == 0 || dbSize == 0) {
+        return;
+    }
+    const size_t dbTo = dbFrom + dbSize;
+    const size_t firstRange = findIdRange(dbFrom);
+    const size_t lastRange = findIdRange(dbTo - 1) + 1;
+    std::vector<size_t> fileEnds(dataFds.size(), 0);
+    loadedFileOffsets.assign(dataFds.size(), 0);
+    for (size_t range = firstRange; range < lastRange; range++) {
+        const unsigned int file = index2dbfile[range];
+        const size_t firstId = indexIdToNum(&index[range].id);
+        const size_t endId = (range + 1 < indexSize) ? indexIdToNum(&index[range + 1].id) : size;
+        if (fileEnds[file] == 0) {
+            loadedFileOffsets[file] = index[range].offset + (std::max(dbFrom, firstId) - firstId) * index[range].length;
+        }
+        fileEnds[file] = index[range].offset + (std::min(dbTo, endId) - firstId) * index[range].length;
+    }
+    const size_t pageSize = Util::getPageSize();
+    std::vector<size_t> fileStarts(dataFds.size() + 1, 0);
+    for (size_t file = 0; file < dataFds.size(); file++) {
+        loadedFileOffsets[file] = loadedFileOffsets[file] / pageSize * pageSize;
+        fileStarts[file + 1] = fileStarts[file] + ((fileEnds[file] + pageSize - 1) / pageSize * pageSize - loadedFileOffsets[file]);
+    }
+    const size_t bytes = fileStarts.back();
+    if (bytes > loadedDataCapacity) {
+        free(loadedData);
+        decrementMemory(loadedDataCapacity);
+        // O_DIRECT reads need a page aligned buffer
+        if (posix_memalign(reinterpret_cast<void **>(&loadedData), pageSize, bytes) != 0) {
+            Debug(Debug::ERROR) << "Cannot allocate " << bytes << " bytes to read " << dataFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        incrementMemory(bytes);
+        loadedDataCapacity = bytes;
+    }
+    std::vector<BatchReader::Request> requests;
+    for (size_t file = 0; file < dataFds.size(); file++) {
+        dataFiles[file] = loadedData + fileStarts[file];
+        if (fileEnds[file] > 0) {
+            BatchReader::Request request = { dataFds[file], dataFiles[file], loadedFileOffsets[file], fileStarts[file + 1] - fileStarts[file], fileEnds[file] - loadedFileOffsets[file] };
+            requests.push_back(request);
+        }
+    }
+    batchReader->read(requests, dataFileName);
+    loadedFrom = dbFrom;
+    loadedSize = dbSize;
 }
 
 template<typename T>
@@ -931,6 +1095,14 @@ int DBReader<T>::isCompressed(int dbtype) {
 
 
 template <typename T> void DBReader<T>::releaseDataPages() {
+    if (loadedData != NULL) {
+        free(loadedData);
+        decrementMemory(loadedDataCapacity);
+        loadedData = NULL;
+        loadedDataCapacity = 0;
+        loadedSize = 0;
+        return;
+    }
 #ifdef MADV_DONTNEED
     // Util::madviseLogged goes through posix_madvise, which glibc turns into a no-op for
     // POSIX_MADV_DONTNEED, so this has to call madvise itself
@@ -1145,6 +1317,28 @@ void DBReader<T>::decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize,
     if (worldSize == 1) {
         *startEntry = 0;
         *numEntries = dbEntries;
+        return;
+    }
+    
+    if (index2dbfile != NULL) {
+        // createdb-mode 3(linfinity)
+        const size_t chunkSize = ceil(static_cast<double>(dataSize) / static_cast<double>(worldSize));
+        size_t currentRank = 0;
+        size_t sumCharsAssigned = 0;
+        *startEntry = 0;
+        *numEntries = 0;
+        for (size_t row = 0; row < indexSize; row++) {
+            const size_t rowEntries = ((row + 1 < indexSize) ? indexIdToNum(&index[row + 1].id) : dbEntries) - indexIdToNum(&index[row].id);
+            if (row > 0 && index[row].length != index[row - 1].length && sumCharsAssigned >= (currentRank + 1) * chunkSize) {
+                currentRank++;
+            }
+            sumCharsAssigned += rowEntries * index[row].length;
+            if (currentRank < worldRank) {
+                *startEntry += rowEntries;
+            } else if (currentRank == worldRank) {
+                *numEntries += rowEntries;
+            }
+        }
         return;
     }
 

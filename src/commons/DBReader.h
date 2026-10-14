@@ -53,6 +53,8 @@ struct DBFiles {
     };
 };
 
+class BatchReader;
+
 template <typename T>
 class DBReader : public MemoryTracker {
 public:
@@ -243,6 +245,8 @@ public:
         size_t length;
         if (local2id != NULL) {
             length=index[local2id[id]].length;
+        }else if (index2dbfile != NULL) {
+            length=index[findIdRange(id)].length;
         }else{
             length=index[id].length;
         }
@@ -264,6 +268,8 @@ public:
         }
         if (local2id != NULL) {
             return index[local2id[id]].length;
+        }else if (index2dbfile != NULL) {
+            return index[findIdRange(id)].length;
         }else{
             return index[id].length;
         }
@@ -272,6 +278,9 @@ public:
     size_t maxCount(char c);
 
     void remapData();
+
+    // --createdb-mode 3: reads ids [dbFrom, dbFrom + dbSize) into memory; getData works only for those ids
+    void loadData(size_t dbFrom, size_t dbSize);
 
     size_t bsearch(const Index * index, size_t size, T value);
 
@@ -316,6 +325,7 @@ public:
     static const unsigned int USE_LOOKUP_REV = 16;
     static const unsigned int USE_SOURCE     = 32;
     static const unsigned int USE_SOURCE_REV = 64;
+    static const unsigned int USE_LINFINITY  = 128;
 
 
     // compressed
@@ -381,6 +391,10 @@ public:
 
     Index* getIndex() {
         return index;
+    }
+
+    size_t getIndexSize() const {
+        return indexSize;
     }
 
     Index* getIndex(size_t id) {
@@ -503,6 +517,7 @@ public:
 
 private:
     void checkClosed() const;
+    size_t findIdRange(size_t id);
 
     int threads;
 
@@ -540,6 +555,7 @@ private:
     size_t * compressedBufferSizes;
     ZSTD_DStream ** dstream;
 
+    size_t indexSize;
     Index * index;
     size_t lookupSize;
     LookupEntry * lookup;
@@ -551,6 +567,16 @@ private:
     // 64-bit under MMSEQS_INT64_IDS, so this stays 4 bytes/entry in the default build.
     DBLocalId * id2local;
     DBLocalId * local2id;
+
+    // --createdb-mode 3: row i holds keys index[i].id .. index[i + 1].id - 1 of one length, from index[i].offset in <db>.<index2dbfile[i]>
+    unsigned int * index2dbfile;
+    std::vector<int> dataFds;
+    BatchReader * batchReader;
+    char * loadedData;
+    size_t loadedDataCapacity;
+    std::vector<size_t> loadedFileOffsets;
+    size_t loadedFrom;
+    size_t loadedSize;
 
     bool dataMapped;
     int accessType;
