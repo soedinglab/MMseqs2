@@ -94,6 +94,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_GPU = 8;
     static const unsigned int DBTYPE_EXTENDED_SET = 16;
     static const unsigned int DBTYPE_EXTENDED_AUX_SEQ = 32;
+    static const unsigned int DBTYPE_EXTENDED_LINFINITY = 64;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -298,6 +299,7 @@ public:
     static const int SEQUENCE_SPLIT_MODE_HARD = 0;
     static const int SEQUENCE_SPLIT_MODE_SOFT = 1;
     static const int SEQUENCE_SPLIT_MODE_GPU = 2;
+    static const int SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH = 3;
     static const int CLUST_LINEAR_DEFAULT_NUM_COUNT_TABLE = 2;   // count-table iters (symmetric cov-mode)
     static const int CLUST_LINEAR_DEFAULT_NUM_ADJACENCY = 4;     // adjacency iters (non-symmetric cov-mode)
     static const int CLUST_LINEAR_SYMMETRIC_NUM_ADJACENCY = 1;   // adjacency iters (symmetric cov-mode)
@@ -628,6 +630,7 @@ public:
     // convert2fasta
     bool useHeaderFile;
     int writeLookup;
+    int compressHeaders;
 
     // result2flat
     bool useHeader;
@@ -1024,6 +1027,7 @@ public:
     PARAMETER(PARAM_CREATEDB_MODE)
     PARAMETER(PARAM_SHUFFLE)
     PARAMETER(PARAM_WRITE_LOOKUP)
+    PARAMETER(PARAM_COMPRESS_HEADERS)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
