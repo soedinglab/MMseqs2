@@ -141,6 +141,25 @@ if (HAVE_POSIX_MADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
 endif ()
 
+if (NOT DISABLE_IO_URING)
+    check_cxx_source_compiles("
+            #include <linux/io_uring.h>
+            #include <sys/syscall.h>
+            #include <unistd.h>
+
+            int main() {
+              struct io_uring_sqe sqe;
+              sqe.opcode = IORING_OP_READ;
+              sqe.flags = IOSQE_ASYNC;
+              return syscall(__NR_io_uring_setup, 0, 0) + syscall(__NR_io_uring_enter, -1, 0, 0, IORING_ENTER_GETEVENTS, 0, 0)
+                     + syscall(__NR_io_uring_register, -1, IORING_REGISTER_PROBE, 0, 0) + IORING_FEAT_SINGLE_MMAP + IO_URING_OP_SUPPORTED;
+            }"
+            HAVE_IO_URING)
+    if (HAVE_IO_URING)
+        target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_IO_URING=1)
+    endif ()
+endif ()
+
 if (NOT DISABLE_IPS4O)
     if (ATOMIC_LIB_OVERRIDE)
         add_library(LibAtomic STATIC IMPORTED)
