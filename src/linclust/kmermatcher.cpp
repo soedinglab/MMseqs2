@@ -18,6 +18,7 @@
 #include "SequenceWeights.h"
 #include "Masker.h"
 #include "MemoryMapped.h"
+#include "MMseqsNode.h"
 
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -36,6 +37,15 @@
 static float diagCovScale = 0.0f;
 
 static BaseMatrix *adjSubMat = NULL;
+
+// --createdb-mode 3: keys [localFirstKey, localFirstKey + localKeySize) of this node, only those set in representativeBits (bit k = key localFirstKey + k) unless NULL
+static size_t localFirstKey = 0;
+static size_t localKeySize = SIZE_T_MAX;
+static uint64_t *representativeBits = NULL;
+
+static inline bool isRepresentative(size_t id) {
+    return representativeBits == NULL || ((representativeBits[(id - localFirstKey) / 64] >> ((id - localFirstKey) % 64)) & 1);
+}
 
 static inline unsigned char adjacentResidue(const Sequence &seq, const char *seqData, size_t pos,
                                             unsigned char maskedIndex, unsigned char xIndex) {
@@ -117,7 +127,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, Flank, L> * kmer
         three = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
     }
 
-    Debug::Progress progress(seqDbr.getSize());
+    const size_t dbFrom = localFirstKey;
+    const size_t dbSize = std::min(localKeySize, seqDbr.getSize() - dbFrom);
+    Debug::Progress progress(dbSize);
 #pragma omp parallel num_threads(par.threads)
     {
         unsigned int thread_idx = 0;
@@ -156,14 +168,21 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, Flank, L> * kmer
         Util::checkAllocation(kmers, "Can not allocate kmers memory in fillKmerPositionArray");
         size_t kmersArraySize = par.maxSeqLen;
         const size_t flushSize = 100000000;
-        size_t iterations = static_cast<size_t>(ceil(static_cast<double>(seqDbr.getSize()) / static_cast<double>(flushSize)));
+        size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
         for (size_t i = 0; i < iterations; i++) {
-            size_t start = (i * flushSize);
-            size_t bucketSize = std::min(seqDbr.getSize() - (i * flushSize), flushSize);
+            size_t start = dbFrom + (i * flushSize);
+            size_t bucketSize = std::min(dbFrom + dbSize - start, flushSize);
+            if (thread_idx == 0) {
+                seqDbr.loadData(start, start + bucketSize);
+            }
+#pragma omp barrier
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
+                if (isRepresentative(id) == false) {
+                    continue;
+                }
                 memset(scoreDist, 0, sizeof(unsigned short) * 65536);
                 memset(hierarchicalScoreDist, 0, sizeof(unsigned int) * 128);
 
@@ -1126,12 +1145,21 @@ void setLinearFilterDefault(Parameters *p) {
     p->kmersPerSequence = Parameters::CLUST_LINEAR_KMER_PER_SEQ;
 }
 
+static inline size_t computeSeqKmerCount(int seqLen, size_t kmerSize, size_t chooseTopKmer, float chooseTopKmerScale) {
+    int kmerAdjustedSeqLen = std::max(1, seqLen - static_cast<int>(kmerSize) + 2);
+    return std::min(kmerAdjustedSeqLen, static_cast<int>(chooseTopKmer + (chooseTopKmerScale * seqLen)));
+}
+
 size_t computeKmerCount(DBReader<DBKeyType> &reader, size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale) {
     size_t totalKmers = 0;
-    for(size_t id = 0; id < reader.getSize(); id++ ){
+    const size_t dbFrom = localFirstKey;
+    const size_t dbSize = std::min(localKeySize, reader.getSize() - dbFrom);
+    for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
+        if (isRepresentative(id) == false) {
+            continue;
+        }
         int seqLen = static_cast<int>(reader.getSeqLen(id));
-        int kmerAdjustedSeqLen = std::max(1, seqLen  - static_cast<int>(KMER_SIZE ) + 2) ;
-        totalKmers += std::min(kmerAdjustedSeqLen, static_cast<int>( chooseTopKmer + (chooseTopKmerScale * seqLen)));
+        totalKmers += computeSeqKmerCount(seqLen, KMER_SIZE, chooseTopKmer, chooseTopKmerScale);
     }
     return totalKmers;
 }
@@ -1248,13 +1276,14 @@ int kmermatcherInner(Parameters& par, DBReader<DBKeyType>& seqDbr) {
         }
         countTableMemory = dbKeySize * sizeof(unsigned short);
     }
-    if (countTableMemory >= memoryLimit) {
+    const size_t representativeBitsMemory = (representativeBits != NULL) ? (localKeySize + 63) / 64 * sizeof(uint64_t) : 0;
+    if (countTableMemory + representativeBitsMemory >= memoryLimit) {
         Debug(Debug::ERROR) << "Not enough memory to run the kmermatcher. Memory limit: " << memoryLimit
-                            << " bytes, the resident count table needs: " << countTableMemory << " bytes.\n"
+                            << " bytes, the resident count table and representative bits need: " << countTableMemory + representativeBitsMemory << " bytes.\n"
                             << "Raise --split-memory-limit.\n";
         EXIT(EXIT_FAILURE);
     }
-    size_t splitMemoryLimit = static_cast<size_t>(static_cast<double>(memoryLimit - countTableMemory) * 0.95);
+    size_t splitMemoryLimit = static_cast<size_t>(static_cast<double>(memoryLimit - countTableMemory - representativeBitsMemory) * 0.95);
     if (splitMemoryLimit == 0) {
         Debug(Debug::ERROR) << "Not enough memory to run the kmermatcher after reserving fixed memory\n";
         EXIT(EXIT_FAILURE);
@@ -1425,7 +1454,12 @@ int kmermatcherInner(Parameters& par, DBReader<DBKeyType>& seqDbr) {
 #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-            for (size_t id = 0; id < seqDbr.getSize(); id++) {
+            const size_t dbFrom = localFirstKey;
+            const size_t dbSize = std::min(localKeySize, seqDbr.getSize() - dbFrom);
+            for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
+                if (isRepresentative(id) == false) {
+                    continue;
+                }
                 char buffer[100];
                 DBKeyType dbKey = seqDbr.getDbKey(id);
                 if (repSequence[dbKey] == false) {
@@ -1589,20 +1623,80 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    MMseqsNode::init();
+    if (MMseqsNode::count > 1) {
+        Debug(Debug::ERROR) << "kmermatcher does not support multiple nodes yet\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     MemoryMapped indexMap;
     bool sortedByOffset = true;
-    DBReader<DBKeyType> *seqDbrPtr =
-        openReaderWithMappedIndex(par, indexMap,
-                                  par.db2 + "_index_" + SSTR(MMseqsMPI::rank), sortedByOffset);
-    DBReader<DBKeyType> &seqDbr = *seqDbrPtr;
-    if (sortedByOffset) {
-        seqDbr.setSequentialAdvice();
+    DBReader<DBKeyType> *seqDbr;
+    const bool isDBLinfinity = DBReader<DBKeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db1.c_str())) & Parameters::DBTYPE_EXTENDED_LINFINITY;
+    if (isDBLinfinity && par.includeCountTable) {
+        Debug(Debug::WARNING) << "Count table cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << "\n";
+        Debug(Debug::WARNING) << "We recompute with --include-count-table 0\n";
+        par.includeCountTable = false;
     }
-    int querySeqType = seqDbr.getDbtype();
+    if (isDBLinfinity) {
+        seqDbr = new DBReader<DBKeyType>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_LINFINITY);
+        seqDbr->open(DBReader<DBKeyType>::NOSORT);
+    } else {
+        seqDbr = openReaderWithMappedIndex(par, indexMap, par.db2 + "_index_" + SSTR(MMseqsMPI::rank), sortedByOffset);
+    }
+    if (sortedByOffset) {
+        seqDbr->setSequentialAdvice();
+    }
+    int querySeqType = seqDbr->getDbtype();
 
+    size_t dbSeqCount = seqDbr->getSize();
+    size_t aminoAcidDBSize = seqDbr->getAminoAcidDBSize();
+    const std::string bitsFile = par.db1 + ".bits." + SSTR(MMseqsNode::rank);
+    if (isDBLinfinity && FileUtil::fileExists(bitsFile.c_str())) {
+        MemoryMapped indexData(par.db1Index, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (!indexData.isValid()) {
+            Debug(Debug::ERROR) << "Could not open index file " << par.db1Index << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        dbSeqCount = 0;
+        aminoAcidDBSize = 0;
+        size_t currPos = 0;
+        char *indexDataChar = (char *) indexData.getData();
+        const char *cols[6];
+        while (currPos < indexData.size()) {
+            Util::getWordsOfLine(indexDataChar, cols, 6);
+            const size_t representatives = Util::fast_atoi<size_t>(cols[5]);
+            dbSeqCount += representatives;
+            aminoAcidDBSize += representatives * (Util::fast_atoi<size_t>(cols[2]) - 2);
+            indexDataChar = Util::skipLine(indexDataChar);
+            currPos = indexDataChar - (char *) indexData.getData();
+        }
+        indexData.close();
+
+        FILE *file = FileUtil::openFileOrDie(bitsFile.c_str(), "r", true);
+        uint64_t header[2];
+        if (fread(header, sizeof(uint64_t), 2, file) != 2) {
+            Debug(Debug::ERROR) << "Could not read " << bitsFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        localFirstKey = header[0];
+        localKeySize = header[1];
+        const size_t representativeBitsSize = (localKeySize + 63) / 64;
+        representativeBits = new(std::nothrow) uint64_t[representativeBitsSize];
+        Util::checkAllocation(representativeBits, "Can not allocate representative bit memory");
+        if (fread(representativeBits, sizeof(uint64_t), representativeBitsSize, file) != representativeBitsSize) {
+            Debug(Debug::ERROR) << "Could not read " << bitsFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << bitsFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    } else if (isDBLinfinity) {
+        seqDbr->decomposeDomainByAminoAcid(MMseqsNode::rank, MMseqsNode::count, &localFirstKey, &localKeySize);
+    }
     const bool autoKmerSize = (par.kmerSize == 0);
-    setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
+    setKmerLengthAndAlphabet(par, aminoAcidDBSize, querySeqType);
     if (autoKmerSize && par.linclustVersion == Parameters::LINCLUST_VERSION2
         && Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES) == false
         && par.seqIdThr < 0.5) {
@@ -1610,7 +1704,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     }
     std::vector<MMseqsParameter *> *params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
-    Debug(Debug::INFO) << "Database size: " << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Database size: " << dbSeqCount << " type: " << seqDbr->getDbTypeName() << "\n";
 
     
     if (par.includeCountTable || par.includeAdjacency) {
@@ -1639,18 +1733,19 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         }
     }
     
-    if (seqDbr.getMaxSeqLen() < SHRT_MAX) {
-        kmermatcherByFlank<short, unsigned short>(par, seqDbr);
+    if (seqDbr->getMaxSeqLen() < SHRT_MAX) {
+        kmermatcherByFlank<short, unsigned short>(par, *seqDbr);
     }
-    else if (seqDbr.getMaxSeqLen() < USHRT_MAX) {
-        kmermatcherByFlank<int, unsigned short>(par, seqDbr);
+    else if (seqDbr->getMaxSeqLen() < USHRT_MAX) {
+        kmermatcherByFlank<int, unsigned short>(par, *seqDbr);
     }
     else {
-        kmermatcherByFlank<int, int>(par, seqDbr);
+        kmermatcherByFlank<int, int>(par, *seqDbr);
     }
 
-    seqDbr.close();
-    delete seqDbrPtr;
+    delete[] representativeBits;
+    seqDbr->close();
+    delete seqDbr;
     indexMap.close();
 
     return EXIT_SUCCESS;
