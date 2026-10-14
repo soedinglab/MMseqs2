@@ -23,7 +23,8 @@ public:
         KSEQ_STREAM,
         KSEQ_GZIP,
         KSEQ_BZIP,
-        KSEQ_BUFFER
+        KSEQ_BUFFER,
+        KSEQ_ZSTD
     };
     kseq_type type;
 
@@ -36,11 +37,12 @@ protected:
 
 class KSeqFile : public KSeqWrapper {
 public:
-    KSeqFile(const char* file);
+    KSeqFile(const char* file, size_t start = 0, size_t end = SIZE_MAX);
     bool ReadEntry();
     ~KSeqFile();
 private:
     FILE* file;
+    size_t end;
 };
 
 
@@ -86,6 +88,28 @@ private:
     kseq_buffer_t d;
 };
 
-KSeqWrapper* KSeqFactory(const char* file);
+#include <zstd.h>
+
+class KSeqZstd : public KSeqWrapper {
+public:
+    KSeqZstd(const char* file, size_t start = 0, size_t end = SIZE_MAX);
+    bool ReadEntry();
+    ~KSeqZstd();
+
+    struct ZstdFile {
+        FILE* file;
+        ZSTD_DStream* dstream;
+        ZSTD_inBuffer input;
+        size_t toRead;
+        size_t position;
+        size_t end;
+        size_t outputPosition;
+        size_t outputEnd;
+    };
+private:
+    ZstdFile file;
+};
+
+KSeqWrapper* KSeqFactory(const char* file, size_t start = 0, size_t end = SIZE_MAX);
 
 #endif //MMSEQS_KSEQWRAPPER_H
