@@ -19,6 +19,7 @@ set(commons_header_files
         commons/GpuUtil.h
         commons/HeaderSummarizer.h
         commons/IndexReader.h
+        commons/BatchReader.h
         commons/itoa.h
         commons/KSeqBufferReader.h
         commons/KSeqWrapper.h
@@ -28,6 +29,7 @@ set(commons_header_files
         commons/MemoryMapped.h
         commons/MemoryTracker.h
         commons/MMseqsMPI.h
+        commons/MMseqsNode.h
         commons/MultiParam.h
         commons/NucleotideMatrix.h
         commons/Orf.h
@@ -63,12 +65,14 @@ set(commons_source_files
         commons/FileUtil.cpp
         commons/GpuUtil.cpp
         commons/HeaderSummarizer.cpp
+        commons/BatchReader.cpp
         commons/KSeqWrapper.cpp
         commons/LambdaCalculation.cpp
         commons/Masker.cpp
         commons/MemoryMapped.cpp
         commons/MemoryTracker.cpp
         commons/MMseqsMPI.cpp
+        commons/MMseqsNode.cpp
         commons/MultiParam.cpp
         commons/NucleotideMatrix.cpp
         commons/Orf.cpp
