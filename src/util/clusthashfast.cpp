@@ -1,5 +1,4 @@
 #include "DBWriter.h"
-#include "FileUtil.h"
 #include "Util.h"
 #include "Parameters.h"
 #include "Debug.h"
@@ -7,52 +6,18 @@
 #include "ReducedMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "DistanceCalculator.h"
-#include "Orf.h"
 #include "FastSort.h"
+#include "MMseqsNode.h"
 #include "itoa.h"
-#include "Timer.h"
+#include "FileUtil.h"
 
-#include <algorithm>
-#include <climits>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <vector>
-#include <mutex>
+#include <limits>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-
-static const size_t CLUSTHASH_CHUNK_RECORDS = 65536;
-static const size_t CLUSTHASH_RESULT_RESERVE = 4096;
-static const size_t CLUSTHASH_MAX_RETAINED_RESULT = 4 * 1024 * 1024;
-static const size_t CLUSTHASH_MAX_RETAINED_CLAIMS = 1024 * 1024;
-static const unsigned int CLUSTHASH_MAX_PARTITIONS = 4096;
-static const size_t CLUSTHASH_PENDING_BYTES = 8 * 1024 * 1024;
-static const size_t CLUSTHASH_PROGRESS_STEP = 1ull << 20;
-
-static size_t progressSteps(size_t dbSize) {
-    const size_t steps = (dbSize + CLUSTHASH_PROGRESS_STEP - 1) / CLUSTHASH_PROGRESS_STEP;
-    return (steps == 0) ? 1 : steps;
-}
-
-struct ClusterCounts {
-    size_t clusters;
-    size_t merged;
-    size_t runs;
-
-    ClusterCounts() : clusters(0), merged(0), runs(0) {}
-
-    void add(const ClusterCounts &other) {
-        clusters += other.clusters;
-        merged += other.merged;
-        runs += other.runs;
-    }
-};
-
-struct __attribute__((packed)) HashEntry {
+struct __attribute__((__packed__)) HashEntry {
     size_t hash;
     DBLocalId id;
 
@@ -62,506 +27,583 @@ struct __attribute__((packed)) HashEntry {
         }
         return first.id < second.id;
     }
-};
 
-static void appendKey(std::string &buffer, DBKeyType key, char *lineBuffer) {
-    char *outPos = Itoa::u64toa_sse2(static_cast<uint64_t>(key), lineBuffer);
-    buffer.append(lineBuffer, (outPos - lineBuffer - 1));
-    buffer.push_back('\n');
-}
-
-struct ClusterWorker {
-    std::string result;
-    std::string querySeq;
-    std::vector<unsigned char> claimed;
-    std::vector<unsigned int> memberLength;
-    char lineBuffer[32];
-    ClusterCounts counts;
-
-    ClusterWorker() {
-        result.reserve(CLUSTHASH_RESULT_RESERVE);
-    }
-
-    void beginCluster(DBKeyType representativeKey) {
-        if (result.capacity() > CLUSTHASH_MAX_RETAINED_RESULT) {
-            std::string().swap(result);
-            result.reserve(CLUSTHASH_RESULT_RESERVE);
-        } else {
-            result.clear();
-        }
-        appendKey(result, representativeKey, lineBuffer);
-    }
-
-    void addMember(DBKeyType memberKey) {
-        appendKey(result, memberKey, lineBuffer);
-        counts.merged++;
-    }
-
-    void writeCluster(DBWriter &writer, DBWriter &representativeWriter, DBReader<DBKeyType> &reader,
-                      DBLocalId representativeId, DBKeyType representativeKey, unsigned int thread_idx) {
-        writer.writeData(result.c_str(), result.length(), representativeKey, thread_idx);
-        representativeWriter.writeIndexEntry(representativeKey, reader.getOffset(representativeId),
-                                             reader.getEntryLen(representativeId), thread_idx);
-        counts.clusters++;
-    }
-
-    void trimClaimed() {
-        if (claimed.capacity() > CLUSTHASH_MAX_RETAINED_CLAIMS) {
-            std::vector<unsigned char>().swap(claimed);
-        }
-        if (memberLength.capacity() > CLUSTHASH_MAX_RETAINED_CLAIMS) {
-            std::vector<unsigned int>().swap(memberLength);
-        }
+    static bool compareById(const HashEntry &first, const HashEntry &second) {
+        return first.id < second.id;
     }
 };
 
-static size_t hashNucleotideSequence(const char *data, size_t length) {
-    const size_t A = 31;
-    size_t h1 = 0;
-    size_t h2 = 0;
-    for (size_t i = 0; i < length; ++i) {
-        h1 = ((h1 * A) + data[i]);
-        h2 = ((h2 * A) + Orf::complement(data[length - i - 1]));
-    }
-    return std::min(h1, h2);
-}
+// keys of one length, starting at startKey and at offset bytes into the data file of the node, entries of entryLength bytes
+struct LengthRange {
+    size_t startKey;
+    size_t offset;
+    size_t entryLength;
+};
 
 static size_t hashWithLength(size_t hash, size_t length) {
     return hash ^ (length + static_cast<size_t>(0x9e3779b97f4a7c15ULL) + (hash << 6) + (hash >> 2));
 }
 
-static bool hashScanIsSequential(DBReader<DBKeyType> &reader) {
-    return reader.isSortedByOffset();
-}
-
-static size_t idScanBlock(DBReader<DBKeyType> &reader, size_t dbSize, int threads) {
-    const size_t DEFAULT_BLOCK = 1000;
-    const size_t MIN_BLOCKS_PER_THREAD = 16;
-    const size_t TARGET_SPAN = 64 * 1024 * 1024;
-    if (threads < 2 || dbSize == 0 || hashScanIsSequential(reader) == false) {
-        return DEFAULT_BLOCK;
-    }
-    size_t fileSize = 0;
-    for (size_t fileIdx = 0; fileIdx < reader.getDataFileCnt(); fileIdx++) {
-        fileSize += reader.getDataSizeForFile(fileIdx);
-    }
-    size_t lastEnd = std::min(reader.getIndex(dbSize - 1)->offset + reader.getEntryLen(dbSize - 1), fileSize);
-    if (fileSize == 0 || lastEnd == 0) {
-        return DEFAULT_BLOCK;
-    }
-    size_t stride = std::max<size_t>(lastEnd / dbSize, 1);
-    size_t wanted = (TARGET_SPAN + stride - 1) / stride;
-    size_t balanced = dbSize / (static_cast<size_t>(threads) * MIN_BLOCKS_PER_THREAD);
-    return std::max(std::min(wanted, balanced), DEFAULT_BLOCK);
-}
-
-static size_t hashOf(DBReader<DBKeyType> &reader, size_t id, Sequence *seq, unsigned int thread_idx) {
-    const size_t length = reader.getSeqLen(id);
-    const char *data = reader.getData(id, thread_idx);
-    if (seq == NULL) {
-        return hashWithLength(hashNucleotideSequence(data, length), length);
-    }
-    seq->mapSequence(id, 0, data, length);
-    return hashWithLength(Util::hash(seq->numSequence, seq->L), length);
-}
-
-static size_t hashRunEnd(const HashEntry *entries, size_t entryCount, size_t runBegin) {
-    const size_t hash = entries[runBegin].hash;
-    size_t runEnd = runBegin + 1;
-    while (runEnd < entryCount && entries[runEnd].hash == hash) {
-        runEnd++;
-    }
-    return runEnd;
-}
-
-static size_t firstOwnedRun(const HashEntry *entries, size_t chunkBegin, size_t chunkEnd) {
-    size_t runBegin = chunkBegin;
-    while (runBegin < chunkEnd && runBegin > 0 && entries[runBegin - 1].hash == entries[runBegin].hash) {
-        runBegin++;
-    }
-    return runBegin;
-}
-
-static void clusterHashRun(DBReader<DBKeyType> &reader, DBWriter &writer, DBWriter &representativeWriter,
-                           const HashEntry *run, size_t runSize, float seqIdThr, ClusterWorker &worker,
-                           unsigned int thread_idx) {
-    worker.counts.runs++;
-    if (runSize == 1) {
-        const DBKeyType representativeKey = reader.getDbKey(run[0].id);
-        worker.beginCluster(representativeKey);
-        worker.writeCluster(writer, representativeWriter, reader, run[0].id, representativeKey, thread_idx);
-        return;
-    }
-
-    worker.memberLength.resize(runSize);
-    for (size_t k = 0; k < runSize; ++k) {
-        const size_t memberLen = reader.getSeqLen(run[k].id);
-        if (memberLen > UINT_MAX) {
-            Debug(Debug::ERROR) << "Sequence " << reader.getDbKey(run[k].id) << " is " << memberLen
-                                << " residue long; clusthashfast stores lengths in 32 bit.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        worker.memberLength[k] = static_cast<unsigned int>(memberLen);
-    }
-
-    worker.claimed.assign(runSize, 0);
-    for (size_t i = 0; i < runSize; i++) {
-        if (worker.claimed[i]) {
-            continue;
-        }
-        worker.claimed[i] = 1;
-        const DBLocalId queryId = run[i].id;
-        const unsigned int queryLength = worker.memberLength[i];
-        const DBKeyType representativeKey = reader.getDbKey(queryId);
-        worker.beginCluster(representativeKey);
-
-        const char *querySeq = NULL;
-        for (size_t j = i + 1; j < runSize; j++) {
-            if (worker.claimed[j] || worker.memberLength[j] != queryLength) {
-                continue;
-            }
-            if (querySeq == NULL) {
-                worker.querySeq.assign(reader.getData(queryId, thread_idx), queryLength);
-                querySeq = worker.querySeq.data();
-            }
-            const char *targetSeq = reader.getData(run[j].id, thread_idx);
-            const unsigned int distance =
-                DistanceCalculator::computeInverseHammingDistance(querySeq, targetSeq, queryLength);
-            const float seqId = static_cast<float>(distance) / static_cast<float>(queryLength);
-            if (seqId >= seqIdThr) {
-                worker.addMember(reader.getDbKey(run[j].id));
-                worker.claimed[j] = 1;
-            }
-        }
-        worker.writeCluster(writer, representativeWriter, reader, queryId, representativeKey, thread_idx);
-    }
-    worker.trimClaimed();
-}
-
-static ClusterCounts clusterHashRuns(DBReader<DBKeyType> &reader, DBWriter &writer,
-                                     DBWriter &representativeWriter, const HashEntry *entries,
-                                     size_t entryCount, float seqIdThr, bool showProgress, int threads) {
-    const size_t chunkCount = (entryCount + CLUSTHASH_CHUNK_RECORDS - 1) / CLUSTHASH_CHUNK_RECORDS;
-    Debug::Progress progress(chunkCount);
-    size_t totalClusters = 0;
-    size_t totalMerged = 0;
-    size_t totalRuns = 0;
-#pragma omp parallel num_threads(threads) reduction(+:totalClusters) reduction(+:totalMerged) reduction(+:totalRuns)
-    {
-        unsigned int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
-        ClusterWorker worker;
-
-#pragma omp for schedule(dynamic, 1)
-        for (size_t chunk = 0; chunk < chunkCount; ++chunk) {
-            const size_t chunkBegin = chunk * CLUSTHASH_CHUNK_RECORDS;
-            const size_t chunkEnd = std::min(entryCount, chunkBegin + CLUSTHASH_CHUNK_RECORDS);
-            if (showProgress) {
-                progress.updateProgress(chunk);
-            }
-            size_t pos = firstOwnedRun(entries, chunkBegin, chunkEnd);
-            while (pos < chunkEnd) {
-                const size_t runEnd = hashRunEnd(entries, entryCount, pos);
-                clusterHashRun(reader, writer, representativeWriter, entries + pos, runEnd - pos,
-                               seqIdThr, worker, thread_idx);
-                pos = runEnd;
-            }
-        }
-        totalClusters += worker.counts.clusters;
-        totalMerged += worker.counts.merged;
-        totalRuns += worker.counts.runs;
-    }
-
-    ClusterCounts counts;
-    counts.clusters = totalClusters;
-    counts.merged = totalMerged;
-    counts.runs = totalRuns;
-    return counts;
-}
-
-
-
-struct HashPartitions {
-    std::vector<FILE *> files;
-    std::vector<std::string> names;
-    std::vector<size_t> counts;
-    unsigned int bits;
-
-    HashPartitions() : bits(0) {}
-
-    ~HashPartitions() {
-        close();
-        for (size_t part = 0; part < names.size(); part++) {
-            if (FileUtil::fileExists(names[part].c_str())) {
-                FileUtil::remove(names[part].c_str());
-            }
-        }
-    }
-
-    bool open(const std::string &prefix, unsigned int partitions) {
-        bits = 0;
-        while ((1u << bits) < partitions) {
-            bits++;
-        }
-        files.assign(partitions, NULL);
-        counts.assign(partitions, 0);
-        for (unsigned int part = 0; part < partitions; part++) {
-            names.push_back(prefix + "." + SSTR(part));
-            files[part] = fopen(names[part].c_str(), "wb");
-            if (files[part] == NULL) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    void close() {
-        for (size_t part = 0; part < files.size(); part++) {
-            if (files[part] != NULL) {
-                fclose(files[part]);
-                files[part] = NULL;
-            }
-        }
-    }
-
-    // a short sequence leaves the top bits of Util::hash zero, so mix before shifting
-    unsigned int partitionOf(size_t hash) const {
-        if (bits == 0) {
-            return 0u;
-        }
-        size_t mixed = hash + 0x9e3779b97f4a7c15ULL;
-        mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9ULL;
-        mixed = (mixed ^ (mixed >> 27)) * 0x94d049bb133111ebULL;
-        mixed ^= mixed >> 31;
-        return static_cast<unsigned int>(mixed >> (sizeof(size_t) * 8 - bits));
-    }
+// positions 64 * i .. 64 * i + 63 of a split length: which are members of the current hash range or block, and how many members come before them
+struct MemberBits {
+    uint64_t isMember;
+    size_t membersBefore;
 };
 
-static bool flushPartition(HashPartitions &parts, std::vector<std::mutex> &locks, unsigned int partition,
-                           std::vector<HashEntry> &pending) {
-    std::lock_guard<std::mutex> lock(locks[partition]);
-    const bool ok = fwrite(pending.data(), sizeof(HashEntry), pending.size(), parts.files[partition])
-                    == pending.size();
-    parts.counts[partition] += pending.size();
-    pending.clear();
-    return ok;
+// index of the sequence at position pos of a split length among the members of the current hash range or block
+static size_t memberIndex(const MemberBits *memberBits, size_t pos) {
+    return memberBits[pos / 64].membersBefore + __builtin_popcountll(memberBits[pos / 64].isMember & ((1ull << (pos % 64)) - 1));
 }
 
-static bool hashIntoPartitions(DBReader<DBKeyType> &reader, HashPartitions &parts, bool isNuclInput,
-                               BaseMatrix *subMat, size_t maxSeqLen, bool showProgress, int threads) {
-    const size_t dbSize = reader.getSize();
-    const size_t scanChunk = idScanBlock(reader, dbSize, threads);
-    const unsigned int partitionCount = static_cast<unsigned int>(parts.files.size());
-    const size_t flush = std::max<size_t>(64, CLUSTHASH_PENDING_BYTES
-                                              / (partitionCount * sizeof(HashEntry)));
-    std::vector<std::mutex> locks(partitionCount);
-    Debug::Progress progress(progressSteps(dbSize));
-    bool ok = true;
-#pragma omp parallel num_threads(threads) reduction(&&:ok)
-    {
-        bool threadOk = true;
-        unsigned int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
-        std::vector<std::vector<HashEntry> > pending(partitionCount);
-        Sequence *seq = isNuclInput ? NULL : new Sequence(maxSeqLen, reader.getDbtype(), subMat, 0, false, false);
-#pragma omp for schedule(static, scanChunk)
-        for (size_t id = 0; id < dbSize; ++id) {
-            if (showProgress && (id & (CLUSTHASH_PROGRESS_STEP - 1)) == 0) {
-                progress.updateProgress();
-            }
-            HashEntry entry;
-            entry.hash = hashOf(reader, id, seq, thread_idx);
-            entry.id = static_cast<DBLocalId>(id);
-            const unsigned int partition = parts.partitionOf(entry.hash);
-            pending[partition].push_back(entry);
-            if (pending[partition].size() >= flush) {
-                threadOk = flushPartition(parts, locks, partition, pending[partition]) && threadOk;
-            }
-        }
-        for (unsigned int partition = 0; partition < partitionCount; partition++) {
-            if (pending[partition].empty() == false) {
-                threadOk = flushPartition(parts, locks, partition, pending[partition]) && threadOk;
-            }
-        }
-        delete seq;
-        ok = ok && threadOk;
-    }
-    return ok;
+// a load fits when its sequence buffer is at most a third of the limit and its hashIdPairs fit next to two buffers
+static bool fitsWithPrefetch(const LengthRange *begin, const LengthRange *end, bool isDBLinfinity, size_t seqBufferLimit, size_t hashIdPairsLimit) {
+    const size_t seqBufferBytes = isDBLinfinity ? end->offset - begin->offset + 2 * Util::getPageSize() : 0;
+    return seqBufferBytes <= seqBufferLimit && (end->startKey - begin->startKey) * sizeof(HashEntry) <= hashIdPairsLimit;
 }
 
-static unsigned int hashPartitionCount(size_t dbSize, size_t budget) {
-    const size_t needed = dbSize * sizeof(HashEntry);
-    const size_t usable = std::max<size_t>(budget, 1);
-    unsigned int partitions = 1;
-    while (partitions < CLUSTHASH_MAX_PARTITIONS && needed / partitions > usable) {
-        partitions *= 2;
-    }
-    return partitions;
+static size_t seqHash(Sequence &seq, size_t id, const char *data, size_t length) {
+    seq.mapSequence(id, 0, data, length);
+    return hashWithLength(Util::hash(seq.numSequence, seq.L), length);
 }
 
-static void hashAllSequences(DBReader<DBKeyType> &reader, HashEntry *entries, size_t dbSize,
-                             bool isNuclInput, BaseMatrix *subMat, size_t maxSeqLen, bool showProgress,
-                             int threads) {
-    const size_t scanChunk = idScanBlock(reader, dbSize, threads);
-    Debug::Progress progress(progressSteps(dbSize));
-#pragma omp parallel num_threads(threads)
+// hashes each loaded sequence of ranges [0, rangeCount), ended by ranges[rangeCount].startKey, into hashIdPairs
+static size_t fillHashIdPairs(DBReader<DBKeyType> &reader, const BaseMatrix *subMat, size_t maxSeqLen, const LengthRange *ranges, size_t rangeCount, HashEntry *hashIdPairs) {
+    const size_t firstKey = ranges[0].startKey;
+    const size_t seqCount = ranges[rangeCount].startKey - firstKey;
+#pragma omp parallel
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence *seq = isNuclInput ? NULL : new Sequence(maxSeqLen, reader.getDbtype(), subMat, 0, false, false);
-#pragma omp for schedule(static, scanChunk)
-        for (size_t id = 0; id < dbSize; ++id) {
-            if (showProgress && (id & (CLUSTHASH_PROGRESS_STEP - 1)) == 0) {
-                progress.updateProgress();
+        Sequence seq(maxSeqLen, reader.getDbtype(), subMat, 0, false, false);
+        for (size_t range = 0; range < rangeCount; range++) {
+            const size_t entryLength = ranges[range].entryLength;
+            const char *rangeData = (entryLength > 0) ? reader.getDataFromLoadedBuffer(ranges[range].startKey) : NULL;
+#pragma omp for schedule(dynamic, 100) nowait
+            for (size_t key = ranges[range].startKey; key < ranges[range + 1].startKey; key++) {
+                const char *data = (entryLength > 0) ? rangeData + (key - ranges[range].startKey) * entryLength : reader.getData(key, thread_idx);
+                const size_t length = (entryLength > 0) ? entryLength - 2 : reader.getSeqLen(key);
+                hashIdPairs[key - firstKey].hash = seqHash(seq, key, data, length);
+                hashIdPairs[key - firstKey].id = key;
             }
-            entries[id].hash = hashOf(reader, id, seq, thread_idx);
-            entries[id].id = static_cast<DBLocalId>(id);
         }
-        delete seq;
     }
+    return seqCount;
 }
 
-
-static ClusterCounts clusterSequences(const Parameters &par, DBReader<DBKeyType> &reader, DBWriter &writer,
-                                      DBWriter &representativeWriter, BaseMatrix *subMat, bool isNuclInput,
-                                      size_t memoryLimit) {
-    ClusterCounts counts;
-    const size_t dbSize = reader.getSize();
-    if (dbSize == 0) {
-        return counts;
-    }
-
-    const bool showProgress = (Debug::debugLevel >= Debug::INFO);
-    const std::string tmpPrefix = std::string(writer.getDataFileName());
-    const size_t entryBudget = std::max<size_t>(memoryLimit / 2, 1);
-    const unsigned int partitionCount = hashPartitionCount(dbSize, entryBudget);
-    Debug(Debug::INFO) << "Memory limit " << memoryLimit << " byte, entries "
-                       << dbSize * sizeof(HashEntry) / partitionCount << " byte per partition\n";
-
-    if (reader.isSortedByOffset()) {
-        reader.setSequentialAdvice();
-    }
-
-    if (partitionCount == 1) {
-        Debug(Debug::INFO) << "Hashing " << dbSize << " sequences...\n";
-        HashEntry *entries = new(std::nothrow) HashEntry[dbSize];
-        Util::checkAllocation(entries, "Cannot allocate hash entry memory in clusthashfast");
-        hashAllSequences(reader, entries, dbSize, isNuclInput, subMat, par.maxSeqLen, showProgress,
-                         par.threads);
-        Debug(Debug::INFO) << "Sort sequence hashes...\n";
-        Timer sortTimer;
-        SORT_PARALLEL(entries, entries + dbSize, HashEntry::compareByHashAndId);
-        Debug(Debug::INFO) << "Time for sorting hashes: " << sortTimer.lap() << "\n";
-        Debug(Debug::INFO) << "Cluster equal length sequences...\n";
-        counts = clusterHashRuns(reader, writer, representativeWriter, entries, dbSize, par.seqIdThr,
-                                 showProgress, par.threads);
-        delete[] entries;
-        Debug(Debug::INFO) << "Found " << counts.runs << " unique hash/length groups\n";
-        return counts;
-    }
-
-    Debug(Debug::INFO) << "Hashing " << dbSize << " sequences into " << partitionCount << " partitions...\n";
-    HashPartitions parts;
-    if (parts.open(tmpPrefix + ".hashpart", partitionCount) == false) {
-        Debug(Debug::ERROR) << "Cannot open hash partitions under " << tmpPrefix << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (hashIntoPartitions(reader, parts, isNuclInput, subMat, par.maxSeqLen, showProgress,
-                           par.threads) == false) {
-        Debug(Debug::ERROR) << "Cannot write hash partitions under " << tmpPrefix << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    parts.close();
-
-    std::vector<HashEntry> part;
-    for (unsigned int partition = 0; partition < partitionCount; partition++) {
-        const size_t partSize = parts.counts[partition];
-        if (partSize == 0) {
-            continue;
+// counts the sequences of each hash bucket of keys [firstKey, firstKey + seqCount), read chunkSeqCount at a time,
+// and cuts the buckets into hash ranges of at most maxRangeSeqCount sequences, like kmermatcher setupKmerSplits
+static std::vector<std::pair<size_t, size_t>> setupHashRanges(DBReader<DBKeyType> &reader, const BaseMatrix *subMat, size_t maxSeqLen,
+                                                              size_t firstKey, size_t seqCount, size_t chunkSeqCount, size_t maxRangeSeqCount) {
+    size_t *hashDist = new(std::nothrow) size_t[USHRT_MAX + 1];
+    Util::checkAllocation(hashDist, "Can not allocate hashDist memory");
+    memset(hashDist, 0, sizeof(size_t) * (USHRT_MAX + 1));
+    for (size_t chunkBegin = 0; chunkBegin < seqCount; chunkBegin += chunkSeqCount) {
+        const size_t chunkEnd = std::min(chunkBegin + chunkSeqCount, seqCount);
+        reader.loadData(firstKey + chunkBegin, firstKey + chunkEnd);
+        if (chunkEnd < seqCount) {
+            reader.prefetchData(firstKey + chunkEnd, firstKey + std::min(chunkEnd + chunkSeqCount, seqCount));
         }
-        part.resize(partSize);
-        Timer partReadTimer;
-        FILE *in = fopen(parts.names[partition].c_str(), "rb");
-        if (in == NULL || fread(part.data(), sizeof(HashEntry), partSize, in) != partSize) {
-            Debug(Debug::ERROR) << "Cannot read hash partition " << parts.names[partition] << "\n";
+#pragma omp parallel
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+            Sequence seq(maxSeqLen, reader.getDbtype(), subMat, 0, false, false);
+#pragma omp for schedule(dynamic, 100)
+            for (size_t i = chunkBegin; i < chunkEnd; i++) {
+                __sync_fetch_and_add(&hashDist[static_cast<unsigned short>(seqHash(seq, firstKey + i, reader.getData(firstKey + i, thread_idx), reader.getSeqLen(firstKey + i)))], 1);
+            }
+        }
+    }
+
+    std::vector<std::pair<size_t, size_t>> hashRanges;
+    size_t rangeStart = 0;
+    size_t rangeSeqCount = 0;
+    for (size_t bucket = 0; bucket <= USHRT_MAX; bucket++) {
+        if (hashDist[bucket] > maxRangeSeqCount) {
+            Debug(Debug::ERROR) << "Not enough memory to hash " << hashDist[bucket] << " sequences of one hash bucket\n"
+                                << "Raise RAM size or --split-memory-limit.\n";
             EXIT(EXIT_FAILURE);
         }
-        fclose(in);
-        Debug(Debug::INFO) << "Time for reading partition " << (partition + 1) << ": "
-                           << partReadTimer.lap() << "\n";
-        FileUtil::remove(parts.names[partition].c_str());
-
-        Timer partSortTimer;
-        SORT_PARALLEL(part.data(), part.data() + partSize, HashEntry::compareByHashAndId);
-        Debug(Debug::INFO) << "Time for sorting partition " << (partition + 1) << ": "
-                           << partSortTimer.lap() << "\n";
-        const ClusterCounts partCounts = clusterHashRuns(reader, writer, representativeWriter, part.data(),
-                                                        partSize, par.seqIdThr, showProgress, par.threads);
-        counts.add(partCounts);
-        Debug(Debug::INFO) << "Partition " << (partition + 1) << "/" << partitionCount << ": "
-                           << partCounts.runs << " groups, " << partCounts.clusters << " clusters\n";
+        if (rangeSeqCount + hashDist[bucket] > maxRangeSeqCount) {
+            hashRanges.emplace_back(rangeStart, bucket);
+            rangeStart = bucket;
+            rangeSeqCount = 0;
+        }
+        rangeSeqCount += hashDist[bucket];
     }
-    Debug(Debug::INFO) << "Found " << counts.runs << " unique hash/length groups\n";
-    return counts;
+    hashRanges.emplace_back(rangeStart, USHRT_MAX + 1);
+    delete[] hashDist;
+    return hashRanges;
+}
+
+// keeps the sequences of keys [firstKey, firstKey + seqCount) whose hash bucket is in hashRange
+static size_t fillHashRange(DBReader<DBKeyType> &reader, const BaseMatrix *subMat, size_t maxSeqLen, size_t firstKey, size_t seqCount, size_t chunkSeqCount,
+                            const std::pair<size_t, size_t> &hashRange, HashEntry *hashIdPairs, MemberBits *memberBits) {
+    size_t rangeSeqCount = 0;
+    for (size_t chunkBegin = 0; chunkBegin < seqCount; chunkBegin += chunkSeqCount) {
+        const size_t chunkEnd = std::min(chunkBegin + chunkSeqCount, seqCount);
+        reader.loadData(firstKey + chunkBegin, firstKey + chunkEnd);
+        if (chunkEnd < seqCount) {
+            reader.prefetchData(firstKey + chunkEnd, firstKey + std::min(chunkEnd + chunkSeqCount, seqCount));
+        }
+#pragma omp parallel
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+            Sequence seq(maxSeqLen, reader.getDbtype(), subMat, 0, false, false);
+            // a thread marks whole groups of 64 positions, so chunks start at a multiple of 64
+#pragma omp for schedule(dynamic, 1)
+            for (size_t i = chunkBegin / 64; i < (chunkEnd + 63) / 64; i++) {
+                memberBits[i].isMember = 0;
+                for (size_t pos = i * 64; pos < std::min(i * 64 + 64, chunkEnd); pos++) {
+                    const unsigned short bucket = static_cast<unsigned short>(seqHash(seq, firstKey + pos, reader.getData(firstKey + pos, thread_idx), reader.getSeqLen(firstKey + pos)));
+                    if (bucket >= hashRange.first && bucket < hashRange.second) {
+                        memberBits[i].isMember |= 1ull << (pos % 64);
+                    }
+                }
+            }
+#pragma omp single
+            for (size_t i = chunkBegin / 64; i < (chunkEnd + 63) / 64; i++) {
+                memberBits[i].membersBefore = rangeSeqCount;
+                rangeSeqCount += __builtin_popcountll(memberBits[i].isMember);
+            }
+#pragma omp for schedule(dynamic, 1)
+            for (size_t i = chunkBegin / 64; i < (chunkEnd + 63) / 64; i++) {
+                size_t slot = memberBits[i].membersBefore;
+                for (uint64_t isMember = memberBits[i].isMember; isMember != 0; isMember &= isMember - 1) {
+                    const size_t id = firstKey + i * 64 + __builtin_ctzll(isMember);
+                    hashIdPairs[slot].hash = seqHash(seq, id, reader.getData(id, thread_idx), reader.getSeqLen(id));
+                    hashIdPairs[slot].id = id;
+                    slot++;
+                }
+            }
+        }
+    }
+    return rangeSeqCount;
+}
+
+// hashes and sorts keys [firstKey, firstKey + seqCount) of one length, read chunkSeqCount at a time; hash bins of one sequence become representatives,
+// the other bins are moved to the front of hashIdPairs and their count is returned
+static size_t hashAndSortLength(DBReader<DBKeyType> &reader, const BaseMatrix *subMat, size_t maxSeqLen, size_t firstKey, size_t seqCount, size_t chunkSeqCount,
+                                HashEntry *hashIdPairs, uint64_t *representativeBits, size_t localFirstKey) {
+    const size_t length = reader.getSeqLen(firstKey);
+    for (size_t chunkBegin = 0; chunkBegin < seqCount; chunkBegin += chunkSeqCount) {
+        const size_t chunkEnd = std::min(chunkBegin + chunkSeqCount, seqCount);
+        reader.loadData(firstKey + chunkBegin, firstKey + chunkEnd);
+        if (chunkEnd < seqCount) {
+            reader.prefetchData(firstKey + chunkEnd, firstKey + std::min(chunkEnd + chunkSeqCount, seqCount));
+        }
+        const LengthRange chunkRanges[2] = { { firstKey + chunkBegin, 0, length + 2 }, { firstKey + chunkEnd, 0, 0 } };
+        fillHashIdPairs(reader, subMat, maxSeqLen, chunkRanges, 1, hashIdPairs + chunkBegin);
+    }
+    SORT_PARALLEL(hashIdPairs, hashIdPairs + seqCount, HashEntry::compareByHashAndId);
+    size_t writePos = 0;
+    for (size_t hashBinBegin = 0; hashBinBegin < seqCount;) {
+        size_t hashBinEnd = hashBinBegin + 1;
+        while (hashBinEnd < seqCount && hashIdPairs[hashBinEnd].hash == hashIdPairs[hashBinBegin].hash) {
+            hashBinEnd++;
+        }
+        if (hashBinEnd - hashBinBegin == 1) {
+            const size_t bit = hashIdPairs[hashBinBegin].id - localFirstKey;
+            representativeBits[bit / 64] |= 1ull << (bit % 64);
+        } else {
+            for (size_t i = hashBinBegin; i < hashBinEnd; i++) {
+                hashIdPairs[writePos++] = hashIdPairs[i];
+            }
+        }
+        hashBinBegin = hashBinEnd;
+    }
+    return writePos;
+}
+
+// copies the sequences of blockHashIdPairs, keys of [firstKey, firstKey + seqCount), to their slots in blockSeqs, read chunkSeqCount at a time
+static void loadBlockSeqs(DBReader<DBKeyType> &reader, size_t firstKey, size_t seqCount, size_t chunkSeqCount, const HashEntry *blockHashIdPairs, size_t blockSeqCount,
+                          MemberBits *memberBits, char *blockSeqs) {
+    const size_t length = reader.getSeqLen(firstKey);
+    memset(memberBits, 0, sizeof(MemberBits) * (seqCount / 64 + 1));
+#pragma omp parallel for
+    for (size_t i = 0; i < blockSeqCount; i++) {
+        const size_t pos = blockHashIdPairs[i].id - firstKey;
+        __sync_fetch_and_or(&memberBits[pos / 64].isMember, 1ull << (pos % 64));
+    }
+    size_t memberCount = 0;
+    for (size_t i = 0; i < seqCount / 64 + 1; i++) {
+        memberBits[i].membersBefore = memberCount;
+        memberCount += __builtin_popcountll(memberBits[i].isMember);
+    }
+    for (size_t chunkBegin = 0; chunkBegin < seqCount; chunkBegin += chunkSeqCount) {
+        const size_t chunkEnd = std::min(chunkBegin + chunkSeqCount, seqCount);
+        reader.loadData(firstKey + chunkBegin, firstKey + chunkEnd);
+        if (chunkEnd < seqCount) {
+            reader.prefetchData(firstKey + chunkEnd, firstKey + std::min(chunkEnd + chunkSeqCount, seqCount));
+        }
+#pragma omp parallel
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+#pragma omp for schedule(dynamic, 1)
+            for (size_t i = chunkBegin / 64; i < (chunkEnd + 63) / 64; i++) {
+                size_t member = memberBits[i].membersBefore;
+                for (uint64_t isMember = memberBits[i].isMember; isMember != 0; isMember &= isMember - 1) {
+                    const size_t id = firstKey + i * 64 + __builtin_ctzll(isMember);
+                    memcpy(blockSeqs + member * length, reader.getData(id, thread_idx), length);
+                    member++;
+                }
+            }
+        }
+    }
 }
 
 int clusthashfast(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.alphabetSize = MultiParam<NuclAA<int> >(NuclAA<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5));
-    par.seqIdThr = static_cast<float>(Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID) / 100.0f;
+    par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5));
+    par.seqIdThr = (float)Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID / 100.0f;
     par.parseParameters(argc, argv, command, true, 0, 0);
+    MMseqsNode::init();
 
-    // NOSORT still orders by key, which is what makes the representative the smallest key
-    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads,
-                               DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX);
+    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_LINFINITY);
     reader.open(DBReader<DBKeyType>::NOSORT);
-    const bool dataFitsInMemory = reader.getDataSize() < Util::getTotalSystemMemory() / 2;
-    if (par.preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH
-        || (par.preloadMode != Parameters::PRELOAD_MODE_MMAP && dataFitsInMemory)) {
+    if (Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_AMINO_ACIDS) == false) {
+        Debug(Debug::ERROR) << "clusthashfast only supports amino acid databases\n";
+        EXIT(EXIT_FAILURE);
+    }
+    // a compressed or padded entry is decoded into one buffer per thread, so the representative is copied before its members are read
+    const bool copyRepSeq = reader.isCompressed() || (DBReader<DBKeyType>::getExtendedDbtype(reader.getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU);
+    const bool isDBLinfinity = DBReader<DBKeyType>::getExtendedDbtype(reader.getDbtype()) & Parameters::DBTYPE_EXTENDED_LINFINITY;
+    if (isDBLinfinity == false && MMseqsNode::isMaster() == false) {
+        reader.close();
+        return EXIT_SUCCESS;
+    }
+    if (isDBLinfinity == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         reader.readMmapedDataInMemory();
     }
 
-    const bool isNuclInput = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-    BaseMatrix *subMat = NULL;
-    if (isNuclInput == false) {
-        SubstitutionMatrix sMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, -0.2);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa,
-                                   sMat.alphabetSize, par.alphabetSize.values.aminoacid(), 2.0);
+    std::vector<LengthRange> nodeSeqRange;
+    if (isDBLinfinity) {
+        if (reader.getDataFileCnt() != MMseqsNode::count) {
+            Debug(Debug::ERROR) << "Database " << par.db1 << " has " << reader.getDataFileCnt() << " data files, but clusthashfast runs on " << MMseqsNode::count << " nodes\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const DBReader<DBKeyType>::Index *index = reader.getIndex();
+        size_t endKey = reader.getSize();
+        size_t endOffset = 0;
+        for (size_t row = 0; row < reader.getIndexSize(); row++) {
+            if (reader.getIndexFile(row) == MMseqsNode::rank) {
+                nodeSeqRange.push_back({index[row].id, index[row].offset, index[row].length});
+                endKey = (row + 1 < reader.getIndexSize()) ? index[row + 1].id : reader.getSize();
+                endOffset = index[row].offset + (endKey - index[row].id) * index[row].length;
+            }
+        }
+        nodeSeqRange.push_back({endKey, endOffset, 0});
+    } else {
+        nodeSeqRange.push_back({0, 0, 0});
+        nodeSeqRange.push_back({reader.getSize(), reader.getDataSize(), 0});
     }
+    const size_t localFirstKey = nodeSeqRange.front().startKey;
+    const size_t localKeySize = nodeSeqRange.back().startKey - localFirstKey;
 
-    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed,
-                    Parameters::DBTYPE_CLUSTER_RES);
-    writer.open();
-
+    if (isDBLinfinity && par.compressed) {
+        Debug(Debug::WARNING) << "Compressed output cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " databases\n";
+        Debug(Debug::WARNING) << "We recompute with --compressed 0\n";
+        par.compressed = 0;
+    }
+    const std::string resultDb = isDBLinfinity ? par.db2 + "." + SSTR(MMseqsNode::rank) : par.db2;
+    DBWriter resultWriter(resultDb.c_str(), (resultDb + ".index").c_str(), 1, par.compressed, isDBLinfinity ? Parameters::DBTYPE_OMIT_FILE : Parameters::DBTYPE_CLUSTER_RES);
+    resultWriter.open();
     const std::string representativeDb = par.db2 + "_redundancy";
-    DBWriter representativeWriter(representativeDb.c_str(), (representativeDb + ".index").c_str(),
-                                  par.threads, 0, Parameters::DBTYPE_OMIT_FILE);
-    representativeWriter.open();
-
-    const ClusterCounts counts = clusterSequences(par, reader, writer, representativeWriter, subMat,
-                                                  isNuclInput, memoryLimit);
-
-    if (subMat != NULL) {
-        delete subMat;
+    DBWriter representativeWriter(representativeDb.c_str(), (representativeDb + ".index").c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
+    if (isDBLinfinity == false) {
+        representativeWriter.open();
     }
-    writer.close();
+    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
+    // a mode 3 node keeps its representatives as one bit per key
+    const size_t representativeBitsSize = isDBLinfinity ? (localKeySize + 63) / 64 : 0;
+    uint64_t *representativeBits = new(std::nothrow) uint64_t[representativeBitsSize]();
+    Util::checkAllocation(representativeBits, "Can not allocate representative bit memory");
+    if (representativeBitsSize * sizeof(uint64_t) >= memoryLimit) {
+        Debug(Debug::ERROR) << "Not enough memory to run clusthashfast. Memory limit: " << memoryLimit
+                            << " bytes, the representative bits need: " << representativeBitsSize * sizeof(uint64_t) << " bytes.\n"
+                            << "Raise RAM size or --split-memory-limit.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    const size_t splitMemoryLimit = static_cast<size_t>(static_cast<double>(memoryLimit - representativeBitsSize * sizeof(uint64_t)) * 0.95);
 
-    const bool mergeRepresentativeIndex = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_HMM_PROFILE)
-        || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_AMINO_ACIDS)
-        || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-    representativeWriter.close(mergeRepresentativeIndex, true);
-    DBReader<DBKeyType>::softlinkDb(par.db1, representativeDb, DBFiles::DATA);
-    DBWriter::writeDbtypeFile(representativeDb.c_str(), reader.getDbtype(), reader.isCompressed());
-    DBReader<DBKeyType>::softlinkDb(par.db1, representativeDb, DBFiles::SEQUENCE_ANCILLARY);
+    // consecutive lengths that fit together are loaded at once;
+    // a length that does not fit is loaded alone: a mode 3 length is read in chunks to hash it and once per block of candidates, a standard DB length once per hash range that fits, after 2 bits per key
+    const size_t chunkBytes = std::min<size_t>(63 * 16 * 1024 * 1024, splitMemoryLimit / 4);
+    const size_t seqBufferLimit = isDBLinfinity ? splitMemoryLimit / 3 : 0;
+    const size_t hashIdPairsLimit = splitMemoryLimit - 2 * seqBufferLimit;
+    std::vector<size_t> hashIdPairsCapacity(nodeSeqRange.size() - 1, 0);
+    std::vector<size_t> loadStarts;
+    for (size_t i = 0; i + 1 < nodeSeqRange.size(); i++) {
+        const size_t lengthSeqCount = nodeSeqRange[i + 1].startKey - nodeSeqRange[i].startKey;
+        const size_t lengthBytes = (isDBLinfinity ? nodeSeqRange[i + 1].offset - nodeSeqRange[i].offset : 0) + lengthSeqCount * sizeof(HashEntry);
+        if (lengthBytes > splitMemoryLimit) {
+            const size_t chunkSeqCount = isDBLinfinity ? std::min(chunkBytes / nodeSeqRange[i].entryLength / 64 * 64, lengthSeqCount) : 0;
+            const size_t chunkBufferBytes = 2 * reader.getBufferSizeToLoad(nodeSeqRange[i].startKey, nodeSeqRange[i].startKey + chunkSeqCount);
+            const size_t keptBytes = isDBLinfinity ? (lengthSeqCount / 64 + 1) * sizeof(MemberBits) : lengthSeqCount / 4;
+            const size_t hashBytes = sizeof(HashEntry) + (isDBLinfinity ? nodeSeqRange[i].entryLength - 2 : 0);
+            if ((isDBLinfinity && chunkSeqCount == 0) || splitMemoryLimit <= keptBytes + chunkBufferBytes + hashBytes) {
+                Debug(Debug::ERROR) << "Not enough memory to hash " << lengthSeqCount << " sequences\n"
+                                    << "Raise RAM size or --split-memory-limit.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            // a split mode 3 length keeps its hashIdPairs and, after its candidates, the sequences of a block in hashIdPairs
+            hashIdPairsCapacity[i] = (splitMemoryLimit - keptBytes - chunkBufferBytes) / sizeof(HashEntry);
+        }
+        if (loadStarts.empty() || fitsWithPrefetch(&nodeSeqRange[loadStarts.back()], &nodeSeqRange[i + 1], isDBLinfinity, seqBufferLimit, hashIdPairsLimit) == false) {
+            loadStarts.push_back(i);
+        }
+    }
+    loadStarts.push_back(nodeSeqRange.size() - 1);
+    HashEntry *hashIdPairs = NULL;
+    size_t hashIdPairsSize = 0;
+
+    std::string result;
+    char buffer[32];
+    bool needsSort = false;
+    size_t clusters = 0;
+    std::string resultIndex;
+    SubstitutionMatrix sMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, -0.2);
+    ReducedMatrix subMat(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.values.aminoacid(), 2.0);
+
+    Debug(Debug::INFO) << "Hashing " << localKeySize << " sequences in " << loadStarts.size() - 1 << " loads\n";
+    Debug::Progress progress(loadStarts.size() - 1);
+    for (size_t load = 0; load + 1 < loadStarts.size(); load++) {
+        progress.updateProgress();
+        const size_t loadFirstKey = nodeSeqRange[loadStarts[load]].startKey;
+        const size_t loadSeqCount = nodeSeqRange[loadStarts[load + 1]].startKey - loadFirstKey;
+        const bool isSplitLength = hashIdPairsCapacity[loadStarts[load]] > 0;
+        const size_t length = isDBLinfinity ? nodeSeqRange[loadStarts[load]].entryLength - 2 : 0;
+        const bool copiesSeqs = isSplitLength && isDBLinfinity;
+        const size_t chunkSeqCount = copiesSeqs ? std::min(chunkBytes / (length + 2) / 64 * 64, loadSeqCount) : loadSeqCount;
+        const size_t hashedSeqCapacity = isSplitLength ? hashIdPairsCapacity[loadStarts[load]] : loadSeqCount;
+        bool hashIdPairsFit = hashedSeqCapacity >= loadSeqCount;
+        const bool prefetchesNextLoad = load + 2 < loadStarts.size()
+                                        && fitsWithPrefetch(&nodeSeqRange[loadStarts[load]], &nodeSeqRange[loadStarts[load + 1]], isDBLinfinity, seqBufferLimit, hashIdPairsLimit)
+                                        && fitsWithPrefetch(&nodeSeqRange[loadStarts[load + 1]], &nodeSeqRange[loadStarts[load + 2]], isDBLinfinity, seqBufferLimit, hashIdPairsLimit);
+        if (hashIdPairsSize < hashedSeqCapacity) {
+            delete[] hashIdPairs;
+            hashIdPairs = new(std::nothrow) HashEntry[hashedSeqCapacity];
+            Util::checkAllocation(hashIdPairs, "Can not allocate hash entry memory");
+            hashIdPairsSize = hashedSeqCapacity;
+        }
+
+        // [first, second) of hash buckets of a split length, or of hashIdPairs (blocks) of a split mode 3 length whose hashIdPairs fit
+        std::vector<std::pair<size_t, size_t>> hashRanges(1, std::make_pair(0, USHRT_MAX + 1));
+        MemberBits *memberBits = NULL;
+        char *blockSeqs = NULL;
+        if (isSplitLength) {
+            memberBits = new(std::nothrow) MemberBits[loadSeqCount / 64 + 1];
+            Util::checkAllocation(memberBits, "Can not allocate member bit memory");
+        }
+        if (copiesSeqs && hashIdPairsFit) {
+            const size_t candidateCount = hashAndSortLength(reader, &subMat, par.maxSeqLen, loadFirstKey, loadSeqCount, chunkSeqCount, hashIdPairs, representativeBits, localFirstKey);
+            // the candidates are cut at hash bins into blocks whose copies fit
+            const size_t copyCapacity = (hashedSeqCapacity - candidateCount) * sizeof(HashEntry) / length;
+            hashRanges.clear();
+            size_t blockBegin = 0;
+            for (size_t hashBinBegin = 0; hashBinBegin < candidateCount;) {
+                size_t hashBinEnd = hashBinBegin + 1;
+                while (hashBinEnd < candidateCount && hashIdPairs[hashBinEnd].hash == hashIdPairs[hashBinBegin].hash) {
+                    hashBinEnd++;
+                }
+                // the copies of one hash bin do not fit next to all hashIdPairs, so the length is hashed once per hash range
+                if (hashBinEnd - hashBinBegin > copyCapacity) {
+                    hashIdPairsFit = false;
+                    break;
+                }
+                if (hashBinEnd - blockBegin > copyCapacity) {
+                    hashRanges.emplace_back(blockBegin, hashBinBegin);
+                    blockBegin = hashBinBegin;
+                }
+                hashBinBegin = hashBinEnd;
+            }
+            if (candidateCount > blockBegin) {
+                hashRanges.emplace_back(blockBegin, candidateCount);
+            }
+            blockSeqs = reinterpret_cast<char *>(hashIdPairs + candidateCount);
+        }
+        if (isSplitLength && hashIdPairsFit == false) {
+            // the sequences of a hash range of a mode 3 length are copied after its hashIdPairs
+            const size_t maxRangeSeqCount = hashedSeqCapacity * sizeof(HashEntry) / (sizeof(HashEntry) + length);
+            hashRanges = setupHashRanges(reader, &subMat, par.maxSeqLen, loadFirstKey, loadSeqCount, chunkSeqCount, maxRangeSeqCount);
+            blockSeqs = copiesSeqs ? reinterpret_cast<char *>(hashIdPairs + maxRangeSeqCount) : NULL;
+        } else if (isSplitLength == false) {
+            reader.loadData(loadFirstKey, loadFirstKey + loadSeqCount);
+            if (prefetchesNextLoad) {
+                reader.prefetchData(nodeSeqRange[loadStarts[load + 1]].startKey, nodeSeqRange[loadStarts[load + 2]].startKey);
+            }
+        }
+        needsSort |= hashRanges.size() > 1;
+        for (size_t range = 0; range < hashRanges.size(); range++) {
+            HashEntry *rangeHashIdPairs = hashIdPairs;
+            size_t hashedSeqCount = 0;
+            if (copiesSeqs && hashIdPairsFit) {
+                // hashIdPairs of a block are sorted by hash and id already
+                rangeHashIdPairs = hashIdPairs + hashRanges[range].first;
+                hashedSeqCount = hashRanges[range].second - hashRanges[range].first;
+            } else {
+                hashedSeqCount = isSplitLength
+                               ? fillHashRange(reader, &subMat, par.maxSeqLen, loadFirstKey, loadSeqCount, chunkSeqCount, hashRanges[range], hashIdPairs, memberBits)
+                               : fillHashIdPairs(reader, &subMat, par.maxSeqLen, nodeSeqRange.data() + loadStarts[load], loadStarts[load + 1] - loadStarts[load], hashIdPairs);
+                SORT_PARALLEL(hashIdPairs, hashIdPairs + hashedSeqCount, HashEntry::compareByHashAndId);
+            }
+            if (copiesSeqs) {
+                loadBlockSeqs(reader, loadFirstKey, loadSeqCount, chunkSeqCount, rangeHashIdPairs, hashedSeqCount, memberBits, blockSeqs);
+            }
+
+            // bins never cross threads; threadOffsets are fixed before hash is overwritten with the representative id
+            std::vector<size_t> threadOffsets(par.threads + 1, hashedSeqCount);
+            for (int thread = 0; thread < par.threads; thread++) {
+                const size_t pos = hashedSeqCount / par.threads * thread;
+                threadOffsets[thread] = (pos == 0) ? 0 : std::upper_bound(rangeHashIdPairs + pos, rangeHashIdPairs + hashedSeqCount, HashEntry{rangeHashIdPairs[pos - 1].hash, std::numeric_limits<DBLocalId>::max()}, HashEntry::compareByHashAndId) - rangeHashIdPairs;
+            }
+#pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads)
+            for (int thread = 0; thread < par.threads; thread++) {
+                const size_t threadEnd = threadOffsets[thread + 1];
+                std::string repSeqCopy;
+                for (size_t hashBinBegin = threadOffsets[thread]; hashBinBegin < threadEnd;) {
+                    size_t hashBinEnd = hashBinBegin + 1;
+                    while (hashBinEnd < threadEnd && rangeHashIdPairs[hashBinEnd].hash == rangeHashIdPairs[hashBinBegin].hash) {
+                        hashBinEnd++;
+                    }
+                    // [hashBinBegin, i) is assigned, [i, hashBinEnd) is not: the smallest id left is the next representative, members are swapped in front
+                    for (size_t i = hashBinBegin; i < hashBinEnd;) {
+                        std::iter_swap(rangeHashIdPairs + i, std::min_element(rangeHashIdPairs + i, rangeHashIdPairs + hashBinEnd, HashEntry::compareById));
+                        const DBLocalId repId = rangeHashIdPairs[i].id;
+                        rangeHashIdPairs[i++].hash = repId;
+                        if (i == hashBinEnd) {
+                            break;
+                        }
+                        const unsigned int repLength = reader.getSeqLen(repId);
+                        const char *repSeq = (blockSeqs == NULL) ? reader.getData(repId, thread) : blockSeqs + memberIndex(memberBits, repId - loadFirstKey) * length;
+                        if (copyRepSeq) {
+                            repSeqCopy.assign(repSeq, repLength);
+                            repSeq = repSeqCopy.data();
+                        }
+                        for (size_t j = i; j < hashBinEnd; j++) {
+                            const DBLocalId memberId = rangeHashIdPairs[j].id;
+                            if (reader.getSeqLen(memberId) != repLength) {
+                                continue;
+                            }
+                            const unsigned int distance = DistanceCalculator::computeInverseHammingDistance(repSeq, (blockSeqs == NULL) ? reader.getData(memberId, thread) : blockSeqs + memberIndex(memberBits, memberId - loadFirstKey) * length, repLength);
+                            if (static_cast<float>(distance) / static_cast<float>(repLength) >= par.seqIdThr) {
+                                std::swap(rangeHashIdPairs[i], rangeHashIdPairs[j]);
+                                rangeHashIdPairs[i++].hash = repId;
+                            }
+                        }
+                    }
+                    hashBinBegin = hashBinEnd;
+                }
+            }
+
+            // hash now holds the representative id, so sorting again gathers each cluster with its representative first
+            SORT_PARALLEL(rangeHashIdPairs, rangeHashIdPairs + hashedSeqCount, HashEntry::compareByHashAndId);
+            const size_t rangeOffset = resultWriter.getOffset(0);
+            for (size_t clusterBegin = 0; clusterBegin < hashedSeqCount;) {
+                size_t clusterEnd = clusterBegin + 1;
+                while (clusterEnd < hashedSeqCount && rangeHashIdPairs[clusterEnd].hash == rangeHashIdPairs[clusterBegin].hash) {
+                    clusterEnd++;
+                }
+                const DBLocalId repId = rangeHashIdPairs[clusterBegin].id;
+                const DBKeyType repKey = reader.getDbKey(repId);
+                if (isDBLinfinity) {
+                    representativeBits[(repId - localFirstKey) / 64] |= 1ull << ((repId - localFirstKey) % 64);
+                } else {
+                    representativeWriter.writeIndexEntry(repKey, reader.getOffset(repId), reader.getEntryLen(repId), 0);
+                    clusters++;
+                }
+                // a mode 3 database leaves singletons out: in the representative subset but not in a cluster
+                if (isDBLinfinity == false || clusterEnd - clusterBegin > 1) {
+                    for (size_t i = clusterBegin; i < clusterEnd; i++) {
+                        char *end = Itoa::u64toa_sse2(static_cast<uint64_t>(reader.getDbKey(rangeHashIdPairs[i].id)), buffer);
+                        *(end - 1) = '\n';
+                        result.append(buffer, end - buffer);
+                    }
+                    resultWriter.writeData(result.c_str(), result.length(), repKey, 0, true, isDBLinfinity == false);
+                    result.clear();
+                }
+                clusterBegin = clusterEnd;
+            }
+            if (isDBLinfinity && resultWriter.getOffset(0) > rangeOffset) {
+                resultIndex += SSTR(rangeOffset) + "\t" + SSTR(resultWriter.getOffset(0) - rangeOffset) + "\t" + SSTR(MMseqsNode::rank) + "\n";
+            }
+        }
+        delete[] memberBits;
+        // only a load and the next one it prefetched keep both sequence buffers and hashIdPairs
+        if (isDBLinfinity && prefetchesNextLoad == false) {
+            reader.releaseDataPages();
+            delete[] hashIdPairs;
+            hashIdPairs = NULL;
+            hashIdPairsSize = 0;
+        }
+    }
+
+    // clusters are written in key order unless a length was split into hash ranges
+    resultWriter.close(false, needsSort);
+    if (isDBLinfinity) {
+        FileUtil::remove((resultDb + ".index").c_str());
+        // the bits are on disk before the index part that tells the master this node is done
+        const std::string bitsFile = representativeDb + ".bits." + SSTR(MMseqsNode::rank);
+        FILE *bits = FileUtil::openAndDelete(bitsFile.c_str(), "w");
+        const uint64_t header[2] = { localFirstKey, localKeySize };
+        if (fwrite(header, sizeof(uint64_t), 2, bits) != 2 || fwrite(representativeBits, sizeof(uint64_t), representativeBitsSize, bits) != representativeBitsSize
+            || fflush(bits) != 0 || fsync(fileno(bits)) != 0 || fclose(bits) != 0) {
+            Debug(Debug::ERROR) << "Cannot write " << bitsFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // the rows of this node in the sequence index, with the number of its representatives as a sixth column
+        std::string representativeIndex;
+        for (size_t i = 0; i + 1 < nodeSeqRange.size(); i++) {
+            const size_t rowEndKey = nodeSeqRange[i + 1].startKey;
+            size_t rowRepresentatives = 0;
+            for (size_t bit = nodeSeqRange[i].startKey - localFirstKey; bit < rowEndKey - localFirstKey;) {
+                const size_t take = std::min<size_t>(64 - bit % 64, rowEndKey - localFirstKey - bit);
+                const uint64_t word = representativeBits[bit / 64] >> (bit % 64);
+                rowRepresentatives += __builtin_popcountll(take < 64 ? word & ((1ull << take) - 1) : word);
+                bit += take;
+            }
+            representativeIndex += SSTR(nodeSeqRange[i].startKey) + "\t" + SSTR(nodeSeqRange[i].offset) + "\t" + SSTR(nodeSeqRange[i].entryLength) + "\t"
+                                 + SSTR(rowEndKey - nodeSeqRange[i].startKey) + "\t" + SSTR(MMseqsNode::rank) + "\t" + SSTR(rowRepresentatives) + "\n";
+        }
+        MMseqsNode::publishFile(par.db2Index + "." + SSTR(MMseqsNode::rank), resultIndex);
+        MMseqsNode::publishFile(representativeDb + ".index." + SSTR(MMseqsNode::rank), representativeIndex);
+        if (MMseqsNode::isMaster()) {
+            MMseqsNode::publishFile(par.db2Index, MMseqsNode::gatherFiles(par.db2Index + "."));
+            representativeIndex = MMseqsNode::gatherFiles(representativeDb + ".index.");
+            const char *columns[6];
+            for (char *row = (char *) representativeIndex.c_str(); *row != '\0'; row = Util::skipLine(row)) {
+                Util::getWordsOfLine(row, columns, 6);
+                clusters += Util::fast_atoi<size_t>(columns[5]);
+            }
+            MMseqsNode::publishFile(representativeDb + ".index", representativeIndex);
+        }
+    } else {
+        representativeWriter.close(false, needsSort);
+    }
+    if (MMseqsNode::isMaster()) {
+        DBReader<DBKeyType>::softlinkDb(par.db1, representativeDb, DBFiles::DATA);
+        DBWriter::writeDbtypeFile(representativeDb.c_str(), reader.getDbtype(), reader.isCompressed());
+        if (isDBLinfinity) {
+            // a mode 3 subset only feeds the next pipeline steps, which read no headers, lookup or source
+            DBWriter::writeDbtypeFile(par.db2.c_str(), DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_EXTENDED_LINFINITY), false);
+        } else {
+            DBReader<DBKeyType>::softlinkDb(par.db1, representativeDb, DBFiles::SEQUENCE_ANCILLARY);
+        }
+    }
+    Debug(Debug::INFO) << "Size of the sequence database: " << reader.getSize() << "\n";
+    Debug(Debug::INFO) << "Number of clusters: " << clusters << "\n";
+    delete[] representativeBits;
+    delete[] hashIdPairs;
     reader.close();
-
-    Debug(Debug::INFO) << counts.clusters << " clusters, " << counts.merged << " sequences merged by hamming distance\n";
     return EXIT_SUCCESS;
 }
