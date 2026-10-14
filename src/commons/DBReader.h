@@ -15,6 +15,7 @@
 #include "Parameters.h"
 #include "FileUtil.h"
 #include "Debug.h"
+#include "BatchReader.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
 #include <zstd.h>
@@ -243,6 +244,8 @@ public:
         size_t length;
         if (local2id != NULL) {
             length=index[local2id[id]].length;
+        }else if (index2dbfile != NULL) {
+            length=index[findIdRange(id)].length;
         }else{
             length=index[id].length;
         }
@@ -264,6 +267,8 @@ public:
         }
         if (local2id != NULL) {
             return index[local2id[id]].length;
+        }else if (index2dbfile != NULL) {
+            return index[findIdRange(id)].length;
         }else{
             return index[id].length;
         }
@@ -272,6 +277,12 @@ public:
     size_t maxCount(char c);
 
     void remapData();
+
+    // --createdb-mode 3: reads keys [keyBegin, keyEnd) into memory for getData
+    void loadData(size_t keyBegin, size_t keyEnd);
+    void prefetchData(size_t keyBegin, size_t keyEnd);
+    size_t getBufferSizeToLoad(size_t keyBegin, size_t keyEnd);
+    char *getDataFromLoadedBuffer(size_t key);
 
     size_t bsearch(const Index * index, size_t size, T value);
 
@@ -316,6 +327,10 @@ public:
     static const unsigned int USE_LOOKUP_REV = 16;
     static const unsigned int USE_SOURCE     = 32;
     static const unsigned int USE_SOURCE_REV = 64;
+    static const unsigned int USE_LINFINITY  = 128;
+    static const unsigned int USE_BUFFERED_IO = 256;
+    static const unsigned int USE_DIRECT_IO   = 512;
+    static const unsigned int USE_IO_URING    = 1024;
 
 
     // compressed
@@ -381,6 +396,14 @@ public:
 
     Index* getIndex() {
         return index;
+    }
+
+    size_t getIndexSize() const {
+        return indexSize;
+    }
+
+    unsigned int getIndexFile(size_t row) const {
+        return index2dbfile[row];
     }
 
     Index* getIndex(size_t id) {
@@ -503,6 +526,8 @@ public:
 
 private:
     void checkClosed() const;
+    size_t findIdRange(size_t id);
+    size_t planReadRequests(size_t keyBegin, size_t keyEnd, std::vector<BatchReader::ReadRequest> &readRequests);
 
     int threads;
 
@@ -540,6 +565,7 @@ private:
     size_t * compressedBufferSizes;
     ZSTD_DStream ** dstream;
 
+    size_t indexSize;
     Index * index;
     size_t lookupSize;
     LookupEntry * lookup;
@@ -551,6 +577,20 @@ private:
     // 64-bit under MMSEQS_INT64_IDS, so this stays 4 bytes/entry in the default build.
     DBLocalId * id2local;
     DBLocalId * local2id;
+
+    // --createdb-mode 3: row i holds keys index[i].id .. index[i + 1].id - 1 of one length, from index[i].offset in <db>.<index2dbfile[i]>
+    unsigned int * index2dbfile;
+    std::vector<int> dataFds;
+    BatchReader * batchReader;
+    struct BufferInfo {
+        char *buffer;
+        size_t allocatedBytes;
+        size_t keyBegin;
+        size_t keyEnd;
+        std::vector<BatchReader::ReadRequest> readRequests;
+    };
+    BufferInfo loadedBuffer, prefetchBuffer;
+    bool prepareBufferToLoad(BufferInfo &bufferToLoadInto, size_t keyBegin, size_t keyEnd);
 
     bool dataMapped;
     int accessType;
