@@ -40,6 +40,7 @@ public:
         virtual void reallocateProfile(size_t newColsCapacity) = 0;
         virtual void resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, size_t newColsCapacity) = 0;
         virtual void resetParams(float newGapOpen, float newGapExtend, float newTemperature) = 0;
+        virtual void setTemperature(float newTemperature) = 0;
         virtual void initProfile(unsigned char* colAANum, size_t colAALen) = 0;
         virtual void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen) = 0;
         virtual void initScoreMatrix(float** inputScoreMatrix, int* gaps) = 0;
@@ -81,10 +82,14 @@ public:
         impl->initAlignment(targetNum, targetLen, queryLen);
     }
     void initScoreMatrix(float** inputScoreMatrix, int* gaps) { impl->initScoreMatrix(inputScoreMatrix, gaps); }
+    void setTemperature(float newTemperature) { impl->setTemperature(newTemperature); }
 
     // profile: score from the query profile (true) or from a user-supplied score matrix (false).
     // backtraceMode: 0 no backtrace, 1 local, 2 semi-global, 3 global.
     void runFwBw(bool profile, int backtraceMode) { impl->runFwBw(profile, backtraceMode); }
+
+    template<bool profile, int backtrace>
+    void runFwBw() { impl->runFwBw(profile, backtrace); }
 
     s_align getFwbwAlnResult() const { return impl->getFwbwAlnResult(); }
     float getProbability(int i, int j) const { return impl->getProbability(i, j); }
