@@ -17,7 +17,8 @@ static const unsigned int DIAGONALBINSIZE = 4;
 
 static void extractScores(unsigned int *score_arr, simd_int score) {
 #ifdef AVX512
-    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(_mm512_extracti64x4_epi64(score, i <= 7 ? 0 : 1), i <= 7 ? i : i - 8) //might not work as it extracts 64 bit ints not 32, bt 32 is not avaibale on avx512F/BW
+    // AVX512 has no 32-bit extract, so take the 256-bit half first
+    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(_mm512_extracti64x4_epi64(score, i <= 7 ? 0 : 1), i <= 7 ? i : i - 8)
     EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
     EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
     EXTRACT_AVX(8);  EXTRACT_AVX(9);  EXTRACT_AVX(10);  EXTRACT_AVX(11);
