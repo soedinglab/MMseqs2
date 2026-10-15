@@ -68,6 +68,7 @@ public:
     void reallocateProfile(size_t newColsCapacity);
     void resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, size_t newColsCapacity);
     void resetParams(float newGapOpen, float newGapExtend, float newTemperature);
+    void setTemperature(float newTemperature) { temperature = newTemperature; }
     void initProfile(unsigned char* colAANum, size_t colAALen);
     void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen);
     void initScoreMatrix(float** inputScoreMatrix, int* gaps);
