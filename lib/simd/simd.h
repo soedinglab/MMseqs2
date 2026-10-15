@@ -45,7 +45,9 @@
 #define SIMDE_ENABLE_NATIVE_ALIASES
 #include <simde/simde-features.h>
 
-#if defined(SIMDE_X86_AVX512F_NATIVE) && defined(SIMDE_X86_AVX512BW_NATIVE)
+// DQ is needed for vpmovd2m (simdf32_blendv_ps), VL for the 256-bit mask helpers
+#if defined(SIMDE_X86_AVX512F_NATIVE) && defined(SIMDE_X86_AVX512BW_NATIVE) \
+ && defined(SIMDE_X86_AVX512DQ_NATIVE) && defined(SIMDE_X86_AVX512VL_NATIVE)
 #define AVX512
 #endif
 
@@ -231,8 +233,8 @@ inline __m512 simdf32_le_avx512(__m512 a, __m512 b) {
     return _mm512_castsi512_ps(_mm512_maskz_set1_epi32(mask, -1));
 }
 
-// AI Idea to get around z in _mm512_mask_blend_ps(z,x,y) beeing __mmask16 
-inline __mmask16 simdf32_mask_from_ps_avx512(__m512 m) {
+// _mm512_mask_blend_ps takes a __mmask16, so turn the sign bits of m into one
+static inline __mmask16 simdf32_mask_from_ps_avx512(__m512 m) {
     return _mm512_movepi32_mask(_mm512_castps_si512(m));
 }
 
@@ -319,7 +321,8 @@ typedef __m512  simd_float;
 #define simdi32_i2f(x) 	    _mm512_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm512_castsi512_ps(x)
 #define simdf32_round(x)    _mm512_roundscale_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
-#define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(simdf32_mask_from_ps_avx512(z), x, y) // AI Idea, prob broken
+// the mask comes from the sign bits of z, which is what _mm_blendv_ps uses
+#define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(simdf32_mask_from_ps_avx512(z), x, y)
 #define simdf32_reverse(x)  _mm512_permutexvar_ps(_mm512_setr_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), x) 
 #define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
 #define simdf32_hmax(x)     simdf32_hmax_avx512(x)
@@ -377,9 +380,9 @@ typedef __m512i simd_int;
 #define simdi16_lt(x,y)     simdi16_gt_avx512(y, x)
 #define simdi8_lt(x,y)      simdi8_gt_avx512(y, x)
 
-#define SIMD_MOVEMASK_MAX   0xffffffffffffffff  // not sure if correct
+#define SIMD_MOVEMASK_MAX   0xffffffffffffffffULL // 64 bytes per vector
 typedef uint64_t            movemask_max_t;
-#define popcount(x)         __builtin_popcountll(x)
+#define simd_popcount(x)    __builtin_popcountll(x)
 #define simd_any(x)         simd_any_avx512(x)
 #define simd_eq_all(x,y)    simd_eq_all_avx512(x,y)
 #define simdi_or(x,y)       _mm512_or_si512(x,y)
@@ -417,7 +420,7 @@ uint16_t simd_hmax16_sse(const __m128i buffer);
 uint8_t simd_hmax8_sse(const __m128i buffer);
 bool simd_any_sse(const __m128i buffer);
 
-inline uint32_t simd_hmax32_avx(const __m256i buffer) {
+static inline uint32_t simd_hmax32_avx(const __m256i buffer) {
     #if defined(MMSEQS_AVX512VL_MASKS)
         const __m256i shuffle1 = _mm256_shuffle_epi32(buffer, (_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
         const __m256i max1 = _mm256_max_epi32(buffer, shuffle1);
@@ -481,7 +484,7 @@ inline bool simd_eq_all_avx(const __m256i a, const __m256i b) {
 
 float simdf32_hmax_sse(const __m128 buffer);
 
-inline float simdf32_hmax_avx(const __m256 buffer) {
+static inline float simdf32_hmax_avx(const __m256 buffer) {
     #if defined(MMSEQS_AVX512VL_MASKS)
         const __m256 shuffle1 = _mm256_shuffle_ps(buffer, buffer,(_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
         const __m256 max1 = _mm256_max_ps(buffer, shuffle1);
@@ -527,27 +530,27 @@ inline __m256i _mm256_shift_left(__m256i a) {
     return _mm256_alignr_epi8(a,mask,16-N);
 }
 
-inline __m256i simdi8_shiftl_4(__m256i a) {
+static inline __m256i simdi8_shiftl_4(__m256i a) {
     #if defined(MMSEQS_AVX512VL_MASKS)
-    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (64 - 4)/ 4);
+    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (32 - 4)/ 4);
     #else 
     __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
     return _mm256_alignr_epi8(a,mask,16-4);
     #endif
 }
 
-inline __m256i simdi8_shiftl_8(__m256i a) {
+static inline __m256i simdi8_shiftl_8(__m256i a) {
     #if defined(MMSEQS_AVX512VL_MASKS)
-    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (64 - 8)/ 4);
+    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (32 - 8)/ 4);
     #else 
     __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
     return _mm256_alignr_epi8(a,mask,16-8);
     #endif
 }
 
-inline __m256i simdi8_shiftl_16(__m256i a) {
+static inline __m256i simdi8_shiftl_16(__m256i a) {
     #if defined(MMSEQS_AVX512VL_MASKS)
-    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (64 - 16)/ 4);
+    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (32 - 16)/ 4);
     #else 
     __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
     return _mm256_alignr_epi8(a,mask,16-16);
@@ -633,7 +636,7 @@ typedef __m256i simd_int;
 #define simdi8_shiftr(x,y)  _mm256_srli_si256(x,y)
 #define SIMD_MOVEMASK_MAX   0xffffffff
 typedef uint32_t            movemask_max_t;
-#define popcount(x)         __builtin_popcount(x)
+#define simd_popcount(x)    __builtin_popcount(x)
 #define simdi8_movemask(x)  _mm256_movemask_epi8(x)
 #define simdi16_extract(x,y) extract_epi16(x,y)
 #define simdi32_pack(x,y)   _mm256_packs_epi32(x,y)
@@ -925,7 +928,7 @@ typedef __m128i simd_int;
 #define simdi8_shiftr(x,y)  _mm_srli_si128(x,y)
 #define SIMD_MOVEMASK_MAX   0xffff
 typedef uint32_t            movemask_max_t;
-#define popcount(x)         __builtin_popcount(x)
+#define simd_popcount(x)    __builtin_popcount(x)
 #define simdi8_movemask(x)  _mm_movemask_epi8(x)
 #define simdi16_extract(x,y) extract_epi16(x,y)
 #define simdi32_pack(x,y)   _mm_packs_epi32(x,y)
@@ -1117,7 +1120,6 @@ static inline simd_float simdf32_pow2n(simd_float n) {
     return simdi_i2fcast(c);
 }
 
-// Robot idea, seems to make FwBw faster on AVX512
 static inline simd_float simdf32_abs(simd_float a) {
   #ifdef AVX512
       const __m512i mask = _mm512_set1_epi32(0x7fffffff);

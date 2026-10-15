@@ -15,7 +15,7 @@ unsigned int DistanceCalculator::computeInverseHammingDistance(const T *seq1, co
         // the 16 signed or unsigned 8-bit integers in a and zero-extends the upper bits.
         simd_int seqComparision = simdi8_eq(seq1vec, seq2vec);
         movemask_max_t res = simdi8_movemask(seqComparision);
-        diff += popcount(res);  // subtract positions that should not contribute to coverage
+        diff += simd_popcount(res);  // subtract positions that should not contribute to coverage
     }
     // compute missing rest
     for (unsigned int pos = simdBlock*(VECSIZE_INT*4); pos < length; pos++ ) {
