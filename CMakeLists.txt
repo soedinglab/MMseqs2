@@ -79,7 +79,7 @@ if (HAVE_AVX512)
     # With runtime dispatch the baseline stays at AVX2: only UngappedAlignerAVX512.cpp and
     # FwbwAVX512.cpp are built for AVX512, and the CPU decides at startup which backend runs.
     if (AVX512_DISPATCH STREQUAL "OFF")
-        set(MMSEQS_AVX512_BASE "-mavx512f -mavx512bw")
+        set(MMSEQS_AVX512_BASE "-mavx512f -mavx512bw -mavx512dq -mavx512vl")
     else ()
         set(MMSEQS_AVX512_BASE "-mavx2")
     endif ()
