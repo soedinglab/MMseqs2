@@ -1934,8 +1934,7 @@ impl Trace {
 
     #[inline]
     fn clear(&mut self, query_len: usize, reference_len: usize) {
-        // no need to clear trace, block_start, and block_size
-        self.right.fill(0);
+        // no need to clear trace, block_start, block_size, and right: add_block sets every right bit before it is read
         self.trace_idx = 0;
         self.block_idx = 0;
         self.ckpt_trace_idx = 0;
