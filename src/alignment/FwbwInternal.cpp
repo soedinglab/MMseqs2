@@ -640,27 +640,21 @@ void Impl::forward() {
                 zeFirst[i+1] -= current_max;
 
 #if defined(AVX512)
-                // simd_float vNextFirstExp = _mm512_set_ps(
-                //     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                //     0.0f, 0.0f, 0.0f,
-                //     zfFirst[i] - current_max, 
-                //     zeFirst[i] - log_zmMax,
-                //     zmFirst[i] - log_zmMax,
-                //     zeFirst[i+1],
-                //     zmFirst[i+1]
-                // );
-                // vNextFirstExp = simdf32_exp(vNextFirstExp);
-                // zmBlockCurr[0] = vNextFirstExp[0];
-                // ze_i0 = vNextFirstExp[1];
-                // zmBlockPrev[0] = vNextFirstExp[2];
-                // zeBlock[0] = vNextFirstExp[3];
-                // zfBlock[0] = vNextFirstExp[4];
-                // seems to be faster
-                zmBlockCurr[0] = exp(zmFirst[i+1]);
-                ze_i0 = exp(zeFirst[i+1]);
-                zmBlockPrev[0] = exp(zmFirst[i] - log_zmMax);
-                zeBlock[0] = exp(zeFirst[i] - log_zmMax);
-                zfBlock[0] = exp(zfFirst[i] - current_max);
+                simd_float vNextFirstExp = _mm512_set_ps(
+                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f,
+                    zfFirst[i] - current_max,
+                    zeFirst[i] - log_zmMax,
+                    zmFirst[i] - log_zmMax,
+                    zeFirst[i+1],
+                    zmFirst[i+1]
+                );
+                vNextFirstExp = simdf32_exp(vNextFirstExp);
+                zmBlockCurr[0] = vNextFirstExp[0];
+                ze_i0 = vNextFirstExp[1];
+                zmBlockPrev[0] = vNextFirstExp[2];
+                zeBlock[0] = vNextFirstExp[3];
+                zfBlock[0] = vNextFirstExp[4];
 #elif defined(AVX2)
                 simd_float vNextFirstExp = _mm256_set_ps(
                     0.0f, 0.0f, 0.0f,
@@ -880,11 +874,6 @@ void Impl::backward()  {
             zInit[0][i-1] = vNextZinit[0];
             zInit[1][i-1] = vNextZinit[1];
             zInit[2][i-1] = vNextZinit[2];
-            
-            // looks like SIMD is faster
-            // zInit[0][i-1] = log(zmBlockCurr[memcpy_cols]) + current_max;
-            // zInit[1][i-1] = log(zeBlock[memcpy_cols]) + current_max;
-            // zInit[2][i-1] = log(zfBlock[memcpy_cols]) + current_max;
             std::swap(zmBlockCurr, zmBlockPrev);
             
             if (i < rowSeqLen) {
@@ -907,11 +896,6 @@ void Impl::backward()  {
                 zmBlockPrev[0] = vNextFirstExp[2];
                 zeBlock[0] = vNextFirstExp[3];
                 zfBlock[0] = vNextFirstExp[4];
-                // zmBlockCurr[0] = exp(zmFirst[i+1]);
-                // ze_i0 = exp(zeFirst[i+1]);
-                // zmBlockPrev[0] = exp(zmFirst[i] - log_zmMax);
-                // zeBlock[0] = exp(zeFirst[i] - log_zmMax);
-                // zfBlock[0] = exp(zfFirst[i] - current_max);
 #elif defined(AVX2)
                 simd_float vNextFirstExp = _mm256_set_ps(
                     0.0f, 0.0f, 0.0f,
