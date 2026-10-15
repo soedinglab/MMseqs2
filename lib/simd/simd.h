@@ -389,7 +389,7 @@ typedef uint64_t            movemask_max_t;
 #define simdi_and(x,y)      _mm512_and_si512(x,y)
 #define simdi_andnot(x,y)   _mm512_andnot_si512(x,y)
 #define simdi_xor(x,y)      _mm512_xor_si512(x,y)
-#define simdi8_shiftl(x,y)  _mm512_shift_left<y>(x)
+#define simdi8_shiftl(x,y)  _mm512_shift_left<(y)>(x)
 //#define simdi8_shiftr(x,y)  simdi8_shift_right<y>(x)
 #define simdi8_movemask(x)  _mm512_movepi8_mask(x)
 #define simdi16_extract(x,y) NOT_YET_IMP()         // no 16 bit version available
@@ -401,7 +401,8 @@ typedef uint64_t            movemask_max_t;
 #define simdi16_pack(x,y)   _mm512_packs_epi16(x,y)
 #define simdi32_pack(x,y)   _mm512_packs_epi32(x,y)
 #define simdi8_blend(x,y,z)   _mm512_mask_blend_epi8(_mm512_movepi8_mask(z),x,y)
-#define simdi32_insert(x,y,z) _mm512_mask_set1_epi32(x, 1UL<<z, y) // https://stackoverflow.com/questions/58303958/how-to-implement-16-and-32-bit-integer-insert-and-extract-operations-with-avx-51
+// https://stackoverflow.com/questions/58303958/how-to-implement-16-and-32-bit-integer-insert-and-extract-operations-with-avx-51
+#define simdi32_insert(x,y,z) _mm512_mask_set1_epi32(x, (__mmask16)(1U << (z)), y)
 
 #endif //SIMD_INT
 #endif //AVX512_SUPPORT
@@ -631,7 +632,7 @@ typedef __m256i simd_int;
 #define simdi_and(x,y)      _mm256_and_si256(x,y)
 #define simdi_andnot(x,y)   _mm256_andnot_si256(x,y)
 #define simdi_xor(x,y)      _mm256_xor_si256(x,y)
-#define simdi8_shiftl(x,y)  _mm256_shift_left<y>(x)
+#define simdi8_shiftl(x,y)  _mm256_shift_left<(y)>(x)
 //TODO fix like shift_left
 #define simdi8_shiftr(x,y)  _mm256_srli_si256(x,y)
 #define SIMD_MOVEMASK_MAX   0xffffffff
