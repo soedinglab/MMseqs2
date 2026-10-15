@@ -47,6 +47,7 @@ if (NOT (MMSEQS_AVX512_DISPATCH_FLAGS STREQUAL ""))
                 ${alignment_avx512_src}
                 DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
                 PROPERTIES COMPILE_FLAGS "${MMSEQS_AVX512_DISPATCH_FLAGS}"
+                           SKIP_PRECOMPILE_HEADERS ON
         )
 endif ()
 
