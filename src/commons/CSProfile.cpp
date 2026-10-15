@@ -3,6 +3,7 @@
 //
 
 #include "CSProfile.h"
+#include <cstring>
 #include "simd.h"
 #include "K4000.crf.h"
 
@@ -64,11 +65,17 @@ void ContextLibrary::read(std::string &libStr){
     pc = new float*[libSize];
     for (k = 0; k < libSize && !in.eof(); ++k){
         context_weights[k]           = new float*[wlen_];
+        // the rows hold 24 floats for alignment but only 20 are read from the library.
+        // zero the rest: the vector loops multiply all 24 lanes, so uninitialised padding
+        // would leak into the profile and make the result depend on the vector width
         for(size_t i = 0; i < wlen_; i++) { // 24 instead of 20 for memory alignment
             context_weights[k][i] = (float *)mem_align(ALIGN_FLOAT, 24 * sizeof(float));
+            memset(context_weights[k][i], 0, 24 * sizeof(float));
         }
         pc_weights[k] = (float *)mem_align(ALIGN_FLOAT, 24 * sizeof(float));
+        memset(pc_weights[k], 0, 24 * sizeof(float));
         pc[k] = (float *)mem_align(ALIGN_FLOAT, 24 * sizeof(float));
+        memset(pc[k], 0, 24 * sizeof(float));
         readContextProfile(in, reader, context_weights[k], pc_weights[k], pc[k]);
         //            for(size_t i = 0; i < wlen_; i++) {
         //                std::cout << i<< "\t";
@@ -179,7 +186,16 @@ inline float CSProfile::computeProfileContextScore(float ** context_weights,
     const size_t end = std::min(static_cast<size_t>(L), idx + center + 1);
     simd_float vTotalScore = simdf32_setzero();
     for(size_t i = beg, j = beg - idx + center; i < end; ++i, ++j) {
-#if defined(AVX2) || defined(AVX512)
+#if defined(AVX512)
+        // 24 floats per row with a 96 byte stride: the loads cannot be aligned, and the
+        // second one covers the remaining 8 lanes
+        const float *w = &context_weights[j][0];
+        const float *c = &counts[i * (Sequence::PROFILE_AA_SIZE + 4)];
+        simd_float vScore1 = simdf32_mul(simdf32_loadu(w), simdf32_loadu(c));
+        simd_float vScore2 = simdf32_mul(_mm512_maskz_loadu_ps(0x00FF, w + VECSIZE_FLOAT),
+                                         _mm512_maskz_loadu_ps(0x00FF, c + VECSIZE_FLOAT));
+        vTotalScore = simdf32_add(vTotalScore, simdf32_add(vScore1, vScore2));
+#elif defined(AVX2)
         simd_float vContextWeight1 = simdf32_load(&context_weights[j][0]);
         simd_float vCount1 = simdf32_load(&counts[i * (Sequence::PROFILE_AA_SIZE + 4) + 0]);
         simd_float vScore1 = simdf32_mul(vContextWeight1, vCount1);
@@ -192,12 +208,6 @@ inline float CSProfile::computeProfileContextScore(float ** context_weights,
         vScore1 = simdf32_add(vScore2, vScore1);
         vScore1 = simdf32_add(vScore3, vScore1);
         vTotalScore = simdf32_add(vTotalScore, vScore1);
-#elif defined(AVX512)
-        simd_float w1 = simdf32_load(&context_weights[j][0]);
-        simd_float c1 = simdf32_load(&counts[i*(Sequence::PROFILE_AA_SIZE+4) + 0]);
-        simd_float w2 = _mm512_maskz_load_ps(0x00FF, &context_weights[j][VECSIZE_FLOAT]);
-        simd_float c2 = _mm512_maskz_load_ps(0x00FF, &counts[i*(Sequence::PROFILE_AA_SIZE+4) + VECSIZE_FLOAT]);
-        vTotalScore = simdf32_add(vTotalScore, simdf32_add(simdf32_mul(w1,c1), simdf32_mul(w2,c2)));
 #else
         simd_float vContextWeight1 = simdf32_load(&context_weights[j][0]);
         simd_float vCount1 = simdf32_load(&counts[i * (Sequence::PROFILE_AA_SIZE + 4) + 0]);
@@ -449,6 +459,15 @@ float * CSProfile::computeProfile(unsigned char * numSeq, int seqLen,
         for (int i = 0; i < seqLen; i++) {
             float *pc = &profile[i * (Sequence::PROFILE_AA_SIZE + 4)];
             simd_float simd_ppi = simdf32_set(ppi[i]);
+#ifdef AVX512
+            // 24 floats per row with a 96 byte stride: 16 unaligned lanes, then 8 masked ones
+            simdf32_storeu(&pc[0], simdf32_add(simdf32_loadu(&pc[0]),
+                                               simdf32_mul(simdf32_loadu(&ctxLib_pc[0]), simd_ppi)));
+            _mm512_mask_storeu_ps(&pc[VECSIZE_FLOAT], 0x00FF,
+                    simdf32_add(_mm512_maskz_loadu_ps(0x00FF, &pc[VECSIZE_FLOAT]),
+                                simdf32_mul(_mm512_maskz_loadu_ps(0x00FF, &ctxLib_pc[VECSIZE_FLOAT]),
+                                            simd_ppi)));
+#else
             for (size_t a = 0; a < Sequence::PROFILE_AA_SIZE; a += VECSIZE_FLOAT) {
                 //pc[a] += ppi[i] * ctxLib_pc[a];
                 simd_float ctxLib_pc_a = simdf32_load(&ctxLib_pc[a]);
@@ -456,6 +475,7 @@ float * CSProfile::computeProfile(unsigned char * numSeq, int seqLen,
                 simd_float pc_res = simdf32_add(pc_a, simdf32_mul(ctxLib_pc_a, simd_ppi));
                 simdf32_store(&pc[a], pc_res);
             }
+#endif
         }
     }
 
