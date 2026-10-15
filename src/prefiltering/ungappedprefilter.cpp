@@ -427,8 +427,11 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                               par.compBiasCorrection, par.compBiasCorrectionScale, NULL);
         // The gapless scan has its own runtime-dispatched implementation; the striped
         // Smith-Waterman aligner above is only needed for alignmentMode != 0.
-        UngappedAligner ungappedAligner(par.maxSeqLen, subMat->alphabetSize,
-                                        par.compBiasCorrection, par.compBiasCorrectionScale);
+        UngappedAligner *ungappedAligner = NULL;
+        if (alignmentMode == 0) {
+            ungappedAligner = new UngappedAligner(par.maxSeqLen, subMat->alphabetSize,
+                                                  par.compBiasCorrection, par.compBiasCorrectionScale);
+        }
 
         // A packed DB doesn't have left-over space for masking
         Masker masker(*subMat);
@@ -454,7 +457,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
             const int8_t *queryMat = Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE)
                                      ? qSeq.getAlignmentProfile() : tinySubMat;
             if (alignmentMode == 0) {
-                ungappedAligner.initQuery(&qSeq, queryMat, subMat);
+                ungappedAligner->initQuery(&qSeq, queryMat, subMat);
             } else {
                 aligner.ssw_init(&qSeq, queryMat, subMat);
             }
@@ -505,9 +508,9 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                     if (useAux) {
                         // ask for the diagonal too: the aux rescore needs the alignment this pass
                         // found, and recovering it afterwards would mean rescanning the matrix
-                        score = ungappedAligner.score(tSeq.numSequence, tSeq.L, bestPrimaryDiagonal);
+                        score = ungappedAligner->score(tSeq.numSequence, tSeq.L, bestPrimaryDiagonal);
                     } else {
-                        score = ungappedAligner.score(tSeq.numSequence, tSeq.L);
+                        score = ungappedAligner->score(tSeq.numSequence, tSeq.L);
                     }
                 } else {
                     std::string backtrace;
@@ -625,6 +628,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
             }
 #pragma omp barrier
         }
+        delete ungappedAligner;
     }
 }
 
