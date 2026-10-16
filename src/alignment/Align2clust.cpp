@@ -609,16 +609,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
 
             const size_t alignmentId = alnDbr.getId(queryKey);
             char *alignmentData = alnDbr.getData(alignmentId, threadIdx);
-            size_t queryId = representativeId;
-            size_t queryLength = seqDbr->getSeqLen(queryId);
-            querySeqBuffer.assign(seqDbr->getData(queryId, threadIdx), queryLength);
-            const char *querySequence = querySeqBuffer.c_str();
-            query.mapSequence(queryId, queryKey, querySequence, queryLength);
-            blockAligner.setQuery(&query);
-            // the gapped aligners are only set up once an ungapped check fails
-            bool blockAlignerInitialized = false;
-            bool matcherInitialized = false;
-
             size_t prefSize = 0;
             while (*alignmentData != '\0') {
                 hit_t hit = QueryMatcher::parsePrefilterHit(alignmentData);
@@ -635,6 +625,19 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             }
             clusterResult.prefSize = prefSize;   // exact parsed count for the aligned path
 
+            size_t queryId = representativeId;
+            size_t queryLength = seqDbr->getSeqLen(queryId);
+            // every entry holds the representative itself, so it is read only when another target is left
+            if (targetsWithDiagonal.size() > 1) {
+                querySeqBuffer.assign(seqDbr->getData(queryId, threadIdx), queryLength);
+                query.mapSequence(queryId, queryKey, querySeqBuffer.c_str(), queryLength);
+                blockAligner.setQuery(&query);
+            }
+            const char *querySequence = querySeqBuffer.c_str();
+            // the gapped aligners are only set up once an ungapped check fails
+            bool blockAlignerInitialized = false;
+            bool matcherInitialized = false;
+
             for (size_t targetIdx = 0; targetIdx < targetsWithDiagonal.size(); targetIdx++) {
                 if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
                     break;
@@ -648,9 +651,9 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 if (isIdentity) {
                     clusterResult.memberIds.push_back(queryId);
                     if (includeAlignFiles) {
-                        std::string backtrace = par.addBacktrace ? std::string(query.L, 'M') : std::string();
-                        Matcher::result_t selfResult(queryKey, query.L, 1.0f, 1.0f, 1.0f, 0.0,
-                            query.L, 0, query.L - 1, query.L, 0, query.L - 1, query.L, backtrace);
+                        std::string backtrace = par.addBacktrace ? std::string(queryLength, 'M') : std::string();
+                        Matcher::result_t selfResult(queryKey, queryLength, 1.0f, 1.0f, 1.0f, 0.0,
+                            queryLength, 0, queryLength - 1, queryLength, 0, queryLength - 1, queryLength, backtrace);
                         appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), selfResult, par.addBacktrace);
                     }
                     continue;
