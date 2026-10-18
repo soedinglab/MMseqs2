@@ -58,6 +58,14 @@ if [ -n "$NO_TARGET_INDEX" ]; then
     fi
     TARGET="${TMP_PATH}/t_orfs_aa"
     TARGET_ORF="${TMP_PATH}/t_orfs_aa"
+    if [ -n "$GPU" ]; then
+        if notExists "${TMP_PATH}/t_orfs_aa_pad.dbtype"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" makepaddedseqdb "${TMP_PATH}/t_orfs_aa" "${TMP_PATH}/t_orfs_aa_pad" ${MAKEPADDEDSEQDB_PAR} \
+                || fail "makepaddedseqdb target ORFs died"
+        fi
+        TARGET="${TMP_PATH}/t_orfs_aa_pad"
+    fi
 fi
 fi
 
@@ -96,6 +104,12 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/q_orfs_aa" ${VERBOSITY}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/t_orfs_aa" ${VERBOSITY}
+    if [ -f "${TMP_PATH}/t_orfs_aa_pad.dbtype" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/t_orfs_aa_pad" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/t_orfs_aa_pad_h" ${VERBOSITY}
+    fi
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
     if [ -n "${REFERENCE_FILTER}" ]; then
