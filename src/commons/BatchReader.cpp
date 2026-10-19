@@ -22,7 +22,6 @@
 #include <sys/syscall.h>
 #endif
 
-static const size_t MAX_READ_REQUEST_SIZE = 16 * 1024 * 1024;
 #ifdef HAVE_IO_URING
 static const unsigned int MAX_RING_DEPTH = 4096;
 static const unsigned int MIN_RING_DEPTH = 64;

@@ -5,6 +5,11 @@
 #include <thread>
 #include <vector>
 
+// a read is split into requests of at most MAX_READ_REQUEST_SIZE at its multiples in the file
+static const size_t MAX_READ_REQUEST_SIZE = 16 * 1024 * 1024;
+// the largest read that is in flight at once: starting unaligned, it splits into 64 requests, the smallest io_uring queue (MIN_RING_DEPTH)
+static const size_t MAX_INFLIGHT_READ_SIZE = 63 * MAX_READ_REQUEST_SIZE;
+
 #ifdef HAVE_IO_URING
 struct io_uring_sqe;
 struct io_uring_cqe;
