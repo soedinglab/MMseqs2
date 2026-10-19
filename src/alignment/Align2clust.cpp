@@ -644,7 +644,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 }
 
                 const DBKeyType targetKey = targetsWithDiagonal[targetIdx].first;
-                const unsigned short diagonal = targetsWithDiagonal[targetIdx].second;
                 const size_t targetId = seqDbr->getId(targetKey);
 
                 const bool isIdentity = (queryKey == targetKey);
@@ -671,6 +670,15 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     continue;
                 }
 
+                // take the diagonal from an ungapped alignment over the matrix, not the k-mer match.
+                // With both sides covered >= covThr at >= seqIdThr, an accepted alignment starts within
+                // (1 - covThr) * L of both starts and shifts by at most (1 - seqIdThr) * (qL + tL) in gaps,
+                // so no diagonal outside that band can lead to an accepted hit.
+                int diagBand = std::max(query.L, target.L) + target.L;
+                if (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL) {
+                    diagBand = static_cast<int>((1.0f - par.covThr) * std::max(query.L, target.L) + (1.0f - par.seqIdThr) * (query.L + target.L)) + 1;
+                }
+                const unsigned short diagonal = blockAligner.bestDiagonal(&target, -diagBand, diagBand);
                 BlockAligner::UngappedAln_res ungappedAlignment = blockAligner.ungappedAlign(&target, diagonal); 
                 
                 bool hasEvalue = (ungappedAlignment.eval <= par.evalThr);

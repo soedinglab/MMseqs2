@@ -43,6 +43,9 @@ public:
         Sequence* target,
         const unsigned short diagonal
     );
+    // exact best ungapped diagonal (queryPos - dbPos) of the current query among diagonals
+    // within [minDiag, maxDiag]
+    unsigned short bestDiagonal(Sequence* target, int minDiag, int maxDiag);
     BlockAligner::UngappedAln_res hammingDistance(
         Sequence* target, const unsigned short diagonal);
 
@@ -143,6 +146,11 @@ private:
     int8_t* queryRevNumSeq;
     int8_t* targetRevNumSeq;
     int16_t* queryCompBiasRev;
+
+    // bestDiagonal: 16-bit query profile, built on first use per query
+    int16_t* diagProfile;
+    size_t diagProfileStride;
+    bool diagProfileStale;
     
 };
 

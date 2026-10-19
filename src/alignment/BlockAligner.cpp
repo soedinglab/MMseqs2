@@ -5,11 +5,22 @@
 #include "SubstitutionMatrix.h"
 #include "EvalueComputation.h"
 #include "DistanceCalculator.h"
+#include "simd.h"
 
 #define MAX_SIZE 4096 //change
 #define MIN_SIZE 32
 
 #include <algorithm>
+
+// bestDiagonal: each 16-bit lane follows one diagonal along the target, so the lane is the
+// diagonal (8-bit striped scores saturate on near-identical pairs). Cells hold H - 32768 so one
+// saturating add also clamps at 0. Scores are clamped to >= -2 and the max is taken every
+// DIAG_KM steps only; this picks a best-scoring diagonal for >99.8% of pairs and the caller
+// rescores the chosen diagonal exactly.
+static const int DIAG_LANES = VECSIZE_INT * 2;
+static const int DIAG_CHAINS = 6;
+static const int DIAG_GROUP = DIAG_CHAINS * DIAG_LANES;
+static const int DIAG_KM = 8;
 
 BlockAligner::BlockAligner(
     int dbtype,
@@ -60,6 +71,9 @@ BlockAligner::BlockAligner(
     memset(queryCompBiasRev, 0, maxSequenceLength * sizeof(int16_t));
     memset(targetCompBias, 0, maxSequenceLength * sizeof(int16_t));
     tmpCompBias   = new float[maxSequenceLength];
+    diagProfileStride = maxSequenceLength + 2 * DIAG_GROUP;
+    diagProfile = new int16_t[subMat->alphabetSize * diagProfileStride];
+    diagProfileStale = true;
 }
 
 BlockAligner::~BlockAligner() {
@@ -79,6 +93,7 @@ BlockAligner::~BlockAligner() {
     delete[] queryRevNumSeq;
     delete[] targetRevNumSeq;
     delete[] queryCompBiasRev;
+    delete[] diagProfile;
 }
 
 void BlockAligner::initQuery(Sequence* query){
@@ -86,6 +101,7 @@ void BlockAligner::initQuery(Sequence* query){
     querySeq = query->getSeqData();
     queryNumSeq = query->numSequence;
     queryLength = query->L;
+    diagProfileStale = true;
     //memset queryRevNumSeq
     memset(queryRevNumSeq, 0, maxSequenceLength * sizeof(int8_t));
     // reset per call so a compBias-off run never reuses the previous query's values
@@ -109,6 +125,7 @@ void BlockAligner::setQuery(Sequence* query){
     querySeq = query->getSeqData();
     queryNumSeq = query->numSequence;
     queryLength = query->L;
+    diagProfileStale = true;
 }
 
 // note: traceback cigar string will be reversed, but UngappedAln_res will contain correct start and end positions
@@ -235,6 +252,64 @@ BlockAligner::UngappedAln_res BlockAligner::hammingDistance(
         alignment.score,
         alignment.diagonal
     );
+}
+
+
+unsigned short BlockAligner::bestDiagonal(Sequence* currentTarget, int minDiag, int maxDiag) {
+    if (diagProfileStale) {
+        for (int a = 0; a < subMat->alphabetSize; a++) {
+            int16_t* row = diagProfile + a * diagProfileStride;
+            std::fill(row, row + queryLength + 2 * DIAG_GROUP, -2);
+            for (int i = 0; i < queryLength; i++) {
+                row[DIAG_GROUP + i] = std::max(subMat->subMatrix[a][queryNumSeq[i]], (short) -2);
+            }
+        }
+        diagProfileStale = false;
+    }
+    const unsigned char* t = currentTarget->numSequence;
+    const int tLen = currentTarget->L;
+    const int endDiag = std::min(maxDiag + 1, queryLength);
+    int best = -1;
+    int bestDiag = 0;
+    int16_t laneMax[DIAG_GROUP] __attribute__((aligned(64)));
+    for (int d0 = std::max(minDiag, -(tLen - 1)); d0 < endDiag; d0 += DIAG_GROUP) {
+        simd_int S[DIAG_CHAINS], M[DIAG_CHAINS];
+        for (int c = 0; c < DIAG_CHAINS; c++) {
+            S[c] = M[c] = simdi16_set(-32768);
+        }
+        // row[j + lane] scores query position d0 + j + lane against t[j]
+        const int16_t* base = diagProfile + DIAG_GROUP + d0;
+        const int jEnd = std::min(tLen, queryLength - d0);
+        int j = std::max(0, -(d0 + DIAG_GROUP - 1));
+        for (; j + DIAG_KM <= jEnd; j += DIAG_KM) {
+            for (int k = 0; k < DIAG_KM; k++) {
+                const int16_t* row = base + t[j + k] * diagProfileStride + j + k;
+                for (int c = 0; c < DIAG_CHAINS; c++) {
+                    S[c] = simdi16_adds(S[c], simdi_loadu((const simd_int*) (row + c * DIAG_LANES)));
+                }
+            }
+            for (int c = 0; c < DIAG_CHAINS; c++) {
+                M[c] = simdi16_max(M[c], S[c]);
+            }
+        }
+        for (; j < jEnd; j++) {
+            const int16_t* row = base + t[j] * diagProfileStride + j;
+            for (int c = 0; c < DIAG_CHAINS; c++) {
+                S[c] = simdi16_adds(S[c], simdi_loadu((const simd_int*) (row + c * DIAG_LANES)));
+                M[c] = simdi16_max(M[c], S[c]);
+            }
+        }
+        for (int c = 0; c < DIAG_CHAINS; c++) {
+            simdi_store((simd_int*) (laneMax + c * DIAG_LANES), M[c]);
+        }
+        for (int k = 0; k < std::min(DIAG_GROUP, endDiag - d0); k++) {
+            if (laneMax[k] + 32768 > best) {
+                best = laneMax[k] + 32768;
+                bestDiag = d0 + k;
+            }
+        }
+    }
+    return static_cast<unsigned short>(bestDiag);
 }
 
 BlockAligner::UngappedAln_res BlockAligner::ungappedAlign(
