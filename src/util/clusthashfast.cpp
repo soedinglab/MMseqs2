@@ -353,13 +353,15 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
             const size_t readChunkBufferBytes = 2 * reader.getBufferSizeToLoad(nodeSeqRange[i].startKey, nodeSeqRange[i].startKey + readChunkSeqCount);
             const size_t keptBytes = isDBLinfinity ? (lengthSeqCount / 64 + 1) * sizeof(MemberBits) : lengthSeqCount / 4;
             const size_t hashBytes = sizeof(HashEntry) + (isDBLinfinity ? nodeSeqRange[i].entryLength - 2 : 0);
-            if ((isDBLinfinity && readChunkSeqCount == 0) || splitMemoryLimit <= keptBytes + readChunkBufferBytes + hashBytes) {
+            // a split mode 3 length keeps a pair for every member to write its clusters in key order
+            const size_t pairBytes = isDBLinfinity ? lengthSeqCount * sizeof(ClusterPair) : 0;
+            if ((isDBLinfinity && readChunkSeqCount == 0) || splitMemoryLimit <= keptBytes + readChunkBufferBytes + pairBytes + hashBytes) {
                 Debug(Debug::ERROR) << "Not enough memory to hash " << lengthSeqCount << " sequences\n"
                                     << "Raise RAM size or --split-memory-limit.\n";
                 EXIT(EXIT_FAILURE);
             }
             // a split mode 3 length keeps its hashIdPairs and, after its candidates, the sequences of a block in hashIdPairs
-            hashIdPairsCapacity[i] = (splitMemoryLimit - keptBytes - readChunkBufferBytes) / sizeof(HashEntry);
+            hashIdPairsCapacity[i] = (splitMemoryLimit - keptBytes - readChunkBufferBytes - pairBytes) / sizeof(HashEntry);
         }
         if (loadOffsets.empty() || fitsWithPrefetch(&nodeSeqRange[loadOffsets.back()], &nodeSeqRange[i + 1], isDBLinfinity, seqBufferLimit, hashIdPairsLimit) == false) {
             loadOffsets.push_back(i);
@@ -371,7 +373,8 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
 
     std::string result;
     char buffer[32];
-    std::vector<ClusterPair> loadPairs;
+    ClusterPair *loadPairs = NULL;
+    size_t loadPairCount = 0;
     bool needsSort = false;
     size_t clusters = 0;
     SubstitutionMatrix sMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, -0.2);
@@ -386,6 +389,11 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
         const bool isSplitLength = hashIdPairsCapacity[loadOffsets[load]] > 0;
         const size_t length = isDBLinfinity ? nodeSeqRange[loadOffsets[load]].entryLength - 2 : 0;
         const bool copiesSeqs = isSplitLength && isDBLinfinity;
+        if (copiesSeqs) {
+            loadPairs = new(std::nothrow) ClusterPair[loadSeqCount];
+            Util::checkAllocation(loadPairs, "Can not allocate loadPairs memory in clusthashfast");
+            loadPairCount = 0;
+        }
         const size_t readChunkSeqCount = copiesSeqs ? std::min(readChunkBytes / (length + 2) / 64 * 64, loadSeqCount) : loadSeqCount;
         const size_t hashedSeqCapacity = isSplitLength ? hashIdPairsCapacity[loadOffsets[load]] : loadSeqCount;
         bool hashIdPairsFit = hashedSeqCapacity >= loadSeqCount;
@@ -527,7 +535,7 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
                 if (copiesSeqs) {
                     for (size_t i = clusterBegin + 1; i < clusterEnd; i++) {
                         const ClusterPair pair = { repKey, reader.getDbKey(rangeHashIdPairs[i].id) };
-                        loadPairs.push_back(pair);
+                        loadPairs[loadPairCount++] = pair;
                     }
                 } else {
                     for (size_t i = clusterBegin; i < clusterEnd; i++) {
@@ -545,8 +553,8 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
             }
         }
         if (copiesSeqs) {
-            // every representative of the length, also of a hash bin of one sequence, starts an entry
-            SORT_PARALLEL(loadPairs.begin(), loadPairs.end(), ClusterPair::compareByRep);
+            // every representative of the length starts an entry, also one that is alone in its hash
+            SORT_PARALLEL(loadPairs, loadPairs + loadPairCount, ClusterPair::compareByRep);
             size_t pair = 0;
             for (size_t key = loadFirstKey; key < loadFirstKey + loadSeqCount; key++) {
                 if ((representativeBits[(key - localFirstKey) / 64] & (1ull << ((key - localFirstKey) % 64))) == 0) {
@@ -557,14 +565,15 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
                 char *end = Itoa::u64toa_sse2(static_cast<uint64_t>(key), buffer);
                 *(end - 1) = '\n';
                 resultWriter.writeAdd(buffer, end - buffer, 0);
-                for (; pair < loadPairs.size() && loadPairs[pair].repKey == key; pair++) {
+                for (; pair < loadPairCount && loadPairs[pair].repKey == key; pair++) {
                     end = Itoa::u64toa_sse2(static_cast<uint64_t>(loadPairs[pair].memberKey), buffer);
                     *(end - 1) = '\n';
                     resultWriter.writeAdd(buffer, end - buffer, 0);
                 }
                 resultWriter.writeEnd(key, 0, true, false);
             }
-            loadPairs.clear();
+            delete[] loadPairs;
+            loadPairs = NULL;
         }
         delete[] memberBits;
         // only a load and the next one it prefetched keep both sequence buffers and hashIdPairs
