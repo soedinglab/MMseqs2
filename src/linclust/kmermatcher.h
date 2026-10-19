@@ -86,6 +86,15 @@ struct __attribute__((__packed__)) KmerPosition {
     L seqLen;
     AdjacentData<Flank> adj;
 
+    size_t getKmer() const { return kmer; }
+    DBKeyType getId() const { return id; }
+    T getPos() const { return pos; }
+    L getSeqLen() const { return seqLen; }
+    void setKmer(size_t value) { kmer = value; }
+    void setId(DBKeyType key) { id = key; }
+    void setPos(T position) { pos = position; }
+    void setSeqLen(L length) { seqLen = length; }
+
     void setAdjacentSeq(int index, unsigned char val) {
         adj.set(index, val);
     }
@@ -217,6 +226,10 @@ public:
 
 template <int TYPE, typename T, int Flank = 0>
 void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int numThreads = 1, int maxIter = 1);
+
+template <int TYPE, typename T>
+void mergeKmerEntries(DBWriter &dbw, int threadIdx, int fileCnt, T **entries, size_t *entrySizes,
+                      std::vector<char> &repSequence, DBKeyType selfHitKey, DBKeyType selfHitEndKey, bool addIndexEntry);
 
 typedef std::priority_queue<FileKmerPosition, std::vector<FileKmerPosition>, CompareResultBySeqId> KmerPositionQueue;
 
