@@ -208,12 +208,18 @@ template <typename T> bool DBReader<T>::open(int accessType){
     if (externalData == false && clusterIndex) {
         // one range of all entries; only the entry count and the data size are read here
         FILE *indexFile = FileUtil::openFileOrDie(indexFileName, "r", true);
-        uint64_t lastOffset = 0;
-        if (fseek(indexFile, -static_cast<long>(sizeof(uint64_t)), SEEK_END) != 0 || fread(&lastOffset, sizeof(uint64_t), 1, indexFile) != 1) {
+        uint64_t lastCell[2] = { 0, 0 };
+        if (fseek(indexFile, -static_cast<long>(sizeof(lastCell)), SEEK_END) != 0 || fread(lastCell, sizeof(uint64_t), 2, indexFile) != 2) {
             Debug(Debug::ERROR) << "Cannot read index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
         }
+        const uint64_t lastOffset = lastCell[1];
         const size_t indexBytes = ftell(indexFile);
+        // the index ends with (DB_KEY_INVALID, data size), unless its writer stopped early
+        if (indexBytes % sizeof(lastCell) != 0 || lastCell[0] != static_cast<uint64_t>(DB_KEY_INVALID)) {
+            Debug(Debug::ERROR) << "Index file " << indexFileName << " is incomplete\n";
+            EXIT(EXIT_FAILURE);
+        }
         if (fclose(indexFile) != 0) {
             Debug(Debug::ERROR) << "Cannot close index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
@@ -275,6 +281,10 @@ template <typename T> bool DBReader<T>::open(int accessType){
                 index[i].offset = isHeader ? 0 : Util::fast_atoi<size_t>(cols[1]);
                 index[i].length = isHeader ? 0 : Util::fast_atoi<size_t>(cols[2]);
                 const size_t count = Util::fast_atoi<size_t>(cols[isHeader ? 1 : 3]);
+                if (size + count > DB_KEY_INVALID) {
+                    Debug(Debug::ERROR) << "Database " << dataFileName << " has more sequences than keys of this build; compile MMseqs2 with -DMMSEQS_INT64_IDS=1\n";
+                    EXIT(EXIT_FAILURE);
+                }
                 index2dbfile[i] = isHeader ? static_cast<unsigned int>(i) : Util::fast_atoi<unsigned int>(cols[4]);
                 if (isHeader) {
                     headerOffsetsFileNames.push_back(std::string(dataFileName) + ".index." + SSTR(i));
@@ -1596,6 +1606,12 @@ void DBReader<T>::copyDb(const std::string &databaseName, const std::string &out
 
 template<typename T>
 std::vector<size_t> DBReader<T>::getFileKeyOffsets(size_t fileCount) {
+    // the files hold ascending keys, so the last row is in the last file
+    const size_t databaseFiles = (indexSize == 0) ? 0 : index2dbfile[indexSize - 1] + 1;
+    if (databaseFiles != fileCount) {
+        Debug(Debug::ERROR) << "Database " << dataFileName << " has " << databaseFiles << " data files, but runs on " << fileCount << " nodes\n";
+        EXIT(EXIT_FAILURE);
+    }
     std::vector<size_t> offsets(fileCount + 1, 0);
     for (size_t row = 0; row < indexSize; row++) {
         offsets[index2dbfile[row] + 1] = (row + 1 < indexSize) ? indexIdToNum(&index[row + 1].id) : size;
