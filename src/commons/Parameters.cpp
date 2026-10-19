@@ -378,6 +378,12 @@ Parameters::Parameters():
     threadsandcompression.push_back(&PARAM_COMPRESSED);
     threadsandcompression.push_back(&PARAM_V);
 
+    // mergeclusters
+    mergeclusters.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    mergeclusters.push_back(&PARAM_THREADS);
+    mergeclusters.push_back(&PARAM_COMPRESSED);
+    mergeclusters.push_back(&PARAM_V);
+
     // createclusearchdb
     createclusearchdb.push_back(&PARAM_THREADS);
     createclusearchdb.push_back(&PARAM_COMPRESSED);
@@ -654,6 +660,7 @@ Parameters::Parameters():
     createtsv.push_back(&PARAM_THREADS);
     createtsv.push_back(&PARAM_COMPRESSED);
     createtsv.push_back(&PARAM_V);
+    createtsv.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
 
     //result2stats
     result2stats.push_back(&PARAM_STAT);

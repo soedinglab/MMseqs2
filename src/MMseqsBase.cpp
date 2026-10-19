@@ -789,7 +789,7 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <o:clusterDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                    {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb }}},
-        {"mergeclusters",        mergeclusters,        &par.threadsandcompression,COMMAND_CLUSTER,
+        {"mergeclusters",        mergeclusters,        &par.mergeclusters,        COMMAND_CLUSTER,
                 "Merge multiple cascaded clustering steps",
                 NULL,
                 "Maria Hauser & Martin Steinegger <martin.steinegger@snu.ac.kr>",

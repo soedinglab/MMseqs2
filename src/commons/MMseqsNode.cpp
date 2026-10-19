@@ -19,6 +19,8 @@
 
 unsigned int MMseqsNode::rank = 0;
 unsigned int MMseqsNode::count = 1;
+// the first line of every barrier file, so a file that a killed run left is told apart from one of this run
+static std::string runId;
 
 void MMseqsNode::init() {
     const char *procId = getenv("SLURM_PROCID");
@@ -27,6 +29,13 @@ void MMseqsNode::init() {
         rank = strtoul(procId, NULL, 10);
         count = strtoul(taskCount, NULL, 10);
     }
+    const char *runVariables[] = { "SLURM_JOB_ID", "SLURM_STEP_ID", "SLURM_RESTART_COUNT" };
+    runId.clear();
+    for (size_t i = 0; i < sizeof(runVariables) / sizeof(runVariables[0]); i++) {
+        const char *value = getenv(runVariables[i]);
+        runId += std::string(value != NULL ? value : "") + "\t";
+    }
+    runId += "\n";
     if (count == 0 || rank >= count) {
         Debug(Debug::ERROR) << "Invalid SLURM_PROCID " << rank << " for " << count << " tasks\n";
         EXIT(EXIT_FAILURE);
@@ -91,12 +100,32 @@ std::string MMseqsNode::gatherFiles(const std::string &prefix) {
     return content;
 }
 
-std::string MMseqsNode::barrier(const std::string &file, const std::string &content) {
-    publishFile(file + "." + SSTR(rank), content);
-    if (isMaster()) {
-        publishFile(file, gatherFiles(file + "."));
+// a file of another run is read again until this run replaces it
+static std::string waitForRunFile(const std::string &file) {
+    std::string content = MMseqsNode::waitForFile(file);
+    while (content.compare(0, runId.size(), runId) != 0) {
+        sleep(1);
+        content = MMseqsNode::waitForFile(file);
     }
-    return waitForFile(file);
+    return content.substr(runId.size());
+}
+
+static std::string gatherRunFiles(const std::string &prefix) {
+    std::string content;
+    for (unsigned int node = 0; node < MMseqsNode::count; node++) {
+        const std::string file = prefix + SSTR(node);
+        content += waitForRunFile(file);
+        FileUtil::remove(file.c_str());
+    }
+    return content;
+}
+
+std::string MMseqsNode::barrier(const std::string &file, const std::string &content) {
+    publishFile(file + "." + SSTR(rank), runId + content);
+    if (isMaster()) {
+        publishFile(file, runId + gatherRunFiles(file + "."));
+    }
+    return waitForRunFile(file);
 }
 
 void MMseqsNode::addExchangeFlush(std::string &indexData, size_t &writtenBytes, const std::vector<size_t> &nodeOffsets) {
@@ -218,7 +247,7 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
     FILE *handle = FileUtil::openAndDelete(exchangeFile.c_str(), "w");
     std::string indexData;
     size_t writtenBytes = 0;
-    const size_t memoryLimit = Util::computeMemory(0);
+    const size_t memoryLimit = Util::computeMemory(Parameters::getInstance().splitMemoryLimit);
     const size_t pairCapacity = memoryLimit / 2 / sizeof(ClusterPair);
     ClusterPair *pairs = new(std::nothrow) ClusterPair[pairCapacity];
     Util::checkAllocation(pairs, "Can not allocate pairs memory in sendClusterPairs");
@@ -239,12 +268,18 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
         repKeys.resize(loadEnd - loadBegin);
         for (size_t i = loadBegin; i < loadEnd; i++) {
             const DBKeyType key = cluDb.getDbKey(i);
-            while (receivedQueue.empty() == false && receivedQueue.top().pair.memberKey < key) {
+            repKeys[i - loadBegin] = key;
+            if (receivedQueue.empty() == false && receivedQueue.top().pair.memberKey == key) {
+                repKeys[i - loadBegin] = receivedQueue.top().pair.repKey;
                 const size_t block = receivedQueue.top().block;
                 receivedQueue.pop();
                 queueNextPair(receivedQueue, receivedBlocks, block, receivedPrefix);
             }
-            repKeys[i - loadBegin] = (receivedQueue.empty() == false && receivedQueue.top().pair.memberKey == key) ? receivedQueue.top().pair.repKey : key;
+            // a received member that was passed is no entry of this node, or the entries are not in key order
+            if (receivedQueue.empty() == false && receivedQueue.top().pair.memberKey <= key) {
+                Debug(Debug::ERROR) << "Key " << receivedQueue.top().pair.memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << " in key order\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         for (size_t firstEntry = loadBegin; firstEntry < loadEnd;) {
             // a line has at least a digit and a newline
@@ -304,6 +339,10 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
             firstEntry = endEntry;
         }
     }
+    if (receivedQueue.empty() == false) {
+        Debug(Debug::ERROR) << "Key " << receivedQueue.top().pair.memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     writePairs(pairs, pairCount, compare, nodeKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
     cluDb.close();
     delete[] pairs;
@@ -322,9 +361,9 @@ void MMseqsNode::writeClusterIndexEntry(FILE *file, const std::string &fileName,
 void MMseqsNode::removeExchanges(const std::string &prefix, const std::string &lastExchange, const std::vector<std::string> &exchanges) {
     barrier(prefix + ".merged");
     FileUtil::remove((lastExchange + "." + SSTR(rank)).c_str());
-    publishFile(prefix + ".done." + SSTR(rank), "");
+    publishFile(prefix + ".done." + SSTR(rank), runId);
     if (isMaster()) {
-        gatherFiles(prefix + ".done.");
+        gatherRunFiles(prefix + ".done.");
         for (size_t i = 0; i < exchanges.size(); i++) {
             FileUtil::remove((exchanges[i] + ".index").c_str());
         }

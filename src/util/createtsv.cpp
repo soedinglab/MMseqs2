@@ -114,6 +114,7 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
     size_t writtenBytes = 0;
     std::vector<MemberAccession> memberAccessions;
     std::string accessions;
+    DBKeyType previousMemberKey = DB_KEY_INVALID;
     for (size_t keyBegin = localFirstKey; keyBegin < localEndKey; keyBegin += keysPerLoad) {
         const size_t keyEnd = std::min(localEndKey, keyBegin + keysPerLoad);
         headers.loadData(keyBegin, keyEnd);
@@ -124,6 +125,11 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
             const QueuedPair queuedPair = memberQueue.top();
             memberQueue.pop();
             MMseqsNode::queueNextPair(memberQueue, memberBlocks, queuedPair.block, sortedByMember);
+            if (queuedPair.pair.memberKey == previousMemberKey) {
+                Debug(Debug::ERROR) << "Key " << queuedPair.pair.memberKey << " is in two clusters\n";
+                EXIT(EXIT_FAILURE);
+            }
+            previousMemberKey = queuedPair.pair.memberKey;
             const std::string accession = Util::parseFastaHeader(headers.getData(queuedPair.pair.memberKey, 0));
             const MemberAccession memberAccession = { queuedPair.pair.repKey, queuedPair.pair.memberKey, accessions.size(), static_cast<unsigned int>(accession.size()) };
             accessions.append(accession);
@@ -135,6 +141,10 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
                 accessions.clear();
             }
         }
+    }
+    if (memberQueue.empty() == false) {
+        Debug(Debug::ERROR) << "Key " << memberQueue.top().pair.memberKey << " of the clustering is not in the sequence database\n";
+        EXIT(EXIT_FAILURE);
     }
     writeMemberAccessions(memberAccessions, accessions, nodeKeyOffsets, sortedByRepHandle, sortedByRepFile, sortedByRepIndexData, writtenBytes);
     MMseqsNode::closeExchangeFiles(memberFiles, sortedByMember);
@@ -165,6 +175,10 @@ static void writeRepresentativeEntries(const std::string &sortedByRepIndex, cons
                 writer.writeEnd(currentRepKey, 0, par.dbOut);
             }
             // the representative itself comes first
+            if (queuedMemberAccession.memberKey != queuedMemberAccession.repKey) {
+                Debug(Debug::ERROR) << "The cluster of key " << queuedMemberAccession.repKey << " has no line for its representative\n";
+                EXIT(EXIT_FAILURE);
+            }
             currentRepKey = queuedMemberAccession.repKey;
             repAccession.assign(queuedMemberAccession.accession, queuedMemberAccession.accessionLength);
             writer.writeStart(0);
@@ -195,13 +209,23 @@ int createtsv(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "createtsv needs the --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " database as both query and target database: createtsv DB DB clu tsv\n";
             EXIT(EXIT_FAILURE);
         }
+        if (par.fullHeader || par.targetTsvColumn != 1 || par.idxSeqSrc != 0 || par.dbOut) {
+            Debug(Debug::ERROR) << "--full-header, --target-column, --idx-seq-src and --db-output are not supported for --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " databases\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const int clusterDbtype = FileUtil::parseDbType(par.db3.c_str());
+        if (Parameters::isEqualDbtype(clusterDbtype, Parameters::DBTYPE_CLUSTER_RES) == false
+            || (DBReader<DBKeyType>::getExtendedDbtype(clusterDbtype) & Parameters::DBTYPE_EXTENDED_LINFINITY) == 0) {
+            Debug(Debug::ERROR) << par.db3 << " is not a --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " clustering\n";
+            EXIT(EXIT_FAILURE);
+        }
         DBReader<DBKeyType> headers(par.hdr1.c_str(), (par.db1 + ".nodeinfo").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_LINFINITY);
         headers.open(DBReader<DBKeyType>::NOSORT);
         const std::vector<size_t> nodeKeyOffsets = headers.getFileKeyOffsets(MMseqsNode::count);
         const std::string sortedByMember = par.db4 + "_sortedbymem";
         const std::string sortedByMemberIndex = MMseqsNode::sendClusterPairs(par.db3, true, ClusterPair::compareByMember, nodeKeyOffsets, sortedByMember);
         const std::string sortedByRep = par.db4 + "_sortedbyrep";
-        const std::string sortedByRepIndex = readMemberAccessions(sortedByMemberIndex, sortedByMember, headers, nodeKeyOffsets, par.hdr1 + ".index." + SSTR(MMseqsNode::rank), Util::computeMemory(0), sortedByRep);
+        const std::string sortedByRepIndex = readMemberAccessions(sortedByMemberIndex, sortedByMember, headers, nodeKeyOffsets, par.hdr1 + ".index." + SSTR(MMseqsNode::rank), Util::computeMemory(par.splitMemoryLimit), sortedByRep);
         FileUtil::remove((sortedByMember + "." + SSTR(MMseqsNode::rank)).c_str());
         writeRepresentativeEntries(sortedByRepIndex, sortedByRep, par.db4, par);
         std::vector<std::string> exchanges;
