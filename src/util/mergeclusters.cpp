@@ -3,6 +3,8 @@
 #include "DBWriter.h"
 #include "Util.h"
 #include "itoa.h"
+#include "FileUtil.h"
+#include "MMseqsNode.h"
 
 #include <list>
 
@@ -10,9 +12,79 @@
 #include <omp.h>
 #endif
 
+static void writeMergedPairs(const std::string &sortedByRepIndex, const std::string &sortedByRep, const std::string &outDb) {
+    const CompareQueuedPair compareQueuedByRep = { ClusterPair::compareByRep };
+    PairQueue repQueue(compareQueuedByRep);
+    std::vector<MMseqsNode::ExchangeBlock> repBlocks;
+    std::vector<FILE *> repFiles;
+    MMseqsNode::openPairs(repQueue, repBlocks, repFiles, sortedByRepIndex, sortedByRep);
+    const std::string resultDb = outDb + "." + SSTR(MMseqsNode::rank);
+    const std::string resultIndex = outDb + ".index." + SSTR(MMseqsNode::rank);
+    FILE *resultIndexFile = FileUtil::openAndDelete(resultIndex.c_str(), "w");
+    DBWriter dbw(resultDb.c_str(), (resultDb + ".index").c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
+    dbw.open();
+    char buffer[32];
+    DBKeyType currentRepKey = DB_KEY_INVALID;
+    while (repQueue.empty() == false) {
+        const QueuedPair queuedPair = repQueue.top();
+        repQueue.pop();
+        MMseqsNode::queueNextPair(repQueue, repBlocks, queuedPair.block, sortedByRep);
+        if (queuedPair.pair.repKey != currentRepKey) {
+            if (currentRepKey != DB_KEY_INVALID) {
+                dbw.writeEnd(currentRepKey, 0, true, false);
+            }
+            currentRepKey = queuedPair.pair.repKey;
+            MMseqsNode::writeClusterIndexEntry(resultIndexFile, resultIndex, currentRepKey, dbw.getOffset(0));
+            dbw.writeStart(0);
+        }
+        char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(queuedPair.pair.memberKey), buffer);
+        *(tmpBuff - 1) = '\n';
+        dbw.writeAdd(buffer, tmpBuff - buffer, 0);
+    }
+    if (currentRepKey != DB_KEY_INVALID) {
+        dbw.writeEnd(currentRepKey, 0, true, false);
+    }
+    MMseqsNode::writeClusterIndexEntry(resultIndexFile, resultIndex, DB_KEY_INVALID, dbw.getOffset(0));
+    dbw.close(false, false);
+    FileUtil::remove((resultDb + ".index").c_str());
+    if (fclose(resultIndexFile) != 0) {
+        Debug(Debug::ERROR) << "Cannot close " << resultIndex << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    MMseqsNode::closeExchangeFiles(repFiles, sortedByRep);
+}
+
 int mergeclusters(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, true, 0);
+    const bool isLinfinity = DBReader<DBKeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db1.c_str())) & Parameters::DBTYPE_EXTENDED_LINFINITY;
+    if (isLinfinity) {
+        MMseqsNode::init();
+        DBReader<DBKeyType> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_LINFINITY);
+        dbr.open(DBReader<DBKeyType>::NOSORT);
+        const std::vector<size_t> nodeKeyOffsets = dbr.getFileKeyOffsets(MMseqsNode::count);
+        dbr.close();
+        const bool hasSecondClustering = par.filenames.size() > 3;
+        const std::string sortedByMember = par.db2 + "_sortedbymem";
+        const std::string sortedByMemberIndex = hasSecondClustering ? MMseqsNode::sendClusterPairs(par.filenames[3], false, ClusterPair::compareByMember, nodeKeyOffsets, sortedByMember) : "";
+        const std::string sortedByRep = par.db2 + "_sortedbyrep";
+        const std::string sortedByRepIndex = MMseqsNode::sendClusterPairs(par.filenames[2], true, ClusterPair::compareByRep, nodeKeyOffsets, sortedByRep,
+                                                                          sortedByMemberIndex, hasSecondClustering ? sortedByMember : "");
+        if (hasSecondClustering) {
+            FileUtil::remove((sortedByMember + "." + SSTR(MMseqsNode::rank)).c_str());
+        }
+        writeMergedPairs(sortedByRepIndex, sortedByRep, par.db2);
+        std::vector<std::string> exchanges;
+        exchanges.push_back(sortedByRep);
+        if (hasSecondClustering) {
+            exchanges.push_back(sortedByMember);
+        }
+        MMseqsNode::removeExchanges(par.db2, sortedByRep, exchanges);
+        if (MMseqsNode::isMaster()) {
+            DBWriter::writeDbtypeFile(par.db2.c_str(), DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_EXTENDED_LINFINITY), false);
+        }
+        return EXIT_SUCCESS;
+    }
 
     std::list<std::string> clusterings;
     for (size_t i = 2; i < par.filenames.size(); i++) {
