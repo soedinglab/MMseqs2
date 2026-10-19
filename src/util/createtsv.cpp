@@ -32,22 +32,15 @@ struct MemberAccession {
 
 static const size_t MEMBER_ACCESSION_SIZE = 2 * sizeof(DBKeyType) + sizeof(unsigned int);
 
-struct QueuedMemberAccession {
-    DBKeyType repKey;
-    DBKeyType memberKey;
-    const char *accession;
-    unsigned int accessionLength;
-    size_t block;
-};
-
-struct CompareQueuedMemberAccession {
-    bool operator()(const QueuedMemberAccession &first, const QueuedMemberAccession &second) const {
-        const ClusterPair firstPair = { first.repKey, first.memberKey };
-        const ClusterPair secondPair = { second.repKey, second.memberKey };
-        return ClusterPair::compareByRep(secondPair, firstPair);
+// the size of the exchanged member accession at record, 0 if bytes do not hold all of it
+static size_t memberAccessionSize(const char *record, size_t bytes) {
+    if (bytes < MEMBER_ACCESSION_SIZE) {
+        return 0;
     }
-};
-typedef std::priority_queue<QueuedMemberAccession, std::vector<QueuedMemberAccession>, CompareQueuedMemberAccession> MemberAccessionQueue;
+    unsigned int accessionLength;
+    memcpy(&accessionLength, record + 2 * sizeof(DBKeyType), sizeof(unsigned int));
+    return (bytes >= MEMBER_ACCESSION_SIZE + accessionLength) ? MEMBER_ACCESSION_SIZE + accessionLength : 0;
+}
 
 static void writeMemberAccessions(std::vector<MemberAccession> &memberAccessions, const std::string &accessions, const std::vector<size_t> &nodeKeyOffsets,
                                   FILE *file, const std::string &fileName, std::string &indexData, size_t &writtenBytes) {
@@ -75,27 +68,11 @@ static void writeMemberAccessions(std::vector<MemberAccession> &memberAccessions
     MMseqsNode::addExchangeFlush(indexData, writtenBytes, nodeOffsets);
 }
 
-static void queueNextMemberAccession(MemberAccessionQueue &queue, std::vector<MMseqsNode::ExchangeBlock> &blocks, size_t block, const std::string &prefix) {
-    const char *data = MMseqsNode::readExchange(blocks[block], MEMBER_ACCESSION_SIZE, prefix);
-    if (data == NULL) {
-        return;
-    }
-    QueuedMemberAccession queuedMemberAccession;
-    memcpy(&queuedMemberAccession.repKey, data, sizeof(DBKeyType));
-    memcpy(&queuedMemberAccession.memberKey, data + sizeof(DBKeyType), sizeof(DBKeyType));
-    memcpy(&queuedMemberAccession.accessionLength, data + 2 * sizeof(DBKeyType), sizeof(unsigned int));
-    queuedMemberAccession.accession = MMseqsNode::readExchange(blocks[block], queuedMemberAccession.accessionLength, prefix);
-    queuedMemberAccession.block = block;
-    queue.push(queuedMemberAccession);
-}
-
 static std::string readMemberAccessions(const std::string &sortedByMemberIndex, const std::string &sortedByMember, DBReader<DBKeyType> &headers, const std::vector<size_t> &nodeKeyOffsets,
                                         const std::string &headerOffsetsFile, size_t memoryLimit, const std::string &sortedByRep) {
-    const CompareQueuedPair compareQueuedByMember = { ClusterPair::compareByMember };
-    PairQueue memberQueue(compareQueuedByMember);
     std::vector<MMseqsNode::ExchangeBlock> memberBlocks;
     std::vector<FILE *> memberFiles;
-    MMseqsNode::openPairs(memberQueue, memberBlocks, memberFiles, sortedByMemberIndex, sortedByMember);
+    MMseqsNode::openExchange(sortedByMemberIndex, sortedByMember, memberBlocks, memberFiles);
 
     // the last header offset of a node is the size of its names
     const size_t localFirstKey = nodeKeyOffsets[MMseqsNode::rank];
@@ -106,7 +83,9 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
         Debug(Debug::ERROR) << "Cannot read " << headerOffsetsFile << "\n";
         EXIT(EXIT_FAILURE);
     }
-    const size_t keysPerLoad = std::max<size_t>(1, memoryLimit / 8 / (nameBytes / std::max<size_t>(1, localEndKey - localFirstKey) + 1));
+    // a key also holds its name offset in the read buffer and in the load
+    const size_t keyBytes = nameBytes / std::max<size_t>(1, localEndKey - localFirstKey) + sizeof(uint64_t) + sizeof(size_t);
+    const size_t keysPerLoad = std::max<size_t>(1, memoryLimit / 8 / keyBytes);
 
     const std::string sortedByRepFile = sortedByRep + "." + SSTR(MMseqsNode::rank);
     FILE *sortedByRepHandle = FileUtil::openAndDelete(sortedByRepFile.c_str(), "w");
@@ -114,6 +93,10 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
     size_t writtenBytes = 0;
     std::vector<MemberAccession> memberAccessions;
     std::string accessions;
+    const int threads = Parameters::getInstance().threads;
+    std::vector<std::string> threadAccessions(threads);
+    std::vector<size_t> threadAccessionOffsets(threads + 1);
+    std::vector<char> received;
     DBKeyType previousMemberKey = DB_KEY_INVALID;
     for (size_t keyBegin = localFirstKey; keyBegin < localEndKey; keyBegin += keysPerLoad) {
         const size_t keyEnd = std::min(localEndKey, keyBegin + keysPerLoad);
@@ -121,19 +104,48 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
         if (keyEnd < localEndKey) {
             headers.prefetchData(keyEnd, std::min(localEndKey, keyEnd + keysPerLoad));
         }
-        while (memberQueue.empty() == false && memberQueue.top().pair.memberKey < keyEnd) {
-            const QueuedPair queuedPair = memberQueue.top();
-            memberQueue.pop();
-            MMseqsNode::queueNextPair(memberQueue, memberBlocks, queuedPair.block, sortedByMember);
-            if (queuedPair.pair.memberKey == previousMemberKey) {
-                Debug(Debug::ERROR) << "Key " << queuedPair.pair.memberKey << " is in two clusters\n";
-                EXIT(EXIT_FAILURE);
+        const ClusterPair loadLast = { static_cast<DBKeyType>(keyEnd - 1), static_cast<DBKeyType>(keyEnd - 1) };
+        size_t pairCount;
+        while ((pairCount = MMseqsNode::readExchangeRange(memberBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, loadLast, received, NULL, sortedByMember)) > 0) {
+            ClusterPair *pairs = reinterpret_cast<ClusterPair *>(received.data());
+            SORT_PARALLEL(pairs, pairs + pairCount, ClusterPair::compareByMember);
+            const size_t firstAccession = memberAccessions.size();
+            memberAccessions.resize(firstAccession + pairCount);
+#pragma omp parallel
+            {
+                int thread_idx = 0;
+#ifdef OPENMP
+                thread_idx = omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 1)
+                for (int thread = 0; thread < threads; thread++) {
+                    threadAccessions[thread].clear();
+                    for (size_t i = pairCount * thread / threads; i < pairCount * (thread + 1) / threads; i++) {
+                        const DBKeyType memberKey = pairs[i].memberKey;
+                        if (memberKey == ((i > 0) ? pairs[i - 1].memberKey : previousMemberKey)) {
+                            Debug(Debug::ERROR) << "Key " << memberKey << " is in two clusters\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        const std::string accession = Util::parseFastaHeader(headers.getData(memberKey, thread_idx));
+                        const MemberAccession memberAccession = { pairs[i].repKey, memberKey, threadAccessions[thread].size(), static_cast<unsigned int>(accession.size()) };
+                        memberAccessions[firstAccession + i] = memberAccession;
+                        threadAccessions[thread].append(accession);
+                    }
+                }
             }
-            previousMemberKey = queuedPair.pair.memberKey;
-            const std::string accession = Util::parseFastaHeader(headers.getData(queuedPair.pair.memberKey, 0));
-            const MemberAccession memberAccession = { queuedPair.pair.repKey, queuedPair.pair.memberKey, accessions.size(), static_cast<unsigned int>(accession.size()) };
-            accessions.append(accession);
-            memberAccessions.push_back(memberAccession);
+            threadAccessionOffsets[0] = accessions.size();
+            for (int thread = 0; thread < threads; thread++) {
+                threadAccessionOffsets[thread + 1] = threadAccessionOffsets[thread] + threadAccessions[thread].size();
+            }
+            accessions.resize(threadAccessionOffsets[threads]);
+#pragma omp parallel for schedule(dynamic, 1)
+            for (int thread = 0; thread < threads; thread++) {
+                memcpy(&accessions[threadAccessionOffsets[thread]], threadAccessions[thread].data(), threadAccessions[thread].size());
+                for (size_t i = pairCount * thread / threads; i < pairCount * (thread + 1) / threads; i++) {
+                    memberAccessions[firstAccession + i].accessionOffset += threadAccessionOffsets[thread];
+                }
+            }
+            previousMemberKey = pairs[pairCount - 1].memberKey;
             // the flush is copied once more into the write buffer
             if (accessions.size() + memberAccessions.size() * sizeof(MemberAccession) >= memoryLimit / 8) {
                 writeMemberAccessions(memberAccessions, accessions, nodeKeyOffsets, sortedByRepHandle, sortedByRepFile, sortedByRepIndexData, writtenBytes);
@@ -142,8 +154,9 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
             }
         }
     }
-    if (memberQueue.empty() == false) {
-        Debug(Debug::ERROR) << "Key " << memberQueue.top().pair.memberKey << " of the clustering is not in the sequence database\n";
+    const ClusterPair lastPair = { DB_KEY_INVALID, DB_KEY_INVALID };
+    if (MMseqsNode::readExchangeRange(memberBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, lastPair, received, NULL, sortedByMember) > 0) {
+        Debug(Debug::ERROR) << "Key " << reinterpret_cast<ClusterPair *>(received.data())->memberKey << " of the clustering is not in the sequence database\n";
         EXIT(EXIT_FAILURE);
     }
     writeMemberAccessions(memberAccessions, accessions, nodeKeyOffsets, sortedByRepHandle, sortedByRepFile, sortedByRepIndexData, writtenBytes);
@@ -152,50 +165,84 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
 }
 
 static void writeRepresentativeEntries(const std::string &sortedByRepIndex, const std::string &sortedByRep, const std::string &tsv, const Parameters &par) {
-    MemberAccessionQueue repQueue;
     std::vector<MMseqsNode::ExchangeBlock> repBlocks;
     std::vector<FILE *> repFiles;
     MMseqsNode::openExchange(sortedByRepIndex, sortedByRep, repBlocks, repFiles);
-    for (size_t block = 0; block < repBlocks.size(); block++) {
-        queueNextMemberAccession(repQueue, repBlocks, block, sortedByRep);
-    }
+    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
     const std::string dataFile = tsv + "." + SSTR(MMseqsNode::rank);
     const std::string indexFile = tsv + ".index." + SSTR(MMseqsNode::rank);
-    const bool shouldCompress = par.dbOut == true && par.compressed == true;
-    const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
-    DBWriter writer(dataFile.c_str(), indexFile.c_str(), 1, shouldCompress, dbType);
+    DBWriter writer(dataFile.c_str(), indexFile.c_str(), 1, false, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
+    const ClusterPair lastPair = { DB_KEY_INVALID, DB_KEY_INVALID };
+    std::vector<char> records;
+    std::vector<size_t> recordOffsets;
+    std::vector<MemberAccession> memberAccessions;
+    std::vector<std::string> threadLines(par.threads);
+    // the accession of the representative whose cluster the previous range ended in
     std::string repAccession;
-    DBKeyType currentRepKey = DB_KEY_INVALID;
-    while (repQueue.empty() == false) {
-        const QueuedMemberAccession queuedMemberAccession = repQueue.top();
-        repQueue.pop();
-        if (queuedMemberAccession.repKey != currentRepKey) {
-            if (currentRepKey != DB_KEY_INVALID) {
-                writer.writeEnd(currentRepKey, 0, par.dbOut);
-            }
-            // the representative itself comes first
-            if (queuedMemberAccession.memberKey != queuedMemberAccession.repKey) {
-                Debug(Debug::ERROR) << "The cluster of key " << queuedMemberAccession.repKey << " has no line for its representative\n";
-                EXIT(EXIT_FAILURE);
-            }
-            currentRepKey = queuedMemberAccession.repKey;
-            repAccession.assign(queuedMemberAccession.accession, queuedMemberAccession.accessionLength);
-            writer.writeStart(0);
+    DBKeyType previousRepKey = DB_KEY_INVALID;
+    size_t recordCount;
+    while ((recordCount = MMseqsNode::readExchangeRange(repBlocks, memoryLimit / 8, memberAccessionSize, ClusterPair::compareByRep, lastPair, records, &recordOffsets, sortedByRep)) > 0) {
+        memberAccessions.resize(recordCount);
+#pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < recordCount; i++) {
+            const char *record = records.data() + recordOffsets[i];
+            MemberAccession &memberAccession = memberAccessions[i];
+            memcpy(&memberAccession.repKey, record, sizeof(DBKeyType));
+            memcpy(&memberAccession.memberKey, record + sizeof(DBKeyType), sizeof(DBKeyType));
+            memcpy(&memberAccession.accessionLength, record + 2 * sizeof(DBKeyType), sizeof(unsigned int));
+            memberAccession.accessionOffset = recordOffsets[i] + MEMBER_ACCESSION_SIZE;
         }
-        writer.writeAdd(repAccession.c_str(), repAccession.size(), 0);
-        writer.writeAdd("\t", 1, 0);
-        writer.writeAdd(queuedMemberAccession.accession, queuedMemberAccession.accessionLength, 0);
-        writer.writeAdd("\n", 1, 0);
-        queueNextMemberAccession(repQueue, repBlocks, queuedMemberAccession.block, sortedByRep);
+        SORT_PARALLEL(memberAccessions.begin(), memberAccessions.end(), MemberAccession::compareByRep);
+#pragma omp parallel for schedule(dynamic, 1)
+        for (int thread = 0; thread < par.threads; thread++) {
+            std::string &lines = threadLines[thread];
+            lines.clear();
+            const size_t begin = recordCount * thread / par.threads;
+            const size_t end = recordCount * (thread + 1) / par.threads;
+            if (begin == end) {
+                continue;
+            }
+            DBKeyType repKey = (begin > 0) ? memberAccessions[begin - 1].repKey : previousRepKey;
+            const char *repName = repAccession.data();
+            size_t repLength = repAccession.size();
+            // a cluster that continues from the part before has its representative line earlier in this range or in a previous range
+            const MemberAccession repLine = { repKey, repKey, 0, 0 };
+            const size_t repLinePos = std::lower_bound(memberAccessions.begin(), memberAccessions.begin() + begin, repLine, MemberAccession::compareByRep) - memberAccessions.begin();
+            if (repLinePos < begin && memberAccessions[repLinePos].memberKey == repKey) {
+                repName = records.data() + memberAccessions[repLinePos].accessionOffset;
+                repLength = memberAccessions[repLinePos].accessionLength;
+            }
+            for (size_t i = begin; i < end; i++) {
+                const MemberAccession &memberAccession = memberAccessions[i];
+                if (memberAccession.repKey != repKey) {
+                    // the representative itself comes first
+                    if (memberAccession.memberKey != memberAccession.repKey) {
+                        Debug(Debug::ERROR) << "The cluster of key " << memberAccession.repKey << " has no line for its representative\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    repKey = memberAccession.repKey;
+                    repName = records.data() + memberAccession.accessionOffset;
+                    repLength = memberAccession.accessionLength;
+                }
+                lines.append(repName, repLength);
+                lines.push_back('\t');
+                lines.append(records.data() + memberAccession.accessionOffset, memberAccession.accessionLength);
+                lines.push_back('\n');
+            }
+        }
+        for (int thread = 0; thread < par.threads; thread++) {
+            writer.writeAdd(threadLines[thread].data(), threadLines[thread].size(), 0);
+        }
+        previousRepKey = memberAccessions[recordCount - 1].repKey;
+        const MemberAccession repLine = { previousRepKey, previousRepKey, 0, 0 };
+        const size_t repLinePos = std::lower_bound(memberAccessions.begin(), memberAccessions.end(), repLine, MemberAccession::compareByRep) - memberAccessions.begin();
+        if (memberAccessions[repLinePos].memberKey == previousRepKey) {
+            repAccession.assign(records.data() + memberAccessions[repLinePos].accessionOffset, memberAccessions[repLinePos].accessionLength);
+        }
     }
-    if (currentRepKey != DB_KEY_INVALID) {
-        writer.writeEnd(currentRepKey, 0, par.dbOut);
-    }
-    writer.close(par.dbOut == false);
-    if (par.dbOut == false) {
-        FileUtil::remove(indexFile.c_str());
-    }
+    writer.close(true, false);
+    FileUtil::remove(indexFile.c_str());
     MMseqsNode::closeExchangeFiles(repFiles, sortedByRep);
 }
 

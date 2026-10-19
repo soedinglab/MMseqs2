@@ -916,6 +916,11 @@ template <typename T> size_t DBReader<T>::planReadRequests(size_t keyBegin, size
     }
     const size_t pageSize = Util::getPageSize();
     const size_t firstRange = findIdRange(keyBegin);
+    if (offsetsRequests.empty() == false) {
+        // each range keeps one offset more than its keys
+        headerOffsets.reserve(keyEnd - keyBegin + findIdRange(keyEnd - 1) - firstRange + 1);
+        keys.reserve(clusterIndex ? keyEnd - keyBegin + 1 : 0);
+    }
     for (size_t range = firstRange; range < indexSize && indexIdToNum(&index[range].id) < keyEnd; range++) {
         const size_t firstId = indexIdToNum(&index[range].id);
         const size_t endId = (range + 1 < indexSize) ? indexIdToNum(&index[range + 1].id) : size;

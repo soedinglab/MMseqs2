@@ -159,38 +159,106 @@ void MMseqsNode::openExchange(const std::string &index, const std::string &prefi
         if (files[node] == NULL) {
             files[node] = FileUtil::openFileOrDie((prefix + "." + SSTR(node)).c_str(), "r", true);
         }
-        const ExchangeBlock block = { files[node], pos, end, std::vector<char>(), 0, 0 };
+        const ExchangeBlock block = { files[node], pos, end, std::vector<char>(), 0, 0, 0, 0 };
         blocks.push_back(block);
     }
 }
 
-const char *MMseqsNode::readExchange(ExchangeBlock &block, size_t bytes, const std::string &prefix) {
+size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t bufferMemory, size_t (*recordSize)(const char *, size_t),
+                                     bool (*compare)(const ClusterPair &, const ClusterPair &), const ClusterPair &last,
+                                     std::vector<char> &records, std::vector<size_t> *recordOffsets, const std::string &prefix) {
     static const size_t EXCHANGE_BUFFER_SIZE = 1024 * 1024;
-    if (block.bufferEnd - block.bufferPos < bytes) {
-        if (block.pos == block.end) {
-            return NULL;
+    const size_t bufferSize = std::max(EXCHANGE_BUFFER_SIZE, bufferMemory / std::max<size_t>(1, blocks.size()));
+#pragma omp parallel for schedule(dynamic, 1)
+    for (size_t i = 0; i < blocks.size(); i++) {
+        ExchangeBlock &block = blocks[i];
+        if (block.pos == block.end || (block.bufferEnd - block.bufferPos >= bufferSize / 2 && block.recordEnd > block.bufferPos)) {
+            continue;
         }
-        const size_t kept = block.bufferEnd - block.bufferPos;
-        const size_t readBytes = std::min(std::max(EXCHANGE_BUFFER_SIZE, bytes) - kept, block.end - block.pos);
-        if (block.buffer.size() < kept + readBytes) {
-            block.buffer.resize(kept + readBytes);
-        }
-        memmove(block.buffer.data(), block.buffer.data() + block.bufferPos, kept);
-        if (fseek(block.file, block.pos, SEEK_SET) != 0 || fread(block.buffer.data() + kept, sizeof(char), readBytes, block.file) != readBytes) {
-            Debug(Debug::ERROR) << "Cannot read " << prefix << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        block.pos += readBytes;
+        memmove(block.buffer.data(), block.buffer.data() + block.bufferPos, block.bufferEnd - block.bufferPos);
+        block.bufferEnd -= block.bufferPos;
+        block.recordEnd -= block.bufferPos;
+        block.lastRecord -= block.bufferPos;
         block.bufferPos = 0;
-        block.bufferEnd = kept + readBytes;
-        if (block.bufferEnd < bytes) {
+        // a record larger than the buffer doubles it
+        do {
+            if (block.bufferEnd == block.buffer.size()) {
+                block.buffer.resize(std::min(std::max(bufferSize, 2 * block.buffer.size()), block.bufferEnd + block.end - block.pos));
+            }
+            const size_t readBytes = std::min(block.buffer.size() - block.bufferEnd, block.end - block.pos);
+            for (size_t bytesRead = 0; bytesRead < readBytes;) {
+                const ssize_t count = pread(fileno(block.file), block.buffer.data() + block.bufferEnd + bytesRead, readBytes - bytesRead, block.pos + bytesRead);
+                if (count <= 0) {
+                    Debug(Debug::ERROR) << "Cannot read " << prefix << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                bytesRead += count;
+            }
+            block.pos += readBytes;
+            block.bufferEnd += readBytes;
+            for (size_t size; (size = recordSize(block.buffer.data() + block.recordEnd, block.bufferEnd - block.recordEnd)) > 0; block.recordEnd += size) {
+                block.lastRecord = block.recordEnd;
+            }
+        } while (block.recordEnd == 0 && block.pos < block.end);
+        if (block.pos == block.end && block.recordEnd != block.bufferEnd) {
             Debug(Debug::ERROR) << "Cannot read " << prefix << ": a record ends after its block\n";
             EXIT(EXIT_FAILURE);
         }
     }
-    const char *data = block.buffer.data() + block.bufferPos;
-    block.bufferPos += bytes;
-    return data;
+    // the records up to the last buffered record of every block that is not read to its end are all buffered
+    ClusterPair rangeLast = last;
+    for (size_t i = 0; i < blocks.size(); i++) {
+        if (blocks[i].pos < blocks[i].end) {
+            ClusterPair blockLast;
+            memcpy(&blockLast, blocks[i].buffer.data() + blocks[i].lastRecord, sizeof(ClusterPair));
+            if (compare(blockLast, rangeLast)) {
+                rangeLast = blockLast;
+            }
+        }
+    }
+    std::vector<size_t> rangeEnds(blocks.size());
+    std::vector<size_t> blockByteOffsets(blocks.size() + 1, 0);
+    std::vector<size_t> blockRecordOffsets(blocks.size() + 1, 0);
+#pragma omp parallel for schedule(dynamic, 1)
+    for (size_t i = 0; i < blocks.size(); i++) {
+        const ExchangeBlock &block = blocks[i];
+        size_t pos = block.bufferPos;
+        size_t recordCount = 0;
+        for (ClusterPair pair; pos < block.recordEnd; pos += recordSize(block.buffer.data() + pos, block.recordEnd - pos), recordCount++) {
+            memcpy(&pair, block.buffer.data() + pos, sizeof(ClusterPair));
+            if (compare(rangeLast, pair)) {
+                break;
+            }
+        }
+        rangeEnds[i] = pos;
+        blockByteOffsets[i + 1] = pos - block.bufferPos;
+        blockRecordOffsets[i + 1] = recordCount;
+    }
+    for (size_t i = 0; i < blocks.size(); i++) {
+        blockByteOffsets[i + 1] += blockByteOffsets[i];
+        blockRecordOffsets[i + 1] += blockRecordOffsets[i];
+    }
+    if (records.size() < blockByteOffsets.back()) {
+        records.resize(blockByteOffsets.back());
+    }
+    if (recordOffsets != NULL) {
+        recordOffsets->resize(blockRecordOffsets.back() + 1);
+        recordOffsets->back() = blockByteOffsets.back();
+    }
+#pragma omp parallel for schedule(dynamic, 1)
+    for (size_t i = 0; i < blocks.size(); i++) {
+        ExchangeBlock &block = blocks[i];
+        memcpy(records.data() + blockByteOffsets[i], block.buffer.data() + block.bufferPos, rangeEnds[i] - block.bufferPos);
+        if (recordOffsets != NULL) {
+            size_t pos = blockByteOffsets[i];
+            for (size_t record = blockRecordOffsets[i]; record < blockRecordOffsets[i + 1]; record++) {
+                (*recordOffsets)[record] = pos;
+                pos += recordSize(records.data() + pos, blockByteOffsets[i + 1] - pos);
+            }
+        }
+        block.bufferPos = rangeEnds[i];
+    }
+    return blockRecordOffsets.back();
 }
 
 void MMseqsNode::closeExchangeFiles(std::vector<FILE *> &files, const std::string &prefix) {
@@ -217,31 +285,12 @@ void MMseqsNode::writePairs(ClusterPair *pairs, size_t pairCount, bool (*compare
     addExchangeFlush(indexData, writtenBytes, nodeOffsets);
 }
 
-void MMseqsNode::openPairs(PairQueue &queue, std::vector<ExchangeBlock> &blocks, std::vector<FILE *> &files, const std::string &index, const std::string &prefix) {
-    openExchange(index, prefix, blocks, files);
-    for (size_t block = 0; block < blocks.size(); block++) {
-        queueNextPair(queue, blocks, block, prefix);
-    }
-}
-
-void MMseqsNode::queueNextPair(PairQueue &queue, std::vector<ExchangeBlock> &blocks, size_t block, const std::string &prefix) {
-    const char *data = readExchange(blocks[block], sizeof(ClusterPair), prefix);
-    if (data != NULL) {
-        QueuedPair queuedPair;
-        memcpy(&queuedPair.pair, data, sizeof(ClusterPair));
-        queuedPair.block = block;
-        queue.push(queuedPair);
-    }
-}
-
 std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepresentative, bool (*compare)(const ClusterPair &, const ClusterPair &), const std::vector<size_t> &nodeKeyOffsets,
                                          const std::string &exchange, const std::string &receivedIndex, const std::string &receivedPrefix) {
-    const CompareQueuedPair compareQueuedByMember = { ClusterPair::compareByMember };
-    PairQueue receivedQueue(compareQueuedByMember);
     std::vector<ExchangeBlock> receivedBlocks;
     std::vector<FILE *> receivedFiles;
     if (receivedPrefix.empty() == false) {
-        openPairs(receivedQueue, receivedBlocks, receivedFiles, receivedIndex, receivedPrefix);
+        openExchange(receivedIndex, receivedPrefix, receivedBlocks, receivedFiles);
     }
     const std::string exchangeFile = exchange + "." + SSTR(rank);
     FILE *handle = FileUtil::openAndDelete(exchangeFile.c_str(), "w");
@@ -256,30 +305,43 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
     DBReader<DBKeyType> cluDb((clu + "." + SSTR(rank)).c_str(), (clu + ".index." + SSTR(rank)).c_str(), Parameters::getInstance().threads,
                               DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_LINFINITY);
     cluDb.open(DBReader<DBKeyType>::NOSORT);
-    // a loaded and a prefetched load take a quarter of the memory on average
-    const size_t entriesPerLoad = std::max<size_t>(1, memoryLimit / 8 / (cluDb.getDataSize() / std::max<size_t>(1, cluDb.getSize()) + 1));
+    // a loaded and a prefetched load take a quarter of the memory on average; an entry also holds its index cell, key and offset
+    const size_t entryBytes = cluDb.getDataSize() / std::max<size_t>(1, cluDb.getSize()) + 2 * sizeof(uint64_t) + 2 * sizeof(size_t);
+    const size_t entriesPerLoad = std::max<size_t>(1, memoryLimit / 8 / entryBytes);
+    std::vector<DBKeyType> entryKeys;
     std::vector<DBKeyType> repKeys;
+    std::vector<char> received;
+    DBKeyType previousReceivedKey = DB_KEY_INVALID;
     for (size_t loadBegin = 0; loadBegin < cluDb.getSize(); loadBegin += entriesPerLoad) {
         const size_t loadEnd = std::min(loadBegin + entriesPerLoad, cluDb.getSize());
         cluDb.loadData(loadBegin, loadEnd);
         if (loadEnd < cluDb.getSize()) {
             cluDb.prefetchData(loadEnd, std::min(loadEnd + entriesPerLoad, cluDb.getSize()));
         }
+        entryKeys.resize(loadEnd - loadBegin);
         repKeys.resize(loadEnd - loadBegin);
+#pragma omp parallel for schedule(static)
         for (size_t i = loadBegin; i < loadEnd; i++) {
-            const DBKeyType key = cluDb.getDbKey(i);
-            repKeys[i - loadBegin] = key;
-            if (receivedQueue.empty() == false && receivedQueue.top().pair.memberKey == key) {
-                repKeys[i - loadBegin] = receivedQueue.top().pair.repKey;
-                const size_t block = receivedQueue.top().block;
-                receivedQueue.pop();
-                queueNextPair(receivedQueue, receivedBlocks, block, receivedPrefix);
+            entryKeys[i - loadBegin] = cluDb.getDbKey(i);
+            repKeys[i - loadBegin] = entryKeys[i - loadBegin];
+        }
+        const ClusterPair loadLast = { entryKeys.back(), entryKeys.back() };
+        size_t receivedCount;
+        while ((receivedCount = readExchangeRange(receivedBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, loadLast, received, NULL, receivedPrefix)) > 0) {
+            ClusterPair *receivedPairs = reinterpret_cast<ClusterPair *>(received.data());
+            SORT_PARALLEL(receivedPairs, receivedPairs + receivedCount, ClusterPair::compareByMember);
+#pragma omp parallel for schedule(static)
+            for (size_t i = 0; i < receivedCount; i++) {
+                const DBKeyType memberKey = receivedPairs[i].memberKey;
+                const size_t entry = std::lower_bound(entryKeys.begin(), entryKeys.end(), memberKey) - entryKeys.begin();
+                // a received member is an entry of this node once, and the entries are in key order
+                if (entry == entryKeys.size() || entryKeys[entry] != memberKey || memberKey == ((i > 0) ? receivedPairs[i - 1].memberKey : previousReceivedKey)) {
+                    Debug(Debug::ERROR) << "Key " << memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << " in key order\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                repKeys[entry] = receivedPairs[i].repKey;
             }
-            // a received member that was passed is no entry of this node, or the entries are not in key order
-            if (receivedQueue.empty() == false && receivedQueue.top().pair.memberKey <= key) {
-                Debug(Debug::ERROR) << "Key " << receivedQueue.top().pair.memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << " in key order\n";
-                EXIT(EXIT_FAILURE);
-            }
+            previousReceivedKey = receivedPairs[receivedCount - 1].memberKey;
         }
         for (size_t firstEntry = loadBegin; firstEntry < loadEnd;) {
             // a line has at least a digit and a newline
@@ -339,8 +401,9 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
             firstEntry = endEntry;
         }
     }
-    if (receivedQueue.empty() == false) {
-        Debug(Debug::ERROR) << "Key " << receivedQueue.top().pair.memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << "\n";
+    const ClusterPair lastPair = { DB_KEY_INVALID, DB_KEY_INVALID };
+    if (readExchangeRange(receivedBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, lastPair, received, NULL, receivedPrefix) > 0) {
+        Debug(Debug::ERROR) << "Key " << reinterpret_cast<ClusterPair *>(received.data())->memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << "\n";
         EXIT(EXIT_FAILURE);
     }
     writePairs(pairs, pairCount, compare, nodeKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
