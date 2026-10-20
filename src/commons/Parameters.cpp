@@ -335,6 +335,7 @@ Parameters::Parameters():
         PARAM_TEMPERATURE(PARAM_TEMPERATURE_ID, "--temperature", "Temperature", "Temperature for forward-backward", typeid(float), (void *) &temperature, "^(0\\.[0-9]+|[1-9][0-9]*\\.?[0-9]*)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_BLOCKLEN(PARAM_BLOCKLEN_ID, "--blocklen", "Block length", "Block length for forward-backward", typeid(int), (void *) &blocklen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_FWBW_BACKTRACE_MODE(PARAM_FWBW_BACKTRACE_MODE_ID, "--fwbw-backtrace-mode", "Backtrace mode", "Backtrace mode 0: no backtrace, 1: local", typeid(int), (void *) &fwbwBacktraceMode, "^[01]$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FWBW_SCALED_MODE(PARAM_FWBW_SCALED_MODE_ID, "--fwbw-scaled-mode", "Scaled mode", "Forward-backward kernel 0: log-space blocks, 1: scaled mantissas (calls that fail a check are rerun, finally in double precision), 2: scaled mantissas without that check", typeid(int), (void *) &fwbwScaledMode, "^[0-2]$", MMseqsParameter::COMMAND_EXPERT),
         // touchdb
         PARAM_TOUCH_LOCK(PARAM_TOUCH_LOCK_ID, "--touch-lock", "Touch lock", "Lock touched database or database entries into memory. Process will not exit until killed.", typeid(bool), (void *) &touchLock, "", MMseqsParameter::COMMAND_EXPERT),
         // proteomecluster
@@ -1392,6 +1393,7 @@ Parameters::Parameters():
     fwbw.push_back(&PARAM_TEMPERATURE);
     fwbw.push_back(&PARAM_BLOCKLEN);
     fwbw.push_back(&PARAM_FWBW_BACKTRACE_MODE);
+    fwbw.push_back(&PARAM_FWBW_SCALED_MODE);
     fwbw.push_back(&PARAM_E);
     fwbw.push_back(&PARAM_MIN_SEQ_ID);
     fwbw.push_back(&PARAM_MIN_ALN_LEN);
@@ -2872,6 +2874,7 @@ void Parameters::setDefaults() {
     temperature = 1;
     blocklen = 16;
     fwbwBacktraceMode = 1;
+    fwbwScaledMode = 1;
 
     // touchdb
     touchLock = false;

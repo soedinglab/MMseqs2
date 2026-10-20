@@ -62,6 +62,7 @@ int fwbw(int argc, const char **argv, const Command &command) {
             
             const size_t assignSeqLen = FwBwAligner::suggestedCapacity();
             FwBwAligner fwbwaligner(subMat, -par.fwbwGapopen, -par.fwbwGapextend, par.temperature, par.mact, assignSeqLen, assignSeqLen, length, true);
+            fwbwaligner.setScaledMode(par.fwbwScaledMode);
             char entrybuffer[1024 + 32768*4];
             std::string alnResultsOutString;
             char buffer[1024 + 32768*4];
