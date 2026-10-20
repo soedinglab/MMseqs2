@@ -143,8 +143,8 @@ bool Orf::setSequence(const char* seq, size_t length) {
 
     sequenceLength = length;
     for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = (seq[i] == 'U' ) ? 'T' : seq[i];
-        sequence[i] = (seq[i] == 'u' ) ? 't' : seq[i];
+        const char c = seq[i];
+        sequence[i] = (c == 'U') ? 'T' : (c == 'u') ? 't' : c;
     }
 
     for(size_t i = 0; i < sequenceLength; ++i) {
