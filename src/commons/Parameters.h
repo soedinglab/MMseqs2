@@ -767,6 +767,7 @@ public:
     float temperature;
     int blocklen;
     int fwbwBacktraceMode;
+    int fwbwScaledMode;
 
     // touchdb
     bool touchLock;
@@ -1168,6 +1169,7 @@ public:
     PARAMETER(PARAM_TEMPERATURE)
     PARAMETER(PARAM_BLOCKLEN)
     PARAMETER(PARAM_FWBW_BACKTRACE_MODE)
+    PARAMETER(PARAM_FWBW_SCALED_MODE)
 
     // touchdb
     PARAMETER(PARAM_TOUCH_LOCK)
