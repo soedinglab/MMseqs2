@@ -782,6 +782,7 @@ public:
     bool         proteomeCascadedClustering;
     bool         includeAlignFiles;
     bool         proteomeIncludeAlignFiles;
+    int          proteomeScoreMode;
 
     // for modules that should handle -h themselves
     bool help;
@@ -1183,6 +1184,7 @@ public:
     PARAMETER(PARAM_PROTEOME_WEIGHT_FILE)
     PARAMETER(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT)
     PARAMETER(PARAM_PROTEOME_INCLUDE_ALIGN_FILES)
+    PARAMETER(PARAM_PROTEOME_SCORE_MODE)
 
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
