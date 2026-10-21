@@ -470,6 +470,7 @@ Parameters::Parameters():
     align2clust.push_back(&PARAM_INCLUDE_IDENTITY);
     align2clust.push_back(&PARAM_SORT_RESULTS);
     align2clust.push_back(&PARAM_PRELOAD_MODE);
+    align2clust.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     align2clust.push_back(&PARAM_THREADS);
     align2clust.push_back(&PARAM_COMPRESSED);
     align2clust.push_back(&PARAM_V);

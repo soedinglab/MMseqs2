@@ -11,7 +11,12 @@
 #include "BlockAligner.h"
 #include "Alignment.h"
 #include "AlignmentSymmetry.h"
+#include "MMseqsNode.h"
+#include "FileUtil.h"
+#include "itoa.h"
+#include "BatchReader.h"
 #include <atomic>
+#include <cstring>
 #include <cstdlib>
 #include <thread>
 #include <mutex>
@@ -944,9 +949,448 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     return 0;
 }
 
+// --createdb-mode 3: a rep goes to every node that holds some of its targets as ClusterPair { rep, first target },
+// the rep length and the target count, then the rep residues and the target keys
+static const size_t REP_TARGETS_HEADER_SIZE = sizeof(ClusterPair) + 2 * sizeof(unsigned int);
+
+// the size of the rep record at record, 0 if bytes do not hold all of it
+static size_t repTargetsSize(const char *record, size_t bytes) {
+    if (bytes < REP_TARGETS_HEADER_SIZE) {
+        return 0;
+    }
+    unsigned int lengths[2];
+    memcpy(lengths, record + sizeof(ClusterPair), sizeof(lengths));
+    const size_t size = REP_TARGETS_HEADER_SIZE + lengths[0] + lengths[1] * sizeof(DBKeyType);
+    return (bytes >= size) ? size : 0;
+}
+
+// readExchangeRange returns no more records once a block is out of order, so every block must be read to its end
+static void checkExchangeRead(const std::vector<MMseqsNode::ExchangeBlock> &blocks, const std::string &prefix) {
+    for (size_t i = 0; i < blocks.size(); i++) {
+        if (blocks[i].pos != blocks[i].end || blocks[i].bufferPos != blocks[i].bufferEnd) {
+            Debug(Debug::ERROR) << "Cannot read " << prefix << ": its records are not in order\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+}
+
+// sends every rep of this node with its targets that can be covered to the nodes that hold them; a pref entry starts with its own key,
+// which it holds once
+static std::string sendRepTargets(const Parameters &par, DBReader<DBKeyType> &seqDbr, const std::vector<size_t> &nodeKeyOffsets, size_t memoryLimit,
+                                  const std::string &repTargets) {
+    if (FileUtil::fileExists(par.db2Index.c_str()) == false) {
+        Debug(Debug::ERROR) << "Cannot find " << par.db2Index << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    // the lines of this node in the pref index, runs of entries in key order
+    std::vector<std::pair<size_t, size_t> > prefRanges;
+    const std::string prefIndex = MMseqsNode::waitForFile(par.db2Index);
+    const char *columns[3];
+    for (char *line = (char *) prefIndex.c_str(); *line != '\0'; line = Util::skipLine(line)) {
+        Util::getWordsOfLine(line, columns, 3);
+        const unsigned int node = Util::fast_atoi<unsigned int>(columns[2]);
+        if (node >= MMseqsNode::count) {
+            Debug(Debug::ERROR) << par.db2 << " has entries of node " << node << ", but runs on " << MMseqsNode::count << " nodes\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (node == MMseqsNode::rank) {
+            prefRanges.push_back(std::make_pair(Util::fast_atoi<size_t>(columns[0]), Util::fast_atoi<size_t>(columns[1])));
+        }
+    }
+    const std::string prefFile = par.db2 + "." + SSTR(MMseqsNode::rank);
+    FILE *pref = FileUtil::openFileOrDie(prefFile.c_str(), "r", true);
+    BatchReader prefReader(par.threads, fileno(pref), false);
+    std::vector<BatchReader::ReadRequest> readRequests;
+    const std::string exchangeFile = repTargets + "." + SSTR(MMseqsNode::rank);
+    FILE *handle = FileUtil::openAndDelete(exchangeFile.c_str(), "w");
+    std::string indexData;
+    size_t writtenBytes = 0;
+    // a load of entries and the records of a part of them take a sixteenth of the memory each
+    const size_t loadBytes = memoryLimit / 16;
+    std::vector<char> load;
+    std::vector<size_t> entryOffsets;
+    std::vector<std::vector<std::string> > threadRecords(par.threads, std::vector<std::string>(MMseqsNode::count));
+    size_t nextKey = nodeKeyOffsets[MMseqsNode::rank];
+    for (size_t range = 0; range < prefRanges.size();) {
+        size_t bytes = 0;
+        readRequests.clear();
+        for (; range < prefRanges.size() && (readRequests.empty() || bytes + prefRanges[range].second <= loadBytes); range++) {
+            const BatchReader::ReadRequest readRequest = { fileno(pref), prefFile.c_str(), NULL, prefRanges[range].first, prefRanges[range].second, prefRanges[range].second };
+            readRequests.push_back(readRequest);
+            bytes += prefRanges[range].second;
+        }
+        load.resize(bytes);
+        for (size_t i = 0, loadPos = 0; i < readRequests.size(); loadPos += readRequests[i].bytesToRead, i++) {
+            readRequests[i].destination = load.data() + loadPos;
+        }
+        prefReader.readSync(readRequests);
+        for (size_t pos = 0; pos < bytes;) {
+            // a rep goes at most once to every node, which bounds the records of a part of the entries
+            entryOffsets.clear();
+            for (size_t partBytes = 0; pos < bytes && (entryOffsets.empty() || partBytes < loadBytes);) {
+                const char *entry = load.data() + pos;
+                const char *end = static_cast<const char *>(memchr(entry, '\0', bytes - pos));
+                const size_t lines = (end == NULL) ? 0 : std::count(entry, end, '\n');
+                const DBKeyType repKey = Util::fast_atoi<DBKeyType>(entry);
+                if (lines == 0 || repKey < nextKey || repKey >= nodeKeyOffsets[MMseqsNode::rank + 1]) {
+                    Debug(Debug::ERROR) << prefFile << " has an entry that does not start with a key of this node in key order\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                entryOffsets.push_back(pos);
+                partBytes += sizeof(size_t) + (lines - 1) * sizeof(DBKeyType)
+                             + std::min<size_t>(lines - 1, MMseqsNode::count) * (REP_TARGETS_HEADER_SIZE + seqDbr.getSeqLen(repKey));
+                nextKey = repKey + 1;
+                pos = end - load.data() + 1;
+            }
+            entryOffsets.push_back(pos);
+            const size_t entryCount = entryOffsets.size() - 1;
+            // thread i takes the i-th run of entries, so the records of a node stay in rep order
+#pragma omp parallel for schedule(dynamic, 1)
+            for (int thread = 0; thread < par.threads; thread++) {
+                std::vector<DBKeyType> targets;
+                std::vector<std::string> &records = threadRecords[thread];
+                for (size_t i = entryCount * thread / par.threads; i < entryCount * (thread + 1) / par.threads; i++) {
+                    char *data = load.data() + entryOffsets[i];
+                    const DBKeyType repKey = Util::fast_atoi<DBKeyType>(data);
+                    const size_t repLength = seqDbr.getSeqLen(repKey);
+                    targets.clear();
+                    for (data = Util::skipLine(data); *data != '\0'; data = Util::skipLine(data)) {
+                        const DBKeyType targetKey = QueryMatcher::parsePrefilterHit(data).seqId;
+                        if (targetKey >= seqDbr.getSize() || targetKey == repKey) {
+                            Debug(Debug::ERROR) << "Entry " << repKey << " of " << prefFile << " has the target " << targetKey
+                                                << ", which is its own key a second time or not in " << par.db1 << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        if (Util::canBeCovered(par.covThr, par.covMode, repLength, seqDbr.getSeqLen(targetKey))) {
+                            targets.push_back(targetKey);
+                        }
+                    }
+                    // a target twice is a member once
+                    std::sort(targets.begin(), targets.end());
+                    targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+                    const char *repSequence = seqDbr.getData(repKey, thread);
+                    for (size_t first = 0, last = 0; first < targets.size(); first = last) {
+                        const size_t node = std::upper_bound(nodeKeyOffsets.begin(), nodeKeyOffsets.end(), targets[first]) - nodeKeyOffsets.begin() - 1;
+                        for (; last < targets.size() && targets[last] < nodeKeyOffsets[node + 1]; last++) {}
+                        const ClusterPair pair = { repKey, targets[first] };
+                        const unsigned int lengths[2] = { static_cast<unsigned int>(repLength), static_cast<unsigned int>(last - first) };
+                        records[node].append(reinterpret_cast<const char *>(&pair), sizeof(pair));
+                        records[node].append(reinterpret_cast<const char *>(lengths), sizeof(lengths));
+                        records[node].append(repSequence, repLength);
+                        records[node].append(reinterpret_cast<const char *>(&targets[first]), (last - first) * sizeof(DBKeyType));
+                    }
+                }
+            }
+            std::vector<size_t> nodeOffsets(MMseqsNode::count + 1, 0);
+            size_t flushBytes = 0;
+            for (size_t node = 0; node < MMseqsNode::count; node++) {
+                nodeOffsets[node] = flushBytes;
+                for (int thread = 0; thread < par.threads; thread++) {
+                    std::string &records = threadRecords[thread][node];
+                    if (fwrite(records.data(), sizeof(char), records.size(), handle) != records.size()) {
+                        Debug(Debug::ERROR) << "Cannot write " << exchangeFile << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    flushBytes += records.size();
+                    records.clear();
+                }
+            }
+            nodeOffsets[MMseqsNode::count] = flushBytes;
+            if (flushBytes > 0) {
+                MMseqsNode::addExchangeFlush(indexData, writtenBytes, nodeOffsets);
+            }
+        }
+    }
+    if (fclose(pref) != 0) {
+        Debug(Debug::ERROR) << "Cannot close " << prefFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return MMseqsNode::closeExchange(handle, exchangeFile, repTargets + ".index", indexData);
+}
+
+// aligns the received reps to their targets on this node and sends the accepted pairs to the master
+static std::string alignRepTargets(const Parameters &par, DBReader<DBKeyType> &seqDbr, BaseMatrix *subMat, SubstitutionMatrix::FastMatrix *fastMatrix,
+                                   EvalueComputation &evaluer, float scorePerColThreshold, size_t memoryLimit,
+                                   const std::string &repTargetsIndex, const std::string &repTargets, const std::string &accepted) {
+    std::vector<MMseqsNode::ExchangeBlock> repBlocks;
+    std::vector<FILE *> repFiles;
+    MMseqsNode::openExchange(repTargetsIndex, repTargets, repBlocks, repFiles);
+    const std::string exchangeFile = accepted + "." + SSTR(MMseqsNode::rank);
+    FILE *handle = FileUtil::openAndDelete(exchangeFile.c_str(), "w");
+    std::string indexData;
+    size_t writtenBytes = 0;
+    // the master walks all pairs
+    std::vector<size_t> masterKeyOffsets(MMseqsNode::count + 1, seqDbr.getSize());
+    masterKeyOffsets[0] = 0;
+    // the block buffers, the received records and the pairs to send take a sixteenth of the memory each,
+    // the accepted pairs of the received records at most two (16 bytes for the 8 bytes of a target key)
+    const size_t pairCapacity = memoryLimit / 16 / sizeof(ClusterPair);
+    ClusterPair *pairs = new(std::nothrow) ClusterPair[pairCapacity];
+    Util::checkAllocation(pairs, "Can not allocate pairs memory in align2clust");
+    size_t pairCount = 0;
+    std::vector<std::vector<ClusterPair> > threadPairs(par.threads);
+    const size_t maxSeqLen = seqDbr.getMaxSeqLen();
+    const ClusterPair lastPair = { DB_KEY_INVALID, DB_KEY_INVALID };
+    std::vector<char> records;
+    std::vector<size_t> recordOffsets;
+    size_t recordCount;
+    while ((recordCount = MMseqsNode::readExchangeRange(repBlocks, memoryLimit / 16, repTargetsSize, ClusterPair::compareByRep, lastPair, records, &recordOffsets, repTargets)) > 0) {
+#pragma omp parallel num_threads(par.threads)
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+            Sequence query(maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
+            Sequence target(maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
+            BlockAligner blockAligner(Parameters::DBTYPE_AMINO_ACIDS, maxSeqLen, subMat, fastMatrix,
+                                     &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale,
+                                     -par.gapOpen.values.aminoacid(), -par.gapExtend.values.aminoacid());
+            std::string querySeqBuffer;
+#pragma omp for schedule(dynamic, 1)
+            for (size_t i = 0; i < recordCount; i++) {
+                const char *record = records.data() + recordOffsets[i];
+                ClusterPair pair;
+                unsigned int lengths[2];
+                memcpy(&pair, record, sizeof(pair));
+                memcpy(lengths, record + sizeof(ClusterPair), sizeof(lengths));
+                querySeqBuffer.assign(record + REP_TARGETS_HEADER_SIZE, lengths[0]);
+                query.mapSequence(pair.repKey, pair.repKey, querySeqBuffer.c_str(), lengths[0]);
+                blockAligner.setQuery(&query);
+                bool blockAlignerInitialized = false;
+                const char *targetKeys = record + REP_TARGETS_HEADER_SIZE + lengths[0];
+                for (unsigned int j = 0; j < lengths[1]; j++) {
+                    memcpy(&pair.memberKey, targetKeys + j * sizeof(DBKeyType), sizeof(DBKeyType));
+                    target.mapSequence(pair.memberKey, pair.memberKey, seqDbr.getData(pair.memberKey, thread_idx), seqDbr.getSeqLen(pair.memberKey));
+                    Matcher::result_t result;
+                    short diagonal = 0;
+                    if (alignTarget(par, blockAligner, blockAlignerInitialized, query, target, scorePerColThreshold, result, diagonal)) {
+                        threadPairs[thread_idx].push_back(pair);
+                    }
+                }
+            }
+        }
+        for (int thread = 0; thread < par.threads; thread++) {
+            for (size_t i = 0; i < threadPairs[thread].size(); i++) {
+                if (pairCount == pairCapacity) {
+                    MMseqsNode::writePairs(pairs, pairCount, ClusterPair::compareByRep, masterKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
+                    pairCount = 0;
+                }
+                pairs[pairCount++] = threadPairs[thread][i];
+            }
+            threadPairs[thread].clear();
+        }
+    }
+    checkExchangeRead(repBlocks, repTargets);
+    if (pairCount > 0) {
+        MMseqsNode::writePairs(pairs, pairCount, ClusterPair::compareByRep, masterKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
+    }
+    delete[] pairs;
+    MMseqsNode::closeExchangeFiles(repFiles, repTargets);
+    return MMseqsNode::closeExchange(handle, exchangeFile, accepted + ".index", indexData);
+}
+
+// the greedy clustering of the accepted pairs in rep order: a rep that is still free takes its free targets. Writes the
+// --createdb-mode 3 cluster database <clu>.<node> of every node with the entries of its reps, without singletons; returns the member count
+static size_t writeGreedyClustering(const std::string &acceptedIndex, const std::string &accepted, const std::vector<size_t> &nodeKeyOffsets,
+                                    size_t memoryLimit, const std::string &clu) {
+    std::vector<MMseqsNode::ExchangeBlock> blocks;
+    std::vector<FILE *> files;
+    MMseqsNode::openExchange(acceptedIndex, accepted, blocks, files);
+    std::vector<uint64_t> assigned((nodeKeyOffsets.back() + 63) / 64, 0);
+    const auto isFree = [&](DBKeyType key) {
+        return ((assigned[key / 64] >> (key % 64)) & 1) == 0;
+    };
+    unsigned int node = 0;
+    DBWriter *resultWriter = NULL;
+    FILE *resultIndexFile = NULL;
+    const auto openNode = [&](unsigned int nextNode) {
+        node = nextNode;
+        const std::string resultDb = clu + "." + SSTR(node);
+        resultWriter = new DBWriter(resultDb.c_str(), (resultDb + ".index").c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
+        resultWriter->open();
+        resultIndexFile = FileUtil::openAndDelete((clu + ".index." + SSTR(node)).c_str(), "w");
+    };
+    const auto closeNode = [&]() {
+        const std::string resultDb = clu + "." + SSTR(node);
+        MMseqsNode::writeClusterIndexEntry(resultIndexFile, clu + ".index." + SSTR(node), DB_KEY_INVALID, resultWriter->getOffset(0));
+        resultWriter->close(false, false);
+        delete resultWriter;
+        FileUtil::remove((resultDb + ".index").c_str());
+        if (fclose(resultIndexFile) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << clu << ".index." << node << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    };
+    openNode(0);
+    size_t memberCount = 0;
+    std::vector<DBKeyType> members;
+    std::string entry;
+    char buffer[32];
+    DBKeyType repKey = DB_KEY_INVALID;
+    bool repIsFree = false;
+    const auto flushRep = [&]() {
+        if (members.empty()) {
+            return;
+        }
+        assigned[repKey / 64] |= 1ull << (repKey % 64);
+        for (size_t i = 0; i < members.size(); i++) {
+            assigned[members[i] / 64] |= 1ull << (members[i] % 64);
+        }
+        memberCount += members.size();
+        while (repKey >= nodeKeyOffsets[node + 1]) {
+            closeNode();
+            openNode(node + 1);
+        }
+        entry.clear();
+        char *end = Itoa::u64toa_sse2(static_cast<uint64_t>(repKey), buffer);
+        *(end - 1) = '\n';
+        entry.append(buffer, end - buffer);
+        for (size_t i = 0; i < members.size(); i++) {
+            end = Itoa::u64toa_sse2(static_cast<uint64_t>(members[i]), buffer);
+            *(end - 1) = '\n';
+            entry.append(buffer, end - buffer);
+        }
+        MMseqsNode::writeClusterIndexEntry(resultIndexFile, clu + ".index." + SSTR(node), repKey, resultWriter->getOffset(0));
+        resultWriter->writeData(entry.c_str(), entry.length(), repKey, 0, true, false);
+        members.clear();
+    };
+    const ClusterPair lastPair = { DB_KEY_INVALID, DB_KEY_INVALID };
+    std::vector<char> records;
+    size_t pairCount;
+    while ((pairCount = MMseqsNode::readExchangeRange(blocks, memoryLimit / 8, ClusterPair::recordSize, ClusterPair::compareByRep, lastPair, records, NULL, accepted)) > 0) {
+        ClusterPair *pairs = reinterpret_cast<ClusterPair *>(records.data());
+        SORT_PARALLEL(pairs, pairs + pairCount, ClusterPair::compareByRep);
+        for (size_t i = 0; i < pairCount; i++) {
+            // the bit of a target is mostly a cache miss, so it is fetched some pairs ahead
+            if (i + 32 < pairCount) {
+                __builtin_prefetch(&assigned[pairs[i + 32].memberKey / 64]);
+            }
+            if (pairs[i].repKey != repKey) {
+                flushRep();
+                repKey = pairs[i].repKey;
+                repIsFree = isFree(repKey);
+            }
+            if (repIsFree && isFree(pairs[i].memberKey)) {
+                members.push_back(pairs[i].memberKey);
+            }
+        }
+    }
+    checkExchangeRead(blocks, accepted);
+    flushRep();
+    closeNode();
+    while (node + 1 < MMseqsNode::count) {
+        openNode(node + 1);
+        closeNode();
+    }
+    MMseqsNode::closeExchangeFiles(files, accepted);
+    return memberCount;
+}
+
+static int align2clustLinfinity(Parameters &par) {
+    Timer timer;
+    // the dbtype of an earlier result must not mark this one as done before it is
+    if (MMseqsNode::isMaster() && FileUtil::fileExists((par.db3 + ".dbtype").c_str())) {
+        FileUtil::remove((par.db3 + ".dbtype").c_str());
+    }
+    DBReader<DBKeyType> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_LINFINITY);
+    seqDbr.open(DBReader<DBKeyType>::NOSORT);
+    const std::vector<size_t> nodeKeyOffsets = seqDbr.getFileKeyOffsets(MMseqsNode::count);
+    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
+
+    // the e-values count the residues of the representatives; clusthashfast gives their index the count of them per row as a sixth column,
+    // without it every sequence is one
+    size_t representatives = 0;
+    size_t representativeResidues = 0;
+    const std::string seqIndex = MMseqsNode::waitForFile(par.db1Index);
+    const char *columns[6];
+    for (char *line = (char *) seqIndex.c_str(); *line != '\0'; line = Util::skipLine(line)) {
+        if (Util::getWordsOfLine(line, columns, 6) < 6) {
+            representatives = seqDbr.getSize();
+            representativeResidues = seqDbr.getAminoAcidDBSize();
+            break;
+        }
+        const size_t rowRepresentatives = Util::fast_atoi<size_t>(columns[5]);
+        representatives += rowRepresentatives;
+        representativeResidues += rowRepresentatives * (Util::fast_atoi<size_t>(columns[2]) - 2);
+    }
+
+    // a node holds all of its sequences, which every node checks for every node so that they stop together;
+    // loading them in parts, with a pass over the received reps each, would lift this
+    const DBReader<DBKeyType>::Index *index = seqDbr.getIndex();
+    std::vector<size_t> nodeBytes(MMseqsNode::count, 0);
+    for (size_t row = 0; row < seqDbr.getIndexSize(); row++) {
+        const size_t rowEnd = (row + 1 < seqDbr.getIndexSize()) ? static_cast<size_t>(index[row + 1].id) : seqDbr.getSize();
+        nodeBytes[seqDbr.getIndexFile(row)] += (rowEnd - index[row].id) * index[row].length;
+    }
+    const size_t largestNode = std::max_element(nodeBytes.begin(), nodeBytes.end()) - nodeBytes.begin();
+    if (nodeBytes[largestNode] > memoryLimit / 2) {
+        Debug(Debug::ERROR) << "The sequences of node " << largestNode << " take " << nodeBytes[largestNode] << " bytes, more than half of the memory limit of "
+                            << memoryLimit << " bytes. Raise --split-memory-limit or run on more nodes\n";
+        EXIT(EXIT_FAILURE);
+    }
+    seqDbr.loadData(nodeKeyOffsets[MMseqsNode::rank], nodeKeyOffsets[MMseqsNode::rank + 1]);
+
+    BaseMatrix *subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
+    SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
+    EvalueComputation evaluer(representativeResidues, subMat);
+
+    const std::string repTargets = par.db3 + "_reptargets";
+    const std::string repTargetsIndex = sendRepTargets(par, seqDbr, nodeKeyOffsets, memoryLimit, repTargets);
+    Debug(Debug::INFO) << "Send representatives to their targets " << timer.lap() << "\n";
+    const std::string accepted = par.db3 + "_accepted";
+    const std::string acceptedIndex = alignRepTargets(par, seqDbr, subMat, &fastMatrix, evaluer, getScorePerColThreshold(par), memoryLimit, repTargetsIndex, repTargets, accepted);
+    FileUtil::remove((repTargets + "." + SSTR(MMseqsNode::rank)).c_str());
+    Debug(Debug::INFO) << "Align representatives to their targets " << timer.lap() << "\n";
+    seqDbr.close();
+    delete[] fastMatrix.matrix;
+    delete[] fastMatrix.matrixData;
+    delete subMat;
+
+    if (MMseqsNode::isMaster()) {
+        const size_t memberCount = writeGreedyClustering(acceptedIndex, accepted, nodeKeyOffsets, memoryLimit, par.db3);
+        Debug(Debug::INFO) << "Number of clusters: " << representatives - memberCount << "\n";
+        Debug(Debug::INFO) << "Cluster " << timer.lap() << "\n";
+    }
+    std::vector<std::string> exchanges;
+    exchanges.push_back(repTargets);
+    exchanges.push_back(accepted);
+    MMseqsNode::removeExchanges(par.db3, accepted, exchanges);
+    if (MMseqsNode::isMaster()) {
+        DBWriter::writeDbtypeFile(par.db3.c_str(), DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_EXTENDED_LINFINITY), false);
+    }
+    return EXIT_SUCCESS;
+}
+
 int align2clust(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
+    const bool isLinfinity = DBReader<DBKeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db1.c_str())) & Parameters::DBTYPE_EXTENDED_LINFINITY;
+    if (isLinfinity) {
+        MMseqsNode::init();
+        if (par.clusteringMode != Parameters::GREEDY && par.clusteringMode != Parameters::GREEDY_MEM) {
+            Debug(Debug::ERROR) << "align2clust supports only --cluster-mode " << Parameters::GREEDY << " and " << Parameters::GREEDY_MEM
+                                << " for --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " databases\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (par.filterCluDBFile.empty() == false || par.filterSeqDBFile.empty() == false || par.includeAlignFiles) {
+            Debug(Debug::ERROR) << "--filter-cludb-file, --filter-seqdb-file and --include-align-files are not supported for --createdb-mode "
+                                << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " databases\n";
+            EXIT(EXIT_FAILURE);
+        }
+        const int prefDbtype = FileUtil::parseDbType(par.db2.c_str());
+        if (Parameters::isEqualDbtype(prefDbtype, Parameters::DBTYPE_PREFILTER_RES) == false
+            || (DBReader<DBKeyType>::getExtendedDbtype(prefDbtype) & Parameters::DBTYPE_EXTENDED_LINFINITY) == 0) {
+            Debug(Debug::ERROR) << par.db2 << " is not a --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " prefilter result\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (par.compressed) {
+            Debug(Debug::WARNING) << "Compressed output cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " databases\n";
+            Debug(Debug::WARNING) << "We recompute with --compressed 0\n";
+            par.compressed = 0;
+        }
+        return align2clustLinfinity(par);
+    }
     
     Timer timer;
     timer.reset();
