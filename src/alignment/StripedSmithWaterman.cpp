@@ -857,6 +857,9 @@ s_align SmithWaterman::ssw_align_private (
 
 	// no residue could be aligned
 	if (align.dbEndPos1 == -1) {
+		align.qCov = 0;
+		align.tCov = 0;
+		align.identicalAACnt = 0;
 		return align;
 	}
 
