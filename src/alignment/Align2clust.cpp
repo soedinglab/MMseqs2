@@ -389,6 +389,121 @@ void clusterThreadFuncGreedy(ClusterAssignment* assignedCluster) {
     }
 }
 
+// the minimum ungapped score per column of a pair that is aligned with gaps
+static float getScorePerColThreshold(const Parameters &par) {
+    std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
+                                    ? getCovSeqidQscPercMinDiag()
+                                    : getCovSeqidQscPercMinDiagTargetCov();
+    return parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.98);
+}
+
+// aligns target to the query of blockAligner and tells whether the pair meets the clustering criteria; result is the alignment,
+// resultDiagonal its diagonal, 0 after a gapped alignment
+static bool alignTarget(const Parameters &par, BlockAligner &blockAligner, bool &blockAlignerInitialized, Sequence &query, Sequence &target,
+                        float scorePerColThreshold, Matcher::result_t &result, short &resultDiagonal) {
+    if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {
+        return false;
+    }
+    const char *querySequence = query.getSeqData();
+    const char *targetSequence = target.getSeqData();
+
+    // take the diagonal from an ungapped alignment over the matrix, not the k-mer match.
+    // With both sides covered >= covThr at >= seqIdThr, an accepted alignment starts within
+    // (1 - covThr) * L of both starts and shifts by at most (1 - seqIdThr) * (qL + tL) in gaps,
+    // so no diagonal outside that band can lead to an accepted hit.
+    int diagBand = std::max(query.L, target.L) + target.L;
+    if (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL) {
+        diagBand = static_cast<int>((1.0f - par.covThr) * std::max(query.L, target.L) + (1.0f - par.seqIdThr) * (query.L + target.L)) + 1;
+    }
+    const unsigned short diagonal = blockAligner.bestDiagonal(&target, -diagBand, diagBand);
+    BlockAligner::UngappedAln_res ungappedAlignment = blockAligner.ungappedAlign(&target, diagonal);
+
+    bool hasEvalue = (ungappedAlignment.eval <= par.evalThr);
+    bool hasAlnLen = (ungappedAlignment.alnLen >= par.alnLenThr);
+    bool hasCoverage = Util::hasCoverage(par.covThr, par.covMode, ungappedAlignment.qcov, ungappedAlignment.tcov);
+    float seqId = 0;
+
+    if (hasEvalue) {
+        int identicalCount = 0;
+        for (int q = ungappedAlignment.qStart; q <= ungappedAlignment.qEnd; q++) {
+            char queryLetter = querySequence[q] & static_cast<unsigned char>(~0x20);
+            char targetLetter = targetSequence[ungappedAlignment.tStart + (q - ungappedAlignment.qStart)] & static_cast<unsigned char>(~0x20);
+            identicalCount += (queryLetter == targetLetter) ? 1 : 0;
+        }
+        seqId = Util::computeSeqId(par.seqIdMode, identicalCount, query.L, target.L, ungappedAlignment.alnLen);
+    }
+
+    bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+    if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
+        std::string backtrace = (par.includeAlignFiles && par.addBacktrace) ? std::string(ungappedAlignment.alnLen, 'M') : std::string();
+        result = Matcher::result_t(target.getDbKey(), ungappedAlignment.score, ungappedAlignment.qcov,
+            ungappedAlignment.tcov, seqId, ungappedAlignment.eval, ungappedAlignment.alnLen,
+            ungappedAlignment.qStart, ungappedAlignment.qEnd, query.L,
+            ungappedAlignment.tStart, ungappedAlignment.tEnd, target.L, backtrace);
+        resultDiagonal = diagonal;
+        return true;
+    }
+
+    float currentScorePerCol = static_cast<float>(ungappedAlignment.score) / static_cast<float>(ungappedAlignment.diagonalLen);
+    if (currentScorePerCol < scorePerColThreshold) {
+        return false;
+    }
+
+    int alignmentLength = ungappedAlignment.alnLen;
+    int queryStartPos = ungappedAlignment.qStart;
+    int targetStartPos = ungappedAlignment.tStart;
+    int newQueryStartPos = queryStartPos;
+    int newTargetStartPos = targetStartPos;
+
+    if (queryStartPos == -1 || targetStartPos == -1 || alignmentLength < 3) {
+        return false;
+    }
+
+    bool foundConsecutiveMatchSeed = false;
+    for (int blockIdx = 0; blockIdx <= alignmentLength - 3; ++blockIdx) {
+        int queryPos = queryStartPos + blockIdx;
+        int targetPos = targetStartPos + blockIdx;
+
+        if (querySequence[queryPos] == targetSequence[targetPos] &&
+            querySequence[queryPos + 1] == targetSequence[targetPos + 1] &&
+            querySequence[queryPos + 2] == targetSequence[targetPos + 2]) {
+            newQueryStartPos = queryPos + 1;
+            newTargetStartPos = targetPos + 1;
+            foundConsecutiveMatchSeed = true;
+            break;
+        }
+    }
+    if (foundConsecutiveMatchSeed == false) {
+        return false;
+    }
+
+    std::string gappedBacktrace;
+    const int32_t xDrop = (MIN_SIZE * par.gapExtend.values.aminoacid() + par.gapOpen.values.aminoacid());
+    if (blockAlignerInitialized == false) {
+        blockAligner.initQuery(&query);
+        blockAlignerInitialized = true;
+    }
+    s_align gappedAlignment = blockAligner.bandedalign(&target, newQueryStartPos, newTargetStartPos,
+                                                       gappedBacktrace, xDrop, par.covThr, par.covMode);
+    // bandedalign reports failure as evalue < 0 with an empty backtrace, and the
+    // default seq-id mode divides by the alignment length
+    if (gappedAlignment.evalue < 0 || gappedBacktrace.empty()) {
+        return false;
+    }
+    unsigned int gappedAlnLength = gappedBacktrace.size();
+    double gappedSeqId = Util::computeSeqId(par.seqIdMode, gappedAlignment.identicalAACnt,
+                                           query.L, target.L, gappedAlnLength);
+    result = Matcher::result_t(
+        target.getDbKey(), gappedAlignment.score1, gappedAlignment.qCov, gappedAlignment.tCov,
+        gappedSeqId, gappedAlignment.evalue, gappedAlnLength,
+        gappedAlignment.qStartPos1, gappedAlignment.qEndPos1, query.L,
+        gappedAlignment.dbStartPos1, gappedAlignment.dbEndPos1, target.L, gappedBacktrace
+    );
+    resultDiagonal = 0;
+    return Alignment::checkCriteria(result, false, par.evalThr, par.seqIdThr,
+                                    par.alnLenThr, par.covMode, par.covThr);
+}
+
 int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &alnDbr, DBWriter *alnWriter) {
     DBReader<DBKeyType> *seqDbr = new DBReader<DBKeyType>(
         par.db1.c_str(), par.db1Index.c_str(), par.threads, 
@@ -426,15 +541,10 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     );
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
-    std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
-                                    ? getCovSeqidQscPercMinDiag()
-                                    : getCovSeqidQscPercMinDiagTargetCov();
-                                    
-    float scorePerColThreshold = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.98);
+    float scorePerColThreshold = getScorePerColThreshold(par);
     Debug(Debug::INFO) << "Score per column threshold for filtering: " << scorePerColThreshold << "\n";
     
     EvalueComputation evaluer(seqDbr->getAminoAcidDBSize(), subMat);
-    int32_t xDrop = (MIN_SIZE * par.gapExtend.values.aminoacid() + par.gapOpen.values.aminoacid());
     
     ClusterAssignment *assignedCluster = new(std::nothrow) ClusterAssignment[dbSize];
     Util::checkAllocation(assignedCluster, "Can not allocate assignedCluster memory in Align2Clust");
@@ -663,278 +773,96 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 }
 
                 char *targetSequence = seqDbr->getData(targetId, threadIdx);
-                size_t targetLength = seqDbr->getSeqLen(targetId);
-                target.mapSequence(targetId, targetKey, targetSequence, targetLength);
-
-                if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {
+                target.mapSequence(targetId, targetKey, targetSequence, seqDbr->getSeqLen(targetId));
+                Matcher::result_t result;
+                short elementDiagonal = 0;
+                if (alignTarget(par, blockAligner, blockAlignerInitialized, query, target, scorePerColThreshold, result, elementDiagonal) == false
+                    || loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) {
                     continue;
                 }
-
-                // take the diagonal from an ungapped alignment over the matrix, not the k-mer match.
-                // With both sides covered >= covThr at >= seqIdThr, an accepted alignment starts within
-                // (1 - covThr) * L of both starts and shifts by at most (1 - seqIdThr) * (qL + tL) in gaps,
-                // so no diagonal outside that band can lead to an accepted hit.
-                int diagBand = std::max(query.L, target.L) + target.L;
-                if (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL) {
-                    diagBand = static_cast<int>((1.0f - par.covThr) * std::max(query.L, target.L) + (1.0f - par.seqIdThr) * (query.L + target.L)) + 1;
-                }
-                const unsigned short diagonal = blockAligner.bestDiagonal(&target, -diagBand, diagBand);
-                BlockAligner::UngappedAln_res ungappedAlignment = blockAligner.ungappedAlign(&target, diagonal); 
-                
-                bool hasEvalue = (ungappedAlignment.eval <= par.evalThr);
-                bool hasAlnLen = (ungappedAlignment.alnLen >= par.alnLenThr);
-                bool hasCoverage = Util::hasCoverage(par.covThr, par.covMode, ungappedAlignment.qcov, ungappedAlignment.tcov);
-                float seqId = 0;
-                
-                if (hasEvalue) {    
-                    int identicalCount = 0;
-                    for (int q = ungappedAlignment.qStart; q <= ungappedAlignment.qEnd; q++) {
-                        char queryLetter = querySequence[q] & static_cast<unsigned char>(~0x20);
-                        char targetLetter = targetSequence[ungappedAlignment.tStart + (q - ungappedAlignment.qStart)] & static_cast<unsigned char>(~0x20);
-                        identicalCount += (queryLetter == targetLetter) ? 1 : 0;
+                if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
+                    // check all the member from filtering file
+                    const size_t cluId = cluDbr->getId(targetKey);
+                    char *cluData = cluDbr->getData(cluId, threadIdx);
+                    const size_t cluDataSize = cluDbr->getEntryLen(cluId);
+                    size_t numClu = Util::countLines(cluData, cluDataSize);
+                    bool allpass = true;
+                    char buffer[1024];
+                    if (includeAlignFiles) {
+                        pendingMemberAln.clear();
                     }
-                    seqId = Util::computeSeqId(par.seqIdMode, identicalCount, query.L, target.L, ungappedAlignment.alnLen);
-                }
-                
-                bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
-                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
+                    if (numClu > 1) { // if not singleton
+                        while (*cluData != '\0') {
+                            Util::parseKey(cluData, buffer);
 
-                if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
-                    if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
-                    if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
-                        // check all the member from filtering file
-                        const size_t cluId = cluDbr->getId(targetKey);
-                        char *cluData = cluDbr->getData(cluId, threadIdx);
-                        const size_t cluDataSize = cluDbr->getEntryLen(cluId);
-                        size_t numClu = Util::countLines(cluData, cluDataSize);
-                        bool allpass = true;
-                        char buffer[1024];
-                        if (includeAlignFiles) {
-                            pendingMemberAln.clear();
-                        }
-                        if (numClu > 1) { // if not singleton
-                            while (*cluData != '\0') {
-                                Util::parseKey(cluData, buffer);
-
-                                const DBKeyType elementKey = Util::fast_atoi<DBKeyType>(buffer);
-                                if (elementKey == targetKey) {
-                                    cluData = Util::skipLine(cluData);
-                                    continue;
+                            const DBKeyType elementKey = Util::fast_atoi<DBKeyType>(buffer);
+                            if (elementKey == targetKey) {
+                                cluData = Util::skipLine(cluData);
+                                continue;
+                            }
+                            const size_t elementId = cluSeqDbr->getId(elementKey);
+                            char *elementSequence = cluSeqDbr->getData(elementId, threadIdx);
+                            size_t elementLength = cluSeqDbr->getSeqLen(elementId);
+                            
+                            // 1. ungapped alignment
+                            element.mapSequence(elementId, elementKey, elementSequence, elementLength);
+                            if (Util::canBeCovered(par.covThr, par.covMode, query.L, element.L) == false) {
+                                allpass = false;
+                                break;
+                            }
+                            BlockAligner::UngappedAln_res elementUngappedAlignment = blockAligner.ungappedAlign(&element, elementDiagonal);
+                            
+                            // 2. check the criteria
+                            bool elementHasEvalue = (elementUngappedAlignment.eval <= par.evalThr);
+                            bool elementHasAlnLen = (elementUngappedAlignment.alnLen >= par.alnLenThr);
+                            bool elementHasCoverage = Util::hasCoverage(par.covThr, par.covMode, elementUngappedAlignment.qcov, elementUngappedAlignment.tcov);
+                            int elementIdenticalCount = 0;
+                            for (int q = elementUngappedAlignment.qStart; q <= elementUngappedAlignment.qEnd; q++) {
+                                char queryLetter = querySequence[q] & static_cast<unsigned char>(~0x20);
+                                char elementLetter = elementSequence[elementUngappedAlignment.tStart + (q - elementUngappedAlignment.qStart)] & static_cast<unsigned char>(~0x20);
+                                elementIdenticalCount += (queryLetter == elementLetter) ? 1 : 0;
+                            }
+                            float elementSeqId = Util::computeSeqId(par.seqIdMode, elementIdenticalCount, query.L, elementLength, elementUngappedAlignment.alnLen);
+                            bool elementHasSeqId = elementSeqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+                            
+                            if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
+                                // 3. gapped alignment
+                                if (matcherInitialized == false) {
+                                    matcher.initQuery(&query);
+                                    matcherInitialized = true;
                                 }
-                                const size_t elementId = cluSeqDbr->getId(elementKey);
-                                char *elementSequence = cluSeqDbr->getData(elementId, threadIdx);
-                                size_t elementLength = cluSeqDbr->getSeqLen(elementId);
-                                short elementDiagonal = diagonal;
-                                
-                                // 1. ungapped alignment
-                                element.mapSequence(elementId, elementKey, elementSequence, elementLength);
-                                if (Util::canBeCovered(par.covThr, par.covMode, query.L, element.L) == false) {
+                                Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(elementDiagonal), false, par.covMode, par.covThr, par.evalThr,
+                                                                    swMode, par.seqIdMode, false);
+                                if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
                                     allpass = false;
                                     break;
                                 }
-                                BlockAligner::UngappedAln_res elementUngappedAlignment = blockAligner.ungappedAlign(&element, elementDiagonal);
-                                
-                                // 2. check the criteria
-                                bool elementHasEvalue = (elementUngappedAlignment.eval <= par.evalThr);
-                                bool elementHasAlnLen = (elementUngappedAlignment.alnLen >= par.alnLenThr);
-                                bool elementHasCoverage = Util::hasCoverage(par.covThr, par.covMode, elementUngappedAlignment.qcov, elementUngappedAlignment.tcov);
-                                int elementIdenticalCount = 0;
-                                for (int q = elementUngappedAlignment.qStart; q <= elementUngappedAlignment.qEnd; q++) {
-                                    char queryLetter = querySequence[q] & static_cast<unsigned char>(~0x20);
-                                    char elementLetter = elementSequence[elementUngappedAlignment.tStart + (q - elementUngappedAlignment.qStart)] & static_cast<unsigned char>(~0x20);
-                                    elementIdenticalCount += (queryLetter == elementLetter) ? 1 : 0;
+                                // stage member alignment (flushed only if allpass holds)
+                                if (includeAlignFiles) {
+                                    appendAlignmentResult(pendingMemberAln, alnLineBuffer.data(), res_element, par.addBacktrace);
                                 }
-                                float elementSeqId = Util::computeSeqId(par.seqIdMode, elementIdenticalCount, query.L, elementLength, elementUngappedAlignment.alnLen);
-                                bool elementHasSeqId = elementSeqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
-                                
-                                if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
-                                    // 3. gapped alignment
-                                    if (matcherInitialized == false) {
-                                        matcher.initQuery(&query);
-                                        matcherInitialized = true;
-                                    }
-                                    Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(elementDiagonal), false, par.covMode, par.covThr, par.evalThr,
-                                                                        swMode, par.seqIdMode, false);
-                                    if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
-                                        allpass = false;
-                                        break;
-                                    }
-                                    // stage member alignment (flushed only if allpass holds)
-                                    if (includeAlignFiles) {
-                                        appendAlignmentResult(pendingMemberAln, alnLineBuffer.data(), res_element, par.addBacktrace);
-                                    }
-                                } else if (includeAlignFiles) {
-                                    // member passed ungapped: gap-free (all 'M') record
-                                    std::string elementBacktrace = par.addBacktrace ? std::string(elementUngappedAlignment.alnLen, 'M') : std::string();
-                                    Matcher::result_t elementResult(elementKey, elementUngappedAlignment.score, elementUngappedAlignment.qcov,
-                                        elementUngappedAlignment.tcov, elementSeqId, elementUngappedAlignment.eval, elementUngappedAlignment.alnLen,
-                                        elementUngappedAlignment.qStart, elementUngappedAlignment.qEnd, query.L,
-                                        elementUngappedAlignment.tStart, elementUngappedAlignment.tEnd, elementLength, elementBacktrace);
-                                    appendAlignmentResult(pendingMemberAln, alnLineBuffer.data(), elementResult, par.addBacktrace);
-                                }
-                                cluData = Util::skipLine(cluData);
+                            } else if (includeAlignFiles) {
+                                // member passed ungapped: gap-free (all 'M') record
+                                std::string elementBacktrace = par.addBacktrace ? std::string(elementUngappedAlignment.alnLen, 'M') : std::string();
+                                Matcher::result_t elementResult(elementKey, elementUngappedAlignment.score, elementUngappedAlignment.qcov,
+                                    elementUngappedAlignment.tcov, elementSeqId, elementUngappedAlignment.eval, elementUngappedAlignment.alnLen,
+                                    elementUngappedAlignment.qStart, elementUngappedAlignment.qEnd, query.L,
+                                    elementUngappedAlignment.tStart, elementUngappedAlignment.tEnd, elementLength, elementBacktrace);
+                                appendAlignmentResult(pendingMemberAln, alnLineBuffer.data(), elementResult, par.addBacktrace);
                             }
-                        }
-                        if (allpass == false) {
-                            continue;
+                            cluData = Util::skipLine(cluData);
                         }
                     }
-                    if (includeAlignFiles) {
-                        std::string backtrace = par.addBacktrace ? std::string(ungappedAlignment.alnLen, 'M') : std::string();
-                        Matcher::result_t ungappedResult(targetKey, ungappedAlignment.score, ungappedAlignment.qcov,
-                            ungappedAlignment.tcov, seqId, ungappedAlignment.eval, ungappedAlignment.alnLen,
-                            ungappedAlignment.qStart, ungappedAlignment.qEnd, query.L,
-                            ungappedAlignment.tStart, ungappedAlignment.tEnd, targetLength, backtrace);
-                        appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), ungappedResult, par.addBacktrace);
-                        // flush staged member alignments (empty unless filter gate ran)
-                        alnResultBuffer += pendingMemberAln;
-                    }
-                    clusterResult.memberIds.push_back(targetId);
-                    continue;
-                }
-
-                float currentScorePerCol = static_cast<float>(ungappedAlignment.score) / static_cast<float>(ungappedAlignment.diagonalLen);
-                if (currentScorePerCol < scorePerColThreshold) {
-                    continue;
-                }
-                
-                int alignmentLength = ungappedAlignment.alnLen;
-                int queryStartPos = ungappedAlignment.qStart;
-                int targetStartPos = ungappedAlignment.tStart;
-                int newQueryStartPos = queryStartPos;
-                int newTargetStartPos = targetStartPos;
-                
-                if (queryStartPos == -1 || targetStartPos == -1 || alignmentLength < 3) {
-                    continue;
-                }
-
-                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
-
-                bool foundConsecutiveMatchSeed = false;
-                for (int blockIdx = 0; blockIdx <= alignmentLength - 3; ++blockIdx) {
-                    int queryPos = queryStartPos + blockIdx;
-                    int targetPos = targetStartPos + blockIdx;
-                    
-                    if (querySequence[queryPos] == targetSequence[targetPos] &&
-                        querySequence[queryPos + 1] == targetSequence[targetPos + 1] &&
-                        querySequence[queryPos + 2] == targetSequence[targetPos + 2]) {
-                        newQueryStartPos = queryPos + 1; 
-                        newTargetStartPos = targetPos + 1;
-                        foundConsecutiveMatchSeed = true;
-                        break;
-                    }
-                }
-                
-                if (foundConsecutiveMatchSeed) {
-                    std::string gappedBacktrace;
-                    if (blockAlignerInitialized == false) {
-                        blockAligner.initQuery(&query);
-                        blockAlignerInitialized = true;
-                    }
-                    s_align gappedAlignment = blockAligner.bandedalign(&target, newQueryStartPos, newTargetStartPos,
-                                                                       gappedBacktrace, xDrop, par.covThr, par.covMode);
-                    // bandedalign reports failure as evalue < 0 with an empty backtrace, and the
-                    // default seq-id mode divides by the alignment length
-                    if (gappedAlignment.evalue < 0 || gappedBacktrace.empty()) {
+                    if (allpass == false) {
                         continue;
                     }
-                    unsigned int gappedAlnLength = gappedBacktrace.size();
-                    double gappedSeqId = Util::computeSeqId(par.seqIdMode, gappedAlignment.identicalAACnt, 
-                                                           query.L, targetLength, gappedAlnLength);
-                    Matcher::result_t result = Matcher::result_t(
-                        targetKey, gappedAlignment.score1, gappedAlignment.qCov, gappedAlignment.tCov, 
-                        gappedSeqId, gappedAlignment.evalue, gappedAlnLength,
-                        gappedAlignment.qStartPos1, gappedAlignment.qEndPos1, query.L, 
-                        gappedAlignment.dbStartPos1, gappedAlignment.dbEndPos1, targetLength, gappedBacktrace
-                    );
-                    if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, 
-                                                par.alnLenThr, par.covMode, par.covThr)) {
-                        if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
-                        if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
-                            // check all the member from filtering file
-                            const size_t cluId = cluDbr->getId(targetKey);
-                            char *cluData = cluDbr->getData(cluId, threadIdx);
-                            const size_t cluDataSize = cluDbr->getEntryLen(cluId);
-                            size_t numClu = Util::countLines(cluData, cluDataSize);
-                            bool allpass = true;
-                            char buffer[1024];
-                            if (includeAlignFiles) {
-                                pendingMemberAln.clear();
-                            }
-                            if (numClu > 1) { // if not singleton
-                                while (*cluData != '\0') {
-                                    Util::parseKey(cluData, buffer);
-                                    const DBKeyType elementKey = Util::fast_atoi<DBKeyType>(buffer);
-                                    if (elementKey == targetKey) {
-                                        cluData = Util::skipLine(cluData);
-                                        continue;
-                                    }
-                                    const size_t elementId = cluSeqDbr->getId(elementKey);
-                                    char *elementSequence = cluSeqDbr->getData(elementId, threadIdx);
-                                    size_t elementLength = cluSeqDbr->getSeqLen(elementId);
-                                    short elementDiagonal = 0;
-                                    
-                                    // 1. ungapped alignment
-                                    element.mapSequence(elementId, elementKey, elementSequence, elementLength);
-                                    if (Util::canBeCovered(par.covThr, par.covMode, query.L, element.L) == false) {
-                                        allpass = false;
-                                        break;
-                                    }
-                                    BlockAligner::UngappedAln_res elementUngappedAlignment = blockAligner.ungappedAlign(&element, elementDiagonal);
-                                    
-                                    // 2. check the criteria
-                                    bool elementHasEvalue = (elementUngappedAlignment.eval <= par.evalThr);
-                                    bool elementHasAlnLen = (elementUngappedAlignment.alnLen >= par.alnLenThr);
-                                    bool elementHasCoverage = Util::hasCoverage(par.covThr, par.covMode, elementUngappedAlignment.qcov, elementUngappedAlignment.tcov);
-                                    int elementIdenticalCount = 0;
-                                    for (int q = elementUngappedAlignment.qStart; q <= elementUngappedAlignment.qEnd; q++) {
-                                        char queryLetter = querySequence[q] & static_cast<unsigned char>(~0x20);
-                                        char elementLetter = elementSequence[elementUngappedAlignment.tStart + (q - elementUngappedAlignment.qStart)] & static_cast<unsigned char>(~0x20);
-                                        elementIdenticalCount += (queryLetter == elementLetter) ? 1 : 0;
-                                    }
-                                    float elementSeqId = Util::computeSeqId(par.seqIdMode, elementIdenticalCount, query.L, elementLength, elementUngappedAlignment.alnLen);
-                                    bool elementHasSeqId = elementSeqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
-                                    
-                                    if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
-                                        // 3. gapped alignment
-                                        if (matcherInitialized == false) {
-                                            matcher.initQuery(&query);
-                                            matcherInitialized = true;
-                                        }
-                                        Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(elementDiagonal), false, par.covMode, par.covThr, par.evalThr,
-                                                                            swMode, par.seqIdMode, false);
-                                        if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
-                                            allpass = false;
-                                            break;
-                                        }
-                                        // stage member alignment (flushed only if allpass holds)
-                                        if (includeAlignFiles) {
-                                            appendAlignmentResult(pendingMemberAln, alnLineBuffer.data(), res_element, par.addBacktrace);
-                                        }
-                                    } else if (includeAlignFiles) {
-                                        // member passed ungapped: gap-free (all 'M') record
-                                        std::string elementBacktrace = par.addBacktrace ? std::string(elementUngappedAlignment.alnLen, 'M') : std::string();
-                                        Matcher::result_t elementResult(elementKey, elementUngappedAlignment.score, elementUngappedAlignment.qcov,
-                                            elementUngappedAlignment.tcov, elementSeqId, elementUngappedAlignment.eval, elementUngappedAlignment.alnLen,
-                                            elementUngappedAlignment.qStart, elementUngappedAlignment.qEnd, query.L,
-                                            elementUngappedAlignment.tStart, elementUngappedAlignment.tEnd, elementLength, elementBacktrace);
-                                        appendAlignmentResult(pendingMemberAln, alnLineBuffer.data(), elementResult, par.addBacktrace);
-                                    }
-                                    cluData = Util::skipLine(cluData);
-                                }
-                            }
-                            if (allpass == false) {
-                                continue;
-                            }
-                        }
-                        if (includeAlignFiles) {
-                            appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), result, par.addBacktrace);
-                            // flush staged member alignments (empty unless filter gate ran)
-                            alnResultBuffer += pendingMemberAln;
-                        }
-                        clusterResult.memberIds.push_back(targetId);
-                    }
                 }
+                if (includeAlignFiles) {
+                    appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), result, par.addBacktrace);
+                    // flush staged member alignments (empty unless filter gate ran)
+                    alnResultBuffer += pendingMemberAln;
+                }
+                clusterResult.memberIds.push_back(targetId);
             }
 
             if (includeAlignFiles) {
