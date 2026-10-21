@@ -583,16 +583,16 @@ void Alignment::computeAlternativeAlignment(DBKeyType queryDbKey, Sequence &dbSe
         }
 
         dbSeq.mapSequence(dbId, swResults[i].dbKey, dbSeqData, tdbr->getSeqLen(dbId));
-        for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
+        for (int pos = swResults[i].dbStartPos; pos <= swResults[i].dbEndPos; ++pos) {
             dbSeq.numSequence[pos] = xIndex;
         }
         bool nextAlignment = true;
         for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
             Matcher::result_t res = matcher.getSWResult(&dbSeq, INT_MAX, false, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity);
-            nextAlignment = checkCriteria(res, isIdentity, evalThr, seqIdThr, alnLenThr, covMode, covThr);
+            nextAlignment = res.dbEndPos != -1 && checkCriteria(res, isIdentity, evalThr, seqIdThr, alnLenThr, covMode, covThr);
             if (nextAlignment == true) {
                 swResults.emplace_back(res);
-                for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
+                for (int pos = res.dbStartPos; pos <= res.dbEndPos; pos++) {
                     dbSeq.numSequence[pos] = xIndex;
                 }
             }
