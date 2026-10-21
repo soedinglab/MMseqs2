@@ -105,6 +105,7 @@ extern int profile2repseq(int argc, const char **argv, const Command& command);
 extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int proteomecluster(int argc, const char **argv, const Command& command);
 extern int parseproteomealignments(int argc, const char **argv, const Command& command);
+extern int mergeproteomeclusters(int argc, const char **argv, const Command& command);
 extern int rescorediagonal(int argc, const char **argv, const Command& command);
 extern int ungappedprefilter(int argc, const char **argv, const Command& command);
 extern int gappedprefilter(int argc, const char **argv, const Command& command);
