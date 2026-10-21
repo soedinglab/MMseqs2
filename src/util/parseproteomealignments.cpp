@@ -33,9 +33,9 @@ int parseproteomealignments(int argc, const char **argv, const Command &command)
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), 1, par.compressed, proteomeDBType);
     resultWriter.open();
 
-    unsigned int *scores = new unsigned int[tdbSourceSize * qdbSourceSize]; 
-    std::fill(scores, scores + (tdbSourceSize * qdbSourceSize), 0);
+    unsigned int *scores = new(std::nothrow) unsigned int[tdbSourceSize * qdbSourceSize];
     Util::checkAllocation(scores, "Can not allocate scores memory in parseproteomealignments");
+    std::fill(scores, scores + (tdbSourceSize * qdbSourceSize), 0);
     unsigned int **scoreLookupTable = new unsigned int*[qdbSourceSize]; 
     for (size_t i = 0; i < qdbSourceSize; ++i) { scoreLookupTable[i] = scores + i * tdbSourceSize; }
     unsigned int * qSourceIdtoNumEntries = new unsigned int[qdbSourceSize];
@@ -95,23 +95,22 @@ int parseproteomealignments(int argc, const char **argv, const Command &command)
                 }
             }
         }
+    }
 
-        std::string alnResultsOutString;
-        alnResultsOutString.reserve(1024*1024);
-        char buffer[1024];
-
-        for (size_t q = 0; q < qdbSourceSize; ++q) {
-            for (size_t t = 0; t < tdbSourceSize; ++t) {
-                char* tmpBuffer = Itoa::u64toa_sse2(static_cast<uint64_t>(t), buffer);
-                *(tmpBuffer - 1) = '\t';
-                float score = static_cast<float>(scoreLookupTable[q][t]) / static_cast<float>(qSourceIdtoNumEntries[q]);
-                tmpBuffer = Util::fastSeqIdToBuffer(score, tmpBuffer);
-                *(tmpBuffer - 1) = '\n';
-                alnResultsOutString.append(buffer, tmpBuffer - buffer);
-            }
-            resultWriter.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), static_cast<DBKeyType>(q), 0);
-            alnResultsOutString.clear();
+    std::string alnResultsOutString;
+    alnResultsOutString.reserve(1024*1024);
+    char buffer[1024];
+    for (size_t q = 0; q < qdbSourceSize; ++q) {
+        for (size_t t = 0; t < tdbSourceSize; ++t) {
+            char* tmpBuffer = Itoa::u64toa_sse2(static_cast<uint64_t>(t), buffer);
+            *(tmpBuffer - 1) = '\t';
+            float score = static_cast<float>(scoreLookupTable[q][t]) / static_cast<float>(qSourceIdtoNumEntries[q]);
+            tmpBuffer = Util::fastSeqIdToBuffer(score, tmpBuffer);
+            *(tmpBuffer - 1) = '\n';
+            alnResultsOutString.append(buffer, tmpBuffer - buffer);
         }
+        resultWriter.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), static_cast<DBKeyType>(q), 0);
+        alnResultsOutString.clear();
     }
     delete[] scores;
     delete[] scoreLookupTable;
