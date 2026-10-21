@@ -853,6 +853,7 @@ s_align SmithWaterman::ssw_align_private (
 
 	// find the alignment position
 	s_align align = alignScoreEndPos<type>(db_sequence, db_length, gap_open, gap_extend, maskLen);
+	align.evalue = evaluer->computeEvalue(align.score1, query_length);
 
 	// no residue could be aligned
 	if (align.dbEndPos1 == -1) {
@@ -863,7 +864,6 @@ s_align SmithWaterman::ssw_align_private (
 	align.tCov = computeCov(0, align.dbEndPos1, db_length);
 
 	bool hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, align.qCov, align.tCov));
-	align.evalue = evaluer->computeEvalue(align.score1, query_length);
 	bool hasLowerEvalue = align.evalue > evalueThr;
 
 	if (alignmentMode == 0 || ((alignmentMode == 2 || alignmentMode == 1) && (hasLowerEvalue || hasLowerCoverage))) {
