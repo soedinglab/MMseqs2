@@ -461,7 +461,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
             } else {
                 aligner.ssw_init(&qSeq, queryMat, subMat);
             }
-#pragma omp for schedule(static) nowait
+#pragma omp for schedule(dynamic, 1024) nowait
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {
                 DBKeyType targetKey = tdbr->getDbKey(tId);
                 if(taxonomyHook != NULL){
@@ -558,6 +558,11 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, BaseMatrix * subMatAu
                     hit.diagonal = useAux ? (unsigned short)(short)bestPrimaryDiagonal : 0;
                     threadShortResults.emplace_back(hit);
                 }
+            }
+            if (useAux == false && threadShortResults.size() > par.maxResListLen) {
+                std::nth_element(threadShortResults.begin(), threadShortResults.begin() + par.maxResListLen,
+                                 threadShortResults.end(), hit_t::compareHitsByScoreAndId);
+                threadShortResults.resize(par.maxResListLen);
             }
 #pragma omp critical
             {
