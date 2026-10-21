@@ -572,7 +572,7 @@ void Alignment::computeAlternativeAlignment(DBKeyType queryDbKey, Sequence &dbSe
     const size_t firstItResSize = swResults.size();
     for (size_t i = 0; i < firstItResSize; i++) {
         const bool isIdentity = (queryDbKey == swResults[i].dbKey && (includeIdentity || sameQTDB)) ? true : false;
-        if (isIdentity == true) {
+        if (isIdentity == true || swResults[i].dbEndPos == -1) {
             continue;
         }
         size_t dbId = tdbr->getId(swResults[i].dbKey);
