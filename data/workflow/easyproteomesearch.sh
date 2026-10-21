@@ -35,16 +35,29 @@ if notExists "${TMP_PATH}/alis.dbtype"; then
         || fail "Convert Alignments died"
 fi
 
+QUERY="${TMP_PATH}/query"
+RESULT="${TMP_PATH}/search_result"
+if [ -n "${SWAP_RESULT}" ]; then
+    if notExists "${TMP_PATH}/search_result_swap.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" swapdb "${TMP_PATH}/search_result" "${TMP_PATH}/search_result_swap" ${THREADS_PAR} \
+            || fail "swapdb died"
+    fi
+    QUERY="${TARGET}"
+    TARGET="${TMP_PATH}/query"
+    RESULT="${TMP_PATH}/search_result_swap"
+fi
+
 INTERMEDIATE="${TMP_PATH}/parsealn_result"
 if notExists "${INTERMEDIATE}.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" parseproteomealignments "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/search_result" "${INTERMEDIATE}" ${PARSEPROTEOMEALN_PAR} \
+    "$MMSEQS" parseproteomealignments "${QUERY}" "${TARGET}" "${RESULT}" "${INTERMEDIATE}" ${PARSEPROTEOMEALN_PAR} \
         || fail "parseproteomealignments died"
 fi
 
 if notExists "${RESULTS}.tsv"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createtsv "${TMP_PATH}/query" "${TARGET}" "${INTERMEDIATE}" "${RESULTS}_score.tsv" ${THREADS_PAR} \
+    "$MMSEQS" createtsv "${QUERY}" "${TARGET}" "${INTERMEDIATE}" "${RESULTS}_score.tsv" ${THREADS_PAR} \
         || fail "createtsv died"
 fi
 
@@ -62,6 +75,10 @@ if [ -n "${REMOVE_TMP}" ]; then
    
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/search_result" ${VERBOSITY_PAR}
+    if [ -n "${SWAP_RESULT}" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/search_result_swap" ${VERBOSITY_PAR}
+    fi
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/parsealn_result" ${VERBOSITY_PAR}
 
