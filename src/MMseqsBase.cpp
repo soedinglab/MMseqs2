@@ -106,7 +106,7 @@ std::vector<Command> baseCommands = {
                 "Gyuri Kim <gyuribio@snu.ac.kr> & Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:queryFastaFile1[.gz|.bz2]> ... <i:queryFastaFileN[.gz|.bz2]> <i:targetFastaFile[.gz]>|<i:targetDB> <o:outPrefix> <tmpDir>",
                 CITATION_MMSEQS2, {{"queryFastaPath[.tsv]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
-                                        {"targetFastaPath[.tsv]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
+                                        {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                         {"outPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                         {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-taxonomy",        easytaxonomy,         &par.easytaxonomy,         COMMAND_EASY,
