@@ -40,7 +40,7 @@ struct ProteomeEntry {
 
     void computeProteomeSimilarityScore (unsigned int referenceSize) {
         uniScore = static_cast<float> (sharedEntryCount) / proteinEntrySize;
-        biScore = static_cast<float> (sharedEntryCount * 2) / (referenceSize + proteinEntrySize);
+        biScore = static_cast<float> (std::min(sharedEntryCount, referenceSize) * 2) / (referenceSize + proteinEntrySize);
     }
 
     void reset() {
