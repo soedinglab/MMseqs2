@@ -290,6 +290,9 @@ public:
     // --createdb-mode 3: reads keys [keyBegin, keyEnd) into memory for getData
     void loadData(size_t keyBegin, size_t keyEnd);
     void prefetchData(size_t keyBegin, size_t keyEnd);
+    // --createdb-mode 3 sequences: reads the ascending keys, entries closer than READ_MERGE_GAP in one request; loadData takes the keys that prefetchData read before it
+    void loadData(const std::vector<DBKeyType> &keys);
+    void prefetchData(const std::vector<DBKeyType> &keys);
     size_t getBufferSizeToLoad(size_t keyBegin, size_t keyEnd);
     // --createdb-mode 3 headers: the size of the names in data file fileIdx
     size_t getNamesSize(size_t fileIdx);
@@ -548,6 +551,8 @@ public:
 
     // --createdb-mode 3: data file f holds the keys [offsets[f], offsets[f + 1]), the data files follow in key order
     std::vector<size_t> getFileKeyOffsets(size_t fileCount);
+    // --createdb-mode 3: split s holds the keys [offsets[s], offsets[s + 1]) of [keyBegin, keyEnd) whose entries, keyBytes more per key, fit splitBytes, at least one key
+    std::vector<size_t> getSplitKeyOffsets(size_t keyBegin, size_t keyEnd, size_t splitBytes, size_t keyBytes);
     size_t findIdRange(size_t id);
     // --createdb-mode 3: the representatives of a range, the sixth column of the index of a clusthashfast subset, otherwise all its keys
     size_t getRangeRepresentativeCount(size_t range) const {
@@ -559,7 +564,11 @@ private:
     size_t findLoadedHeaderOffsetsPos(size_t id);
     // the first (key, offset) cell of the entries, or the end cell, whose cell[column] is value or larger
     size_t findEntryByCell(size_t column, size_t value);
-    size_t planReadRequests(size_t keyBegin, size_t keyEnd, std::vector<BatchReader::ReadRequest> &readRequests, std::vector<size_t> &headerOffsets, std::vector<size_t> &keys, std::vector<BatchReader::ReadRequest> &compressedReadRequests);
+    size_t planReadRequests(size_t keyBegin, size_t keyEnd, std::vector<BatchReader::ReadRequest> &readRequests, std::vector<size_t> &headerOffsets, std::vector<size_t> &keys, std::vector<BatchReader::ReadRequest> &compressedReadRequests, std::vector<size_t> &requestFirstKeys);
+    size_t planKeyReadRequests(const std::vector<DBKeyType> &keys, std::vector<BatchReader::ReadRequest> &readRequests, std::vector<size_t> &requestFirstKeys);
+    // a load and a prefetch of keys [keyBegin, keyEnd), only the given keys of them if keys is not NULL
+    void loadKeys(size_t keyBegin, size_t keyEnd, const std::vector<DBKeyType> *keys);
+    void prefetchKeys(size_t keyBegin, size_t keyEnd, const std::vector<DBKeyType> *keys);
     void decompressLoadedBuffer();
 
     int threads;
@@ -616,7 +625,7 @@ private:
     // headers: <db>_h.index.<file> holds uint64 name starts in <db>_h.<file> and its size; their fds follow the data fds
     std::vector<std::string> headerOffsetsFileNames;
     std::vector<size_t> rangeRepresentativeCounts;
-    // cluster database of a node: <clu>.index.<node> holds uint64 (key, offset) per entry, then (DB_KEY_INVALID, data size); it is read like the header offsets
+    // cluster or prefilter database of a node: <clu>.index.<node> holds uint64 (key, offset) per entry, then (DB_KEY_INVALID, data size); it is read like the header offsets
     bool clusterIndex;
     // zstd seekable headers: compressed start of each frame of <db>_h.<file> and its end, frames of frameSizes[file] decompressed bytes
     std::vector<std::vector<size_t> > frameOffsets;
@@ -632,9 +641,15 @@ private:
         std::vector<size_t> headerOffsets;
         std::vector<size_t> keys;
         std::vector<BatchReader::ReadRequest> compressedReadRequests;
+        // the first key of every read request, they follow in key order
+        std::vector<size_t> requestFirstKeys;
+        // the given keys of a key list load, empty for a load of all keys of [keyBegin, keyEnd)
+        std::vector<DBKeyType> requestedKeys;
+        // read by prefetchData and not yet taken by loadData
+        bool isPrefetched;
     };
     BufferInfo loadedBuffer, prefetchBuffer;
-    bool prepareBufferToLoad(BufferInfo &bufferToLoadInto, size_t keyBegin, size_t keyEnd);
+    bool prepareBufferToLoad(BufferInfo &bufferToLoadInto, size_t keyBegin, size_t keyEnd, const std::vector<DBKeyType> *keys);
 
     bool dataMapped;
     int accessType;

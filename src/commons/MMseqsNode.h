@@ -55,6 +55,11 @@ public:
     static void publishRunFile(const std::string &file, const std::string &content);
     static std::string waitForRunFile(const std::string &file);
     static std::string gatherRunFiles(const std::string &prefix);
+    // a log that one node appends to while another reads it: its synced byte count and a key are published as <log>.progress, read from a new open
+    static void publishLog(FILE *file, const std::string &log, size_t key, size_t bytes);
+    static bool readLogProgress(const std::string &log, size_t &key, size_t &bytes);
+    static void waitForLog(const std::string &log, size_t &key, size_t &bytes);
+    static void readLog(const std::string &log, size_t from, size_t to, char *data);
     // every node publishes content as file + "." + node; returns all contents in node order, gathered by the master into file
     static std::string barrier(const std::string &file, const std::string &content = "");
     // a barrier that returns the smallest memoryLimit of all nodes, so they all cut the same splits; with threads all nodes must run with as many

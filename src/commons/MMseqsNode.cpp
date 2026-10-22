@@ -131,6 +131,48 @@ std::string MMseqsNode::gatherRunFiles(const std::string &prefix) {
     return content;
 }
 
+void MMseqsNode::publishLog(FILE *file, const std::string &log, size_t key, size_t bytes) {
+    if (fflush(file) != 0 || fsync(fileno(file)) != 0) {
+        Debug(Debug::ERROR) << "Cannot flush " << log << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    publishRunFile(log + ".progress", SSTR(key) + "\t" + SSTR(bytes) + "\n");
+}
+
+bool MMseqsNode::readLogProgress(const std::string &log, size_t &key, size_t &bytes) {
+    const std::string file = log + ".progress";
+    if (FileUtil::fileExists(file.c_str()) == false) {
+        return false;
+    }
+    const std::string content = waitForFile(file);
+    if (content.compare(0, runId.size(), runId) != 0) {
+        return false;
+    }
+    const char *columns[2];
+    if (Util::getWordsOfLine((char *) content.c_str() + runId.size(), columns, 2) < 2) {
+        Debug(Debug::ERROR) << "Cannot read " << file << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    key = Util::fast_atoi<size_t>(columns[0]);
+    bytes = Util::fast_atoi<size_t>(columns[1]);
+    return true;
+}
+
+void MMseqsNode::waitForLog(const std::string &log, size_t &key, size_t &bytes) {
+    while (readLogProgress(log, key, bytes) == false) {
+        sleep(1);
+    }
+}
+
+void MMseqsNode::readLog(const std::string &log, size_t from, size_t to, char *data) {
+    FILE *file = FileUtil::openFileOrDie(log.c_str(), "r", true);
+    FileUtil::preadAll(fileno(file), log.c_str(), data, to - from, from);
+    if (fclose(file) != 0) {
+        Debug(Debug::ERROR) << "Cannot close " << log << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 std::string MMseqsNode::barrier(const std::string &file, const std::string &content) {
     publishFile(file + "." + SSTR(rank), runId + content);
     if (isMaster()) {
