@@ -86,6 +86,16 @@ int Util::readMappingDBKey(std::string mappingFilename, std::vector<std::pair<DB
     return isSorted;
 }
 
+size_t Util::countSetBits(const uint64_t *bits, size_t from, size_t to) {
+    size_t count = 0;
+    for (size_t bit = from; bit < to; bit = bit / 64 * 64 + 64) {
+        const size_t wordBits = std::min<size_t>(64 - bit % 64, to - bit);
+        const uint64_t word = bits[bit / 64] >> (bit % 64);
+        count += __builtin_popcountll((wordBits == 64) ? word : word & ((1ULL << wordBits) - 1));
+    }
+    return count;
+}
+
 size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;
     for (size_t i = 0; i < length; i++ ) {
@@ -557,6 +567,19 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
             return (std::min(targetLength, queryLength) / std::max(targetLength, queryLength)) >= covThr;
         default:
             return true;
+    }
+}
+
+float Util::computeMinOverlap(float covThr, int covMode, float queryLength, float targetLength) {
+    switch (covMode) {
+        case Parameters::COV_MODE_BIDIRECTIONAL:
+            return covThr * std::max(queryLength, targetLength);
+        case Parameters::COV_MODE_QUERY:
+            return covThr * queryLength;
+        case Parameters::COV_MODE_TARGET:
+            return covThr * targetLength;
+        default:
+            return 0.0f;
     }
 }
 

@@ -34,6 +34,9 @@ public:
 
     static void writeFile(const std::string &pathToFile, const unsigned char *sh, size_t len);
 
+    static void preadAll(int fd, const char *fileName, char *data, size_t size, size_t offset);
+    static void pwriteAll(int fd, const char *fileName, const char *data, size_t size, size_t offset);
+
     static std::string dirName(const std::string &file);
 
     static std::string baseName(const std::string &file);

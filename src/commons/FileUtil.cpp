@@ -99,6 +99,28 @@ void FileUtil::deleteTempFiles(const std::list<std::string> &tmpFiles) {
     }
 }
 
+void FileUtil::preadAll(int fd, const char *fileName, char *data, size_t size, size_t offset) {
+    for (size_t done = 0; done < size;) {
+        const ssize_t count = pread(fd, data + done, size - done, offset + done);
+        if (count <= 0) {
+            Debug(Debug::ERROR) << "Cannot read " << fileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        done += count;
+    }
+}
+
+void FileUtil::pwriteAll(int fd, const char *fileName, const char *data, size_t size, size_t offset) {
+    for (size_t done = 0; done < size;) {
+        const ssize_t count = pwrite(fd, data + done, size - done, offset + done);
+        if (count <= 0) {
+            Debug(Debug::ERROR) << "Cannot write " << fileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        done += count;
+    }
+}
+
 void FileUtil::writeFile(const std::string &pathToFile, const unsigned char *data, size_t len) {
     int fd = open(pathToFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR);
     if (fd == -1) {

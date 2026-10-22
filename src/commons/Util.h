@@ -123,6 +123,8 @@ public:
 
     static size_t countLines(const char *data, size_t length);
 
+    static size_t countSetBits(const uint64_t *bits, size_t from, size_t to);
+
     static size_t ompCountLines(const char *data, size_t length, unsigned int threads);
 
     static int readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int> > & mapping);
@@ -397,6 +399,8 @@ public:
     static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength);
 
     static bool hasCoverage(float covThr, int covMode, float queryCov, float targetCov);
+
+    static float computeMinOverlap(float covThr, int covMode, float queryLength, float targetLength);
 
     static int swapCoverageMode(int covMode);
 
