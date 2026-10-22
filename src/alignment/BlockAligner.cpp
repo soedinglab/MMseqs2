@@ -12,15 +12,13 @@
 
 #include <algorithm>
 
-// bestDiagonal: each 16-bit lane follows one diagonal along the target, so the lane is the
-// diagonal (8-bit striped scores saturate on near-identical pairs). Cells hold H - 32768 so one
-// saturating add also clamps at 0. Scores are clamped to >= -2 and the max is taken every
-// DIAG_KM steps only; this picks a best-scoring diagonal for >99.8% of pairs and the caller
-// rescores the chosen diagonal exactly.
+// bestDiagonal: one lane per diagonal, 8-bit first, a group reruns in 16 bits if a lane may have saturated
 static const int DIAG_LANES = VECSIZE_INT * 2;
 static const int DIAG_CHAINS = 6;
 static const int DIAG_GROUP = DIAG_CHAINS * DIAG_LANES;
-static const int DIAG_KM = 8;
+static const int DIAG_MAX_STEP = 8;
+static const int DIAG_MIN_SCORE = -2;
+static const int DIAG_BYTE_SATURATED = 127 + DIAG_MIN_SCORE * DIAG_MAX_STEP;
 
 BlockAligner::BlockAligner(
     int dbtype,
@@ -71,9 +69,17 @@ BlockAligner::BlockAligner(
     memset(queryCompBiasRev, 0, maxSequenceLength * sizeof(int16_t));
     memset(targetCompBias, 0, maxSequenceLength * sizeof(int16_t));
     tmpCompBias   = new float[maxSequenceLength];
-    diagProfileStride = maxSequenceLength + 2 * DIAG_GROUP;
-    diagProfile = new int16_t[subMat->alphabetSize * diagProfileStride];
+    diagProfileStride = maxSequenceLength + 4 * DIAG_GROUP;
+    diagProfileWord = new int16_t[subMat->alphabetSize * diagProfileStride];
+    diagProfileByte = new int8_t[subMat->alphabetSize * diagProfileStride];
+    diagSubMatrix = new int8_t[subMat->alphabetSize * subMat->alphabetSize];
+    for (int a = 0; a < subMat->alphabetSize; a++) {
+        for (int b = 0; b < subMat->alphabetSize; b++) {
+            diagSubMatrix[a * subMat->alphabetSize + b] = static_cast<int8_t>(std::max(subMat->subMatrix[a][b], (short) DIAG_MIN_SCORE));
+        }
+    }
     diagProfileStale = true;
+    diagProfileWordStale = true;
 }
 
 BlockAligner::~BlockAligner() {
@@ -93,7 +99,9 @@ BlockAligner::~BlockAligner() {
     delete[] queryRevNumSeq;
     delete[] targetRevNumSeq;
     delete[] queryCompBiasRev;
-    delete[] diagProfile;
+    delete[] diagProfileWord;
+    delete[] diagProfileByte;
+    delete[] diagSubMatrix;
 }
 
 void BlockAligner::initQuery(Sequence* query){
@@ -102,21 +110,17 @@ void BlockAligner::initQuery(Sequence* query){
     queryNumSeq = query->numSequence;
     queryLength = query->L;
     diagProfileStale = true;
-    //memset queryRevNumSeq
-    memset(queryRevNumSeq, 0, maxSequenceLength * sizeof(int8_t));
-    // reset per call so a compBias-off run never reuses the previous query's values
-    memset(queryCompBias, 0, maxSequenceLength * sizeof(int16_t));
-    memset(queryCompBiasRev, 0, maxSequenceLength * sizeof(int16_t));
-
+    // the alignments only read the first queryLength positions of these buffers
     std::reverse_copy(queryNumSeq, queryNumSeq + queryLength, queryRevNumSeq);
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_AMINO_ACIDS)&& compBiasCorrection){
         SubstitutionMatrix::calcLocalAaBiasCorrection(subMat, queryNumSeq, queryLength, tmpCompBias, compBiasCorrectionScale);
         for (int i =0; i < queryLength; i++) { 
             queryCompBias[i] = (int16_t) (tmpCompBias[i]);
 		}
-        memset(this->queryCompBiasRev, 0, this->maxSequenceLength * sizeof(int16_t));
-        std::reverse_copy(queryCompBias, queryCompBias + this->queryLength, queryCompBiasRev);
+    } else {
+        memset(queryCompBias, 0, queryLength * sizeof(int16_t));
     }
+    std::reverse_copy(queryCompBias, queryCompBias + queryLength, queryCompBiasRev);
 }
 
 // the ungapped alignment only reads the query, so it can skip the reverse and composition bias of initQuery
@@ -255,61 +259,147 @@ BlockAligner::UngappedAln_res BlockAligner::hammingDistance(
 }
 
 
+template <typename T>
+static void diagonalMaxScores(const T* queryProfile, const unsigned char* dbSequence, size_t profileStride, int j, int dbEnd, T* maxScores) {
+    const int vectorSize = VECSIZE_INT * 4 / sizeof(T);
+    const int vectorCount = DIAG_GROUP / vectorSize;
+    simd_int vScore[vectorCount], vMaxScore[vectorCount];
+    for (int c = 0; c < vectorCount; c++) {
+        vScore[c] = vMaxScore[c] = (sizeof(T) == 1) ? simdi8_set(-128) : simdi16_set(-32768);
+    }
+    for (; j + DIAG_MAX_STEP <= dbEnd; j += DIAG_MAX_STEP) {
+        for (int k = 0; k < DIAG_MAX_STEP; k++) {
+            const T* profileRow = queryProfile + dbSequence[j + k] * profileStride + j + k;
+            for (int c = 0; c < vectorCount; c++) {
+                const simd_int vP = simdi_loadu((const simd_int*) (profileRow + c * vectorSize));
+                vScore[c] = (sizeof(T) == 1) ? simdi8_adds(vScore[c], vP) : simdi16_adds(vScore[c], vP);
+            }
+        }
+        for (int c = 0; c < vectorCount; c++) {
+            vMaxScore[c] = (sizeof(T) == 1) ? simdi8_max(vMaxScore[c], vScore[c]) : simdi16_max(vMaxScore[c], vScore[c]);
+        }
+    }
+    for (; j < dbEnd; j++) {
+        const T* profileRow = queryProfile + dbSequence[j] * profileStride + j;
+        for (int c = 0; c < vectorCount; c++) {
+            const simd_int vP = simdi_loadu((const simd_int*) (profileRow + c * vectorSize));
+            vScore[c] = (sizeof(T) == 1) ? simdi8_adds(vScore[c], vP) : simdi16_adds(vScore[c], vP);
+            vMaxScore[c] = (sizeof(T) == 1) ? simdi8_max(vMaxScore[c], vScore[c]) : simdi16_max(vMaxScore[c], vScore[c]);
+        }
+    }
+    for (int c = 0; c < vectorCount; c++) {
+        simdi_store((simd_int*) (maxScores + c * vectorSize), vMaxScore[c]);
+    }
+}
+
+// diagonalMaxScores<int8_t> of two adjacent groups in one pass
+static void diagonalMaxScoresTwoGroups(const int8_t* queryProfile, const unsigned char* dbSequence, size_t profileStride, int j, int dbEndSecond, int dbEnd, int8_t* maxScores) {
+    const int vectorSize = VECSIZE_INT * 4;
+    const int vectorCount = DIAG_GROUP / vectorSize;
+    simd_int vScore[2 * vectorCount], vMaxScore[2 * vectorCount];
+    for (int c = 0; c < 2 * vectorCount; c++) {
+        vScore[c] = vMaxScore[c] = simdi8_set(-128);
+    }
+    const int lastBlockEndSecond = j + std::max(0, dbEndSecond - j) / DIAG_MAX_STEP * DIAG_MAX_STEP;
+    for (; j + DIAG_MAX_STEP <= lastBlockEndSecond; j += DIAG_MAX_STEP) {
+        for (int k = 0; k < DIAG_MAX_STEP; k++) {
+            const int8_t* profileRow = queryProfile + dbSequence[j + k] * profileStride + j + k;
+            for (int c = 0; c < 2 * vectorCount; c++) {
+                vScore[c] = simdi8_adds(vScore[c], simdi_loadu((const simd_int*) (profileRow + c * vectorSize)));
+            }
+        }
+        for (int c = 0; c < 2 * vectorCount; c++) {
+            vMaxScore[c] = simdi8_max(vMaxScore[c], vScore[c]);
+        }
+    }
+    for (; j + DIAG_MAX_STEP <= dbEnd; j += DIAG_MAX_STEP) {
+        for (int k = 0; k < DIAG_MAX_STEP; k++) {
+            const int8_t* profileRow = queryProfile + dbSequence[j + k] * profileStride + j + k;
+            for (int c = 0; c < 2 * vectorCount; c++) {
+                vScore[c] = simdi8_adds(vScore[c], simdi_loadu((const simd_int*) (profileRow + c * vectorSize)));
+            }
+            for (int c = vectorCount; c < 2 * vectorCount; c++) {
+                vMaxScore[c] = simdi8_max(vMaxScore[c], vScore[c]);
+            }
+        }
+        for (int c = 0; c < vectorCount; c++) {
+            vMaxScore[c] = simdi8_max(vMaxScore[c], vScore[c]);
+        }
+    }
+    for (; j < dbEnd; j++) {
+        const int8_t* profileRow = queryProfile + dbSequence[j] * profileStride + j;
+        for (int c = 0; c < 2 * vectorCount; c++) {
+            vScore[c] = simdi8_adds(vScore[c], simdi_loadu((const simd_int*) (profileRow + c * vectorSize)));
+            vMaxScore[c] = simdi8_max(vMaxScore[c], vScore[c]);
+        }
+    }
+    for (int c = 0; c < 2 * vectorCount; c++) {
+        simdi_store((simd_int*) (maxScores + c * vectorSize), vMaxScore[c]);
+    }
+}
+
 unsigned short BlockAligner::bestDiagonal(Sequence* currentTarget, int minDiag, int maxDiag) {
     if (diagProfileStale) {
+        // locals, since the int8_t stores may alias the members
+        const unsigned char* querySeq = queryNumSeq;
+        const int queryLen = queryLength;
+        diagProfileStride = queryLen + 4 * DIAG_GROUP;
         for (int a = 0; a < subMat->alphabetSize; a++) {
-            int16_t* row = diagProfile + a * diagProfileStride;
-            std::fill(row, row + queryLength + 2 * DIAG_GROUP, -2);
-            for (int i = 0; i < queryLength; i++) {
-                row[DIAG_GROUP + i] = std::max(subMat->subMatrix[a][queryNumSeq[i]], (short) -2);
+            const int8_t* subScores = diagSubMatrix + a * subMat->alphabetSize;
+            int8_t* profileRow = diagProfileByte + a * diagProfileStride;
+            std::fill(profileRow, profileRow + 2 * DIAG_GROUP, DIAG_MIN_SCORE);
+            for (int i = 0; i < queryLen; i++) {
+                profileRow[2 * DIAG_GROUP + i] = subScores[querySeq[i]];
             }
+            std::fill(profileRow + 2 * DIAG_GROUP + queryLen, profileRow + diagProfileStride, DIAG_MIN_SCORE);
         }
         diagProfileStale = false;
+        diagProfileWordStale = true;
     }
-    const unsigned char* t = currentTarget->numSequence;
-    const int tLen = currentTarget->L;
+    const unsigned char* dbSequence = currentTarget->numSequence;
+    const int dbLength = currentTarget->L;
     const int endDiag = std::min(maxDiag + 1, queryLength);
-    int best = -1;
-    int bestDiag = 0;
-    int16_t laneMax[DIAG_GROUP] __attribute__((aligned(64)));
-    for (int d0 = std::max(minDiag, -(tLen - 1)); d0 < endDiag; d0 += DIAG_GROUP) {
-        simd_int S[DIAG_CHAINS], M[DIAG_CHAINS];
-        for (int c = 0; c < DIAG_CHAINS; c++) {
-            S[c] = M[c] = simdi16_set(-32768);
+    int maxScore = -1;
+    int maxDiagonal = 0;
+    int8_t maxScoresByte[2 * DIAG_GROUP] __attribute__((aligned(64)));
+    int16_t maxScoresWord[DIAG_GROUP] __attribute__((aligned(64)));
+    for (int d0 = std::max(minDiag, -(dbLength - 1)); d0 < endDiag;) {
+        // profileRow[j + lane] subScores query position d0 + j + lane against dbSequence[j]
+        const int dbStart = std::max(0, -(d0 + DIAG_GROUP - 1));
+        const int dbEnd = std::min(dbLength, queryLength - d0);
+        const int dbStartSecond = std::max(0, -(d0 + 2 * DIAG_GROUP - 1));
+        const bool twoGroups = (d0 + DIAG_GROUP < endDiag) && ((dbStart - dbStartSecond) % DIAG_MAX_STEP == 0);
+        if (twoGroups) {
+            const int dbEndSecond = std::min(dbLength, queryLength - d0 - DIAG_GROUP);
+            diagonalMaxScoresTwoGroups(diagProfileByte + 2 * DIAG_GROUP + d0, dbSequence, diagProfileStride, dbStartSecond, dbEndSecond, dbEnd, maxScoresByte);
+        } else {
+            diagonalMaxScores<int8_t>(diagProfileByte + 2 * DIAG_GROUP + d0, dbSequence, diagProfileStride, dbStart, dbEnd, maxScoresByte);
         }
-        // row[j + lane] scores query position d0 + j + lane against t[j]
-        const int16_t* base = diagProfile + DIAG_GROUP + d0;
-        const int jEnd = std::min(tLen, queryLength - d0);
-        int j = std::max(0, -(d0 + DIAG_GROUP - 1));
-        for (; j + DIAG_KM <= jEnd; j += DIAG_KM) {
-            for (int k = 0; k < DIAG_KM; k++) {
-                const int16_t* row = base + t[j + k] * diagProfileStride + j + k;
-                for (int c = 0; c < DIAG_CHAINS; c++) {
-                    S[c] = simdi16_adds(S[c], simdi_loadu((const simd_int*) (row + c * DIAG_LANES)));
+        for (int group = 0; group < (twoGroups ? 2 : 1); group++, d0 += DIAG_GROUP) {
+            const int8_t* groupMaxScores = maxScoresByte + group * DIAG_GROUP;
+            const int diagonalCount = std::min(DIAG_GROUP, endDiag - d0);
+            bool saturated = false;
+            for (int k = 0; k < diagonalCount; k++) {
+                maxScoresWord[k] = groupMaxScores[k] + 128 - 32768;
+                saturated |= (groupMaxScores[k] >= DIAG_BYTE_SATURATED);
+            }
+            if (saturated) {
+                if (diagProfileWordStale) {
+                    std::copy(diagProfileByte, diagProfileByte + subMat->alphabetSize * diagProfileStride, diagProfileWord);
+                    diagProfileWordStale = false;
+                }
+                diagonalMaxScores<int16_t>(diagProfileWord + 2 * DIAG_GROUP + d0, dbSequence, diagProfileStride,
+                                       std::max(0, -(d0 + DIAG_GROUP - 1)), std::min(dbLength, queryLength - d0), maxScoresWord);
+            }
+            for (int k = 0; k < diagonalCount; k++) {
+                if (maxScoresWord[k] + 32768 > maxScore) {
+                    maxScore = maxScoresWord[k] + 32768;
+                    maxDiagonal = d0 + k;
                 }
             }
-            for (int c = 0; c < DIAG_CHAINS; c++) {
-                M[c] = simdi16_max(M[c], S[c]);
-            }
-        }
-        for (; j < jEnd; j++) {
-            const int16_t* row = base + t[j] * diagProfileStride + j;
-            for (int c = 0; c < DIAG_CHAINS; c++) {
-                S[c] = simdi16_adds(S[c], simdi_loadu((const simd_int*) (row + c * DIAG_LANES)));
-                M[c] = simdi16_max(M[c], S[c]);
-            }
-        }
-        for (int c = 0; c < DIAG_CHAINS; c++) {
-            simdi_store((simd_int*) (laneMax + c * DIAG_LANES), M[c]);
-        }
-        for (int k = 0; k < std::min(DIAG_GROUP, endDiag - d0); k++) {
-            if (laneMax[k] + 32768 > best) {
-                best = laneMax[k] + 32768;
-                bestDiag = d0 + k;
-            }
         }
     }
-    return static_cast<unsigned short>(bestDiag);
+    return static_cast<unsigned short>(maxDiagonal);
 }
 
 BlockAligner::UngappedAln_res BlockAligner::ungappedAlign(

@@ -123,12 +123,14 @@ typedef __m512i simd_int;
 #define simdi32_add(x,y)    _mm512_add_epi32(x,y)
 #define simdi16_add(x,y)    _mm512_add_epi16(x,y)
 #define simdi16_adds(x,y)   _mm512_adds_epi16(x,y)
+#define simdi8_adds(x,y)    _mm512_adds_epi8(x,y)
 #define simdui8_adds(x,y)   _mm512_adds_epu8()
 #define simdi32_sub(x,y)    _mm512_sub_epi32(x,y)
 #define simdui8_subs(x,y)   _mm512_subs_epu8()
 #define simdi32_mul(x,y)    _mm512_mullo_epi32(x,y)
 #define simdui8_max(x,y)    _mm512_max_epu8()
 #define simdi16_max(x,y)    _mm512_max_epi16(x,y)
+#define simdi8_max(x,y)     _mm512_max_epi8(x,y)
 #define simdi32_max(x,y)    _mm512_max_epi32(x,y)
 #define simdi_load(x)       _mm512_load_si512(x)
 #define simdi_streamload(x) _mm512_stream_load_si512(x)
@@ -296,6 +298,7 @@ typedef __m256i simd_int;
 #define simdi32_add(x,y)    _mm256_add_epi32(x,y)
 #define simdi16_add(x,y)    _mm256_add_epi16(x,y)
 #define simdi16_adds(x,y)   _mm256_adds_epi16(x,y)
+#define simdi8_adds(x,y)    _mm256_adds_epi8(x,y)
 #define simdi16_sub(x,y)    _mm256_sub_epi16(x,y)
 #define simdui8_adds(x,y)   _mm256_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm256_sub_epi32(x,y)
@@ -305,6 +308,7 @@ typedef __m256i simd_int;
 #define simdi32_mul(x,y)    _mm256_mullo_epi32(x,y)
 #define simdi32_max(x,y)    _mm256_max_epi32(x,y)
 #define simdi16_max(x,y)    _mm256_max_epi16(x,y)
+#define simdi8_max(x,y)     _mm256_max_epi8(x,y)
 #define simdi16_min(x,y)    _mm256_min_epi16(x,y)
 #define simdi32_insert(x,y,z) _mm256_insert_epi32(x,y,z)
 #define simdi32_extract(x,y) _mm256_extract_epi32(x,y)
@@ -589,6 +593,7 @@ typedef __m128i simd_int;
 #define simdi16_sub(x,y)    _mm_sub_epi16(x,y)
 
 #define simdi16_adds(x,y)   _mm_adds_epi16(x,y)
+#define simdi8_adds(x,y)    _mm_adds_epi8(x,y)
 #define simdui8_adds(x,y)   _mm_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm_sub_epi32(x,y)
 #define simdui32_subs(x,y)  _mm_max_epi32(_mm_sub_epi32(x,y), _mm_setzero_si128())
@@ -597,6 +602,7 @@ typedef __m128i simd_int;
 #define simdi32_mul(x,y)    _mm_mullo_epi32(x,y) // SSE4.1
 #define simdi32_max(x,y)    _mm_max_epi32(x,y) // SSE4.1
 #define simdi16_max(x,y)    _mm_max_epi16(x,y)
+#define simdi8_max(x,y)     _mm_max_epi8(x,y) // SSE4.1
 #define simdi16_min(x,y)    _mm_min_epi16(x,y)
 #define simdi32_insert(x,y,z) _mm_insert_epi32(x,y,z)
 #define simdi32_extract(x,y) _mm_extract_epi32(x,y)

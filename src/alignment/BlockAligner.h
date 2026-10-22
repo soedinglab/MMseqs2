@@ -147,10 +147,13 @@ private:
     int8_t* targetRevNumSeq;
     int16_t* queryCompBiasRev;
 
-    // bestDiagonal: 16-bit query profile, built on first use per query
-    int16_t* diagProfile;
+    // bestDiagonal: 8-bit query profile, its 16-bit copy only for saturated groups
+    int8_t* diagSubMatrix;
+    int16_t* diagProfileWord;
+    int8_t* diagProfileByte;
     size_t diagProfileStride;
     bool diagProfileStale;
+    bool diagProfileWordStale;
     
 };
 
