@@ -289,7 +289,11 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
             par.switchConsensusRep = prevSwitch;
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+            // the prefilter gives every hit its best diagonal
+            int prevDiagonalMode = par.diagonalMode;
+            par.diagonalMode = Parameters::DIAGONAL_MODE_KMER;
             cmd.addVariable("ALIGN2CLUST_PAR", par.createParameterString(par.align2clust).c_str());
+            par.diagonalMode = prevDiagonalMode;
             cmd.addVariable("SWITCH_CONSENSUS_REP", par.switchConsensusRep ? "TRUE" : NULL);
             cmd.addVariable("KEEP_SWITCH_ALN", (par.switchConsensusRep && writeAlnFiles) ? "TRUE" : NULL);
             cmd.addVariable("PICKREP_PAR", par.createParameterString(par.pickrepprofile).c_str());

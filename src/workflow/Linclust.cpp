@@ -109,7 +109,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     }
 
     if (includeCountTableSet == false) {
-        if (nonSymetric) {
+        if (nonSymetric || par.diagonalMode == Parameters::DIAGONAL_MODE_UNGAPPED) {
             par.includeCountTable = false;
             par.countTableIteration = 0;
         } else {
