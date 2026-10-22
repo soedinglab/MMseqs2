@@ -489,6 +489,7 @@ public:
 
     // workflow
     std::string runner;
+    std::string nodeRunner;
     bool reuseLatest;
 
     // CLUSTERING
@@ -989,6 +990,7 @@ public:
 
     // workflow
     PARAMETER(PARAM_RUNNER)
+    PARAMETER(PARAM_NODE_RUNNER)
     PARAMETER(PARAM_REUSELATEST)
 
     // search workflow
@@ -1270,6 +1272,8 @@ public:
     std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
+    std::vector<MMseqsParameter*> easylin8clustworkflow;
+    std::vector<MMseqsParameter*> lin8clustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;
     std::vector<MMseqsParameter*> linsearchworkflow;

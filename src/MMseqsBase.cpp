@@ -83,6 +83,19 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
                                                             {"clusterPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                             {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"easy-lin8clust",       easylin8clust,        &par.easylin8clustworkflow, COMMAND_EASY,
+                "Fast linear time clustering of protein FASTA files on one or many nodes",
+                "mmseqs easy-lin8clust examples/DB.fasta result tmp\n\n"
+                "# Many nodes inside an sbatch allocation, tmp shared by the nodes (srun steps do not inherit --cpus-per-task, so give -c)\n"
+                "mmseqs easy-lin8clust *.fasta result /shared/tmp --node-runner \"srun --kill-on-bad-exit=1 -N 4 --ntasks-per-node=1 -c 64\"\n\n"
+                "# lin8clust output\n"
+                "#  - result_rep_seq.fasta.<node>: Representatives that the node holds\n"
+                "#  - result_cluster.tsv.<node>:   Adjacency list of the clusters whose representative the node holds\n",
+                "Gyuri Kim <gyuribio@snu.ac.kr>",
+                "<i:fastaFile1[.gz|.bz2|.zst]> ... <i:fastaFileN[.gz|.bz2|.zst]> <o:clusterPrefix> <tmpDir>",
+                CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2|.zst]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfile },
+                                                            {"clusterPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-proteomecluster", easyproteomecluster, &par.easyproteomeclusterworkflow, COMMAND_EASY,
                 "Cluster proteomes and identify reference proteomes",
                 "mmseqs easy-proteomecluster examples/ProteomeDBPaths.tsv(examples/fastaFile1.fa...fastaFile1.fa) result tmp\n\n"
@@ -293,6 +306,21 @@ std::vector<Command> baseCommands = {
                 "# Cluster nucleotide sequences \n"
                 "mmseqs easy-linclust nucl.fasta result tmp --kmer-per-seq-scale 0.3\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <o:clusterDB> <tmpDir>",
+                CITATION_MMSEQS2|CITATION_LINCLUST, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                                           {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb },
+                                                           {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"lin8clust",         lin8clust,         &par.lin8clustworkflow,          COMMAND_MAIN,
+                "Fast linear time clustering of a --createdb-mode 3 database on one or many nodes",
+                "# Linear-time clustering of FASTA file\n"
+                "mmseqs createdb examples/DB.fasta sequenceDB --createdb-mode 3\n"
+                "mmseqs lin8clust sequenceDB clusterDB tmp\n\n"
+                "# Many nodes inside an sbatch allocation, tmp shared by the nodes (srun steps do not inherit --cpus-per-task, so give -c)\n"
+                "NODE_RUNNER=\"srun --kill-on-bad-exit=1 -N 4 --ntasks-per-node=1 -c 64\"\n"
+                "$NODE_RUNNER mmseqs createdb *.fasta sequenceDB --createdb-mode 3\n"
+                "mmseqs lin8clust sequenceDB clusterDB /shared/tmp --node-runner \"$NODE_RUNNER\"\n"
+                "$NODE_RUNNER mmseqs createtsv sequenceDB sequenceDB clusterDB clu.tsv   # clu.tsv.<node>\n",
+                "Gyuri Kim <gyuribio@snu.ac.kr>",
                 "<i:sequenceDB> <o:clusterDB> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb },

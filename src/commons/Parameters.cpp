@@ -182,6 +182,7 @@ Parameters::Parameters():
         PARAM_CLUSTER_VERSION(PARAM_CLUSTER_VERSION_ID, "--cluster-version", "Cluster version", "Cluster version: 1: Cluster1, 2: Cluster2", typeid(int), (void *) &clusterVersion, "^[1-2]$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "MPI runner", "Use MPI on compute cluster with this MPI command (e.g. \"mpirun -np 42\")", typeid(std::string), (void *) &runner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NODE_RUNNER(PARAM_NODE_RUNNER_ID, "--node-runner", "Node runner", "Command that starts one process per node for the multi-node steps of --createdb-mode 3 (e.g. \"srun --kill-on-bad-exit=1 -N 4 --ntasks-per-node=1 -c 64\")", typeid(std::string), (void *) &nodeRunner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart with latest tmp", "Reuse tmp filse in tmp/latest folder ignoring parameters and version changes", typeid(bool), (void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Search iterations", "Number of iterative profile search iterations", typeid(int), (void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
@@ -1537,6 +1538,18 @@ Parameters::Parameters():
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
 
+    // lin8clust workflow
+    lin8clustworkflow = removeParameter(linclustworkflow, PARAM_RUNNER);
+    lin8clustworkflow = removeParameter(lin8clustworkflow, PARAM_LINCLUST_ITERATIONS);
+    lin8clustworkflow = removeParameter(lin8clustworkflow, PARAM_DIAGONAL_MODE);
+    lin8clustworkflow = removeParameter(lin8clustworkflow, PARAM_LINCLUST_VERSION);
+    lin8clustworkflow = removeParameter(lin8clustworkflow, PARAM_KMER_POS_FILTER);
+    lin8clustworkflow = removeParameter(lin8clustworkflow, PARAM_INCLUDE_COUNTTABLE);
+    lin8clustworkflow.push_back(&PARAM_NODE_RUNNER);
+
+    // easylin8clustworkflow
+    easylin8clustworkflow = combineList(lin8clustworkflow, createdb);
+
     // clustering workflow
     clusterworkflow = combineList(prefilter, align);
     clusterworkflow = combineList(clusterworkflow, rescorediagonal);
@@ -2622,6 +2635,7 @@ void Parameters::setDefaults() {
     } else {
         runner = "";
     }
+    nodeRunner = "";
     reuseLatest = false;
     // Clustering workflow
     removeTmpFiles = false;

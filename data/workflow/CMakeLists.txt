@@ -10,6 +10,8 @@ set(GENERATED_WORKFLOWS
         workflow/map.sh
         workflow/rbh.sh
         workflow/linclust.sh
+        workflow/lin8clust.sh
+        workflow/easylin8clust.sh
         workflow/clustering.sh
         workflow/cascaded_clustering.sh
         workflow/update_clustering.sh
