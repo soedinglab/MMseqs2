@@ -139,6 +139,21 @@ std::string MMseqsNode::barrier(const std::string &file, const std::string &cont
     return waitForRunFile(file);
 }
 
+size_t MMseqsNode::getSmallestMemoryLimit(const std::string &file, size_t memoryLimit, int threads) {
+    const std::string nodeLimits = barrier(file, SSTR(memoryLimit) + ((threads > 0) ? "\t" + SSTR(threads) : "") + "\n");
+    size_t smallestMemoryLimit = memoryLimit;
+    for (char *line = (char *) nodeLimits.c_str(); *line != '\0'; line = Util::skipLine(line)) {
+        const char *columns[2];
+        Util::getWordsOfLine(line, columns, 2);
+        if (threads > 0 && Util::fast_atoi<int>(columns[1]) != threads) {
+            Debug(Debug::ERROR) << "Run all nodes with the same --threads\n";
+            EXIT(EXIT_FAILURE);
+        }
+        smallestMemoryLimit = std::min(smallestMemoryLimit, Util::fast_atoi<size_t>(columns[0]));
+    }
+    return smallestMemoryLimit;
+}
+
 void MMseqsNode::addExchangeFlush(std::string &indexData, size_t &writtenBytes, const std::vector<size_t> &nodeOffsets) {
     indexData += SSTR(rank);
     for (size_t node = 0; node < nodeOffsets.size(); node++) {
@@ -430,6 +445,58 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
     cluDb.close();
     closeExchangeFiles(receivedFiles, receivedPrefix);
     return pairWriter.close();
+}
+
+void MMseqsNode::readKeyBits(int fd, const std::string &fileName, size_t fileOffset, size_t fileFirstKey, size_t from, size_t to, size_t firstKey, uint64_t *bits) {
+    if (from >= to) {
+        return;
+    }
+    const size_t firstWord = (from - fileFirstKey) / 64;
+    std::vector<uint64_t> fileBits((to - 1 - fileFirstKey) / 64 + 1 - firstWord);
+    FileUtil::preadAll(fd, fileName.c_str(), reinterpret_cast<char *>(fileBits.data()), fileBits.size() * sizeof(uint64_t), fileOffset + firstWord * sizeof(uint64_t));
+    // a word of the file goes to bit (its first key - firstKey) of bits, without its keys outside [from, to)
+    for (size_t word = 0; word < fileBits.size(); word++) {
+        const size_t wordKey = fileFirstKey + (firstWord + word) * 64;
+        uint64_t value = fileBits[word];
+        value &= (wordKey < from) ? ~0ULL << (from - wordKey) : ~0ULL;
+        value &= (to - wordKey < 64) ? (1ULL << (to - wordKey)) - 1 : ~0ULL;
+        if (wordKey < firstKey) {
+            value >>= firstKey - wordKey;
+        }
+        const size_t bit = (wordKey < firstKey) ? 0 : wordKey - firstKey;
+        bits[bit / 64] |= value << (bit % 64);
+        if (bit % 64 != 0) {
+            bits[bit / 64 + 1] |= value >> (64 - bit % 64);
+        }
+    }
+}
+
+uint64_t *MMseqsNode::readRepresentativeBits(const std::string &db, const std::vector<size_t> &nodeKeyOffsets, size_t firstKey, size_t keyCount) {
+    const size_t words = (keyCount + 63) / 64 + 1;
+    uint64_t *bits = new(std::nothrow) uint64_t[words];
+    Util::checkAllocation(bits, "Can not allocate representative bit memory");
+    memset(bits, 0, words * sizeof(uint64_t));
+    for (size_t node = 0; node + 1 < nodeKeyOffsets.size(); node++) {
+        const size_t from = std::max(firstKey, nodeKeyOffsets[node]);
+        const size_t to = std::min(firstKey + keyCount, nodeKeyOffsets[node + 1]);
+        if (from >= to) {
+            continue;
+        }
+        const std::string bitsFile = db + ".bits." + SSTR(node);
+        FILE *file = FileUtil::openFileOrDie(bitsFile.c_str(), "r", true);
+        uint64_t keyRange[2];
+        FileUtil::preadAll(fileno(file), bitsFile.c_str(), reinterpret_cast<char *>(keyRange), sizeof(keyRange), 0);
+        if (keyRange[0] > from || keyRange[0] + keyRange[1] < to) {
+            Debug(Debug::ERROR) << "Cannot read " << bitsFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        readKeyBits(fileno(file), bitsFile, sizeof(keyRange), keyRange[0], from, to, firstKey, bits);
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close " << bitsFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    return bits;
 }
 
 void MMseqsNode::writeClusterIndexEntry(FILE *file, const std::string &fileName, DBKeyType key, size_t offset) {

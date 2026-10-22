@@ -18,7 +18,7 @@
 extern const char* index_version_compatible;
 
 template <int TYPE>
-size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short, 0> *hashSeqPair, size_t splitKmerCount) {
+size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short, false> *hashSeqPair, size_t splitKmerCount) {
     size_t writePos = 0;
     size_t prevHash = hashSeqPair[0].kmer;
     if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
@@ -60,8 +60,8 @@ size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short, 0> *hashSeqPair,
     return writePos;
 }
 
-template size_t LinsearchIndexReader::pickCenterKmer<0>(KmerPosition<short, 0> *hashSeqPair, size_t splitKmerCount);
-template size_t LinsearchIndexReader::pickCenterKmer<1>(KmerPosition<short, 0> *hashSeqPair, size_t splitKmerCount);
+template size_t LinsearchIndexReader::pickCenterKmer<0>(KmerPosition<short, false> *hashSeqPair, size_t splitKmerCount);
+template size_t LinsearchIndexReader::pickCenterKmer<1>(KmerPosition<short, false> *hashSeqPair, size_t splitKmerCount);
 
 template <int TYPE>
 void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::string> tmpFiles, int alphSize, int kmerSize) {
@@ -71,7 +71,7 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
     Debug(Debug::INFO) << "Merge splits ... ";
     const int fileCnt = tmpFiles.size();
     FILE ** files       = new FILE*[fileCnt];
-    KmerPosition<short, 0> **entries = new KmerPosition<short, 0>*[fileCnt];
+    KmerPosition<short, false> **entries = new KmerPosition<short, false>*[fileCnt];
     size_t * entrySizes = new size_t[fileCnt];
     size_t * offsetPos  = new size_t[fileCnt];
     size_t * dataSizes  = new size_t[fileCnt];
@@ -79,9 +79,9 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
     for(size_t file = 0; file < tmpFiles.size(); file++){
         files[file] = FileUtil::openFileOrDie(tmpFiles[file].c_str(),"r",true);
         size_t dataSize;
-        entries[file]    = (KmerPosition<short, 0>*)FileUtil::mmapFile(files[file], &dataSize);
+        entries[file]    = (KmerPosition<short, false>*)FileUtil::mmapFile(files[file], &dataSize);
         dataSizes[file]  = dataSize;
-        entrySizes[file] = dataSize/sizeof(KmerPosition<short, 0>);
+        entrySizes[file] = dataSize/sizeof(KmerPosition<short, false>);
         offsetPos[file] = 0;
     }
     std::priority_queue<FileKmer, std::vector<FileKmer>, CompareRepSequenceAndIdAndDiag> queue;
@@ -89,7 +89,7 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
     for(int file = 0; file < fileCnt; file++ ){
         size_t offset = offsetPos[file];
         if(offset < entrySizes[file]){
-            KmerPosition<short, 0> currKmerPosition = entries[file][offset];
+            KmerPosition<short, false> currKmerPosition = entries[file][offset];
             size_t currKmer = currKmerPosition.kmer;
             bool isReverse = false;
             if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
@@ -176,7 +176,7 @@ template void LinsearchIndexReader::mergeAndWriteIndex<1>(DBWriter & dbw, std::v
 
 template <int TYPE>
 void LinsearchIndexReader::writeIndex(DBWriter & dbw,
-                                      KmerPosition<short, 0> *hashSeqPair, size_t totalKmers,
+                                      KmerPosition<short, false> *hashSeqPair, size_t totalKmers,
                                       int alphSize, int kmerSize) {
 
     KmerIndex kmerIndex(alphSize - 1, kmerSize);
@@ -223,10 +223,10 @@ void LinsearchIndexReader::writeIndex(DBWriter & dbw,
 }
 
 template void LinsearchIndexReader::writeIndex<0>(DBWriter & dbw,
-                                                  KmerPosition<short, 0> *hashSeqPair, size_t totalKmers,
+                                                  KmerPosition<short, false> *hashSeqPair, size_t totalKmers,
                                                   int alphSize, int kmerSize);
 template void LinsearchIndexReader::writeIndex<1>(DBWriter & dbw,
-                                                  KmerPosition<short, 0> *hashSeqPair, size_t totalKmers,
+                                                  KmerPosition<short, false> *hashSeqPair, size_t totalKmers,
                                                   int alphSize, int kmerSize);
 
 std::string LinsearchIndexReader::indexName(std::string baseName) {
@@ -243,7 +243,7 @@ bool LinsearchIndexReader::checkIfIndexFile(DBReader<DBKeyType> *pReader) {
     return (strcmp(version, index_version_compatible) == 0) ? true : false;
 }
 
-void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPosition<short, 0> *kmers, size_t kmerCnt){
+void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPosition<short, false> *kmers, size_t kmerCnt){
     FILE* filePtr = fopen(fileName.c_str(), "wb");
     if(filePtr == NULL) { perror(fileName.c_str()); EXIT(EXIT_FAILURE); }
     fwrite(kmers, sizeof(*kmers), kmerCnt, filePtr);

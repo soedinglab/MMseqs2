@@ -343,7 +343,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             }
             dataFds.push_back(fd);
         }
-        batchReader = new BatchReader(threads, dataFds[0], dataMode & USE_IO_URING);
+        batchReader = new BatchReader(threads, dataFds[0]);
         if (isCompressed(dbtype) == COMPRESSED) {
             frameOffsets.resize(dataFileNames.size());
             frameSizes.resize(dataFileNames.size());
@@ -1558,6 +1558,9 @@ void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbN
     if (FileUtil::fileExists((srcDbName + ".nodeinfo").c_str())) {
         FileUtil::move((srcDbName + ".nodeinfo").c_str(), (dstDbName + ".nodeinfo").c_str());
     }
+    if (FileUtil::fileExists((srcDbName + ".partitions").c_str())) {
+        FileUtil::move((srcDbName + ".partitions").c_str(), (dstDbName + ".partitions").c_str());
+    }
 }
 
 template<typename T>
@@ -1588,6 +1591,10 @@ void DBReader<T>::removeDb(const std::string &databaseName){
     std::string lookupFile = databaseName + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
         FileUtil::remove(lookupFile.c_str());
+    }
+    std::string partitionsFile = databaseName + ".partitions";
+    if (FileUtil::fileExists(partitionsFile.c_str())) {
+        FileUtil::remove(partitionsFile.c_str());
     }
     std::string nodeInfoFile = databaseName + ".nodeinfo";
     if (FileUtil::fileExists(nodeInfoFile.c_str())) {

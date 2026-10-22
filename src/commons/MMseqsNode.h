@@ -57,6 +57,8 @@ public:
     static std::string gatherRunFiles(const std::string &prefix);
     // every node publishes content as file + "." + node; returns all contents in node order, gathered by the master into file
     static std::string barrier(const std::string &file, const std::string &content = "");
+    // a barrier that returns the smallest memoryLimit of all nodes, so they all cut the same splits; with threads all nodes must run with as many
+    static size_t getSmallestMemoryLimit(const std::string &file, size_t memoryLimit, int threads = 0);
 
     // exchange through files: a node appends flushes sorted by destination to <prefix>.<node>, and the index line of a flush lists
     // this node and where the bytes of every node start in the file, then its end; a node reads its part of every flush as a block
@@ -117,6 +119,10 @@ public:
                                         const std::string &exchange, const std::string &receivedIndex = "", const std::string &receivedPrefix = "");
     // once every node has read lastExchange, a node removes its file of it; the master waits for all nodes and removes the indexes of exchanges
     static void removeExchanges(const std::string &prefix, const std::string &lastExchange, const std::vector<std::string> &exchanges);
+    // ORs the bits of keys [from, to) of a file, bit k at fileOffset = key fileFirstKey + k, into bit key - firstKey of bits, a word longer than its keys
+    static void readKeyBits(int fd, const std::string &fileName, size_t fileOffset, size_t fileFirstKey, size_t from, size_t to, size_t firstKey, uint64_t *bits);
+    // the representative bits of keys [firstKey, firstKey + keyCount) from the files <db>.bits.<node>, each {firstKey, keyCount} then its bits
+    static uint64_t *readRepresentativeBits(const std::string &db, const std::vector<size_t> &nodeKeyOffsets, size_t firstKey, size_t keyCount);
     // --createdb-mode 3 cluster databases: <clu>.index.<node> holds uint64 (key, offset) per entry in key order, then (DB_KEY_INVALID, data size)
     static void writeClusterIndexEntry(FILE *file, const std::string &fileName, DBKeyType key, size_t offset);
     // closes writer of <db>.<node> of a --createdb-mode 3 result and removes its text index; ends and closes indexFile, the cluster database index

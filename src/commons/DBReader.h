@@ -349,7 +349,6 @@ public:
     static const unsigned int USE_LINFINITY  = 128;
     static const unsigned int USE_BUFFERED_IO = 256;
     static const unsigned int USE_DIRECT_IO   = 512;
-    static const unsigned int USE_IO_URING    = 1024;
 
 
     // compressed

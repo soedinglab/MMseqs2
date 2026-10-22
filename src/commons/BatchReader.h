@@ -26,7 +26,7 @@ public:
         size_t minBytesToRead;
     };
 
-    BatchReader(int maxIoThreads, int fdToDetectStorage, bool useIoUring);
+    BatchReader(int maxIoThreads, int fdToDetectStorage);
     ~BatchReader();
 
     // with io_uring, the thread calling readAsync must call waitAsyncRead

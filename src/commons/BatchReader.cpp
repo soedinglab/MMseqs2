@@ -62,16 +62,13 @@ static int storageConcurrency(int fd, int maxIoThreads) {
     return maxIoThreads;
 }
 
-BatchReader::BatchReader(int maxIoThreads, int fdToDetectStorage, bool useIoUring) : nextSplitReadRequest(0), readError(0), readErrorFileName(NULL) {
+BatchReader::BatchReader(int maxIoThreads, int fdToDetectStorage) : nextSplitReadRequest(0), readError(0), readErrorFileName(NULL) {
     concurrencyRequests = std::max(1, std::min(storageConcurrency(fdToDetectStorage, maxIoThreads), maxIoThreads));
 #ifdef HAVE_IO_URING
     ringFd = -1;
     ringWorkersLimited = false;
     inflightReadRequests = 0;
     inflightReadLimit = MIN_RING_DEPTH;
-    if (useIoUring == false) {
-        return;
-    }
     io_uring_params params;
     memset(&params, 0, sizeof(params));
     int fd = syscall(__NR_io_uring_setup, MAX_RING_DEPTH, &params);
@@ -117,8 +114,6 @@ BatchReader::BatchReader(int maxIoThreads, int fdToDetectStorage, bool useIoUrin
         sqArray[i] = i;
     }
     ringFd = fd;
-#else
-    (void)useIoUring;
 #endif
 }
 
