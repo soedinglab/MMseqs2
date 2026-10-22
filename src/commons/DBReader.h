@@ -291,6 +291,16 @@ public:
     void loadData(size_t keyBegin, size_t keyEnd);
     void prefetchData(size_t keyBegin, size_t keyEnd);
     size_t getBufferSizeToLoad(size_t keyBegin, size_t keyEnd);
+    // --createdb-mode 3 headers: the size of the names in data file fileIdx
+    size_t getNamesSize(size_t fileIdx);
+    // --createdb-mode 3 cluster databases: the first entry that starts at offset or later, the entry count after the last
+    size_t findEntryByOffset(size_t offset) {
+        return findEntryByCell(1, offset);
+    }
+    // the first entry whose key is key or larger, the entry count after the last
+    size_t findEntryByKey(size_t key) {
+        return findEntryByCell(0, key);
+    }
     char *getDataFromLoadedBuffer(size_t key);
 
     size_t bsearch(const Index * index, size_t size, T value);
@@ -415,8 +425,8 @@ public:
         return indexSize;
     }
 
-    unsigned int getIndexFile(size_t row) const {
-        return index2dbfile[row];
+    unsigned int getIndexFile(size_t range) const {
+        return index2dbfile[range];
     }
 
     Index* getIndex(size_t id) {
@@ -540,10 +550,16 @@ public:
     // --createdb-mode 3: data file f holds the keys [offsets[f], offsets[f + 1]), the data files follow in key order
     std::vector<size_t> getFileKeyOffsets(size_t fileCount);
     size_t findIdRange(size_t id);
+    // --createdb-mode 3: the representatives of a range, the sixth column of the index of a clusthashfast subset, otherwise all its keys
+    size_t getRangeRepresentativeCount(size_t range) const {
+        return rangeRepresentativeCounts[range];
+    }
 
 private:
     void checkClosed() const;
     size_t findLoadedHeaderOffsetsPos(size_t id);
+    // the first (key, offset) cell of the entries, or the end cell, whose cell[column] is value or larger
+    size_t findEntryByCell(size_t column, size_t value);
     size_t planReadRequests(size_t keyBegin, size_t keyEnd, std::vector<BatchReader::ReadRequest> &readRequests, std::vector<size_t> &headerOffsets, std::vector<size_t> &keys, std::vector<BatchReader::ReadRequest> &compressedReadRequests);
     void decompressLoadedBuffer();
 
@@ -596,10 +612,11 @@ private:
     DBLocalId * id2local;
     DBLocalId * local2id;
 
-    // --createdb-mode 3: row i holds keys index[i].id .. index[i + 1].id - 1 of one length, from index[i].offset in <db>.<index2dbfile[i]>
+    // --createdb-mode 3: range i holds keys index[i].id .. index[i + 1].id - 1 of one length, from index[i].offset in <db>.<index2dbfile[i]>
     unsigned int * index2dbfile;
     // headers: <db>_h.index.<file> holds uint64 name starts in <db>_h.<file> and its size; their fds follow the data fds
     std::vector<std::string> headerOffsetsFileNames;
+    std::vector<size_t> rangeRepresentativeCounts;
     // cluster database of a node: <clu>.index.<node> holds uint64 (key, offset) per entry, then (DB_KEY_INVALID, data size); it is read like the header offsets
     bool clusterIndex;
     // zstd seekable headers: compressed start of each frame of <db>_h.<file> and its end, frames of frameSizes[file] decompressed bytes

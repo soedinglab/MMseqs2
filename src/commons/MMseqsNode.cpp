@@ -5,6 +5,8 @@
 #include "Util.h"
 #include "FastSort.h"
 #include "DBReader.h"
+#include "DBWriter.h"
+#include "itoa.h"
 
 #include <cstdio>
 #include <cstring>
@@ -177,7 +179,8 @@ size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t 
                                      bool (*compare)(const ClusterPair &, const ClusterPair &), const ClusterPair &last,
                                      std::vector<char> &records, std::vector<size_t> *recordOffsets, const std::string &prefix) {
     static const size_t EXCHANGE_BUFFER_SIZE = 1024 * 1024;
-    const size_t bufferSize = std::max(EXCHANGE_BUFFER_SIZE, bufferMemory / std::max<size_t>(1, blocks.size()));
+    // the buffers of the blocks and the copy of their records each take half of bufferMemory
+    const size_t bufferSize = std::max(EXCHANGE_BUFFER_SIZE, bufferMemory / 2 / std::max<size_t>(1, blocks.size()));
 #pragma omp parallel for schedule(dynamic, 1)
     for (size_t i = 0; i < blocks.size(); i++) {
         ExchangeBlock &block = blocks[i];
@@ -195,14 +198,7 @@ size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t 
                 block.buffer.resize(std::min(std::max(bufferSize, 2 * block.buffer.size()), block.bufferEnd + block.end - block.pos));
             }
             const size_t readBytes = std::min(block.buffer.size() - block.bufferEnd, block.end - block.pos);
-            for (size_t bytesRead = 0; bytesRead < readBytes;) {
-                const ssize_t count = pread(fileno(block.file), block.buffer.data() + block.bufferEnd + bytesRead, readBytes - bytesRead, block.pos + bytesRead);
-                if (count <= 0) {
-                    Debug(Debug::ERROR) << "Cannot read " << prefix << "\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                bytesRead += count;
-            }
+            FileUtil::preadAll(fileno(block.file), prefix.c_str(), block.buffer.data() + block.bufferEnd, readBytes, block.pos);
             block.pos += readBytes;
             block.bufferEnd += readBytes;
             for (size_t size; (size = recordSize(block.buffer.data() + block.recordEnd, block.bufferEnd - block.recordEnd)) > 0; block.recordEnd += size) {
@@ -294,6 +290,30 @@ void MMseqsNode::writePairs(ClusterPair *pairs, size_t pairCount, bool (*compare
     addExchangeFlush(indexData, writtenBytes, nodeOffsets);
 }
 
+MMseqsNode::ClusterPairWriter::ClusterPairWriter(const std::string &exchange, size_t pairCapacity, bool (*compare)(const ClusterPair &, const ClusterPair &), const std::vector<size_t> &nodeKeyOffsets)
+    : exchange(exchange), fileName(exchange + "." + SSTR(rank)), file(FileUtil::openAndDelete(fileName.c_str(), "w")), pairs(new(std::nothrow) ClusterPair[pairCapacity]),
+      pairCapacity(pairCapacity), pairCount(0), compare(compare), nodeKeyOffsets(nodeKeyOffsets), writtenBytes(0) {
+    Util::checkAllocation(pairs, "Can not allocate pairs memory in ClusterPairWriter");
+}
+
+MMseqsNode::ClusterPairWriter::~ClusterPairWriter() {
+    delete[] pairs;
+}
+
+void MMseqsNode::ClusterPairWriter::flush() {
+    writePairs(pairs, pairCount, compare, nodeKeyOffsets, file, fileName, indexData, writtenBytes);
+    pairCount = 0;
+}
+
+std::string MMseqsNode::ClusterPairWriter::close() {
+    if (pairCount > 0) {
+        flush();
+    }
+    delete[] pairs;
+    pairs = NULL;
+    return closeExchange(file, fileName, exchange + ".index", indexData);
+}
+
 std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepresentative, bool (*compare)(const ClusterPair &, const ClusterPair &), const std::vector<size_t> &nodeKeyOffsets,
                                          const std::string &exchange, const std::string &receivedIndex, const std::string &receivedPrefix) {
     std::vector<ExchangeBlock> receivedBlocks;
@@ -301,42 +321,41 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
     if (receivedPrefix.empty() == false) {
         openExchange(receivedIndex, receivedPrefix, receivedBlocks, receivedFiles);
     }
-    const std::string exchangeFile = exchange + "." + SSTR(rank);
-    FILE *handle = FileUtil::openAndDelete(exchangeFile.c_str(), "w");
-    std::string indexData;
-    size_t writtenBytes = 0;
     const size_t memoryLimit = Util::computeMemory(Parameters::getInstance().splitMemoryLimit);
-    const size_t pairCapacity = memoryLimit / 2 / sizeof(ClusterPair);
-    ClusterPair *pairs = new(std::nothrow) ClusterPair[pairCapacity];
-    Util::checkAllocation(pairs, "Can not allocate pairs memory in sendClusterPairs");
-    size_t pairCount = 0;
+    ClusterPairWriter pairWriter(exchange, memoryLimit / 2 / sizeof(ClusterPair), compare, nodeKeyOffsets);
 
     DBReader<DBKeyType> cluDb((clu + "." + SSTR(rank)).c_str(), (clu + ".index." + SSTR(rank)).c_str(), Parameters::getInstance().threads,
                               DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_LINFINITY);
     cluDb.open(DBReader<DBKeyType>::NOSORT);
-    // a loaded and a prefetched load take a quarter of the memory on average; an entry also holds its index cell, key and offset
-    const size_t entryBytes = cluDb.getDataSize() / std::max<size_t>(1, cluDb.getSize()) + 2 * sizeof(uint64_t) + 2 * sizeof(size_t);
-    const size_t entriesPerLoad = std::max<size_t>(1, memoryLimit / 8 / entryBytes);
+    // a loaded and a prefetched split take a quarter of the memory, half for entry bytes and half for index cells; a larger entry is a split of its own
+    const size_t splitBytes = memoryLimit / 16;
+    const size_t splitEntries = std::max<size_t>(1, memoryLimit / 16 / (2 * sizeof(uint64_t) + 2 * sizeof(size_t)));
+    const auto findSplitEnd = [&](size_t splitBegin, size_t splitOffset) {
+        const size_t bytesEnd = (splitOffset + splitBytes >= cluDb.getDataSize()) ? cluDb.getSize() : std::max(splitBegin + 1, cluDb.findEntryByOffset(splitOffset + splitBytes + 1) - 1);
+        return std::min(bytesEnd, splitBegin + splitEntries);
+    };
     std::vector<DBKeyType> entryKeys;
     std::vector<DBKeyType> repKeys;
     std::vector<char> received;
     DBKeyType previousReceivedKey = DB_KEY_INVALID;
-    for (size_t loadBegin = 0; loadBegin < cluDb.getSize(); loadBegin += entriesPerLoad) {
-        const size_t loadEnd = std::min(loadBegin + entriesPerLoad, cluDb.getSize());
-        cluDb.loadData(loadBegin, loadEnd);
-        if (loadEnd < cluDb.getSize()) {
-            cluDb.prefetchData(loadEnd, std::min(loadEnd + entriesPerLoad, cluDb.getSize()));
+    size_t splitOffset = 0;
+    for (size_t splitBegin = 0, splitEnd = findSplitEnd(0, 0), nextSplitEnd; splitBegin < cluDb.getSize(); splitBegin = splitEnd, splitEnd = nextSplitEnd) {
+        cluDb.loadData(splitBegin, splitEnd);
+        entryKeys.resize(splitEnd - splitBegin);
+        repKeys.resize(splitEnd - splitBegin);
+#pragma omp parallel for schedule(static) reduction(+:splitOffset)
+        for (size_t i = splitBegin; i < splitEnd; i++) {
+            entryKeys[i - splitBegin] = cluDb.getDbKey(i);
+            repKeys[i - splitBegin] = entryKeys[i - splitBegin];
+            splitOffset += cluDb.getEntryLen(i);
         }
-        entryKeys.resize(loadEnd - loadBegin);
-        repKeys.resize(loadEnd - loadBegin);
-#pragma omp parallel for schedule(static)
-        for (size_t i = loadBegin; i < loadEnd; i++) {
-            entryKeys[i - loadBegin] = cluDb.getDbKey(i);
-            repKeys[i - loadBegin] = entryKeys[i - loadBegin];
+        nextSplitEnd = findSplitEnd(splitEnd, splitOffset);
+        if (splitEnd < cluDb.getSize()) {
+            cluDb.prefetchData(splitEnd, nextSplitEnd);
         }
-        const ClusterPair loadLast = { entryKeys.back(), entryKeys.back() };
+        const ClusterPair splitLast = { entryKeys.back(), entryKeys.back() };
         size_t receivedCount;
-        while ((receivedCount = readExchangeRange(receivedBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, loadLast, received, NULL, receivedPrefix)) > 0) {
+        while ((receivedCount = readExchangeRange(receivedBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, splitLast, received, NULL, receivedPrefix)) > 0) {
             ClusterPair *receivedPairs = reinterpret_cast<ClusterPair *>(received.data());
             SORT_PARALLEL(receivedPairs, receivedPairs + receivedCount, ClusterPair::compareByMember);
 #pragma omp parallel for schedule(static)
@@ -352,14 +371,13 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
             }
             previousReceivedKey = receivedPairs[receivedCount - 1].memberKey;
         }
-        for (size_t firstEntry = loadBegin; firstEntry < loadEnd;) {
+        for (size_t firstEntry = splitBegin; firstEntry < splitEnd;) {
             // a line has at least a digit and a newline
-            if (pairCount > 0 && pairCount + cluDb.getEntryLen(firstEntry) / 2 > pairCapacity) {
-                writePairs(pairs, pairCount, compare, nodeKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
-                pairCount = 0;
+            if (pairWriter.pairCount > 0 && pairWriter.pairCount + cluDb.getEntryLen(firstEntry) / 2 > pairWriter.pairCapacity) {
+                pairWriter.flush();
             }
             // a cluster with more pairs than fit into memory is sent in several flushes
-            if (cluDb.getEntryLen(firstEntry) / 2 > pairCapacity) {
+            if (cluDb.getEntryLen(firstEntry) / 2 > pairWriter.pairCapacity) {
                 const DBKeyType entryKey = cluDb.getDbKey(firstEntry);
                 char keyBuffer[255];
                 for (char *data = cluDb.getData(firstEntry, 0); *data != '\0'; data = Util::skipLine(data)) {
@@ -368,19 +386,13 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
                     if (withRepresentative == false && key == entryKey) {
                         continue;
                     }
-                    if (pairCount == pairCapacity) {
-                        writePairs(pairs, pairCount, compare, nodeKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
-                        pairCount = 0;
-                    }
-                    pairs[pairCount].repKey = repKeys[firstEntry - loadBegin];
-                    pairs[pairCount].memberKey = key;
-                    pairCount++;
+                    pairWriter.add(repKeys[firstEntry - splitBegin], key);
                 }
                 firstEntry++;
                 continue;
             }
             size_t endEntry = firstEntry;
-            for (size_t flushBytes = 0; endEntry < loadEnd && pairCount + (flushBytes + cluDb.getEntryLen(endEntry)) / 2 <= pairCapacity; endEntry++) {
+            for (size_t flushBytes = 0; endEntry < splitEnd && pairWriter.pairCount + (flushBytes + cluDb.getEntryLen(endEntry)) / 2 <= pairWriter.pairCapacity; endEntry++) {
                 flushBytes += cluDb.getEntryLen(endEntry);
             }
 #pragma omp parallel
@@ -394,13 +406,13 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
                 for (size_t i = firstEntry; i < endEntry; i++) {
                     const DBKeyType entryKey = cluDb.getDbKey(i);
                     char *data = cluDb.getData(i, thread_idx);
-                    size_t pairOffset = __sync_fetch_and_add(&pairCount, Util::countLines(data, cluDb.getEntryLen(i)) - (withRepresentative ? 0 : 1));
+                    size_t pairOffset = __sync_fetch_and_add(&pairWriter.pairCount, Util::countLines(data, cluDb.getEntryLen(i)) - (withRepresentative ? 0 : 1));
                     while (*data != '\0') {
                         Util::parseKey(data, keyBuffer);
                         const DBKeyType key = Util::fast_atoi<DBKeyType>(keyBuffer);
                         if (withRepresentative || key != entryKey) {
-                            pairs[pairOffset].repKey = repKeys[i - loadBegin];
-                            pairs[pairOffset].memberKey = key;
+                            pairWriter.pairs[pairOffset].repKey = repKeys[i - splitBegin];
+                            pairWriter.pairs[pairOffset].memberKey = key;
                             pairOffset++;
                         }
                         data = Util::skipLine(data);
@@ -415,11 +427,9 @@ std::string MMseqsNode::sendClusterPairs(const std::string &clu, bool withRepres
         Debug(Debug::ERROR) << "Key " << reinterpret_cast<ClusterPair *>(received.data())->memberKey << " of " << receivedPrefix << " is no entry of " << clu << "." << rank << "\n";
         EXIT(EXIT_FAILURE);
     }
-    writePairs(pairs, pairCount, compare, nodeKeyOffsets, handle, exchangeFile, indexData, writtenBytes);
     cluDb.close();
-    delete[] pairs;
     closeExchangeFiles(receivedFiles, receivedPrefix);
-    return closeExchange(handle, exchangeFile, exchange + ".index", indexData);
+    return pairWriter.close();
 }
 
 void MMseqsNode::writeClusterIndexEntry(FILE *file, const std::string &fileName, DBKeyType key, size_t offset) {
@@ -428,6 +438,128 @@ void MMseqsNode::writeClusterIndexEntry(FILE *file, const std::string &fileName,
         Debug(Debug::ERROR) << "Cannot write " << fileName << "\n";
         EXIT(EXIT_FAILURE);
     }
+}
+
+void MMseqsNode::writeClusterPairs(const std::string &index, const std::string &prefix, const std::string &clu, const uint64_t *singletonBits, size_t firstKey, size_t keyCount) {
+    const Parameters &par = Parameters::getInstance();
+    std::vector<ExchangeBlock> repBlocks;
+    std::vector<FILE *> repFiles;
+    openExchange(index, prefix, repBlocks, repFiles);
+    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
+    const std::string resultDb = clu + "." + SSTR(rank);
+    const std::string resultIndex = clu + ".index." + SSTR(rank);
+    FILE *resultIndexFile = FileUtil::openAndDelete(resultIndex.c_str(), "w");
+    DBWriter dbw(resultDb.c_str(), (resultDb + ".index").c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
+    dbw.open();
+    std::vector<char> records;
+    std::vector<ClusterPair> singletons;
+    std::vector<std::string> threadData(par.threads);
+    // (key, offset) of the entries that start in the part of a thread
+    std::vector<std::vector<uint64_t> > threadIndex(par.threads);
+    std::vector<size_t> threadDataOffsets(par.threads + 1);
+    DBKeyType previousRepKey = DB_KEY_INVALID;
+    // the keys go in splits, so the pairs of their singletons fit into memory
+    const size_t splitKeys = std::max<size_t>(1, memoryLimit / 16 / sizeof(ClusterPair));
+    const size_t keyEnd = firstKey + keyCount;
+    for (size_t splitBegin = firstKey; splitBegin < keyEnd; splitBegin += splitKeys) {
+        const size_t splitEnd = std::min(keyEnd, splitBegin + splitKeys);
+        const ClusterPair lastPair = { static_cast<DBKeyType>(splitEnd - 1), DB_KEY_INVALID };
+        size_t nextSingletonKey = splitBegin;
+        size_t pairCount;
+        do {
+            pairCount = readExchangeRange(repBlocks, memoryLimit / 8, ClusterPair::recordSize, ClusterPair::compareByRep, lastPair, records, NULL, prefix);
+            singletons.clear();
+            if (singletonBits != NULL) {
+                // the singletons up to the largest rep of the pairs go with them in rep order, and the rest of the split after the last pairs
+                size_t singletonEnd = (pairCount > 0) ? nextSingletonKey : splitEnd;
+                for (size_t i = 0; i < pairCount; i++) {
+                    singletonEnd = std::max<size_t>(singletonEnd, reinterpret_cast<ClusterPair *>(records.data())[i].repKey + 1);
+                }
+                const size_t bitBegin = nextSingletonKey - firstKey;
+                const size_t bitEnd = singletonEnd - firstKey;
+                for (size_t word = bitBegin / 64; word * 64 < bitEnd; word++) {
+                    uint64_t bits = singletonBits[word] & ((word == bitBegin / 64) ? ~0ULL << (bitBegin % 64) : ~0ULL);
+                    for (; bits != 0 && word * 64 + __builtin_ctzll(bits) < bitEnd; bits &= bits - 1) {
+                        const DBKeyType key = firstKey + word * 64 + __builtin_ctzll(bits);
+                        const ClusterPair singleton = { key, key };
+                        singletons.push_back(singleton);
+                    }
+                }
+                nextSingletonKey = std::max(nextSingletonKey, singletonEnd);
+            }
+            if (records.size() < (pairCount + singletons.size()) * sizeof(ClusterPair)) {
+                records.resize((pairCount + singletons.size()) * sizeof(ClusterPair));
+            }
+            ClusterPair *pairs = reinterpret_cast<ClusterPair *>(records.data());
+            std::copy(singletons.begin(), singletons.end(), pairs + pairCount);
+            const size_t writeCount = pairCount + singletons.size();
+            if (writeCount == 0) {
+                break;
+            }
+            SORT_PARALLEL(pairs, pairs + writeCount, ClusterPair::compareByRep);
+#pragma omp parallel for schedule(dynamic, 1)
+            for (int thread = 0; thread < par.threads; thread++) {
+                std::string &data = threadData[thread];
+                std::vector<uint64_t> &threadEntries = threadIndex[thread];
+                data.clear();
+                threadEntries.clear();
+                char buffer[32];
+                const size_t begin = writeCount * thread / par.threads;
+                DBKeyType repKey = (begin > 0) ? pairs[begin - 1].repKey : previousRepKey;
+                for (size_t i = begin; i < writeCount * (thread + 1) / par.threads; i++) {
+                    if (pairs[i].repKey != repKey) {
+                        if (repKey != DB_KEY_INVALID) {
+                            data.push_back('\0');
+                        }
+                        repKey = pairs[i].repKey;
+                        threadEntries.push_back(static_cast<uint64_t>(repKey));
+                        threadEntries.push_back(data.size());
+                        char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(repKey), buffer);
+                        *(tmpBuff - 1) = '\n';
+                        data.append(buffer, tmpBuff - buffer);
+                    }
+                    if (pairs[i].memberKey != repKey) {
+                        char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(pairs[i].memberKey), buffer);
+                        *(tmpBuff - 1) = '\n';
+                        data.append(buffer, tmpBuff - buffer);
+                    }
+                }
+            }
+            threadDataOffsets[0] = dbw.getOffset(0);
+            for (int thread = 0; thread < par.threads; thread++) {
+                threadDataOffsets[thread + 1] = threadDataOffsets[thread] + threadData[thread].size();
+            }
+#pragma omp parallel for schedule(dynamic, 1)
+            for (int thread = 0; thread < par.threads; thread++) {
+                for (size_t i = 1; i < threadIndex[thread].size(); i += 2) {
+                    threadIndex[thread][i] += threadDataOffsets[thread];
+                }
+            }
+            for (int thread = 0; thread < par.threads; thread++) {
+                dbw.writeAdd(threadData[thread].data(), threadData[thread].size(), 0);
+                if (fwrite(threadIndex[thread].data(), sizeof(uint64_t), threadIndex[thread].size(), resultIndexFile) != threadIndex[thread].size()) {
+                    Debug(Debug::ERROR) << "Cannot write " << resultIndex << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+            previousRepKey = pairs[writeCount - 1].repKey;
+        } while (pairCount > 0);
+    }
+    if (previousRepKey != DB_KEY_INVALID) {
+        dbw.writeAdd("\0", 1, 0);
+    }
+    closeClusterWriter(dbw, resultIndexFile, resultIndex);
+    closeExchangeFiles(repFiles, prefix);
+}
+
+void MMseqsNode::closeClusterWriter(DBWriter &writer, FILE *indexFile, const std::string &indexFileName) {
+    writeClusterIndexEntry(indexFile, indexFileName, DB_KEY_INVALID, writer.getOffset(0));
+    if (fclose(indexFile) != 0) {
+        Debug(Debug::ERROR) << "Cannot close " << indexFileName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    writer.close(false, false);
+    FileUtil::remove(writer.getIndexFileName());
 }
 
 void MMseqsNode::removeExchanges(const std::string &prefix, const std::string &lastExchange, const std::vector<std::string> &exchanges) {

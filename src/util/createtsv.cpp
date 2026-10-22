@@ -69,23 +69,16 @@ static void writeMemberAccessions(std::vector<MemberAccession> &memberAccessions
 }
 
 static std::string readMemberAccessions(const std::string &sortedByMemberIndex, const std::string &sortedByMember, DBReader<DBKeyType> &headers, const std::vector<size_t> &nodeKeyOffsets,
-                                        const std::string &headerOffsetsFile, size_t memoryLimit, const std::string &sortedByRep) {
+                                        size_t memoryLimit, const std::string &sortedByRep) {
     std::vector<MMseqsNode::ExchangeBlock> memberBlocks;
     std::vector<FILE *> memberFiles;
     MMseqsNode::openExchange(sortedByMemberIndex, sortedByMember, memberBlocks, memberFiles);
 
-    // the last header offset of a node is the size of its names
     const size_t localFirstKey = nodeKeyOffsets[MMseqsNode::rank];
     const size_t localEndKey = nodeKeyOffsets[MMseqsNode::rank + 1];
-    uint64_t nameBytes = 0;
-    FILE *headerOffsets = FileUtil::openFileOrDie(headerOffsetsFile.c_str(), "r", true);
-    if (fseek(headerOffsets, -static_cast<long>(sizeof(uint64_t)), SEEK_END) != 0 || fread(&nameBytes, sizeof(uint64_t), 1, headerOffsets) != 1 || fclose(headerOffsets) != 0) {
-        Debug(Debug::ERROR) << "Cannot read " << headerOffsetsFile << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    // a key also holds its name offset in the read buffer and in the load
-    const size_t keyBytes = nameBytes / std::max<size_t>(1, localEndKey - localFirstKey) + sizeof(uint64_t) + sizeof(size_t);
-    const size_t keysPerLoad = std::max<size_t>(1, memoryLimit / 8 / keyBytes);
+    // a key also holds its name offset in the read buffer and in the split
+    const size_t keyBytes = headers.getNamesSize(MMseqsNode::rank) / std::max<size_t>(1, localEndKey - localFirstKey) + sizeof(uint64_t) + sizeof(size_t);
+    const size_t splitKeys = std::max<size_t>(1, memoryLimit / 8 / keyBytes);
 
     const std::string sortedByRepFile = sortedByRep + "." + SSTR(MMseqsNode::rank);
     FILE *sortedByRepHandle = FileUtil::openAndDelete(sortedByRepFile.c_str(), "w");
@@ -98,15 +91,15 @@ static std::string readMemberAccessions(const std::string &sortedByMemberIndex, 
     std::vector<size_t> threadAccessionOffsets(threads + 1);
     std::vector<char> received;
     DBKeyType previousMemberKey = DB_KEY_INVALID;
-    for (size_t keyBegin = localFirstKey; keyBegin < localEndKey; keyBegin += keysPerLoad) {
-        const size_t keyEnd = std::min(localEndKey, keyBegin + keysPerLoad);
+    for (size_t keyBegin = localFirstKey; keyBegin < localEndKey; keyBegin += splitKeys) {
+        const size_t keyEnd = std::min(localEndKey, keyBegin + splitKeys);
         headers.loadData(keyBegin, keyEnd);
         if (keyEnd < localEndKey) {
-            headers.prefetchData(keyEnd, std::min(localEndKey, keyEnd + keysPerLoad));
+            headers.prefetchData(keyEnd, std::min(localEndKey, keyEnd + splitKeys));
         }
-        const ClusterPair loadLast = { static_cast<DBKeyType>(keyEnd - 1), static_cast<DBKeyType>(keyEnd - 1) };
+        const ClusterPair splitLast = { static_cast<DBKeyType>(keyEnd - 1), static_cast<DBKeyType>(keyEnd - 1) };
         size_t pairCount;
-        while ((pairCount = MMseqsNode::readExchangeRange(memberBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, loadLast, received, NULL, sortedByMember)) > 0) {
+        while ((pairCount = MMseqsNode::readExchangeRange(memberBlocks, memoryLimit / 64, ClusterPair::recordSize, ClusterPair::compareByMember, splitLast, received, NULL, sortedByMember)) > 0) {
             ClusterPair *pairs = reinterpret_cast<ClusterPair *>(received.data());
             SORT_PARALLEL(pairs, pairs + pairCount, ClusterPair::compareByMember);
             const size_t firstAccession = memberAccessions.size();
@@ -269,10 +262,10 @@ int createtsv(int argc, const char **argv, const Command &command) {
         DBReader<DBKeyType> headers(par.hdr1.c_str(), (par.db1 + ".nodeinfo").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_LINFINITY);
         headers.open(DBReader<DBKeyType>::NOSORT);
         const std::vector<size_t> nodeKeyOffsets = headers.getFileKeyOffsets(MMseqsNode::count);
-        const std::string sortedByMember = par.db4 + "_sortedbymem";
+        const std::string sortedByMember = par.db4 + "_swap_0";
         const std::string sortedByMemberIndex = MMseqsNode::sendClusterPairs(par.db3, true, ClusterPair::compareByMember, nodeKeyOffsets, sortedByMember);
-        const std::string sortedByRep = par.db4 + "_sortedbyrep";
-        const std::string sortedByRepIndex = readMemberAccessions(sortedByMemberIndex, sortedByMember, headers, nodeKeyOffsets, par.hdr1 + ".index." + SSTR(MMseqsNode::rank), Util::computeMemory(par.splitMemoryLimit), sortedByRep);
+        const std::string sortedByRep = par.db4 + "_swap_1";
+        const std::string sortedByRepIndex = readMemberAccessions(sortedByMemberIndex, sortedByMember, headers, nodeKeyOffsets, Util::computeMemory(par.splitMemoryLimit), sortedByRep);
         FileUtil::remove((sortedByMember + "." + SSTR(MMseqsNode::rank)).c_str());
         writeRepresentativeEntries(sortedByRepIndex, sortedByRep, par.db4, par);
         std::vector<std::string> exchanges;

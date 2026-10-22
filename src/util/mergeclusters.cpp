@@ -13,82 +13,6 @@
 #include <omp.h>
 #endif
 
-static void writeMergedPairs(const std::string &sortedByRepIndex, const std::string &sortedByRep, const std::string &outDb, const Parameters &par) {
-    std::vector<MMseqsNode::ExchangeBlock> repBlocks;
-    std::vector<FILE *> repFiles;
-    MMseqsNode::openExchange(sortedByRepIndex, sortedByRep, repBlocks, repFiles);
-    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
-    const std::string resultDb = outDb + "." + SSTR(MMseqsNode::rank);
-    const std::string resultIndex = outDb + ".index." + SSTR(MMseqsNode::rank);
-    FILE *resultIndexFile = FileUtil::openAndDelete(resultIndex.c_str(), "w");
-    DBWriter dbw(resultDb.c_str(), (resultDb + ".index").c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
-    dbw.open();
-    const ClusterPair lastPair = { DB_KEY_INVALID, DB_KEY_INVALID };
-    std::vector<char> records;
-    std::vector<std::string> threadData(par.threads);
-    // (key, offset) of the entries that start in the part of a thread
-    std::vector<std::vector<uint64_t> > threadIndex(par.threads);
-    std::vector<size_t> threadDataOffsets(par.threads + 1);
-    DBKeyType previousRepKey = DB_KEY_INVALID;
-    size_t pairCount;
-    while ((pairCount = MMseqsNode::readExchangeRange(repBlocks, memoryLimit / 8, ClusterPair::recordSize, ClusterPair::compareByRep, lastPair, records, NULL, sortedByRep)) > 0) {
-        ClusterPair *pairs = reinterpret_cast<ClusterPair *>(records.data());
-        SORT_PARALLEL(pairs, pairs + pairCount, ClusterPair::compareByRep);
-#pragma omp parallel for schedule(dynamic, 1)
-        for (int thread = 0; thread < par.threads; thread++) {
-            std::string &data = threadData[thread];
-            std::vector<uint64_t> &index = threadIndex[thread];
-            data.clear();
-            index.clear();
-            char buffer[32];
-            const size_t begin = pairCount * thread / par.threads;
-            DBKeyType repKey = (begin > 0) ? pairs[begin - 1].repKey : previousRepKey;
-            for (size_t i = begin; i < pairCount * (thread + 1) / par.threads; i++) {
-                if (pairs[i].repKey != repKey) {
-                    if (repKey != DB_KEY_INVALID) {
-                        data.push_back('\0');
-                    }
-                    repKey = pairs[i].repKey;
-                    index.push_back(static_cast<uint64_t>(repKey));
-                    index.push_back(data.size());
-                }
-                char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(pairs[i].memberKey), buffer);
-                *(tmpBuff - 1) = '\n';
-                data.append(buffer, tmpBuff - buffer);
-            }
-        }
-        threadDataOffsets[0] = dbw.getOffset(0);
-        for (int thread = 0; thread < par.threads; thread++) {
-            threadDataOffsets[thread + 1] = threadDataOffsets[thread] + threadData[thread].size();
-        }
-#pragma omp parallel for schedule(dynamic, 1)
-        for (int thread = 0; thread < par.threads; thread++) {
-            for (size_t i = 1; i < threadIndex[thread].size(); i += 2) {
-                threadIndex[thread][i] += threadDataOffsets[thread];
-            }
-        }
-        for (int thread = 0; thread < par.threads; thread++) {
-            dbw.writeAdd(threadData[thread].data(), threadData[thread].size(), 0);
-            if (fwrite(threadIndex[thread].data(), sizeof(uint64_t), threadIndex[thread].size(), resultIndexFile) != threadIndex[thread].size()) {
-                Debug(Debug::ERROR) << "Cannot write " << resultIndex << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        previousRepKey = pairs[pairCount - 1].repKey;
-    }
-    if (previousRepKey != DB_KEY_INVALID) {
-        dbw.writeAdd("\0", 1, 0);
-    }
-    MMseqsNode::writeClusterIndexEntry(resultIndexFile, resultIndex, DB_KEY_INVALID, dbw.getOffset(0));
-    dbw.close(false, false);
-    FileUtil::remove((resultDb + ".index").c_str());
-    if (fclose(resultIndexFile) != 0) {
-        Debug(Debug::ERROR) << "Cannot close " << resultIndex << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    MMseqsNode::closeExchangeFiles(repFiles, sortedByRep);
-}
-
 int mergeclusters(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, true, 0);
@@ -105,15 +29,15 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
         const std::vector<size_t> nodeKeyOffsets = dbr.getFileKeyOffsets(MMseqsNode::count);
         dbr.close();
         const bool hasSecondClustering = par.filenames.size() > 3;
-        const std::string sortedByMember = par.db2 + "_sortedbymem";
+        const std::string sortedByMember = par.db2 + "_swap_0";
         const std::string sortedByMemberIndex = hasSecondClustering ? MMseqsNode::sendClusterPairs(par.filenames[3], false, ClusterPair::compareByMember, nodeKeyOffsets, sortedByMember) : "";
-        const std::string sortedByRep = par.db2 + "_sortedbyrep";
+        const std::string sortedByRep = par.db2 + "_swap_1";
         const std::string sortedByRepIndex = MMseqsNode::sendClusterPairs(par.filenames[2], true, ClusterPair::compareByRep, nodeKeyOffsets, sortedByRep,
                                                                           sortedByMemberIndex, hasSecondClustering ? sortedByMember : "");
         if (hasSecondClustering) {
             FileUtil::remove((sortedByMember + "." + SSTR(MMseqsNode::rank)).c_str());
         }
-        writeMergedPairs(sortedByRepIndex, sortedByRep, par.db2, par);
+        MMseqsNode::writeClusterPairs(sortedByRepIndex, sortedByRep, par.db2, NULL, nodeKeyOffsets[MMseqsNode::rank], nodeKeyOffsets[MMseqsNode::rank + 1] - nodeKeyOffsets[MMseqsNode::rank]);
         std::vector<std::string> exchanges;
         exchanges.push_back(sortedByRep);
         if (hasSecondClustering) {

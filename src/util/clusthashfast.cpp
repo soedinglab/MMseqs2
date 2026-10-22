@@ -56,8 +56,8 @@ static size_t memberIndex(const MemberBits *memberBits, size_t pos) {
 }
 
 // a load fits when its sequence buffer is at most a third of the limit and its hashIdPairs fit next to two buffers
-static bool fitsWithPrefetch(const LengthRange *begin, const LengthRange *end, bool isDBLinfinity, size_t seqBufferLimit, size_t hashIdPairsLimit) {
-    const size_t seqBufferBytes = isDBLinfinity ? end->offset - begin->offset + 2 * Util::getPageSize() : 0;
+static bool fitsWithPrefetch(const LengthRange *begin, const LengthRange *end, bool isLinfinity, size_t seqBufferLimit, size_t hashIdPairsLimit) {
+    const size_t seqBufferBytes = isLinfinity ? end->offset - begin->offset + 2 * Util::getPageSize() : 0;
     return seqBufferBytes <= seqBufferLimit && (end->startKey - begin->startKey) * sizeof(HashEntry) <= hashIdPairsLimit;
 }
 
@@ -267,7 +267,6 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
     par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5));
     par.seqIdThr = (float)Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID / 100.0f;
     par.parseParameters(argc, argv, command, true, 0, 0);
-    MMseqsNode::init();
 
     DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_LINFINITY);
     reader.open(DBReader<DBKeyType>::NOSORT);
@@ -277,17 +276,14 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
     }
     // a compressed or padded entry is decoded into one buffer per thread, so the representative is copied before its members are read
     const bool copyRepSeq = reader.isCompressed() || (DBReader<DBKeyType>::getExtendedDbtype(reader.getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU);
-    const bool isDBLinfinity = DBReader<DBKeyType>::getExtendedDbtype(reader.getDbtype()) & Parameters::DBTYPE_EXTENDED_LINFINITY;
-    if (isDBLinfinity == false && MMseqsNode::isMaster() == false) {
-        reader.close();
-        return EXIT_SUCCESS;
-    }
-    if (isDBLinfinity == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+    const bool isLinfinity = DBReader<DBKeyType>::getExtendedDbtype(reader.getDbtype()) & Parameters::DBTYPE_EXTENDED_LINFINITY;
+    if (isLinfinity == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         reader.readMmapedDataInMemory();
     }
 
     std::vector<LengthRange> nodeSeqRange;
-    if (isDBLinfinity) {
+    if (isLinfinity) {
+        MMseqsNode::init();
         if (reader.getDataFileCnt() != MMseqsNode::count) {
             Debug(Debug::ERROR) << "Database " << par.db1 << " has " << reader.getDataFileCnt() << " data files, but clusthashfast runs on " << MMseqsNode::count << " nodes\n";
             EXIT(EXIT_FAILURE);
@@ -295,11 +291,11 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
         const DBReader<DBKeyType>::Index *index = reader.getIndex();
         size_t endKey = reader.getSize();
         size_t endOffset = 0;
-        for (size_t row = 0; row < reader.getIndexSize(); row++) {
-            if (reader.getIndexFile(row) == MMseqsNode::rank) {
-                nodeSeqRange.push_back({index[row].id, index[row].offset, index[row].length});
-                endKey = (row + 1 < reader.getIndexSize()) ? index[row + 1].id : reader.getSize();
-                endOffset = index[row].offset + (endKey - index[row].id) * index[row].length;
+        for (size_t range = 0; range < reader.getIndexSize(); range++) {
+            if (reader.getIndexFile(range) == MMseqsNode::rank) {
+                nodeSeqRange.push_back({index[range].id, index[range].offset, index[range].length});
+                endKey = (range + 1 < reader.getIndexSize()) ? index[range + 1].id : reader.getSize();
+                endOffset = index[range].offset + (endKey - index[range].id) * index[range].length;
             }
         }
         nodeSeqRange.push_back({endKey, endOffset, 0});
@@ -310,24 +306,24 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
     const size_t localFirstKey = nodeSeqRange.front().startKey;
     const size_t localKeySize = nodeSeqRange.back().startKey - localFirstKey;
 
-    if (isDBLinfinity && par.compressed) {
+    if (isLinfinity && par.compressed) {
         Debug(Debug::WARNING) << "Compressed output cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_LINFINITY_LENGTH << " databases\n";
         Debug(Debug::WARNING) << "We recompute with --compressed 0\n";
         par.compressed = 0;
     }
-    const std::string resultDb = isDBLinfinity ? par.db2 + "." + SSTR(MMseqsNode::rank) : par.db2;
-    DBWriter resultWriter(resultDb.c_str(), (resultDb + ".index").c_str(), 1, par.compressed, isDBLinfinity ? Parameters::DBTYPE_OMIT_FILE : Parameters::DBTYPE_CLUSTER_RES);
+    const std::string resultDb = isLinfinity ? par.db2 + "." + SSTR(MMseqsNode::rank) : par.db2;
+    DBWriter resultWriter(resultDb.c_str(), (resultDb + ".index").c_str(), 1, par.compressed, isLinfinity ? Parameters::DBTYPE_OMIT_FILE : Parameters::DBTYPE_CLUSTER_RES);
     resultWriter.open();
     const std::string resultIndex = par.db2 + ".index." + SSTR(MMseqsNode::rank);
-    FILE *resultIndexFile = isDBLinfinity ? FileUtil::openAndDelete(resultIndex.c_str(), "w") : NULL;
+    FILE *resultIndexFile = isLinfinity ? FileUtil::openAndDelete(resultIndex.c_str(), "w") : NULL;
     const std::string representativeDb = par.db2 + "_redundancy";
     DBWriter representativeWriter(representativeDb.c_str(), (representativeDb + ".index").c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
-    if (isDBLinfinity == false) {
+    if (isLinfinity == false) {
         representativeWriter.open();
     }
     const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
     // a mode 3 node keeps its representatives as one bit per key
-    const size_t representativeBitsSize = isDBLinfinity ? (localKeySize + 63) / 64 : 0;
+    const size_t representativeBitsSize = isLinfinity ? (localKeySize + 63) / 64 : 0;
     uint64_t *representativeBits = new(std::nothrow) uint64_t[representativeBitsSize]();
     Util::checkAllocation(representativeBits, "Can not allocate representative bit memory");
     if (representativeBitsSize * sizeof(uint64_t) >= memoryLimit) {
@@ -341,21 +337,21 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
     // consecutive lengths that fit together are loaded at once;
     // a length that does not fit is loaded alone: a mode 3 length is read one read chunk at a time to hash it and once per block of candidates, a standard DB length once per hash range that fits, after 2 bits per key
     const size_t readChunkBytes = std::min(MAX_INFLIGHT_READ_SIZE, splitMemoryLimit / 4);
-    const size_t seqBufferLimit = isDBLinfinity ? splitMemoryLimit / 3 : 0;
+    const size_t seqBufferLimit = isLinfinity ? splitMemoryLimit / 3 : 0;
     const size_t hashIdPairsLimit = splitMemoryLimit - 2 * seqBufferLimit;
     std::vector<size_t> hashIdPairsCapacity(nodeSeqRange.size() - 1, 0);
     std::vector<size_t> loadOffsets;
     for (size_t i = 0; i + 1 < nodeSeqRange.size(); i++) {
         const size_t lengthSeqCount = nodeSeqRange[i + 1].startKey - nodeSeqRange[i].startKey;
-        const size_t lengthBytes = (isDBLinfinity ? nodeSeqRange[i + 1].offset - nodeSeqRange[i].offset : 0) + lengthSeqCount * sizeof(HashEntry);
+        const size_t lengthBytes = (isLinfinity ? nodeSeqRange[i + 1].offset - nodeSeqRange[i].offset : 0) + lengthSeqCount * sizeof(HashEntry);
         if (lengthBytes > splitMemoryLimit) {
-            const size_t readChunkSeqCount = isDBLinfinity ? std::min(readChunkBytes / nodeSeqRange[i].entryLength / 64 * 64, lengthSeqCount) : 0;
+            const size_t readChunkSeqCount = isLinfinity ? std::min(readChunkBytes / nodeSeqRange[i].entryLength / 64 * 64, lengthSeqCount) : 0;
             const size_t readChunkBufferBytes = 2 * reader.getBufferSizeToLoad(nodeSeqRange[i].startKey, nodeSeqRange[i].startKey + readChunkSeqCount);
-            const size_t keptBytes = isDBLinfinity ? (lengthSeqCount / 64 + 1) * sizeof(MemberBits) : lengthSeqCount / 4;
-            const size_t hashBytes = sizeof(HashEntry) + (isDBLinfinity ? nodeSeqRange[i].entryLength - 2 : 0);
+            const size_t keptBytes = isLinfinity ? (lengthSeqCount / 64 + 1) * sizeof(MemberBits) : lengthSeqCount / 4;
+            const size_t hashBytes = sizeof(HashEntry) + (isLinfinity ? nodeSeqRange[i].entryLength - 2 : 0);
             // a split mode 3 length keeps a pair for every member to write its clusters in key order
-            const size_t pairBytes = isDBLinfinity ? lengthSeqCount * sizeof(ClusterPair) : 0;
-            if ((isDBLinfinity && readChunkSeqCount == 0) || splitMemoryLimit <= keptBytes + readChunkBufferBytes + pairBytes + hashBytes) {
+            const size_t pairBytes = isLinfinity ? lengthSeqCount * sizeof(ClusterPair) : 0;
+            if ((isLinfinity && readChunkSeqCount == 0) || splitMemoryLimit <= keptBytes + readChunkBufferBytes + pairBytes + hashBytes) {
                 Debug(Debug::ERROR) << "Not enough memory to hash " << lengthSeqCount << " sequences\n"
                                     << "Raise RAM size or --split-memory-limit.\n";
                 EXIT(EXIT_FAILURE);
@@ -363,7 +359,7 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
             // a split mode 3 length keeps its hashIdPairs and, after its candidates, the sequences of a block in hashIdPairs
             hashIdPairsCapacity[i] = (splitMemoryLimit - keptBytes - readChunkBufferBytes - pairBytes) / sizeof(HashEntry);
         }
-        if (loadOffsets.empty() || fitsWithPrefetch(&nodeSeqRange[loadOffsets.back()], &nodeSeqRange[i + 1], isDBLinfinity, seqBufferLimit, hashIdPairsLimit) == false) {
+        if (loadOffsets.empty() || fitsWithPrefetch(&nodeSeqRange[loadOffsets.back()], &nodeSeqRange[i + 1], isLinfinity, seqBufferLimit, hashIdPairsLimit) == false) {
             loadOffsets.push_back(i);
         }
     }
@@ -387,8 +383,8 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
         const size_t loadFirstKey = nodeSeqRange[loadOffsets[load]].startKey;
         const size_t loadSeqCount = nodeSeqRange[loadOffsets[load + 1]].startKey - loadFirstKey;
         const bool isSplitLength = hashIdPairsCapacity[loadOffsets[load]] > 0;
-        const size_t length = isDBLinfinity ? nodeSeqRange[loadOffsets[load]].entryLength - 2 : 0;
-        const bool copiesSeqs = isSplitLength && isDBLinfinity;
+        const size_t length = isLinfinity ? nodeSeqRange[loadOffsets[load]].entryLength - 2 : 0;
+        const bool copiesSeqs = isSplitLength && isLinfinity;
         if (copiesSeqs) {
             loadPairs = new(std::nothrow) ClusterPair[loadSeqCount];
             Util::checkAllocation(loadPairs, "Can not allocate loadPairs memory in clusthashfast");
@@ -398,8 +394,8 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
         const size_t hashedSeqCapacity = isSplitLength ? hashIdPairsCapacity[loadOffsets[load]] : loadSeqCount;
         bool hashIdPairsFit = hashedSeqCapacity >= loadSeqCount;
         const bool prefetchesNextLoad = load + 2 < loadOffsets.size()
-                                        && fitsWithPrefetch(&nodeSeqRange[loadOffsets[load]], &nodeSeqRange[loadOffsets[load + 1]], isDBLinfinity, seqBufferLimit, hashIdPairsLimit)
-                                        && fitsWithPrefetch(&nodeSeqRange[loadOffsets[load + 1]], &nodeSeqRange[loadOffsets[load + 2]], isDBLinfinity, seqBufferLimit, hashIdPairsLimit);
+                                        && fitsWithPrefetch(&nodeSeqRange[loadOffsets[load]], &nodeSeqRange[loadOffsets[load + 1]], isLinfinity, seqBufferLimit, hashIdPairsLimit)
+                                        && fitsWithPrefetch(&nodeSeqRange[loadOffsets[load + 1]], &nodeSeqRange[loadOffsets[load + 2]], isLinfinity, seqBufferLimit, hashIdPairsLimit);
         if (hashIdPairsSize < hashedSeqCapacity) {
             delete[] hashIdPairs;
             hashIdPairs = new(std::nothrow) HashEntry[hashedSeqCapacity];
@@ -525,7 +521,7 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
                 }
                 const DBLocalId repId = rangeHashIdPairs[clusterBegin].id;
                 const DBKeyType repKey = reader.getDbKey(repId);
-                if (isDBLinfinity) {
+                if (isLinfinity) {
                     representativeBits[(repId - localFirstKey) / 64] |= 1ull << ((repId - localFirstKey) % 64);
                 } else {
                     representativeWriter.writeIndexEntry(repKey, reader.getOffset(repId), reader.getEntryLen(repId), 0);
@@ -543,10 +539,10 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
                         *(end - 1) = '\n';
                         result.append(buffer, end - buffer);
                     }
-                    if (isDBLinfinity) {
+                    if (isLinfinity) {
                         MMseqsNode::writeClusterIndexEntry(resultIndexFile, resultIndex, repKey, resultWriter.getOffset(0));
                     }
-                    resultWriter.writeData(result.c_str(), result.length(), repKey, 0, true, isDBLinfinity == false);
+                    resultWriter.writeData(result.c_str(), result.length(), repKey, 0, true, isLinfinity == false);
                     result.clear();
                 }
                 clusterBegin = clusterEnd;
@@ -577,7 +573,7 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
         }
         delete[] memberBits;
         // only a load and the next one it prefetched keep both sequence buffers and hashIdPairs
-        if (isDBLinfinity && prefetchesNextLoad == false) {
+        if (isLinfinity && prefetchesNextLoad == false) {
             reader.releaseDataPages();
             delete[] hashIdPairs;
             hashIdPairs = NULL;
@@ -585,17 +581,8 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
         }
     }
 
-    // clusters are written in key order unless a length was split into hash ranges
-    if (isDBLinfinity) {
-        MMseqsNode::writeClusterIndexEntry(resultIndexFile, resultIndex, DB_KEY_INVALID, resultWriter.getOffset(0));
-        if (fclose(resultIndexFile) != 0) {
-            Debug(Debug::ERROR) << "Cannot close " << resultIndex << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-    resultWriter.close(false, needsSort);
-    if (isDBLinfinity) {
-        FileUtil::remove((resultDb + ".index").c_str());
+    if (isLinfinity) {
+        MMseqsNode::closeClusterWriter(resultWriter, resultIndexFile, resultIndex);
         // the bits are on disk before the index part that tells the master this node is done
         const std::string bitsFile = representativeDb + ".bits." + SSTR(MMseqsNode::rank);
         FILE *bits = FileUtil::openAndDelete(bitsFile.c_str(), "w");
@@ -605,37 +592,33 @@ int clusthashfast(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "Cannot write " << bitsFile << "\n";
             EXIT(EXIT_FAILURE);
         }
-        // the rows of this node in the sequence index, with the number of its representatives as a sixth column
+        // the ranges of this node in the sequence index, with the number of its representatives as a sixth column
         std::string representativeIndex;
         for (size_t i = 0; i + 1 < nodeSeqRange.size(); i++) {
-            const size_t rowEndKey = nodeSeqRange[i + 1].startKey;
-            size_t rowRepresentatives = 0;
-            for (size_t bit = nodeSeqRange[i].startKey - localFirstKey; bit < rowEndKey - localFirstKey;) {
-                const size_t take = std::min<size_t>(64 - bit % 64, rowEndKey - localFirstKey - bit);
-                const uint64_t word = representativeBits[bit / 64] >> (bit % 64);
-                rowRepresentatives += __builtin_popcountll(take < 64 ? word & ((1ull << take) - 1) : word);
-                bit += take;
-            }
+            const size_t rangeEndKey = nodeSeqRange[i + 1].startKey;
+            const size_t rangeRepresentatives = Util::countSetBits(representativeBits, nodeSeqRange[i].startKey - localFirstKey, rangeEndKey - localFirstKey);
             representativeIndex += SSTR(nodeSeqRange[i].startKey) + "\t" + SSTR(nodeSeqRange[i].offset) + "\t" + SSTR(nodeSeqRange[i].entryLength) + "\t"
-                                 + SSTR(rowEndKey - nodeSeqRange[i].startKey) + "\t" + SSTR(MMseqsNode::rank) + "\t" + SSTR(rowRepresentatives) + "\n";
+                                 + SSTR(rangeEndKey - nodeSeqRange[i].startKey) + "\t" + SSTR(MMseqsNode::rank) + "\t" + SSTR(rangeRepresentatives) + "\n";
         }
-        MMseqsNode::publishFile(representativeDb + ".index." + SSTR(MMseqsNode::rank), representativeIndex);
+        MMseqsNode::publishRunFile(representativeDb + ".index." + SSTR(MMseqsNode::rank), representativeIndex);
         if (MMseqsNode::isMaster()) {
-            representativeIndex = MMseqsNode::gatherFiles(representativeDb + ".index.");
-            const char *columns[6];
-            for (char *row = (char *) representativeIndex.c_str(); *row != '\0'; row = Util::skipLine(row)) {
-                Util::getWordsOfLine(row, columns, 6);
-                clusters += Util::fast_atoi<size_t>(columns[5]);
-            }
-            MMseqsNode::publishFile(representativeDb + ".index", representativeIndex);
+            MMseqsNode::publishFile(representativeDb + ".index", MMseqsNode::gatherRunFiles(representativeDb + ".index."));
         }
     } else {
+        // clusters are written in key order unless a length was split into hash ranges
+        resultWriter.close(false, needsSort);
         representativeWriter.close(false, needsSort);
     }
     if (MMseqsNode::isMaster()) {
         DBReader<DBKeyType>::softlinkDb(par.db1, representativeDb, DBFiles::DATA);
         DBWriter::writeDbtypeFile(representativeDb.c_str(), reader.getDbtype(), reader.isCompressed());
-        if (isDBLinfinity) {
+        if (isLinfinity) {
+            DBReader<DBKeyType> representativeReader(representativeDb.c_str(), (representativeDb + ".index").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_LINFINITY);
+            representativeReader.open(DBReader<DBKeyType>::NOSORT);
+            for (size_t range = 0; range < representativeReader.getIndexSize(); range++) {
+                clusters += representativeReader.getRangeRepresentativeCount(range);
+            }
+            representativeReader.close();
             // a mode 3 subset only feeds the next pipeline steps, which read no headers, lookup or source
             DBWriter::writeDbtypeFile(par.db2.c_str(), DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_EXTENDED_LINFINITY), false);
         } else {

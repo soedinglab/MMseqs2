@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+class DBWriter;
+
 // a member of a cluster with its representative, the record of most exchanges between nodes
 struct ClusterPair {
     DBKeyType repKey;
@@ -74,8 +76,7 @@ public:
     // closes the file of this node and returns the index lines of all nodes once every node has closed its file
     static std::string closeExchange(FILE *file, const std::string &fileName, const std::string &indexFile, const std::string &indexData);
     static void openExchange(const std::string &index, const std::string &prefix, std::vector<ExchangeBlock> &blocks, std::vector<FILE *> &files);
-    // moves the records up to last that every block holds in its buffer to records, block after block, and returns their count; 0 once no record up to last is left.
-    // records start with a ClusterPair that compare orders; recordSize: see ClusterPair::recordSize; recordOffsets, if given: where every record starts, then the end
+    // moves the buffered records up to last of every block to records, recordOffsets their starts then the end; returns their count, 0 once none is left
     static size_t readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t bufferMemory, size_t (*recordSize)(const char *, size_t),
                                     bool (*compare)(const ClusterPair &, const ClusterPair &), const ClusterPair &last,
                                     std::vector<char> &records, std::vector<size_t> *recordOffsets, const std::string &prefix);
@@ -84,6 +85,33 @@ public:
     // sorts a flush of pairs, appends it to the exchange file of this node and adds its index line; nodeKeyOffsets: keys of every node
     static void writePairs(ClusterPair *pairs, size_t pairCount, bool (*compare)(const ClusterPair &, const ClusterPair &), const std::vector<size_t> &nodeKeyOffsets,
                            FILE *file, const std::string &fileName, std::string &indexData, size_t &writtenBytes);
+    // the pairs that this node sends through the exchange file <exchange>.<node>, buffered and written by writePairs once pairCapacity are buffered
+    struct ClusterPairWriter {
+        ClusterPairWriter(const std::string &exchange, size_t pairCapacity, bool (*compare)(const ClusterPair &, const ClusterPair &), const std::vector<size_t> &nodeKeyOffsets);
+        ~ClusterPairWriter();
+        void add(DBKeyType repKey, DBKeyType memberKey) {
+            if (pairCount == pairCapacity) {
+                flush();
+            }
+            pairs[pairCount].repKey = repKey;
+            pairs[pairCount].memberKey = memberKey;
+            pairCount++;
+        }
+        void flush();
+        // writes the buffered pairs and returns the index lines of all nodes once every node has closed its file
+        std::string close();
+
+        const std::string exchange;
+        const std::string fileName;
+        FILE *file;
+        ClusterPair *pairs;
+        const size_t pairCapacity;
+        size_t pairCount;
+        bool (*compare)(const ClusterPair &, const ClusterPair &);
+        const std::vector<size_t> &nodeKeyOffsets;
+        std::string indexData;
+        size_t writtenBytes;
+    };
     // the representative of entry p becomes the one received for p in the exchange receivedIndex, receivedPrefix if given
     static std::string sendClusterPairs(const std::string &clu, bool withRepresentative, bool (*compare)(const ClusterPair &, const ClusterPair &), const std::vector<size_t> &nodeKeyOffsets,
                                         const std::string &exchange, const std::string &receivedIndex = "", const std::string &receivedPrefix = "");
@@ -91,6 +119,10 @@ public:
     static void removeExchanges(const std::string &prefix, const std::string &lastExchange, const std::vector<std::string> &exchanges);
     // --createdb-mode 3 cluster databases: <clu>.index.<node> holds uint64 (key, offset) per entry in key order, then (DB_KEY_INVALID, data size)
     static void writeClusterIndexEntry(FILE *file, const std::string &fileName, DBKeyType key, size_t offset);
+    // closes writer of <db>.<node> of a --createdb-mode 3 result and removes its text index; ends and closes indexFile, the cluster database index
+    static void closeClusterWriter(DBWriter &writer, FILE *indexFile, const std::string &indexFileName);
+    // writes the pairs of an exchange in rep order as the cluster database <clu>.<node>; singletonBits: bit k makes key firstKey + k a singleton
+    static void writeClusterPairs(const std::string &index, const std::string &prefix, const std::string &clu, const uint64_t *singletonBits, size_t firstKey, size_t keyCount);
 };
 
 #endif
