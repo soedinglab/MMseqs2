@@ -38,7 +38,7 @@ public:
     enum ScaledMode {
         SCALED_OFF = 0,  // log-space blocks
         SCALED = 1,      // scaled mantissas; a call whose backward Z disagrees with the forward Z is run again
-                         // with eager renormalisation, then in double precision
+                         // with double mantissas, and in log-space double if that is flagged as well
         SCALED_FAST = 2  // scaled mantissas without that check, a few percent faster. WARNING: a path that
                          // starts next to a much stronger one can then be lost without any flag, and the
                          // posteriors around it are wrong by up to 1, not just slightly off. Seen on score
