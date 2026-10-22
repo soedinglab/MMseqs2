@@ -183,6 +183,9 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
         int oldKmer = par.kmerSize;
         par.kmerSize = 0;
+        if (par.PARAM_LINCLUST_VERSION.wasSet == false) {
+            par.linclustVersion = Parameters::LINCLUST_VERSION1;
+        }
         cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
         par.kmerSize = oldKmer;
         if (par.PARAM_MAX_SEQS.wasSet == false) {
