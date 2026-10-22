@@ -477,7 +477,7 @@ void flushBufferToDisk(const std::vector<int> &dataFileFds, const std::string &d
 
 template <typename T>
 std::vector<T> readLinfinityFile(const std::string &file) {
-    const std::string linfinityData = MMseqsNode::waitForFile(file);
+    const std::string linfinityData = MMseqsNode::waitForRunFile(file);
     char *linfinityDataChar = (char *) linfinityData.c_str();
     const size_t linfinityDataSize = linfinityData.size();
     const size_t columns = sizeof(T) / sizeof(size_t);
@@ -574,7 +574,7 @@ int createdbLinfinity(Parameters &par, const std::vector<std::string> &filenames
             for (size_t i = pieceBoundaries[node]; i < pieceBoundaries[node + 1]; i++) {
                 planData += SSTR(pieces[i].file) + "\t" + SSTR(pieces[i].start) + "\t" + SSTR(pieces[i].end) + "\n";
             }
-            MMseqsNode::publishFile(planPrefix + SSTR(node), planData);
+            MMseqsNode::publishRunFile(planPrefix + SSTR(node), planData);
         }
     }
     const std::string planFile = planPrefix + SSTR(MMseqsNode::rank);
@@ -623,7 +623,7 @@ int createdbLinfinity(Parameters &par, const std::vector<std::string> &filenames
     for (size_t i = 0; i < localNodeHistogram.size(); i++) {
         histogramData += SSTR(localNodeHistogram[i].length) + "\t" + SSTR(localNodeHistogram[i].sequenceCount) + "\t" + SSTR(localNodeHistogram[i].headerSize) + "\n";
     }
-    MMseqsNode::publishFile(histogramPrefix + SSTR(MMseqsNode::rank), histogramData);
+    MMseqsNode::publishRunFile(histogramPrefix + SSTR(MMseqsNode::rank), histogramData);
     if (MMseqsNode::isMaster()) {
         std::vector<std::vector<LengthBin>> nodeHistograms(MMseqsNode::count);
         for (unsigned int node = 0; node < MMseqsNode::count; node++) {
@@ -712,7 +712,7 @@ int createdbLinfinity(Parameters &par, const std::vector<std::string> &filenames
                 const LengthBin &bin = nodeHistograms[node][i];
                 startsData += SSTR(bin.length) + "\t" + SSTR(bin.sequenceCount) + "\t" + SSTR(bin.headerSize) + "\t" + SSTR(bin.startKey) + "\t" + SSTR(bin.offset) + "\t" + SSTR(bin.headerOffset) + "\t" + SSTR(bin.headerIndexOffset) + "\t" + SSTR(bin.file) + "\n";
             }
-            MMseqsNode::publishFile(startsPrefix + SSTR(node), startsData);
+            MMseqsNode::publishRunFile(startsPrefix + SSTR(node), startsData);
         }
         MMseqsNode::publishFile(dataFile + ".index", indexData);
         MMseqsNode::publishFile(dataFile + ".nodeinfo", nodeInfoData);
@@ -883,9 +883,9 @@ int createdbLinfinity(Parameters &par, const std::vector<std::string> &filenames
             EXIT(EXIT_FAILURE);
         }
     }
-    MMseqsNode::publishFile(dataFile + ".done." + SSTR(MMseqsNode::rank), "");
+    MMseqsNode::publishRunFile(dataFile + ".done." + SSTR(MMseqsNode::rank), "");
     if (MMseqsNode::isMaster()) {
-        MMseqsNode::gatherFiles(dataFile + ".done.");
+        MMseqsNode::gatherRunFiles(dataFile + ".done.");
         if (par.compressHeaders) {
             FileUtil::remove((dataFile + ".written").c_str());
         }
@@ -894,9 +894,9 @@ int createdbLinfinity(Parameters &par, const std::vector<std::string> &filenames
             sourceData += SSTR(i) + "\t" + FileUtil::baseName(filenames[i]) + "\n";
         }
         MMseqsNode::publishFile(dataFile + ".source", sourceData);
+        DBWriter::writeDbtypeFile((dataFile + "_h").c_str(), DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_GENERIC_DB, Parameters::DBTYPE_EXTENDED_LINFINITY), par.compressHeaders);
         const int dbType = DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_AMINO_ACIDS, Parameters::DBTYPE_EXTENDED_LINFINITY);
         DBWriter::writeDbtypeFile(dataFile.c_str(), dbType, false);
-        DBWriter::writeDbtypeFile((dataFile + "_h").c_str(), DBReader<DBKeyType>::setExtendedDbtype(Parameters::DBTYPE_GENERIC_DB, Parameters::DBTYPE_EXTENDED_LINFINITY), par.compressHeaders);
         Debug(Debug::INFO) << "Database type: " << Parameters::getDbTypeName(dbType) << "\n";
     }
 

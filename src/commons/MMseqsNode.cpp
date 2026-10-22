@@ -23,13 +23,18 @@ unsigned int MMseqsNode::count = 1;
 static std::string runId;
 
 void MMseqsNode::init() {
-    const char *procId = getenv("SLURM_PROCID");
-    const char *taskCount = getenv("SLURM_STEP_NUM_TASKS");
-    if (procId != NULL && taskCount != NULL) {
-        rank = strtoul(procId, NULL, 10);
-        count = strtoul(taskCount, NULL, 10);
+    // mpirun (Open MPI, then PMI of MPICH/Intel MPI) before SLURM, whose variables mpirun tasks inherit from the allocation
+    const char *rankVariables[][2] = { { "OMPI_COMM_WORLD_RANK", "OMPI_COMM_WORLD_SIZE" }, { "PMI_RANK", "PMI_SIZE" }, { "SLURM_PROCID", "SLURM_STEP_NUM_TASKS" } };
+    for (size_t i = 0; i < sizeof(rankVariables) / sizeof(rankVariables[0]); i++) {
+        const char *procId = getenv(rankVariables[i][0]);
+        const char *taskCount = getenv(rankVariables[i][1]);
+        if (procId != NULL && taskCount != NULL) {
+            rank = strtoul(procId, NULL, 10);
+            count = strtoul(taskCount, NULL, 10);
+            break;
+        }
     }
-    const char *runVariables[] = { "SLURM_JOB_ID", "SLURM_STEP_ID", "SLURM_RESTART_COUNT" };
+    const char *runVariables[] = { "SLURM_JOB_ID", "SLURM_STEP_ID", "SLURM_RESTART_COUNT", "OMPI_MCA_ess_base_jobid", "PMIX_NAMESPACE" };
     runId.clear();
     for (size_t i = 0; i < sizeof(runVariables) / sizeof(runVariables[0]); i++) {
         const char *value = getenv(runVariables[i]);
@@ -37,7 +42,7 @@ void MMseqsNode::init() {
     }
     runId += "\n";
     if (count == 0 || rank >= count) {
-        Debug(Debug::ERROR) << "Invalid SLURM_PROCID " << rank << " for " << count << " tasks\n";
+        Debug(Debug::ERROR) << "Invalid node rank " << rank << " for " << count << " nodes\n";
         EXIT(EXIT_FAILURE);
     }
     if (isMaster() == false) {
@@ -101,16 +106,20 @@ std::string MMseqsNode::gatherFiles(const std::string &prefix) {
 }
 
 // a file of another run is read again until this run replaces it
-static std::string waitForRunFile(const std::string &file) {
-    std::string content = MMseqsNode::waitForFile(file);
+std::string MMseqsNode::waitForRunFile(const std::string &file) {
+    std::string content = waitForFile(file);
     while (content.compare(0, runId.size(), runId) != 0) {
         sleep(1);
-        content = MMseqsNode::waitForFile(file);
+        content = waitForFile(file);
     }
     return content.substr(runId.size());
 }
 
-static std::string gatherRunFiles(const std::string &prefix) {
+void MMseqsNode::publishRunFile(const std::string &file, const std::string &content) {
+    publishFile(file, runId + content);
+}
+
+std::string MMseqsNode::gatherRunFiles(const std::string &prefix) {
     std::string content;
     for (unsigned int node = 0; node < MMseqsNode::count; node++) {
         const std::string file = prefix + SSTR(node);

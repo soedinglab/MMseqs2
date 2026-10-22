@@ -49,6 +49,10 @@ public:
     static std::string waitForFile(const std::string &file);
     // waits for prefix + node of every node and returns their content in node order; the files are removed
     static std::string gatherFiles(const std::string &prefix);
+    // publishFile and gatherFiles for files of this run, so a file that a killed run left is not gathered
+    static void publishRunFile(const std::string &file, const std::string &content);
+    static std::string waitForRunFile(const std::string &file);
+    static std::string gatherRunFiles(const std::string &prefix);
     // every node publishes content as file + "." + node; returns all contents in node order, gathered by the master into file
     static std::string barrier(const std::string &file, const std::string &content = "");
 
