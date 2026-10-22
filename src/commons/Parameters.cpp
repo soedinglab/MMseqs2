@@ -941,6 +941,7 @@ Parameters::Parameters():
 
     // result2flat
     result2flat.push_back(&PARAM_USE_HEADER);
+    result2flat.push_back(&PARAM_THREADS);
     result2flat.push_back(&PARAM_V);
 
     // result2repseq
