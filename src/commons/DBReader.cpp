@@ -1093,9 +1093,6 @@ template <typename T> size_t DBReader<T>::getBufferSizeToLoad(size_t keyBegin, s
     return planReadRequests(keyBegin, keyEnd, readRequests, headerOffsets, keys, compressedReadRequests, requestFirstKeys);
 }
 
-// entries of a load by keys that are at most this far apart are read in one request
-static const size_t READ_MERGE_GAP = 1024 * 1024;
-
 template <typename T> size_t DBReader<T>::planKeyReadRequests(const std::vector<DBKeyType> &keys, std::vector<BatchReader::ReadRequest> &readRequests, std::vector<size_t> &requestFirstKeys) {
     readRequests.clear();
     requestFirstKeys.clear();

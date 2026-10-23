@@ -340,6 +340,9 @@ public:
     static const int SORT_BY_OFFSET = 8; // only offset sorting saves memory and does not support random access
     static const int SORT_BY_WEIGHTS= 9;
 
+    // entries of a load by keys that are at most this far apart are read in one request
+    static const size_t READ_MERGE_GAP = 1024 * 1024;
+
 
     static const unsigned int USE_INDEX      = 0;
     static const unsigned int USE_DATA       = 1;
