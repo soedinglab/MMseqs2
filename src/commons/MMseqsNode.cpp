@@ -75,9 +75,13 @@ void MMseqsNode::publishFile(const std::string &file, const std::string &content
     }
 }
 
+void MMseqsNode::sleepBeforePoll(unsigned int polls) {
+    usleep(10000u << std::min(polls, 6u));
+}
+
 std::string MMseqsNode::waitForFile(const std::string &file) {
-    while (FileUtil::fileExists(file.c_str()) == false) {
-        sleep(1);
+    for (unsigned int polls = 0; FileUtil::fileExists(file.c_str()) == false; polls++) {
+        sleepBeforePoll(polls);
     }
     FILE *handle = FileUtil::openFileOrDie(file.c_str(), "r", true);
     struct stat sb;
@@ -110,8 +114,8 @@ std::string MMseqsNode::gatherFiles(const std::string &prefix) {
 // a file of another run is read again until this run replaces it
 std::string MMseqsNode::waitForRunFile(const std::string &file) {
     std::string content = waitForFile(file);
-    while (content.compare(0, runId.size(), runId) != 0) {
-        sleep(1);
+    for (unsigned int polls = 0; content.compare(0, runId.size(), runId) != 0; polls++) {
+        sleepBeforePoll(polls);
         content = waitForFile(file);
     }
     return content.substr(runId.size());
@@ -159,8 +163,8 @@ bool MMseqsNode::readLogProgress(const std::string &log, size_t &key, size_t &by
 }
 
 void MMseqsNode::waitForLog(const std::string &log, size_t &key, size_t &bytes) {
-    while (readLogProgress(log, key, bytes) == false) {
-        sleep(1);
+    for (unsigned int polls = 0; readLogProgress(log, key, bytes) == false; polls++) {
+        sleepBeforePoll(polls);
     }
 }
 

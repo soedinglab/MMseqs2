@@ -47,6 +47,8 @@ public:
         return rank == MASTER;
     }
 
+    // sleeps before poll number polls of a file that another node publishes: ten milliseconds, twice as long each poll, up to 640 milliseconds
+    static void sleepBeforePoll(unsigned int polls);
     static void publishFile(const std::string &file, const std::string &content);
     static std::string waitForFile(const std::string &file);
     // waits for prefix + node of every node and returns their content in node order; the files are removed
