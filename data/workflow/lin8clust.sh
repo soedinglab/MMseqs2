@@ -36,7 +36,7 @@ if [ -n "$CLUSTHASH" ]; then
 fi
 
 # 1. k-mer matching
-if notExists "${TMP_PATH}/pref.dbtype"; then
+if notExists "${TMP_PATH}/pref.dbtype" && notExists "${CLUDB}.dbtype"; then
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" kmermatcher "$INPUT" "${TMP_PATH}/pref" ${KMERMATCHER_PAR} \
         || fail "kmermatcher died"
