@@ -23,6 +23,137 @@ const char *simdArchitecture() {
 #endif
 }
 
+#define UNGAPPED_INLINE inline __attribute__((always_inline))
+
+// Signed striped kernel for score(): H is stored as H - 128 and saturates at 255, the result is
+// capped at 255 - bias. Each sweep processes C db columns; at step s column c handles stripe s + c.
+
+static inline simd_int shiftInZero(simd_int x, simd_int lane0) {
+    return simdi_or(simdi8_shiftl(x, 1), lane0);
+}
+
+template <int C>
+struct SignedSweep {
+    simd_int fifo[C];
+    const simd_int *P[C];
+    simd_int *H;
+    simd_int smax;
+    simd_int lane0;
+    int W;
+
+    template <int K>
+    UNGAPPED_INLINE void step(int s) {
+        simd_int n = simdi8_adds(fifo[K], simdi_load(P[0] + s));
+        fifo[K] = simdi_load(H + s + C - 1);
+        simd_int m = n;
+        for (int c = 1; c < C; c++) {
+            n = simdi8_adds(n, simdi_load(P[c] + s + c));
+            m = simdi8_max(m, n);
+        }
+        simdi_store(H + s + C - 1, n);
+        smax = simdi8_max(smax, m);
+    }
+
+    template <int K, int WR>
+    UNGAPPED_INLINE void wrap() {
+        const int s = W - C + 1 + WR;
+        simd_int n = simdi8_adds(fifo[K], simdi_load(P[0] + s));
+        simd_int m = n;
+        for (int c = 1; c < C; c++) {
+            if (c < C - 1 - WR) {
+                n = simdi8_adds(n, simdi_load(P[c] + s + c));
+            } else if (c == C - 1 - WR) {
+                n = simdi8_adds(shiftInZero(n, lane0), simdi_load(P[c]));
+            } else {
+                n = simdi8_adds(n, simdi_load(P[c] + (c - (C - 1 - WR))));
+            }
+            m = simdi8_max(m, n);
+        }
+        simdi_store(H + WR, n);
+        smax = simdi8_max(smax, m);
+    }
+};
+
+template <int C, int N, int K = 0, int Left = N - K>
+struct SignedSteps {
+    static UNGAPPED_INLINE void run(SignedSweep<C> &sweep, int s) {
+        sweep.template step<K>(s + K);
+        SignedSteps<C, N, K + 1>::run(sweep, s);
+    }
+};
+template <int C, int N, int K>
+struct SignedSteps<C, N, K, 0> {
+    static UNGAPPED_INLINE void run(SignedSweep<C> &, int) {}
+};
+
+template <int C, int R, int WR, int N = C - 1 - WR>
+struct SignedWrapSteps {
+    static UNGAPPED_INLINE void run(SignedSweep<C> &sweep) {
+        sweep.template wrap<(R + WR) % C, WR>();
+        SignedWrapSteps<C, R, WR + 1>::run(sweep);
+    }
+};
+template <int C, int R, int WR>
+struct SignedWrapSteps<C, R, WR, 0> {
+    static UNGAPPED_INLINE void run(SignedSweep<C> &) {}
+};
+
+template <int C, int R>
+static UNGAPPED_INLINE void signedSweepTail(SignedSweep<C> &sweep, int s) {
+    SignedSteps<C, R>::run(sweep, s);
+    SignedWrapSteps<C, R, 0>::run(sweep);
+}
+
+template <int C>
+static int signedSweeps(const simd_int *profile, simd_int *H, int W, simd_int lane0, simd_int &smax,
+                        const unsigned char *t, int tLen) {
+    SignedSweep<C> sweep;
+    sweep.W = W;
+    sweep.H = H;
+    sweep.lane0 = lane0;
+    sweep.smax = smax;
+    const int mainSteps = W - C + 1;
+    int j = 0;
+    for (; j + C <= tLen; j += C) {
+        for (int c = 0; c < C; c++) {
+            sweep.P[c] = profile + t[j + c] * W;
+        }
+        sweep.fifo[0] = shiftInZero(simdi_load(H + W - 1), lane0);
+        for (int c = 1; c < C; c++) {
+            sweep.fifo[c] = simdi_load(H + c - 1);
+        }
+        int s = 0;
+        for (; s + C <= mainSteps; s += C) {
+            SignedSteps<C, C>::run(sweep, s);
+        }
+        switch (mainSteps - s) {
+            case 0: signedSweepTail<C, 0>(sweep, s); break;
+            case 1: signedSweepTail<C, 1 % C>(sweep, s); break;
+            case 2: signedSweepTail<C, 2 % C>(sweep, s); break;
+            case 3: signedSweepTail<C, 3 % C>(sweep, s); break;
+            case 4: signedSweepTail<C, 4 % C>(sweep, s); break;
+            case 5: signedSweepTail<C, 5 % C>(sweep, s); break;
+            case 6: signedSweepTail<C, 6 % C>(sweep, s); break;
+            default: signedSweepTail<C, 7 % C>(sweep, s); break;
+        }
+    }
+    smax = sweep.smax;
+    return j;
+}
+
+static int signedScore(const simd_int *profile, simd_int *H, int W, const unsigned char *t, int tLen) {
+    const simd_int zeroH = simdi8_set((char) 0x80);
+    const simd_int lane0 = simdi_xor(zeroH, simdi8_shiftl(zeroH, 1));
+    for (int i = 0; i < W; i++) {
+        simdi_store(H + i, zeroH);
+    }
+    simd_int smax = zeroH;
+    int j = (W >= 8) ? signedSweeps<8>(profile, H, W, lane0, smax, t, tLen) : 0;
+    j += signedSweeps<4>(profile, H, W, lane0, smax, t + j, tLen - j);
+    signedSweeps<1>(profile, H, W, lane0, smax, t + j, tLen - j);
+    return simdi8_hmax(simdi_xor(smax, zeroH));
+}
+
 class Impl final : public UngappedAligner::Impl {
 public:
     Impl(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, float aaBiasCorrectionScale)
@@ -40,12 +171,19 @@ public:
           querySequence(NULL),
           compositionBias(NULL),
           tmpCompositionBias(NULL),
-          queryMat(NULL) {
+          queryMat(NULL),
+          signedSegLen(0),
+          profileSigned(NULL),
+          hSigned(NULL) {
         const size_t profileByteSize = static_cast<size_t>(this->aaSize) * maxSegLen * (VECSIZE_INT * 4);
         const size_t stateSize = static_cast<size_t>(maxSegLen) * sizeof(simd_int);
         profileByte = static_cast<int8_t*>(mem_align(ALIGN_INT, profileByteSize));
         vHStore = (simd_int*)mem_align(ALIGN_INT, stateSize);
         vHLoad = (simd_int*)mem_align(ALIGN_INT, stateSize);
+        const int32_t maxSignedSegLen = std::max(maxSegLen, static_cast<int32_t>(4));
+        const size_t signedProfileSize = static_cast<size_t>(this->aaSize) * maxSignedSegLen * (VECSIZE_INT * 4);
+        profileSigned = static_cast<int8_t*>(mem_align(ALIGN_INT, signedProfileSize));
+        hSigned = (simd_int*)mem_align(ALIGN_INT, static_cast<size_t>(maxSignedSegLen) * sizeof(simd_int));
 
         querySequence = new int8_t[this->maxSequenceLength];
         compositionBias = new int8_t[this->maxSequenceLength];
@@ -60,6 +198,8 @@ public:
         free(profileByte);
         free(vHStore);
         free(vHLoad);
+        free(profileSigned);
+        free(hSigned);
         delete[] querySequence;
         delete[] compositionBias;
         delete[] tmpCompositionBias;
@@ -110,11 +250,28 @@ public:
             createQueryProfile<int8_t, VECSIZE_INT * 4, SmithWaterman::SUBSTITUTIONMATRIX>(
                 profileByte, querySequence, compositionBias, queryMat, q->L, alphabetSize, bias, 0, 0);
         }
+
+        const int elements = VECSIZE_INT * 4;
+        signedSegLen = std::max((q->L + elements - 1) / elements, 4);
+        int8_t *signedIt = profileSigned;
+        for (int32_t nt = 0; nt < alphabetSize; nt++) {
+            for (int32_t i = 0; i < signedSegLen; i++) {
+                for (int32_t k = 0; k < elements; k++) {
+                    const int32_t j = i + k * signedSegLen;
+                    int8_t value = 0;
+                    if (j < q->L) {
+                        value = isProfile ? queryMat[nt * q->L + j]
+                                          : static_cast<int8_t>(queryMat[nt * alphabetSize + querySequence[j]] + compositionBias[j]);
+                    }
+                    *signedIt++ = value;
+                }
+            }
+        }
     }
 
     int score(const unsigned char *db_sequence, int32_t db_length) const {
-        int ignored = 0;
-        return scoreImpl<false>(db_sequence, db_length, ignored);
+        const int best = signedScore((const simd_int *) profileSigned, hSigned, signedSegLen, db_sequence, db_length);
+        return std::min(best, 255 - static_cast<int>(bias));
     }
 
     int score(const unsigned char *db_sequence, int32_t db_length, int &bestDiagonal) const {
@@ -230,6 +387,10 @@ private:
     int8_t *compositionBias;
     float *tmpCompositionBias;
     int8_t *queryMat;
+
+    int32_t signedSegLen;
+    int8_t *profileSigned;
+    simd_int *hSigned;
 };
 
 UngappedAligner::Impl *createImpl(size_t maxSequenceLength, int aaSize,
