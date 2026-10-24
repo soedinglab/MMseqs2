@@ -270,6 +270,8 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
                 Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << ". Error " << errsv << ".\n";
                 EXIT(EXIT_FAILURE);
             }
+            // if this mapping reads the file first, the page cache keeps it in huge pages
+            Util::adviseHugePages(ret, *dataSize);
         } else {
             ret = static_cast<char*>(malloc(*dataSize));
             Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
