@@ -121,6 +121,10 @@ public:
 #endif
     static int madviseLogged(void* addr, size_t len, int advice, const char* context);
 
+    // Ask for transparent huge pages on the 2 MB aligned interior of [addr, addr + len),
+    // before the memory is first touched. A no-op where MADV_HUGEPAGE is missing.
+    static void adviseHugePages(void* addr, size_t len);
+
     static size_t countLines(const char *data, size_t length);
 
     static size_t ompCountLines(const char *data, size_t length, unsigned int threads);
