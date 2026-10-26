@@ -263,10 +263,10 @@ void PSSMCalculator::computeLogPSSM(BaseMatrix *subMat, char *pssm, const float 
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
             float logProb = MathUtil::flog2(aaProb / subMat->pBack[aa]);
             float pssmVal = bitFactor * logProb + bitFactor * scoreBias;
-            pssmVal = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+            pssmVal = (pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5;
             float truncPssmVal =  std::min(pssmVal, 127.0f);
             truncPssmVal       =  std::max(-128.0f, truncPssmVal);
-            pssm[idx] = truncPssmVal;
+            pssm[idx] = static_cast<char>(truncPssmVal);
         }
     }
 }
