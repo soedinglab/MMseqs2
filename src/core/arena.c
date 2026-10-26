@@ -3,6 +3,7 @@
  * @brief Arena (bump) memory allocator implementation
  */
 
+#include "allocator.h"
 #include "arena.h"
 #include <assert.h>
 #include <stddef.h>
@@ -16,18 +17,36 @@
  */
 
 static inline size_t align_up(size_t value, size_t alignment) {
+    if (alignment == 0 || value > SIZE_MAX - (alignment - 1)) {
+        return SIZE_MAX;
+    }
     return (value + alignment - 1) & ~(alignment - 1);
+}
+
+static int add_overflows_size(size_t a, size_t b, size_t* out) {
+    if (a > SIZE_MAX - b) {
+        return 1;
+    }
+    *out = a + b;
+    return 0;
 }
 
 static carquet_arena_block_t* arena_new_block(size_t min_size) {
     size_t block_size = min_size < CARQUET_ARENA_DEFAULT_BLOCK_SIZE
                             ? CARQUET_ARENA_DEFAULT_BLOCK_SIZE
                             : align_up(min_size, CARQUET_ARENA_DEFAULT_BLOCK_SIZE);
+    if (block_size == SIZE_MAX) {
+        return NULL;
+    }
 
     /* Allocate the header plus the data block.
      * Note: offsetof accounts for the union's alignment padding */
     size_t header_size = offsetof(carquet_arena_block_t, u);
-    carquet_arena_block_t* block = (carquet_arena_block_t*)malloc(header_size + block_size);
+    size_t alloc_size;
+    if (add_overflows_size(header_size, block_size, &alloc_size)) {
+        return NULL;
+    }
+    carquet_arena_block_t* block = (carquet_arena_block_t*)carquet_mem_malloc(alloc_size);
 
     if (!block) {
         return NULL;
@@ -76,7 +95,7 @@ void carquet_arena_destroy(carquet_arena_t* arena) {
     carquet_arena_block_t* block = arena->head;
     while (block) {
         carquet_arena_block_t* next = block->next;
-        free(block);
+        carquet_mem_free(block);
         block = next;
     }
 
@@ -135,7 +154,10 @@ void* carquet_arena_alloc_aligned(carquet_arena_t* arena, size_t size, size_t al
 
     /* Calculate aligned offset based on absolute address */
     size_t aligned_offset = arena_aligned_offset(block, block->used, alignment);
-    size_t new_used = aligned_offset + size;
+    size_t new_used;
+    if (add_overflows_size(aligned_offset, size, &new_used)) {
+        return NULL;
+    }
 
     /* Check if current block has space */
     if (new_used <= block->size) {
@@ -149,7 +171,9 @@ void* carquet_arena_alloc_aligned(carquet_arena_t* arena, size_t size, size_t al
     while (block->next) {
         block = block->next;
         aligned_offset = arena_aligned_offset(block, block->used, alignment);
-        new_used = aligned_offset + size;
+        if (add_overflows_size(aligned_offset, size, &new_used)) {
+            return NULL;
+        }
 
         if (new_used <= block->size) {
             arena->current = block;
@@ -161,7 +185,10 @@ void* carquet_arena_alloc_aligned(carquet_arena_t* arena, size_t size, size_t al
     }
 
     /* Need new block */
-    size_t needed = size + alignment;  /* Worst case alignment overhead */
+    size_t needed;  /* Worst case alignment overhead */
+    if (add_overflows_size(size, alignment, &needed)) {
+        return NULL;
+    }
     size_t block_size = needed > arena->default_block_size
                             ? needed
                             : arena->default_block_size;
@@ -178,7 +205,10 @@ void* carquet_arena_alloc_aligned(carquet_arena_t* arena, size_t size, size_t al
 
     /* Allocate from new block */
     aligned_offset = arena_aligned_offset(new_block, new_block->used, alignment);
-    new_block->used = aligned_offset + size;
+    if (add_overflows_size(aligned_offset, size, &new_used)) {
+        return NULL;
+    }
+    new_block->used = new_used;
     arena->total_allocated += size;
 
     return CARQUET_ARENA_BLOCK_DATA(new_block) + aligned_offset;

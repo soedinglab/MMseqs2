@@ -143,6 +143,27 @@ carquet_status_t carquet_encode_plain_boolean(
     carquet_buffer_t* output);
 
 /**
+ * Append booleans to a PLAIN bit stream that is already under way.
+ *
+ * PLAIN packs a page's booleans LSB-first into one continuous stream, so
+ * values added by a later call continue in the earlier call's trailing
+ * partial byte instead of starting a new one. carquet_encode_plain_boolean()
+ * always starts on a fresh byte, i.e. it is this with a bit_count of 0.
+ *
+ * @param input Input boolean array (0 or non-0)
+ * @param count Number of values to append
+ * @param bit_count Number of values the stream already holds; they must be
+ *                  the last ceil(bit_count / 8) bytes of @p output
+ * @param output Output buffer ending with the stream
+ * @return Status code. On failure the stream is left unchanged.
+ */
+carquet_status_t carquet_encode_plain_boolean_append(
+    const uint8_t* input,
+    int64_t count,
+    int64_t bit_count,
+    carquet_buffer_t* output);
+
+/**
  * Encode 32-bit integers using PLAIN encoding.
  */
 carquet_status_t carquet_encode_plain_int32(

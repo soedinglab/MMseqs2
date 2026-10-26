@@ -592,7 +592,7 @@ void carquet_sve_build_null_bitmap(const int16_t* def_levels, int64_t count,
     while (i < count) {
         uint8_t bits = 0;
         for (int j = 0; j < 8 && i < count; j++, i++) {
-            if (def_levels[i] < max_def_level) {
+            if (def_levels[i] == max_def_level) {
                 bits |= (uint8_t)(1u << j);
             }
         }
@@ -651,6 +651,10 @@ void carquet_sve_minmax_i64(const int64_t* values, int64_t count,
     *max_value = max_v;
 }
 
+/* Float chunks reduce with FMINNMV/FMAXNMV, which ignore NaN lanes (NaN only
+ * if every active lane is NaN, then the compare below skips it). FMINV/FMAXV
+ * would return NaN for the whole chunk and the compare would drop all of its
+ * values. A NaN values[0] still seeds NaN, which the writer rescans. */
 void carquet_sve_minmax_float(const float* values, int64_t count,
                                float* min_value, float* max_value) {
     float min_v = values[0];
@@ -660,8 +664,8 @@ void carquet_sve_minmax_float(const float* values, int64_t count,
     while (i < count) {
         svbool_t pg = svwhilelt_b32(i, count);
         svfloat32_t v = svld1_f32(pg, values + i);
-        float chunk_min = svminv_f32(pg, v);
-        float chunk_max = svmaxv_f32(pg, v);
+        float chunk_min = svminnmv_f32(pg, v);
+        float chunk_max = svmaxnmv_f32(pg, v);
         if (chunk_min < min_v) min_v = chunk_min;
         if (chunk_max > max_v) max_v = chunk_max;
         i += svcntw();
@@ -680,8 +684,8 @@ void carquet_sve_minmax_double(const double* values, int64_t count,
     while (i < count) {
         svbool_t pg = svwhilelt_b64(i, count);
         svfloat64_t v = svld1_f64(pg, values + i);
-        double chunk_min = svminv_f64(pg, v);
-        double chunk_max = svmaxv_f64(pg, v);
+        double chunk_min = svminnmv_f64(pg, v);
+        double chunk_max = svmaxnmv_f64(pg, v);
         if (chunk_min < min_v) min_v = chunk_min;
         if (chunk_max > max_v) max_v = chunk_max;
         i += svcntd();
@@ -743,8 +747,8 @@ void carquet_sve_copy_minmax_float(const float* values, int64_t count, float* ou
         svbool_t pg = svwhilelt_b32(i, count);
         svfloat32_t v = svld1_f32(pg, values + i);
         svst1_f32(pg, output + i, v);
-        float chunk_min = svminv_f32(pg, v);
-        float chunk_max = svmaxv_f32(pg, v);
+        float chunk_min = svminnmv_f32(pg, v);
+        float chunk_max = svmaxnmv_f32(pg, v);
         if (chunk_min < min_v) min_v = chunk_min;
         if (chunk_max > max_v) max_v = chunk_max;
         i += svcntw();
@@ -764,8 +768,8 @@ void carquet_sve_copy_minmax_double(const double* values, int64_t count, double*
         svbool_t pg = svwhilelt_b64(i, count);
         svfloat64_t v = svld1_f64(pg, values + i);
         svst1_f64(pg, output + i, v);
-        double chunk_min = svminv_f64(pg, v);
-        double chunk_max = svmaxv_f64(pg, v);
+        double chunk_min = svminnmv_f64(pg, v);
+        double chunk_max = svmaxnmv_f64(pg, v);
         if (chunk_min < min_v) min_v = chunk_min;
         if (chunk_max > max_v) max_v = chunk_max;
         i += svcntd();

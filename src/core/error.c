@@ -141,6 +141,8 @@ const char* carquet_status_string(carquet_status_t status) {
             return "Already closed";
         case CARQUET_ERROR_NOT_OPEN:
             return "Not open";
+        case CARQUET_ERROR_PAGE_INDEX_REQUIRED:
+            return "Page index required but absent for filtered column";
         default:
             return "Unknown error";
     }

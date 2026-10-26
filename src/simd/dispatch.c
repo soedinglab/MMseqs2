@@ -9,6 +9,9 @@
 
 #include <carquet/carquet.h>
 #include "core/bitpack.h"
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -61,8 +64,6 @@ typedef void (*bitunpack8_u32_fn)(const uint8_t* input, uint32_t* values);
 
 typedef int64_t (*find_run_length_i32_fn)(const int32_t* values, int64_t count);
 
-typedef uint32_t (*crc32c_fn)(uint32_t crc, const uint8_t* data, size_t len);
-
 typedef void (*match_copy_fn)(uint8_t* dst, const uint8_t* src, size_t len, size_t offset);
 typedef size_t (*match_length_fn)(const uint8_t* p, const uint8_t* match, const uint8_t* limit);
 
@@ -114,6 +115,9 @@ static void scalar_prefix_sum_i64(int64_t* values, int64_t count, int64_t initia
     }
 }
 
+/* Unaligned dictionary loads (portable; see header). */
+#include "simd/simd_unaligned.h"
+
 static void scalar_gather_i32(const int32_t* dict, const uint32_t* indices,
                                int64_t count, int32_t* output) {
     const int64_t prefetch_dist = 8;
@@ -121,7 +125,7 @@ static void scalar_gather_i32(const int32_t* dict, const uint32_t* indices,
         if (i + prefetch_dist < count) {
             CARQUET_PREFETCH(&dict[indices[i + prefetch_dist]]);
         }
-        output[i] = dict[indices[i]];
+        output[i] = cq_load_i32u(dict + indices[i]);
     }
 }
 
@@ -132,7 +136,7 @@ static void scalar_gather_i64(const int64_t* dict, const uint32_t* indices,
         if (i + prefetch_dist < count) {
             CARQUET_PREFETCH(&dict[indices[i + prefetch_dist]]);
         }
-        output[i] = dict[indices[i]];
+        output[i] = cq_load_i64u(dict + indices[i]);
     }
 }
 
@@ -143,7 +147,7 @@ static void scalar_gather_float(const float* dict, const uint32_t* indices,
         if (i + prefetch_dist < count) {
             CARQUET_PREFETCH(&dict[indices[i + prefetch_dist]]);
         }
-        output[i] = dict[indices[i]];
+        output[i] = cq_load_f32u(dict + indices[i]);
     }
 }
 
@@ -154,7 +158,7 @@ static void scalar_gather_double(const double* dict, const uint32_t* indices,
         if (i + prefetch_dist < count) {
             CARQUET_PREFETCH(&dict[indices[i + prefetch_dist]]);
         }
-        output[i] = dict[indices[i]];
+        output[i] = cq_load_f64u(dict + indices[i]);
     }
 }
 
@@ -166,7 +170,7 @@ static bool scalar_checked_gather_i32(const int32_t* dict, int32_t dict_count,
         if (idx >= (uint32_t)dict_count) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_load_i32u(dict + idx);
     }
     return true;
 }
@@ -179,7 +183,7 @@ static bool scalar_checked_gather_i64(const int64_t* dict, int32_t dict_count,
         if (idx >= (uint32_t)dict_count) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_load_i64u(dict + idx);
     }
     return true;
 }
@@ -277,13 +281,6 @@ static int64_t scalar_find_run_length_i32(const int32_t* values, int64_t count) 
     return count;
 }
 
-/* Use the slicing-by-8 CRC32C from crc32.c as the scalar fallback */
-extern uint32_t carquet_scalar_crc32c(uint32_t crc, const uint8_t* data, size_t len);
-
-static uint32_t scalar_crc32c(uint32_t crc, const uint8_t* data, size_t len) {
-    return carquet_scalar_crc32c(crc, data, len);
-}
-
 static void scalar_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset) {
     if (offset >= 8) {
         /* Non-overlapping: copy 8 bytes at a time */
@@ -329,20 +326,20 @@ static void scalar_build_null_bitmap(const int16_t* def_levels, int64_t count,
                                       int16_t max_def_level, uint8_t* null_bitmap) {
     int64_t full_bytes = count / 8;
     for (int64_t b = 0; b < full_bytes; b++) {
-        uint8_t null_bits = 0;
+        uint8_t present_bits = 0;
         int64_t base = b * 8;
-        if (def_levels[base + 0] < max_def_level) null_bits |= 0x01;
-        if (def_levels[base + 1] < max_def_level) null_bits |= 0x02;
-        if (def_levels[base + 2] < max_def_level) null_bits |= 0x04;
-        if (def_levels[base + 3] < max_def_level) null_bits |= 0x08;
-        if (def_levels[base + 4] < max_def_level) null_bits |= 0x10;
-        if (def_levels[base + 5] < max_def_level) null_bits |= 0x20;
-        if (def_levels[base + 6] < max_def_level) null_bits |= 0x40;
-        if (def_levels[base + 7] < max_def_level) null_bits |= 0x80;
-        null_bitmap[b] = null_bits;
+        if (def_levels[base + 0] == max_def_level) present_bits |= 0x01;
+        if (def_levels[base + 1] == max_def_level) present_bits |= 0x02;
+        if (def_levels[base + 2] == max_def_level) present_bits |= 0x04;
+        if (def_levels[base + 3] == max_def_level) present_bits |= 0x08;
+        if (def_levels[base + 4] == max_def_level) present_bits |= 0x10;
+        if (def_levels[base + 5] == max_def_level) present_bits |= 0x20;
+        if (def_levels[base + 6] == max_def_level) present_bits |= 0x40;
+        if (def_levels[base + 7] == max_def_level) present_bits |= 0x80;
+        null_bitmap[b] = present_bits;
     }
     for (int64_t j = full_bytes * 8; j < count; j++) {
-        if (def_levels[j] < max_def_level) {
+        if (def_levels[j] == max_def_level) {
             null_bitmap[j / 8] |= (1 << (j % 8));
         }
     }
@@ -475,9 +472,9 @@ extern void carquet_sse_bitunpack8_6bit(const uint8_t* input, uint32_t* values);
 extern void carquet_sse_bitunpack8_7bit(const uint8_t* input, uint32_t* values);
 extern void carquet_sse_bitunpack8_8bit(const uint8_t* input, uint32_t* values);
 extern void carquet_sse_bitunpack8_16bit(const uint8_t* input, uint32_t* values);
+extern void carquet_sse_bitunpack32_1bit(const uint8_t* input, uint32_t* values);
 extern void carquet_sse_unpack_bools(const uint8_t* input, uint8_t* output, int64_t count);
 extern void carquet_sse_pack_bools(const uint8_t* input, uint8_t* output, int64_t count);
-extern uint32_t carquet_sse_crc32c(uint32_t crc, const uint8_t* data, size_t len);
 extern void carquet_sse_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset);
 extern size_t carquet_sse_match_length(const uint8_t* p, const uint8_t* match, const uint8_t* limit);
 extern int64_t carquet_sse_count_non_nulls(const int16_t* def_levels, int64_t count, int16_t max_def_level);
@@ -556,9 +553,10 @@ extern void carquet_avx2_bitunpack8_6bit(const uint8_t* input, uint32_t* values)
 extern void carquet_avx2_bitunpack8_7bit(const uint8_t* input, uint32_t* values);
 extern void carquet_avx2_bitunpack8_8bit(const uint8_t* input, uint32_t* values);
 extern void carquet_avx2_bitunpack8_16bit(const uint8_t* input, uint32_t* values);
+extern void carquet_avx2_bitunpack16_4bit(const uint8_t* input, uint32_t* values);
+extern void carquet_avx2_bitunpack16_8bit(const uint8_t* input, uint32_t* values);
 extern void carquet_avx2_unpack_bools(const uint8_t* input, uint8_t* output, int64_t count);
 extern void carquet_avx2_pack_bools(const uint8_t* input, uint8_t* output, int64_t count);
-extern uint32_t carquet_avx2_crc32c(uint32_t crc, const uint8_t* data, size_t len);
 extern void carquet_avx2_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset);
 extern size_t carquet_avx2_match_length(const uint8_t* p, const uint8_t* match, const uint8_t* limit);
 extern int64_t carquet_avx2_count_non_nulls(const int16_t* def_levels, int64_t count, int16_t max_def_level);
@@ -614,9 +612,11 @@ extern void carquet_avx512_byte_stream_split_decode_double(const uint8_t* data, 
 extern void carquet_avx512_bitunpack8_4bit(const uint8_t* input, uint32_t* values);
 extern void carquet_avx512_bitunpack8_8bit(const uint8_t* input, uint32_t* values);
 extern void carquet_avx512_bitunpack8_16bit(const uint8_t* input, uint32_t* values);
+extern void carquet_avx512_bitunpack32_4bit(const uint8_t* input, uint32_t* values);
+extern void carquet_avx512_bitunpack32_8bit(const uint8_t* input, uint32_t* values);
+extern void carquet_avx512_bitunpack16_16bit(const uint8_t* input, uint32_t* values);
 extern void carquet_avx512_unpack_bools(const uint8_t* input, uint8_t* output, int64_t count);
 extern void carquet_avx512_pack_bools(const uint8_t* input, uint8_t* output, int64_t count);
-extern uint32_t carquet_avx512_crc32c(uint32_t crc, const uint8_t* data, size_t len);
 extern void carquet_avx512_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset);
 extern size_t carquet_avx512_match_length(const uint8_t* p, const uint8_t* match, const uint8_t* limit);
 extern int64_t carquet_avx512_count_non_nulls(const int16_t* def_levels, int64_t count, int16_t max_def_level);
@@ -632,10 +632,10 @@ extern int64_t carquet_avx512_find_run_length_i32(const int32_t* values, int64_t
 
 #endif /* CARQUET_ARCH_X86 */
 
-#if defined(__aarch64__)
+#if defined(CARQUET_ARCH_ARM)
 
-/* NEON declarations - always available on AArch64 */
-#ifdef __ARM_NEON
+/* NEON declarations - compiled when the ARM NEON backend is enabled. */
+#if defined(CARQUET_ENABLE_NEON) && (defined(__ARM_NEON) || defined(__ARM_NEON__))
 extern void carquet_neon_prefix_sum_i32(int32_t* values, int64_t count, int32_t initial);
 extern void carquet_neon_prefix_sum_i64(int64_t* values, int64_t count, int64_t initial);
 extern void carquet_neon_gather_i32(const int32_t* dict, const uint32_t* indices,
@@ -669,7 +669,6 @@ extern void carquet_neon_byte_stream_split_decode_double(const uint8_t* data, in
 extern void carquet_neon_unpack_bools(const uint8_t* input, uint8_t* output, int64_t count);
 extern void carquet_neon_pack_bools(const uint8_t* input, uint8_t* output, int64_t count);
 extern int64_t carquet_neon_find_run_length_i32(const int32_t* values, int64_t count);
-extern uint32_t carquet_neon_crc32c(uint32_t crc, const uint8_t* data, size_t len);
 extern void carquet_neon_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset);
 extern size_t carquet_neon_match_length(const uint8_t* p, const uint8_t* match, const uint8_t* limit);
 extern int64_t carquet_neon_count_non_nulls(const int16_t* def_levels, int64_t count, int16_t max_def_level);
@@ -688,9 +687,22 @@ extern void carquet_neon_copy_minmax_float(const float* values, int64_t count, f
                                             float* min_value, float* max_value);
 extern void carquet_neon_copy_minmax_double(const double* values, int64_t count, double* output,
                                              double* min_value, double* max_value);
+extern void carquet_neon_bitunpack8_1bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_2bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_3bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_4bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_5bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_6bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_7bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_8bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack8_16bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack32_1bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack32_4bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack16_8bit(const uint8_t* input, uint32_t* values);
+extern void carquet_neon_bitunpack16_16bit(const uint8_t* input, uint32_t* values);
 #endif
 
-#ifdef __ARM_FEATURE_SVE
+#if defined(CARQUET_ENABLE_SVE) && defined(__ARM_FEATURE_SVE)
 extern void carquet_sve_gather_i32(const int32_t* dict, const uint32_t* indices,
                                     int64_t count, int32_t* output);
 extern void carquet_sve_gather_i64(const int64_t* dict, const uint32_t* indices,
@@ -770,8 +782,13 @@ typedef struct {
     unpack_bools_fn unpack_bools;
     pack_bools_fn pack_bools;
     bitunpack8_u32_fn bitunpack8_u32[33];
+    /* Optional wider kernels: produce bitunpack_wide_vals[bw] values (a
+     * multiple of 8, identical to that many / 8 calls of bitunpack8_u32[bw])
+     * per call. fn == NULL / vals == 0 means "no wide kernel for this width".
+     * Only verified-correct, genuinely-SIMD kernels are installed here. */
+    bitunpack8_u32_fn bitunpack_wide_fn[33];
+    uint16_t bitunpack_wide_vals[33];
     find_run_length_i32_fn find_run_length_i32;
-    crc32c_fn crc32c;
     match_copy_fn match_copy;
     match_length_fn match_length;
     count_non_nulls_fn count_non_nulls;
@@ -790,13 +807,69 @@ typedef struct {
 static carquet_simd_dispatch_t g_dispatch = {0};
 static int g_dispatch_initialized = 0;
 
+/* Acquire/release accessors for the init flag. The release store in
+ * carquet_simd_dispatch_init() publishes all g_dispatch writes; the acquire
+ * load in DISPATCH_ENSURE_INIT() ensures a thread that observes the flag set
+ * also observes the fully-populated dispatch table. Concurrent first-use is
+ * safe: init is idempotent (it always writes the same function pointers). */
+static int dispatch_is_initialized(void) {
+#if defined(__GNUC__) || defined(__clang__)
+    return __atomic_load_n(&g_dispatch_initialized, __ATOMIC_ACQUIRE);
+#elif defined(_MSC_VER)
+    return _InterlockedCompareExchange((volatile long*)&g_dispatch_initialized, 1, 1);
+#else
+    return g_dispatch_initialized;
+#endif
+}
+
+static void dispatch_set_initialized(void) {
+#if defined(__GNUC__) || defined(__clang__)
+    __atomic_store_n(&g_dispatch_initialized, 1, __ATOMIC_RELEASE);
+#elif defined(_MSC_VER)
+    _InterlockedExchange((volatile long*)&g_dispatch_initialized, 1);
+#else
+    g_dispatch_initialized = 1;
+#endif
+}
+
+/* Serialize the table-population critical section, mirroring carquet_init()'s
+ * lock in detect.c. The acquire/release flag alone only gates the fast path;
+ * without this lock two threads that both observe the flag unset (e.g. on first
+ * SIMD use inside an OpenMP parallel column loop) would race writing the ~90
+ * g_dispatch function pointers. */
+static volatile int g_dispatch_lock = 0;
+
+static void dispatch_lock_acquire(void) {
+#if defined(__GNUC__) || defined(__clang__)
+    while (__atomic_exchange_n(&g_dispatch_lock, 1, __ATOMIC_ACQUIRE)) { /* spin */ }
+#elif defined(_MSC_VER)
+    while (_InterlockedExchange((volatile long*)&g_dispatch_lock, 1)) { /* spin */ }
+#endif
+}
+
+static void dispatch_lock_release(void) {
+#if defined(__GNUC__) || defined(__clang__)
+    __atomic_store_n(&g_dispatch_lock, 0, __ATOMIC_RELEASE);
+#elif defined(_MSC_VER)
+    _InterlockedExchange((volatile long*)&g_dispatch_lock, 0);
+#endif
+}
+
 /* ============================================================================
  * Dispatch Initialization
  * ============================================================================
  */
 
 void carquet_simd_dispatch_init(void) {
-    if (g_dispatch_initialized) {
+    /* Fast path: already initialized */
+    if (dispatch_is_initialized()) {
+        return;
+    }
+
+    dispatch_lock_acquire();
+    /* Re-check under the lock: another thread may have finished while we spun. */
+    if (dispatch_is_initialized()) {
+        dispatch_lock_release();
         return;
     }
 
@@ -821,7 +894,6 @@ void carquet_simd_dispatch_init(void) {
     g_dispatch.unpack_bools = scalar_unpack_bools;
     g_dispatch.pack_bools = scalar_pack_bools;
     g_dispatch.find_run_length_i32 = scalar_find_run_length_i32;
-    g_dispatch.crc32c = scalar_crc32c;
     g_dispatch.match_copy = scalar_match_copy;
     g_dispatch.match_length = scalar_match_length;
     g_dispatch.count_non_nulls = scalar_count_non_nulls;
@@ -865,7 +937,10 @@ void carquet_simd_dispatch_init(void) {
         g_dispatch.bitunpack8_u32[7] = carquet_sse_bitunpack8_7bit;
         g_dispatch.bitunpack8_u32[8] = carquet_sse_bitunpack8_8bit;
         g_dispatch.bitunpack8_u32[16] = carquet_sse_bitunpack8_16bit;
-        g_dispatch.crc32c = carquet_sse_crc32c;
+        /* Wide: 32 x 1-bit per call (4 input bytes). Verified == 4 x the
+         * scalar 1-bit unpacker by test_bitunpack_wide. */
+        g_dispatch.bitunpack_wide_fn[1] = carquet_sse_bitunpack32_1bit;
+        g_dispatch.bitunpack_wide_vals[1] = 32;
         g_dispatch.match_copy = carquet_sse_match_copy;
         g_dispatch.match_length = carquet_sse_match_length;
         g_dispatch.count_non_nulls = carquet_sse_count_non_nulls;
@@ -914,7 +989,6 @@ void carquet_simd_dispatch_init(void) {
         g_dispatch.byte_split_decode_double = carquet_avx2_byte_stream_split_decode_double;
         g_dispatch.unpack_bools = carquet_avx2_unpack_bools;
         g_dispatch.pack_bools = carquet_avx2_pack_bools;
-        g_dispatch.crc32c = carquet_avx2_crc32c;
         g_dispatch.match_copy = carquet_avx2_match_copy;
         g_dispatch.match_length = carquet_avx2_match_length;
         g_dispatch.count_non_nulls = carquet_avx2_count_non_nulls;
@@ -937,12 +1011,20 @@ void carquet_simd_dispatch_init(void) {
         g_dispatch.bitunpack8_u32[7] = carquet_avx2_bitunpack8_7bit;
         g_dispatch.bitunpack8_u32[8] = carquet_avx2_bitunpack8_8bit;
         g_dispatch.bitunpack8_u32[16] = carquet_avx2_bitunpack8_16bit;
+        /* Wide: 16 values per call. Verified == 2 x the scalar unpacker
+         * for these widths by test_bitunpack_wide. (1-bit stays SSE-32.) */
+        g_dispatch.bitunpack_wide_fn[4] = carquet_avx2_bitunpack16_4bit;
+        g_dispatch.bitunpack_wide_vals[4] = 16;
+        g_dispatch.bitunpack_wide_fn[8] = carquet_avx2_bitunpack16_8bit;
+        g_dispatch.bitunpack_wide_vals[8] = 16;
         g_dispatch.find_run_length_i32 = carquet_avx2_find_run_length_i32;
     }
 #endif
 
 #ifdef CARQUET_ENABLE_AVX512
-    if (cpu->has_avx512f) {
+    /* The AVX-512 objects are compiled with -mavx512bw/-mavx512vl, so all
+     * three feature bits must be present (and OS-enabled, see detect.c). */
+    if (cpu->has_avx512f && cpu->has_avx512bw && cpu->has_avx512vl) {
         g_dispatch.prefix_sum_i32 = carquet_avx512_prefix_sum_i32;
         g_dispatch.prefix_sum_i64 = carquet_avx512_prefix_sum_i64;
         g_dispatch.gather_i32 = carquet_avx512_gather_i32;
@@ -960,9 +1042,16 @@ void carquet_simd_dispatch_init(void) {
         g_dispatch.bitunpack8_u32[4] = carquet_avx512_bitunpack8_4bit;
         g_dispatch.bitunpack8_u32[8] = carquet_avx512_bitunpack8_8bit;
         g_dispatch.bitunpack8_u32[16] = carquet_avx512_bitunpack8_16bit;
+        /* Wide: 32 (4/8-bit) or 16 (16-bit) values per call. Verified
+         * against the scalar unpacker by test_bitunpack_wide. */
+        g_dispatch.bitunpack_wide_fn[4] = carquet_avx512_bitunpack32_4bit;
+        g_dispatch.bitunpack_wide_vals[4] = 32;
+        g_dispatch.bitunpack_wide_fn[8] = carquet_avx512_bitunpack32_8bit;
+        g_dispatch.bitunpack_wide_vals[8] = 32;
+        g_dispatch.bitunpack_wide_fn[16] = carquet_avx512_bitunpack16_16bit;
+        g_dispatch.bitunpack_wide_vals[16] = 16;
         g_dispatch.unpack_bools = carquet_avx512_unpack_bools;
         g_dispatch.pack_bools = carquet_avx512_pack_bools;
-        g_dispatch.crc32c = carquet_avx512_crc32c;
         g_dispatch.match_copy = carquet_avx512_match_copy;
         g_dispatch.match_length = carquet_avx512_match_length;
         g_dispatch.count_non_nulls = carquet_avx512_count_non_nulls;
@@ -981,10 +1070,12 @@ void carquet_simd_dispatch_init(void) {
 #if defined(CARQUET_ARCH_ARM)
 
     /* Register NEON functions when the compiler can emit them and the CPU has NEON. */
-#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#if defined(CARQUET_ENABLE_NEON) && (defined(__ARM_NEON) || defined(__ARM_NEON__))
     if (cpu->has_neon) {
-    g_dispatch.prefix_sum_i32 = carquet_neon_prefix_sum_i32;
-    g_dispatch.prefix_sum_i64 = carquet_neon_prefix_sum_i64;
+    /* Prefix sums are loop-carried dependency chains. On Apple Silicon the
+     * scalar compiler-generated loop is faster than the NEON shuffle-based
+     * version, so keep the scalar fallback here while installing NEON where
+     * it provides real throughput wins. */
     g_dispatch.gather_i32 = carquet_neon_gather_i32;
     g_dispatch.gather_i64 = carquet_neon_gather_i64;
     g_dispatch.gather_float = carquet_neon_gather_float;
@@ -993,36 +1084,59 @@ void carquet_simd_dispatch_init(void) {
     g_dispatch.checked_gather_i64 = carquet_neon_checked_gather_i64;
     g_dispatch.checked_gather_float = carquet_neon_checked_gather_float;
     g_dispatch.checked_gather_double = carquet_neon_checked_gather_double;
-    g_dispatch.byte_split_encode_float = carquet_neon_byte_stream_split_encode_float;
-    g_dispatch.byte_split_decode_float = carquet_neon_byte_stream_split_decode_float;
+    /* Byte-stream-split: keep the scalar/compiler path for float (the
+     * auto-vectorized 4-byte transpose matches or beats hand-written NEON on
+     * Apple Silicon, and vld4/vqtbl both regress small in-cache float decode),
+     * but use NEON for double via vld4q_u16/vst4q_u16 structure load-stores.
+     * Measured on M3 vs the prior vqtbl path: double encode +60-100%, decode
+     * +47-69%; vs scalar, decode is +47-86% across cache regimes. Byte-exact. */
     g_dispatch.byte_split_encode_double = carquet_neon_byte_stream_split_encode_double;
     g_dispatch.byte_split_decode_double = carquet_neon_byte_stream_split_decode_double;
     g_dispatch.unpack_bools = carquet_neon_unpack_bools;
     g_dispatch.pack_bools = carquet_neon_pack_bools;
     g_dispatch.find_run_length_i32 = carquet_neon_find_run_length_i32;
-    g_dispatch.crc32c = carquet_neon_crc32c;
     g_dispatch.match_copy = carquet_neon_match_copy;
     g_dispatch.match_length = carquet_neon_match_length;
     g_dispatch.count_non_nulls = carquet_neon_count_non_nulls;
     g_dispatch.build_null_bitmap = carquet_neon_build_null_bitmap;
     g_dispatch.fill_def_levels = carquet_neon_fill_def_levels;
     g_dispatch.minmax_i32 = carquet_neon_minmax_i32;
-    g_dispatch.minmax_i64 = carquet_neon_minmax_i64;
+    /* i64 min/max is a short loop with scalar compares on NEON, and measured
+     * slower than the compiler-generated scalar path on Apple Silicon. */
     g_dispatch.minmax_float = carquet_neon_minmax_float;
     g_dispatch.minmax_double = carquet_neon_minmax_double;
     g_dispatch.copy_minmax_i32 = carquet_neon_copy_minmax_i32;
-    g_dispatch.copy_minmax_i64 = carquet_neon_copy_minmax_i64;
+    /* Same for i64 copy+minmax: keep scalar copy/min/max, which measured
+     * substantially faster than the NEON implementation. */
     g_dispatch.copy_minmax_float = carquet_neon_copy_minmax_float;
     g_dispatch.copy_minmax_double = carquet_neon_copy_minmax_double;
+    g_dispatch.bitunpack8_u32[1] = carquet_neon_bitunpack8_1bit;
+    g_dispatch.bitunpack8_u32[2] = carquet_neon_bitunpack8_2bit;
+    g_dispatch.bitunpack8_u32[3] = carquet_neon_bitunpack8_3bit;
+    g_dispatch.bitunpack8_u32[4] = carquet_neon_bitunpack8_4bit;
+    g_dispatch.bitunpack8_u32[5] = carquet_neon_bitunpack8_5bit;
+    g_dispatch.bitunpack8_u32[6] = carquet_neon_bitunpack8_6bit;
+    g_dispatch.bitunpack8_u32[7] = carquet_neon_bitunpack8_7bit;
+    g_dispatch.bitunpack8_u32[8] = carquet_neon_bitunpack8_8bit;
+    g_dispatch.bitunpack8_u32[16] = carquet_neon_bitunpack8_16bit;
+    /* Wide: 32 x 1-bit per call (4 input bytes), == 4 calls of the
+     * scalar 1-bit unpacker; verified by test_bitunpack_wide. */
+    g_dispatch.bitunpack_wide_fn[1] = carquet_neon_bitunpack32_1bit;
+    g_dispatch.bitunpack_wide_vals[1] = 32;
+    g_dispatch.bitunpack_wide_fn[4] = carquet_neon_bitunpack32_4bit;
+    g_dispatch.bitunpack_wide_vals[4] = 32;
+    g_dispatch.bitunpack_wide_fn[8] = carquet_neon_bitunpack16_8bit;
+    g_dispatch.bitunpack_wide_vals[8] = 16;
+    g_dispatch.bitunpack_wide_fn[16] = carquet_neon_bitunpack16_16bit;
+    g_dispatch.bitunpack_wide_vals[16] = 16;
     }
 #endif
 
     /* SVE overrides NEON where SVE is genuinely better.
      * prefix_sum, unpack/pack_bools, build_null_bitmap are left as NEON
      * because their SVE implementations were pure scalar (no real benefit).
-     * CRC32C, match_copy, match_length inherit from NEON (uses ARM CRC32
-     * instructions that are independent of SVE/NEON). */
-#if defined(__ARM_FEATURE_SVE)
+     * match_copy, match_length inherit from NEON. */
+#if defined(CARQUET_ENABLE_SVE) && defined(__ARM_FEATURE_SVE)
     if (cpu->has_sve) {
         /* Gather: SVE has true hardware gather instructions */
         g_dispatch.gather_i32 = carquet_sve_gather_i32;
@@ -1072,7 +1186,8 @@ void carquet_simd_dispatch_init(void) {
 
 #endif /* ARM */
 
-    g_dispatch_initialized = 1;
+    dispatch_set_initialized();
+    dispatch_lock_release();
 }
 
 /* ============================================================================
@@ -1085,10 +1200,10 @@ void carquet_simd_dispatch_init(void) {
  * branch misprediction overhead on every dispatch call. */
 #if defined(__GNUC__) || defined(__clang__)
 #define DISPATCH_ENSURE_INIT() \
-    do { if (__builtin_expect(!g_dispatch_initialized, 0)) carquet_simd_dispatch_init(); } while(0)
+    do { if (__builtin_expect(!dispatch_is_initialized(), 0)) carquet_simd_dispatch_init(); } while(0)
 #else
 #define DISPATCH_ENSURE_INIT() \
-    do { if (!g_dispatch_initialized) carquet_simd_dispatch_init(); } while(0)
+    do { if (!dispatch_is_initialized()) carquet_simd_dispatch_init(); } while(0)
 #endif
 
 void carquet_dispatch_prefix_sum_i32(int32_t* values, int64_t count, int32_t initial) {
@@ -1129,6 +1244,14 @@ bool carquet_dispatch_checked_gather_i32(const int32_t* dict, int32_t dict_count
                                           const uint32_t* indices, int64_t count,
                                           int32_t* output) {
     DISPATCH_ENSURE_INIT();
+    /* No dictionary entries ⇒ every index is out of bounds. Guard here so the
+     * SIMD fast paths never run unchecked: they compute the upper bound as
+     * (uint32_t)dict_count - 1, which underflows to UINT32_MAX when
+     * dict_count == 0, defeating the in-bound check and gathering from
+     * arbitrary offsets. */
+    if (dict_count <= 0) {
+        return count == 0;
+    }
 #if defined(CARQUET_ARCH_ARM)
     if (g_dispatch.checked_gather_i32 &&
         g_dispatch.checked_gather_i32 != scalar_checked_gather_i32) {
@@ -1146,6 +1269,9 @@ bool carquet_dispatch_checked_gather_i64(const int64_t* dict, int32_t dict_count
                                           const uint32_t* indices, int64_t count,
                                           int64_t* output) {
     DISPATCH_ENSURE_INIT();
+    if (dict_count <= 0) {  /* see carquet_dispatch_checked_gather_i32 */
+        return count == 0;
+    }
 #if defined(CARQUET_ARCH_ARM)
     if (g_dispatch.checked_gather_i64 &&
         g_dispatch.checked_gather_i64 != scalar_checked_gather_i64) {
@@ -1163,6 +1289,9 @@ bool carquet_dispatch_checked_gather_float(const float* dict, int32_t dict_count
                                             const uint32_t* indices, int64_t count,
                                             float* output) {
     DISPATCH_ENSURE_INIT();
+    if (dict_count <= 0) {  /* see carquet_dispatch_checked_gather_i32 */
+        return count == 0;
+    }
 #if defined(CARQUET_ARCH_ARM)
     if (g_dispatch.checked_gather_float &&
         g_dispatch.checked_gather_float != scalar_checked_gather_float) {
@@ -1180,6 +1309,9 @@ bool carquet_dispatch_checked_gather_double(const double* dict, int32_t dict_cou
                                              const uint32_t* indices, int64_t count,
                                              double* output) {
     DISPATCH_ENSURE_INIT();
+    if (dict_count <= 0) {  /* see carquet_dispatch_checked_gather_i32 */
+        return count == 0;
+    }
 #if defined(CARQUET_ARCH_ARM)
     if (g_dispatch.checked_gather_double &&
         g_dispatch.checked_gather_double != scalar_checked_gather_double) {
@@ -1240,9 +1372,20 @@ carquet_bitunpack8_fn carquet_dispatch_get_bitunpack8_fn(int bit_width) {
     return g_dispatch.bitunpack8_u32[bit_width];
 }
 
-uint32_t carquet_dispatch_crc32c(uint32_t crc, const uint8_t* data, size_t len) {
+/* Wide bit-unpack accessor. Returns the number of values the wide kernel
+ * for @p bit_width produces per call (a multiple of 8, identical to that
+ * many / 8 scalar unpacks) and stores the kernel in *fn, or returns 0 and
+ * leaves *fn untouched when there is no wide kernel for this width/ISA. */
+int carquet_dispatch_get_bitunpack_wide(int bit_width, carquet_bitunpack8_fn* fn) {
     DISPATCH_ENSURE_INIT();
-    return g_dispatch.crc32c(crc, data, len);
+    if (bit_width < 1 || bit_width > 32) {
+        return 0;
+    }
+    if (g_dispatch.bitunpack_wide_fn[bit_width] == NULL) {
+        return 0;
+    }
+    *fn = g_dispatch.bitunpack_wide_fn[bit_width];
+    return (int)g_dispatch.bitunpack_wide_vals[bit_width];
 }
 
 void carquet_dispatch_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset) {

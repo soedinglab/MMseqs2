@@ -63,6 +63,12 @@ For `BYTE_ARRAY` dictionaries, use the returned `dictionary_offsets` table for O
 
 It coalesces file reads so later column readers can serve data from the prebuffered cache. On mmap readers it is a no-op.
 
+## Writer Parallelism
+
+With OpenMP, a row group with more than one column is encoded and compressed in parallel when it is finalized (the next `carquet_writer_new_row_group()` call, an automatic flush, or `carquet_writer_close()`): `carquet_writer_write_batch()` only stashes the input. Flat fixed-width columns (REQUIRED INT32/INT64/FLOAT/DOUBLE/INT96/FIXED_LEN_BYTE_ARRAY with PLAIN or BYTE_STREAM_SPLIT, no bloom filter or page index) are split into one task per page, so a few wide numeric columns still keep every core busy; other columns are one task each. The thread count follows `OMP_NUM_THREADS` / `omp_set_num_threads()`.
+
+With `async_io` (on by default) the finished row group is written by a background thread while the next one is encoded. The kernel copy into the page cache is often the single largest cost of an uncompressed write, so overlapping it matters even without a codec. Keep row groups a few MB or larger: the overlap and the page-level split both need more than one page per column to pay off.
+
 ## Write Files for Future Reads
 
 Writer settings change how much pruning future readers can do:

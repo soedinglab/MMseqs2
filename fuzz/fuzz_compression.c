@@ -25,6 +25,24 @@ size_t carquet_snappy_compress_bound(size_t src_size);
 carquet_status_t carquet_snappy_get_uncompressed_length(
     const uint8_t* src, size_t src_size, size_t* length);
 
+/* Detailed-diagnostic entry point (src/compression/snappy.h). Declared here
+ * rather than included so this target keeps its self-contained style. */
+typedef struct carquet_snappy_diag {
+    int reason;
+    size_t input_pos;
+    size_t output_pos;
+    uint64_t declared_length;
+    int32_t tag;
+    uint64_t operand;
+} carquet_snappy_diag_t;
+carquet_status_t carquet_snappy_decompress_diag(
+    const uint8_t* src, size_t src_size,
+    uint8_t* dst, size_t dst_capacity, size_t* dst_size,
+    carquet_snappy_diag_t* diag);
+const char* carquet_snappy_reason_string(int reason);
+const char* carquet_snappy_diag_format(const carquet_snappy_diag_t* diag,
+                                       char* buf, size_t buf_size);
+
 carquet_status_t carquet_lz4_decompress(
     const uint8_t* src, size_t src_size,
     uint8_t* dst, size_t dst_capacity, size_t* dst_size);
@@ -60,10 +78,22 @@ static void fuzz_decompress(int codec, const uint8_t* data, size_t size) {
     size_t dst_size = 0;
 
     switch (codec) {
-        case 0:
+        case 0: {
             (void)carquet_snappy_decompress(data, size, dst, dst_capacity, &dst_size);
             { size_t len = 0; (void)carquet_snappy_get_uncompressed_length(data, size, &len); }
+            /* Same decode through the diagnostic entry point: exercises every
+             * diag-filling branch and the formatter over malformed input. */
+            carquet_snappy_diag_t diag;
+            size_t diag_dst_size = 0;
+            carquet_status_t st = carquet_snappy_decompress_diag(
+                data, size, dst, dst_capacity, &diag_dst_size, &diag);
+            if (st != CARQUET_OK) {
+                char line[256];
+                (void)carquet_snappy_diag_format(&diag, line, sizeof(line));
+                (void)carquet_snappy_reason_string(diag.reason);
+            }
             break;
+        }
         case 1: (void)carquet_lz4_decompress(data, size, dst, dst_capacity, &dst_size); break;
         case 2: (void)carquet_gzip_decompress(data, size, dst, dst_capacity, &dst_size); break;
         case 3: (void)carquet_zstd_decompress(data, size, dst, dst_capacity, &dst_size); break;

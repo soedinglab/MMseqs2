@@ -237,7 +237,7 @@ static void fuzz_column_index(const uint8_t* data, size_t size) {
         (void)carquet_column_index_boundary_order(ci);
         for (int32_t i = 0; i < np && i < 20; i++) {
             carquet_page_stats_t ps;
-            carquet_column_index_get_page_stats(ci, i, &ps);
+            (void)carquet_column_index_get_page_stats(ci, i, &ps);
             (void)ps.null_count;
             (void)ps.min_value;
             (void)ps.max_value;
@@ -259,7 +259,7 @@ static void fuzz_offset_index(const uint8_t* data, size_t size) {
         int32_t np = carquet_offset_index_num_pages(oi);
         for (int32_t i = 0; i < np && i < 20; i++) {
             carquet_page_location_t loc;
-            carquet_offset_index_get_page_location(oi, i, &loc);
+            (void)carquet_offset_index_get_page_location(oi, i, &loc);
             (void)loc.offset;
             (void)loc.compressed_size;
             (void)loc.first_row_index;

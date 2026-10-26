@@ -9,6 +9,7 @@
 #include <assert.h>
 
 #include <carquet/carquet.h>
+#include "core/compat.h"
 #include "test_helpers.h"
 
 static int test_version(void) {
@@ -352,7 +353,7 @@ static int test_write_simple_file(void) {
     assert(memcmp(magic, "PAR1", 4) == 0);
 
     /* Check PAR1 footer */
-    fseek(f, -4, SEEK_END);
+    carquet_fseek64(f, -4, SEEK_END);
     assert(fread(magic, 1, 4, f) == 4);
     assert(memcmp(magic, "PAR1", 4) == 0);
 

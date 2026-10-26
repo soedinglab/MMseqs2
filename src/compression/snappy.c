@@ -24,8 +24,10 @@
  */
 
 #include <carquet/error.h>
+#include "snappy.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
@@ -307,11 +309,14 @@ static inline uint8_t* incremental_copy(const uint8_t* src, uint8_t* op,
                                          uint8_t* const buf_limit) {
     size_t pattern_size = (size_t)(op - src);
 
-#if SNAPPY_HAVE_VECTOR_SHUFFLE
+    /* The pattern_size >= big_pattern block below extends the match with 16-byte
+     * copy128 reads from `src`, so it is only correct once at least 16 valid
+     * pattern bytes precede `op` — i.e. big_pattern must be 16 on every build.
+     * With big_pattern == 8, pattern_size in [8,15] reaches copy128 and reads
+     * 16 - pattern_size bytes past `op` (uninitialised output), corrupting the
+     * result. Those sizes are instead served safely by the scalar doubling/
+     * 8-byte-copy path, which the SIMD build already exercises via its own 16. */
     const int big_pattern = 16;
-#else
-    const int big_pattern = 8;
-#endif
 
     if (pattern_size < (size_t)big_pattern) {
 #if SNAPPY_HAVE_VECTOR_SHUFFLE
@@ -410,12 +415,87 @@ static inline uint8_t* incremental_copy(const uint8_t* src, uint8_t* op,
  * Snappy Decompression
  * ============================================================================ */
 
-carquet_status_t carquet_snappy_decompress(
+const char* carquet_snappy_reason_string(carquet_snappy_reason_t reason) {
+    switch (reason) {
+        case CARQUET_SNAPPY_OK:
+            return "ok";
+        case CARQUET_SNAPPY_ERR_LENGTH_VARINT:
+            return "malformed uncompressed-length varint";
+        case CARQUET_SNAPPY_ERR_OUTPUT_TOO_SMALL:
+            return "declared uncompressed length exceeds output capacity";
+        case CARQUET_SNAPPY_ERR_LITERAL_LEN_TRUNC:
+            return "long-literal length bytes run past end of input";
+        case CARQUET_SNAPPY_ERR_LITERAL_INPUT:
+            return "literal runs past end of input";
+        case CARQUET_SNAPPY_ERR_LITERAL_OUTPUT:
+            return "literal runs past end of output";
+        case CARQUET_SNAPPY_ERR_COPY1_TRUNC:
+            return "COPY_1 trailer byte missing";
+        case CARQUET_SNAPPY_ERR_COPY2_TRUNC:
+            return "COPY_2 trailer bytes missing";
+        case CARQUET_SNAPPY_ERR_COPY4_TRUNC:
+            return "COPY_4 trailer bytes missing";
+        case CARQUET_SNAPPY_ERR_COPY_OFFSET_ZERO:
+            return "copy offset is zero";
+        case CARQUET_SNAPPY_ERR_COPY_OFFSET_RANGE:
+            return "copy offset points before start of output";
+        case CARQUET_SNAPPY_ERR_COPY_OUTPUT:
+            return "copy runs past end of output";
+        case CARQUET_SNAPPY_ERR_SHORT_OUTPUT:
+            return "input exhausted before the declared uncompressed length";
+        case CARQUET_SNAPPY_ERR_TRAILING_INPUT:
+            return "output complete but input bytes remain";
+        default:
+            return "unknown";
+    }
+}
+
+const char* carquet_snappy_diag_format(const carquet_snappy_diag_t* diag,
+                                       char* buf, size_t buf_size) {
+    if (!buf || buf_size == 0) return buf;
+    if (!diag) {
+        snprintf(buf, buf_size, "no snappy diagnostic");
+        return buf;
+    }
+    /* Kept compact on purpose: callers embed this in a carquet_error_t message,
+     * which is capped at CARQUET_ERROR_MESSAGE_MAX (256) bytes including their
+     * own prefix. %llu, not %zu — the MinGW/msvcrt printf has no z modifier. */
+    snprintf(buf, buf_size,
+             "snappy[%d]: %s [src=%llu dst=%llu declared=%llu tag=%d op=%llu]",
+             (int)diag->reason, carquet_snappy_reason_string(diag->reason),
+             (unsigned long long)diag->input_pos,
+             (unsigned long long)diag->output_pos,
+             (unsigned long long)diag->declared_length,
+             diag->tag, (unsigned long long)diag->operand);
+    return buf;
+}
+
+/* Record the failing check and bail out of the decode loop. */
+#define SNAPPY_FAIL(reason_code, operand_value)                       \
+    do {                                                              \
+        if (diag) {                                                   \
+            diag->reason = (reason_code);                             \
+            diag->input_pos = (size_t)(tag_start - src);              \
+            diag->output_pos = (size_t)(op - dst);                    \
+            diag->declared_length = uncompressed_len;                 \
+            diag->tag = (int)tag;                                     \
+            diag->operand = (uint64_t)(operand_value);                \
+        }                                                             \
+        return CARQUET_ERROR_INVALID_COMPRESSED_DATA;                 \
+    } while (0)
+
+carquet_status_t carquet_snappy_decompress_diag(
     const uint8_t* src,
     size_t src_size,
     uint8_t* dst,
     size_t dst_capacity,
-    size_t* dst_size) {
+    size_t* dst_size,
+    carquet_snappy_diag_t* diag) {
+
+    if (diag) {
+        memset(diag, 0, sizeof(*diag));
+        diag->tag = -1;
+    }
 
     if (!src || !dst || !dst_size)
         return CARQUET_ERROR_INVALID_ARGUMENT;
@@ -431,12 +511,26 @@ carquet_status_t carquet_snappy_decompress(
     /* Read uncompressed length */
     uint32_t uncompressed_len;
     size_t varint_len = snappy_read_varint(ip, ip_end, &uncompressed_len);
-    if (varint_len == 0)
+    if (varint_len == 0) {
+        if (diag) {
+            diag->reason = CARQUET_SNAPPY_ERR_LENGTH_VARINT;
+            diag->tag = -1;
+            diag->operand = src_size;
+        }
         return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+    }
     ip += varint_len;
 
-    if (uncompressed_len > dst_capacity)
+    if (uncompressed_len > dst_capacity) {
+        if (diag) {
+            diag->reason = CARQUET_SNAPPY_ERR_OUTPUT_TOO_SMALL;
+            diag->input_pos = varint_len;
+            diag->declared_length = uncompressed_len;
+            diag->tag = -1;
+            diag->operand = dst_capacity;
+        }
         return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+    }
 
     uint8_t* op = dst;
     uint8_t* const op_end = dst + uncompressed_len;
@@ -445,6 +539,7 @@ carquet_status_t carquet_snappy_decompress(
         ? (op_end - SNAPPY_SLOP_BYTES + 1) : dst;
 
     while (ip < ip_end && op < op_end) {
+        const uint8_t* const tag_start = ip;
         const uint8_t tag = *ip++;
         const uint8_t type = tag & 0x03;
 
@@ -453,8 +548,8 @@ carquet_status_t carquet_snappy_decompress(
             if (SNAPPY_PREDICT_FALSE(literal_len >= 61)) {
                 /* Long literal: length is encoded in 1-4 following bytes */
                 size_t extra_bytes = literal_len - 60;
-                if (SNAPPY_PREDICT_FALSE(ip + extra_bytes > ip_end))
-                    return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+                if (SNAPPY_PREDICT_FALSE(extra_bytes > (size_t)(ip_end - ip)))
+                    SNAPPY_FAIL(CARQUET_SNAPPY_ERR_LITERAL_LEN_TRUNC, extra_bytes);
                 /* Use a 32-bit load and mask (like Google Snappy) */
                 uint32_t raw = 0;
                 memcpy(&raw, ip, extra_bytes <= 4 ? extra_bytes : 4);
@@ -474,8 +569,10 @@ carquet_status_t carquet_snappy_decompress(
                 continue;
             }
 
-            if (SNAPPY_PREDICT_FALSE(ip + literal_len > ip_end || op + literal_len > op_end))
-                return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+            if (SNAPPY_PREDICT_FALSE(literal_len > (size_t)(ip_end - ip)))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_LITERAL_INPUT, literal_len);
+            if (SNAPPY_PREDICT_FALSE(literal_len > (size_t)(op_end - op)))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_LITERAL_OUTPUT, literal_len);
             memcpy(op, ip, literal_len);
             ip += literal_len;
             op += literal_len;
@@ -489,24 +586,25 @@ carquet_status_t carquet_snappy_decompress(
 
             if (type == SNAPPY_COPY_1) {
                 if (SNAPPY_PREDICT_FALSE(ip >= ip_end))
-                    return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+                    SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY1_TRUNC, 1);
                 trailer = ((uint32_t)(tag & 0xE0) << 3) | *ip++;
                 length = (size_t)(entry & 0xFF);
                 copy_offset = trailer;
             } else { /* SNAPPY_COPY_2 */
-                if (SNAPPY_PREDICT_FALSE(ip + 2 > ip_end))
-                    return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+                if (SNAPPY_PREDICT_FALSE((size_t)(ip_end - ip) < 2))
+                    SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY2_TRUNC, 2);
                 trailer = (uint32_t)ip[0] | ((uint32_t)ip[1] << 8);
                 ip += 2;
                 length = (size_t)(entry & 0xFF);
                 copy_offset = trailer;
             }
 
-            if (SNAPPY_PREDICT_FALSE(copy_offset == 0 ||
-                                     copy_offset > (size_t)(op - dst)))
-                return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
-            if (SNAPPY_PREDICT_FALSE(op + length > op_end))
-                return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+            if (SNAPPY_PREDICT_FALSE(copy_offset == 0))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_ZERO, 0);
+            if (SNAPPY_PREDICT_FALSE(copy_offset > (size_t)(op - dst)))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_RANGE, copy_offset);
+            if (SNAPPY_PREDICT_FALSE(length > (size_t)(op_end - op)))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OUTPUT, length);
 
             const uint8_t* match_src = op - copy_offset;
 
@@ -530,16 +628,17 @@ carquet_status_t carquet_snappy_decompress(
 
         } else {
             /* COPY_4: 4-byte offset (rare) */
-            if (SNAPPY_PREDICT_FALSE(ip + 4 > ip_end))
-                return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+            if (SNAPPY_PREDICT_FALSE((size_t)(ip_end - ip) < 4))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY4_TRUNC, 4);
             size_t length = ((tag >> 2) & 0x3F) + 1;
             size_t copy_offset = (size_t)load32(ip);
             ip += 4;
-            if (SNAPPY_PREDICT_FALSE(copy_offset == 0 ||
-                                     copy_offset > (size_t)(op - dst)))
-                return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
-            if (SNAPPY_PREDICT_FALSE(op + length > op_end))
-                return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+            if (SNAPPY_PREDICT_FALSE(copy_offset == 0))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_ZERO, 0);
+            if (SNAPPY_PREDICT_FALSE(copy_offset > (size_t)(op - dst)))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_RANGE, copy_offset);
+            if (SNAPPY_PREDICT_FALSE(length > (size_t)(op_end - op)))
+                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OUTPUT, length);
             const uint8_t* match_src = op - copy_offset;
             (void)incremental_copy(match_src, op, op + length, op_end);
             op += length;
@@ -548,11 +647,43 @@ carquet_status_t carquet_snappy_decompress(
 
     /* Upstream requires BOTH output length match AND full input consumption.
      * Without the ip check, trailing garbage after valid data is accepted. */
-    if ((size_t)(op - dst) != uncompressed_len || ip != ip_end)
+    if ((size_t)(op - dst) != uncompressed_len) {
+        if (diag) {
+            diag->reason = CARQUET_SNAPPY_ERR_SHORT_OUTPUT;
+            diag->input_pos = (size_t)(ip - src);
+            diag->output_pos = (size_t)(op - dst);
+            diag->declared_length = uncompressed_len;
+            diag->tag = -1;
+            diag->operand = (uint64_t)(ip_end - ip);
+        }
         return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+    }
+    if (ip != ip_end) {
+        if (diag) {
+            diag->reason = CARQUET_SNAPPY_ERR_TRAILING_INPUT;
+            diag->input_pos = (size_t)(ip - src);
+            diag->output_pos = (size_t)(op - dst);
+            diag->declared_length = uncompressed_len;
+            diag->tag = -1;
+            diag->operand = (uint64_t)(ip_end - ip);
+        }
+        return CARQUET_ERROR_INVALID_COMPRESSED_DATA;
+    }
 
     *dst_size = uncompressed_len;
     return CARQUET_OK;
+}
+
+#undef SNAPPY_FAIL
+
+carquet_status_t carquet_snappy_decompress(
+    const uint8_t* src,
+    size_t src_size,
+    uint8_t* dst,
+    size_t dst_capacity,
+    size_t* dst_size) {
+    return carquet_snappy_decompress_diag(src, src_size, dst, dst_capacity,
+                                          dst_size, NULL);
 }
 
 /* ============================================================================

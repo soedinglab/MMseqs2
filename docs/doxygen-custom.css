@@ -1,0 +1,16 @@
+/* Carquet Doxygen overrides */
+
+/* Header title-area logo (PROJECT_LOGO). Doxygen renders it at the image's
+   native 665x732 px and does NOT auto-scale — cap it to title-bar height. */
+#projectlogo img,
+#titlearea #projectlogo img {
+    max-height: 55px;
+    width: auto;
+}
+
+/* Hide the README's inline logo in the page body: it's redundant with the
+   header logo, and its raw-HTML src="res/img/..." path doesn't resolve inside
+   the html/ output dir (Doxygen passes HTML <img> tags through verbatim). */
+.textblock img[src$="carquet_logo.png"] {
+    display: none;
+}

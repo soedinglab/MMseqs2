@@ -1,12 +1,12 @@
 /**
  * @file carquet.h
  * @brief Carquet - High-Performance Pure C Parquet Library
- * @version 0.4.0
+ * @version 0.6.0
  *
  * @copyright Copyright (c) 2025. All rights reserved.
  * @license MIT License
  *
- * Carquet is a production-ready, minimal-dependency pure C11 library for reading
+ * Carquet is a minimal-dependency pure C11 library for reading
  * and writing Apache Parquet files. It features automatic SIMD optimization
  * for maximum performance across x86-64 (SSE4.2, AVX2, AVX-512) and ARM
  * (NEON, SVE) architectures.
@@ -102,7 +102,10 @@
  * @section memory Memory Management
  *
  * - All returned pointers remain valid until their parent object is freed
- * - Batch data pointers are valid until carquet_row_batch_free() is called
+ * - Batch data pointers are valid only until the next
+ *   carquet_batch_reader_next() call on the same reader, or until the
+ *   batch reader is freed (whichever comes first). Batch buffers are
+ *   pooled and reused; copy any data you need to retain across batches.
  * - Schema pointers from readers are valid until the reader is closed
  * - Use carquet_set_allocator() to provide custom memory allocation
  *
@@ -196,13 +199,13 @@ extern "C" {
 #define CARQUET_VERSION_MAJOR 0
 
 /** @brief Minor version number */
-#define CARQUET_VERSION_MINOR 4
+#define CARQUET_VERSION_MINOR 7
 
 /** @brief Patch version number */
-#define CARQUET_VERSION_PATCH 0
+#define CARQUET_VERSION_PATCH 2
 
 /** @brief Version string in "MAJOR.MINOR.PATCH" format */
-#define CARQUET_VERSION_STRING "0.4.0"
+#define CARQUET_VERSION_STRING "0.7.2"
 
 /** @brief Numeric version for compile-time comparisons: (MAJOR * 10000 + MINOR * 100 + PATCH) */
 #define CARQUET_VERSION_NUMBER (CARQUET_VERSION_MAJOR * 10000 + CARQUET_VERSION_MINOR * 100 + CARQUET_VERSION_PATCH)
@@ -436,6 +439,95 @@ CARQUET_API CARQUET_PURE
 const carquet_allocator_t* carquet_get_allocator(void);
 
 /* ============================================================================
+ * Custom Codec Registration
+ * ============================================================================
+ *
+ * Carquet ships built-in compress/decompress implementations for SNAPPY, GZIP,
+ * LZ4, LZ4_RAW, ZSTD and BROTLI (the latter only when built with libbrotli,
+ * CARQUET_ENABLE_BROTLI, default ON). LZO has no built-in (GPL-only reference
+ * implementations; Arrow C++ has none either). Users can register their own
+ * implementation against any codec enum value to either fill an unsupported
+ * slot or override a built-in (for example, swap in a hardware-accelerated
+ * GZIP).
+ *
+ * Registrations are process-wide and are not safe to mutate while reader or
+ * writer threads are mid-compress / mid-decompress; install codecs at startup
+ * before opening files.
+ */
+
+/**
+ * @brief Pluggable compress/decompress implementation for one codec slot.
+ *
+ * All three function pointers are required; passing a struct with any of them
+ * NULL to @ref carquet_register_codec returns CARQUET_ERROR_INVALID_ARGUMENT.
+ * @ref user_data is forwarded back into every callback unchanged and is meant
+ * for codec-side state (allocator pools, level overrides, etc.).
+ */
+typedef struct carquet_custom_codec {
+    /**
+     * @brief Compress @p src_size bytes from @p src into @p dst.
+     *
+     * @p dst is already sized to `compress_bound(src_size, user_data)`.
+     * On success, set @p *out_size to the bytes actually written and return
+     * `CARQUET_OK`. @p level mirrors `carquet_writer_options_t.compression_level`
+     * (0 means "codec default"); the codec is free to ignore it.
+     */
+    carquet_status_t (*compress)(
+        const uint8_t* src, size_t src_size,
+        uint8_t* dst, size_t dst_capacity, size_t* out_size,
+        int32_t level, void* user_data);
+
+    /**
+     * @brief Decompress @p src_size bytes from @p src into @p dst.
+     *
+     * @p dst_capacity is the exact uncompressed size declared in the page
+     * header; the codec must produce exactly that many bytes or return an
+     * error. Set @p *out_size to the bytes written on success.
+     */
+    carquet_status_t (*decompress)(
+        const uint8_t* src, size_t src_size,
+        uint8_t* dst, size_t dst_capacity, size_t* out_size,
+        void* user_data);
+
+    /**
+     * @brief Worst-case compressed-output size for @p src_size bytes.
+     *
+     * The writer allocates this many bytes for the destination buffer before
+     * calling @ref compress, so the bound must hold for any input of that
+     * size or the writer will fail to compress legitimate pages.
+     */
+    size_t (*compress_bound)(size_t src_size, void* user_data);
+
+    /** @brief Opaque pointer passed back into every callback. */
+    void* user_data;
+} carquet_custom_codec_t;
+
+/**
+ * @brief Register or unregister a custom codec implementation.
+ *
+ * The registered codec takes priority over any built-in implementation for
+ * the given codec slot, so this can also be used to swap a built-in for an
+ * alternative implementation. Pass @p impl == NULL to clear the slot and
+ * restore the built-in (or leave the slot unsupported if no built-in
+ * exists). Registering against `CARQUET_COMPRESSION_UNCOMPRESSED` is
+ * rejected, since that path has a no-copy fast lane that must not be
+ * intercepted.
+ *
+ * @param[in] codec Codec slot to bind to.
+ * @param[in] impl  Implementation, or NULL to unregister.
+ * @return CARQUET_OK on success;
+ *         CARQUET_ERROR_INVALID_ARGUMENT if @p codec is out of range, equals
+ *         `UNCOMPRESSED`, or @p impl has a NULL function pointer.
+ *
+ * @note Thread-safety: Not safe to call concurrently with reader/writer
+ *       compression activity on the same codec slot.
+ */
+CARQUET_API
+carquet_status_t carquet_register_codec(
+    carquet_compression_t codec,
+    const carquet_custom_codec_t* impl);
+
+/* ============================================================================
  * Opaque Type Declarations
  * ============================================================================
  *
@@ -614,6 +706,74 @@ int32_t carquet_schema_add_group(
     const char* name,
     carquet_field_repetition_t repetition,
     int32_t parent_index);
+
+/**
+ * @brief Add an unshredded VARIANT group to the schema.
+ *
+ * Creates the standard Parquet unshredded VARIANT structure:
+ * @code
+ *   <name> (<variant_repetition>, VARIANT(1)) {
+ *     required binary metadata;
+ *     required binary value;
+ *   }
+ * @endcode
+ *
+ * @param[in,out] schema Target schema
+ * @param[in] name Variant column name
+ * @param[in] variant_repetition Repetition of the variant itself
+ * @param[in] parent_index Parent group index (0 for root)
+ * @return Group index of the variant container, or -1 on error
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1, 2)
+int32_t carquet_schema_add_variant(
+    carquet_schema_t* schema,
+    const char* name,
+    carquet_field_repetition_t variant_repetition,
+    int32_t parent_index);
+
+/**
+ * @brief Attach Arrow-style per-field metadata (e.g. a variable label) to a
+ *        schema element.
+ *
+ * Records a key/value pair that mirrors Arrow's `Field.custom_metadata`. This
+ * is the standard, reader-agnostic place for variable labels/descriptions:
+ * when @ref carquet_writer_options_t::write_arrow_schema is enabled, the pairs
+ * are emitted into the file-level `ARROW:schema` footer blob, and any
+ * Arrow-compatible reader (PyArrow, Parquet viewers) surfaces them
+ * automatically as field metadata. It is *not* written to
+ * `ColumnMetaData.key_value_metadata` (which is per-row-group and wrong for
+ * file-level, schema-level annotations).
+ *
+ * Calling it again with the same @p key on the same element replaces the value;
+ * distinct keys accumulate. Only flat (top-level) fields are emitted, matching
+ * the `ARROW:schema` writer.
+ *
+ * @param[in,out] schema        Target schema
+ * @param[in] element_index     Schema element index (as returned by
+ *                              @ref carquet_schema_add_group /
+ *                              @ref carquet_schema_add_variant, or
+ *                              `carquet_schema_num_elements() - 1` for the
+ *                              column just added). Index 0 (root) is rejected.
+ * @param[in] key               Metadata key (e.g. "Label"); copied. Non-NULL.
+ * @param[in] value             Metadata value; copied. May be NULL.
+ * @return CARQUET_OK, or CARQUET_ERROR_INVALID_ARGUMENT / _OUT_OF_MEMORY.
+ *
+ * @note Thread-safe: No (schema is mutable during construction)
+ *
+ * @code{.c}
+ * carquet_schema_add_column(schema, "Sex", CARQUET_PHYSICAL_INT32,
+ *                           NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
+ * carquet_schema_set_field_metadata(
+ *     schema, carquet_schema_num_elements(schema) - 1,
+ *     "Label", "Sex of Respondent");
+ * @endcode
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1, 3)
+carquet_status_t carquet_schema_set_field_metadata(
+    carquet_schema_t* schema,
+    int32_t element_index,
+    const char* key,
+    const char* value);
 
 /**
  * @brief Get the number of leaf columns in the schema.
@@ -833,6 +993,63 @@ int32_t carquet_schema_add_map(
     carquet_physical_type_t value_type,
     const carquet_logical_type_t* value_logical_type,
     int32_t value_type_length,
+    carquet_field_repetition_t map_repetition,
+    int32_t parent_index);
+
+/**
+ * @brief Add a LIST container whose element is an arbitrary nested subtree.
+ *
+ * Creates the outer LIST-annotated group and the inner REPEATED `list` group,
+ * and returns the index of that inner group. The caller adds exactly one child
+ * to it — the element — which may itself be a leaf column
+ * (@ref carquet_schema_add_column), a struct (@ref carquet_schema_add_group),
+ * or another nested list/map. This is the composable form of
+ * @ref carquet_schema_add_list and is what enables `LIST<LIST<...>>`,
+ * `LIST<STRUCT<...>>`, and other arbitrarily deep repetition.
+ *
+ * @code
+ *   int32_t inner = carquet_schema_add_list_group(schema, "matrix",
+ *       CARQUET_REPETITION_OPTIONAL, 0);          // list<list<int32>>
+ *   int32_t inner2 = carquet_schema_add_list_group(schema, "element",
+ *       CARQUET_REPETITION_OPTIONAL, inner);
+ *   carquet_schema_add_column(schema, "element", CARQUET_PHYSICAL_INT32, NULL,
+ *       CARQUET_REPETITION_OPTIONAL, 0, inner2);
+ * @endcode
+ *
+ * @param[in] schema Schema to modify
+ * @param[in] name List column name (outer group)
+ * @param[in] list_repetition Repetition of the list itself (OPTIONAL or REQUIRED)
+ * @param[in] parent_index Parent group index (0 for root)
+ * @return Index of the inner REPEATED `list` group (add the element to it), or
+ *         -1 on error.
+ */
+CARQUET_API CARQUET_NONNULL(1, 2)
+int32_t carquet_schema_add_list_group(
+    carquet_schema_t* schema,
+    const char* name,
+    carquet_field_repetition_t list_repetition,
+    int32_t parent_index);
+
+/**
+ * @brief Add a MAP container whose key/value are arbitrary nested subtrees.
+ *
+ * Creates the outer MAP-annotated group and the inner REPEATED `key_value`
+ * group, and returns the index of that inner group. The caller adds exactly
+ * two children to it: `key` (must be REQUIRED per the Parquet spec) and
+ * `value` (any repetition). Either may be a leaf or a nested subtree, enabling
+ * `MAP<K, LIST<V>>`, `MAP<K, STRUCT<...>>`, and so on.
+ *
+ * @param[in] schema Schema to modify
+ * @param[in] name Map column name (outer group)
+ * @param[in] map_repetition Repetition of the map itself (OPTIONAL or REQUIRED)
+ * @param[in] parent_index Parent group index (0 for root)
+ * @return Index of the inner REPEATED `key_value` group (add key + value to
+ *         it), or -1 on error.
+ */
+CARQUET_API CARQUET_NONNULL(1, 2)
+int32_t carquet_schema_add_map_group(
+    carquet_schema_t* schema,
+    const char* name,
     carquet_field_repetition_t map_repetition,
     int32_t parent_index);
 
@@ -1405,6 +1622,13 @@ carquet_column_reader_t* carquet_reader_get_column(
  *
  * @note Thread-safe: No (single column reader is not thread-safe)
  *
+ * @note This function collapses every failure mode onto the single sentinel
+ * value -1 and cannot report a page-read failure that truncates a batch after
+ * some values have already been read (it returns the partial count, which is
+ * indistinguishable from a clean short read at end-of-column). When the caller
+ * needs to tell these cases apart, use carquet_column_read_batch_ex(), which
+ * reports a distinct status code and message through a carquet_error_t.
+ *
  * @par Value Buffer Sizing
  * The values buffer must be sized appropriately for the column's physical type:
  * - BOOLEAN: uint8_t (1 byte per value)
@@ -1422,6 +1646,56 @@ int64_t carquet_column_read_batch(
     int64_t max_values,
     int16_t* def_levels,
     int16_t* rep_levels);
+
+/**
+ * @brief Read a batch of values from a column with detailed error reporting.
+ *
+ * Behaves exactly like carquet_column_read_batch() but reports a distinct
+ * status code (and human-readable message) for each failure condition through
+ * the optional @p error out-parameter, which is consistent with the
+ * carquet_error_t convention used elsewhere in the API.
+ *
+ * @param[in]  reader     Column reader
+ * @param[out] values     Output buffer for values (sized for physical type)
+ * @param[in]  max_values Maximum number of values to read
+ * @param[out] def_levels Definition levels buffer (may be NULL if not needed)
+ * @param[out] rep_levels Repetition levels buffer (may be NULL if not needed)
+ * @param[out] error      Error information (may be NULL). Cleared on entry and
+ *                        set only when a failure occurs.
+ * @return Number of values read, or -1 if no values could be read because of an
+ *         error. See the return/error contract below.
+ *
+ * @par Return / error contract
+ * The return value and @p error together distinguish four caller-visible cases:
+ * - <b>ret &gt;= 0 and error unset</b> — clean read. A value smaller than
+ *   @p max_values simply means the end of the column was reached.
+ * - <b>ret &gt; 0 and error set</b> — <em>partial</em> read: the returned values
+ *   are valid, but a page-read failure truncated the batch before @p max_values
+ *   (or end-of-column) was reached. The remaining values were NOT read. The
+ *   caller can salvage the returned data and still detect the failure.
+ * - <b>ret == -1 and error set</b> — hard failure with nothing read. The
+ *   @p error code identifies the cause:
+ *   - #CARQUET_ERROR_INVALID_ARGUMENT — @p max_values &lt; 0
+ *   - #CARQUET_ERROR_TYPE_MISMATCH    — the column's physical type is unknown
+ *   - #CARQUET_ERROR_OUT_OF_MEMORY    — scratch definition-level allocation failed
+ *   - any page/decode/I-O status      — propagated verbatim from the failing page read
+ *
+ * @note Callers that pass NULL for @p error get the same -1 / partial-count
+ * behavior as carquet_column_read_batch(); the extra information is simply
+ * discarded.
+ *
+ * @note Thread-safe: No (single column reader is not thread-safe)
+ *
+ * @see carquet_column_read_batch() for the value-buffer sizing rules.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+int64_t carquet_column_read_batch_ex(
+    carquet_column_reader_t* reader,
+    void* values,
+    int64_t max_values,
+    int16_t* def_levels,
+    int16_t* rep_levels,
+    carquet_error_t* error);
 
 /**
  * @brief Skip values in a column without reading them.
@@ -1695,6 +1969,16 @@ carquet_batch_reader_t* carquet_batch_reader_create(
  *
  * @note Thread-safe: No
  *
+ * @warning Streaming lifetime: the returned batch (and all data, null
+ *          bitmap, and dictionary pointers obtained from it) is owned by
+ *          the batch reader and is invalidated by the next call to
+ *          carquet_batch_reader_next() on the same reader, and by
+ *          carquet_batch_reader_free(). The batch reader pools and reuses
+ *          batch buffers, so do not retain a batch across next() calls;
+ *          copy out any values you need to keep. carquet_row_batch_free()
+ *          ends your use of the current batch but does not extend its
+ *          lifetime past the next next() call.
+ *
  * @code{.c}
  * carquet_row_batch_t* batch = NULL;
  * while (carquet_batch_reader_next(batch_reader, &batch) == CARQUET_OK && batch) {
@@ -1708,6 +1992,57 @@ CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1, 2)
 carquet_status_t carquet_batch_reader_next(
     carquet_batch_reader_t* batch_reader,
     carquet_row_batch_t** batch);
+
+/**
+ * @brief Detail for the most recent carquet_batch_reader_next() failure.
+ *
+ * carquet_batch_reader_next() has no error out-parameter, so on failure it can
+ * only return a status code. This accessor recovers the message that was built
+ * deeper in the reader — which page failed, at which absolute file offset, and
+ * for a codec rejection which specific check fired — so a failure part-way
+ * through a large file can be diagnosed without a debugger.
+ *
+ * @param[in] batch_reader Batch reader (may be NULL)
+ * @return Pointer to the error, or NULL if the last
+ *         carquet_batch_reader_next() did not fail. The pointer is owned by the
+ *         batch reader and stays valid until the next
+ *         carquet_batch_reader_next() call or carquet_batch_reader_free();
+ *         copy the message out if you need to keep it.
+ *
+ * @note `CARQUET_ERROR_END_OF_DATA` is the normal end-of-iteration signal, not
+ *       a failure, and leaves the last error unset (this function returns NULL).
+ * @note When the failure happened inside a column read, the returned error is
+ *       that column's verbatim error, including its `offset`, `column_index`,
+ *       and `row_group_index` context fields where the failing layer set them.
+ *       Its `code` is then the *underlying* status, which is more specific than
+ *       next()'s return value: a corrupt Snappy page makes next() return
+ *       #CARQUET_ERROR_DECODE while `code` is
+ *       #CARQUET_ERROR_INVALID_COMPRESSED_DATA. For failures outside a column
+ *       read the message falls back to the status name and `code` equals what
+ *       next() returned.
+ * @note With more than one projected column, the reported error is the first
+ *       failing column in projection order; other columns may have failed too.
+ * @note Thread-safe: No (tied to the same single-threaded use as next())
+ *
+ * @code{.c}
+ * carquet_row_batch_t* batch = NULL;
+ * carquet_status_t st;
+ * while ((st = carquet_batch_reader_next(br, &batch)) == CARQUET_OK && batch) {
+ *     // Process batch...
+ *     carquet_row_batch_free(batch);
+ *     batch = NULL;
+ * }
+ * if (st != CARQUET_OK && st != CARQUET_ERROR_END_OF_DATA) {
+ *     const carquet_error_t* e = carquet_batch_reader_last_error(br);
+ *     fprintf(stderr, "read failed: %s\n", e ? e->message : carquet_status_string(st));
+ * }
+ * @endcode
+ *
+ * @see carquet_column_read_batch_ex() for the same detail on the column-level API
+ */
+CARQUET_API
+const carquet_error_t* carquet_batch_reader_last_error(
+    const carquet_batch_reader_t* batch_reader);
 
 /**
  * @brief Free a batch reader.
@@ -1747,14 +2082,19 @@ int32_t carquet_row_batch_num_columns(const carquet_row_batch_t* batch);
  * @brief Get column data from a batch.
  *
  * Returns pointers to the raw column data within the batch. The pointers
- * remain valid until the batch is freed.
+ * remain valid only until the next carquet_batch_reader_next() call on the
+ * owning reader (or until the batch reader is freed); see that function's
+ * streaming-lifetime warning. Copy the data to retain it across batches.
  *
  * @param[in] batch Row batch
  * @param[in] column_index Column index within the batch (0 to num_columns-1)
  * @param[out] data Pointer to column data (type depends on physical type)
  * @param[out] null_bitmap Null bitmap (1 bit per value, set = not null) or NULL
  * @param[out] num_values Number of values in the column
- * @return CARQUET_OK on success
+ * @return CARQUET_OK on success, or CARQUET_ERROR_INVALID_ARGUMENT if the
+ *         column is dictionary-preserved (preserve_dictionaries enabled and the
+ *         column kept its dictionary): its data is uint32_t indices, not values,
+ *         so it must be read via carquet_row_batch_column_dictionary() instead.
  *
  * @note Thread-safe: Yes (read-only)
  *
@@ -1779,6 +2119,12 @@ carquet_status_t carquet_row_batch_column(
  * When preserve_dictionaries is enabled in the batch reader config,
  * dictionary-encoded columns store raw indices instead of materialized values.
  * This function retrieves the indices and dictionary data for zero-copy access.
+ *
+ * @warning The returned index, null bitmap, and dictionary pointers follow
+ *          the same streaming lifetime as carquet_batch_reader_next(): they
+ *          are invalidated by the next next() call on the owning reader (the
+ *          dictionary view in particular is reset when the row-group reader
+ *          advances). Copy out anything you need to keep across batches.
  *
  * @param[in] batch Row batch
  * @param[in] column_index Column index within the batch
@@ -1810,7 +2156,61 @@ carquet_status_t carquet_row_batch_column_dictionary(
     const uint32_t** dictionary_offsets);
 
 /**
+ * @brief Access a repeated (LIST / MAP-leaf) column as an Arrow List<T>.
+ *
+ * When a projected column is repeated (`max_rep_level == 1`), the batch reader
+ * reconstructs it into Arrow's list layout: a flattened child (element) array
+ * plus an offsets buffer that delimits each logical row's slice of that child
+ * array. Such a column is rejected by @ref carquet_row_batch_column (which
+ * would silently drop the list structure) and must be read here instead.
+ *
+ * For row `i` (0 <= i < *num_lists), its elements are
+ * `values[(*offsets)[i]] .. values[(*offsets)[i+1] - 1]`, and element `k` is
+ * null iff `value_validity` is non-NULL and bit `k` is clear
+ * (`!(value_validity[k/8] & (1 << (k%8)))`). The list itself (row `i`) is null
+ * iff `list_validity` is non-NULL and bit `i` is clear.
+ *
+ * The batch reader reads repeated columns a whole row group at a time, so one
+ * batch corresponds to one row group for such projections. Only single-level
+ * lists are supported; deeper nesting (`max_rep_level > 1`) makes
+ * @ref carquet_batch_reader_next return `CARQUET_ERROR_NOT_IMPLEMENTED`.
+ *
+ * @param[in] batch Row batch.
+ * @param[in] column_index Projected column index.
+ * @param[out] offsets Arrow list offsets, `*num_lists + 1` int32 entries.
+ * @param[out] num_lists Number of logical rows (lists) in the batch.
+ * @param[out] values Flattened child value array (physical type of the leaf).
+ * @param[out] value_validity Child validity bitmap (LSB-first, present bit set),
+ *                            or NULL when no element is null.
+ * @param[out] num_values Number of child elements (== `(*offsets)[*num_lists]`).
+ * @param[out] list_validity List-level validity bitmap, or NULL when no list is
+ *                           null (may be passed as NULL to ignore).
+ * @return CARQUET_OK, or CARQUET_ERROR_INVALID_ARGUMENT if the column is not a
+ *         reconstructed list column.
+ *
+ * @note All returned pointers belong to the batch; see
+ *       @ref carquet_row_batch_free for lifetime.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT
+carquet_status_t carquet_row_batch_column_list(
+    const carquet_row_batch_t* batch,
+    int32_t column_index,
+    const int32_t** offsets,
+    int64_t* num_lists,
+    const void** values,
+    const uint8_t** value_validity,
+    int64_t* num_values,
+    const uint8_t** list_validity);
+
+/**
  * @brief Free a row batch.
+ *
+ * Call this when finished with a batch returned by
+ * carquet_batch_reader_next(). Batches from a batch reader are pooled: the
+ * underlying buffers are owned and recycled by the reader, so this call
+ * releases your hold on the current batch but does not extend the lifetime
+ * of its data past the next carquet_batch_reader_next() call. For
+ * independently allocated batches it frees the owned data.
  *
  * @param[in] batch Batch to free (may be NULL)
  *
@@ -1836,7 +2236,8 @@ typedef struct carquet_column_statistics {
     bool has_distinct_count;    /**< Distinct count is available */
 
     int64_t null_count;         /**< Number of null values */
-    int64_t distinct_count;     /**< Approximate distinct value count */
+    int64_t distinct_count;     /**< Distinct value count; exact (non-null) when
+                                     carquet wrote it from a dictionary column */
     int64_t num_values;         /**< Total number of values (including nulls) */
 
     const void* min_value;      /**< Minimum value (type depends on column) */
@@ -1970,7 +2371,7 @@ typedef struct carquet_writer_options {
     /**
      * @brief Compression codec for all columns.
      *
-     * Default: CARQUET_COMPRESSION_SNAPPY
+     * Default: CARQUET_COMPRESSION_UNCOMPRESSED (set by carquet_writer_options_init)
      */
     carquet_compression_t compression;
 
@@ -2036,7 +2437,9 @@ typedef struct carquet_writer_options {
     /**
      * @brief Dictionary encoding mode.
      *
-     * Default: CARQUET_ENCODING_PLAIN_DICTIONARY
+     * Default: CARQUET_ENCODING_RLE_DICTIONARY (the encoding used when a column opts
+     * into dictionary encoding; columns are PLAIN unless carquet_writer_set_column_encoding
+     * selects otherwise)
      */
     carquet_encoding_t dictionary_encoding;
 
@@ -2057,6 +2460,115 @@ typedef struct carquet_writer_options {
      * Default: "Carquet"
      */
     const char* created_by;
+
+    /**
+     * @brief Maximum number of rows per data page.
+     *
+     * When greater than 0, a data page is flushed once it accumulates this
+     * many rows, in addition to the size-based trigger (@ref page_size).
+     *
+     * Default: 0 (unlimited — size-based flushing only)
+     */
+    int64_t max_rows_per_page;
+
+    /**
+     * @brief Embed the original Arrow schema as "ARROW:schema" footer metadata.
+     *
+     * When true, an Arrow IPC Schema message describing the columns is written
+     * (base64-encoded) under the "ARROW:schema" key, so Arrow/PyArrow can
+     * recover Arrow-specific type information losslessly. Only emitted for
+     * flat (non-nested) schemas; nested schemas leave it out rather than write
+     * a schema that disagrees with the Parquet schema. Default output bytes
+     * are unchanged when this is false.
+     *
+     * Default: false
+     */
+    bool write_arrow_schema;
+
+    /**
+     * @brief Data page format version to write (1 or 2).
+     *
+     * Version 1 (default) writes DATA_PAGE; version 2 writes DATA_PAGE_V2,
+     * which stores repetition/definition levels uncompressed and outside the
+     * compressed value region (matching Arrow's parquet-cpp). Any value other
+     * than 2 is treated as version 1.
+     *
+     * Default: 1
+     */
+    int32_t data_page_version;
+
+    /**
+     * @brief Coerce all TIMESTAMP columns to a single unit on write.
+     *
+     * When true, every `TIMESTAMP` (INT64) column is rescaled to
+     * @ref coerce_timestamp_unit and its metadata is emitted at that unit,
+     * regardless of the unit declared in the schema (mirrors PyArrow's
+     * `coerce_timestamps`). A coarser target loses precision; that is only
+     * allowed when @ref allow_timestamp_truncation is true, otherwise a value
+     * with a non-zero remainder fails the write.
+     *
+     * Default: false
+     */
+    bool coerce_timestamps;
+
+    /**
+     * @brief Target unit when @ref coerce_timestamps is true.
+     *
+     * Default: CARQUET_TIME_UNIT_MICROS
+     */
+    carquet_time_unit_t coerce_timestamp_unit;
+
+    /**
+     * @brief Allow lossy TIMESTAMP truncation during coercion.
+     *
+     * Mirrors PyArrow's `allow_truncated_timestamps`. Only consulted when
+     * @ref coerce_timestamps is true and the target unit is coarser than the
+     * source unit.
+     *
+     * Default: false
+     */
+    bool allow_timestamp_truncation;
+
+    /**
+     * @brief Internal value-batch size for column writing.
+     *
+     * Caps how many values are processed per internal chunk before a page
+     * flush is considered (mirrors PyArrow's `write_batch_size`). 0 keeps the
+     * automatic page-size-derived heuristic.
+     *
+     * Default: 0 (automatic)
+     */
+    int64_t write_batch_size;
+
+    /**
+     * @brief Parquet file format version written into the footer (1 or 2).
+     *
+     * Controls the `version` field of `FileMetaData`. Version 2 (default) is
+     * what every modern reader expects and what carquet has always emitted.
+     * Setting this to 1 produces a footer compatible with very old readers
+     * that reject version-2 files; it does not change page or encoding format
+     * (use @ref data_page_version for that). Any value other than 1 is
+     * treated as 2.
+     *
+     * Default: 2
+     */
+    int32_t file_format_version;
+
+    /**
+     * @brief Write each row group on a background thread.
+     *
+     * When enabled, a finalized row group is handed to an I/O thread that
+     * writes it while the caller's next batches are buffered, encoded and
+     * compressed, so file writes overlap with encoding instead of stalling
+     * it. At most one row group is in flight; peak memory grows by about one
+     * encoded (compressed) row group. A failed background write surfaces on
+     * the next row-group flush or on carquet_writer_close(). When the writer
+     * wraps a caller-supplied `FILE*`, the caller must not touch that stream
+     * between carquet_writer_create_file() and carquet_writer_close().
+     *
+     * Default: true
+     */
+    bool async_io;
 } carquet_writer_options_t;
 
 /**
@@ -2119,6 +2631,44 @@ carquet_writer_t* carquet_writer_create_file(
     carquet_error_t* error);
 
 /**
+ * @brief Open an existing Parquet file and append new row groups to it.
+ *
+ * Parses the existing file's footer, validates that @p schema describes the
+ * same leaf columns (count / name / physical type / repetition), and returns
+ * a writer positioned just before the existing footer. Subsequent calls to
+ * `carquet_writer_write_batch()` and `carquet_writer_new_row_group()` add new
+ * row groups; on `carquet_writer_close()` the writer emits a fresh footer
+ * that lists the existing row groups followed by the new ones. Existing
+ * bloom filters and page indexes are preserved (they sit between the row
+ * group data and the old footer, which is the region we overwrite).
+ *
+ * Restrictions:
+ * - The file must exist and contain a valid Parquet footer.
+ * - The supplied schema must match the existing file's leaf columns. Logical
+ *   types and adjacent metadata on the new row groups follow @p schema and
+ *   @p options; the existing row groups keep their original metadata as
+ *   parsed from the footer.
+ * - Existing key-value metadata is carried over; calls to
+ *   `carquet_writer_add_metadata()` add additional entries.
+ *
+ * @param[in] path Path to an existing Parquet file (opened with read+write
+ *                 access; not truncated).
+ * @param[in] schema Schema describing the file's leaf columns.
+ * @param[in] options Writer options for the new row groups (may be NULL).
+ * @param[out] error Error information (may be NULL).
+ * @return Writer handle, or NULL on error (e.g. schema mismatch, footer
+ *         missing).
+ *
+ * @note Thread-safe: Yes (returns an independent handle).
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1, 2)
+carquet_writer_t* carquet_writer_open_append(
+    const char* path,
+    const carquet_schema_t* schema,
+    const carquet_writer_options_t* options,
+    carquet_error_t* error);
+
+/**
  * @brief Write a batch of values to a column.
  *
  * Writes values to the specified column. All columns must be written the
@@ -2133,7 +2683,11 @@ carquet_writer_t* carquet_writer_create_file(
  * @param[in] def_levels Definition levels (NULL if all values defined).
  *                        One entry per logical row.
  * @param[in] rep_levels Repetition levels (NULL if no repetition)
- * @return CARQUET_OK on success
+ * @return CARQUET_OK on success. For BYTE_ARRAY columns every non-null
+ *         carquet_byte_array_t must have `length >= 0` and a non-NULL `data`
+ *         pointer whenever `length > 0`; otherwise the whole batch is rejected
+ *         with CARQUET_ERROR_INVALID_ARGUMENT before any state is modified,
+ *         on every encoding path (PLAIN, dictionary, DELTA_*).
  *
  * @note Thread-safe: No
  *
@@ -2168,6 +2722,64 @@ carquet_status_t carquet_writer_write_batch(
     const int16_t* rep_levels);
 
 /**
+ * @brief Write a single-level repeated (LIST / MAP) leaf column from
+ *        Arrow-style offsets and validity, without precomputing levels.
+ *
+ * Auto-shreds a repeated leaf into the definition/repetition levels that
+ * @ref carquet_writer_write_batch expects, then writes it. This is the
+ * write-side inverse of @ref carquet_row_batch_column_list. It handles the
+ * standard single-level encoding produced by @ref carquet_schema_add_list
+ * (`LIST<T>`) and @ref carquet_schema_add_map (`MAP<K,V>`): a REPEATED group
+ * (`max_rep_level == 1`) with an OPTIONAL or REQUIRED container above it and
+ * an OPTIONAL or REQUIRED leaf below. Deeper nesting returns
+ * @ref CARQUET_ERROR_NOT_IMPLEMENTED.
+ *
+ * @p column_index is the *leaf* column: the list element, or a map's key or
+ * value column. A `MAP<K,V>` is written with two calls sharing the same
+ * @p offsets and @p list_validity — one for the key leaf (`value_validity`
+ * NULL, keys are REQUIRED) and one for the value leaf.
+ *
+ * Buffers follow the Arrow columnar layout:
+ * - @p offsets has `num_lists + 1` int32 entries; `offsets[0]` must be 0 and
+ *   the array must be non-decreasing. `offsets[num_lists]` is the total child
+ *   element count.
+ * - @p list_validity is an Arrow (LSB-first) validity bitmap over the lists
+ *   (bit set ⇒ present); NULL means every list is present. A cleared bit
+ *   writes a null list (requires an OPTIONAL container).
+ * - @p values holds `offsets[num_lists]` child values in child order (the
+ *   full child array, including slots for null elements). For `BYTE_ARRAY`
+ *   this is a `carquet_byte_array_t` array; for `FIXED_LEN_BYTE_ARRAY`,
+ *   `type_length` bytes per element; otherwise the natural scalar type.
+ * - @p value_validity is an Arrow validity bitmap over the child elements
+ *   (bit set ⇒ present); NULL means every element is present. A cleared bit
+ *   writes a null element (requires an OPTIONAL leaf).
+ *
+ * @param[in] writer         File writer
+ * @param[in] column_index   Leaf column index (list element / map key or value)
+ * @param[in] num_lists      Number of list (or map) rows
+ * @param[in] offsets        `num_lists + 1` int32 offsets (may be NULL iff
+ *                           `num_lists == 0`)
+ * @param[in] list_validity  List-level validity bitmap, or NULL (all present)
+ * @param[in] values         Child values buffer (may be NULL iff there are no
+ *                           child elements)
+ * @param[in] value_validity Element-level validity bitmap, or NULL (all present)
+ * @param[out] error         Error information (may be NULL)
+ * @return CARQUET_OK on success
+ *
+ * @note Thread-safe: No
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_writer_write_list_column(
+    carquet_writer_t* writer,
+    int32_t column_index,
+    int64_t num_lists,
+    const int32_t* offsets,
+    const uint8_t* list_validity,
+    const void* values,
+    const uint8_t* value_validity,
+    carquet_error_t* error);
+
+/**
  * @brief Start a new row group.
  *
  * Flushes the current row group and starts a new one. This is called
@@ -2182,6 +2794,21 @@ carquet_status_t carquet_writer_write_batch(
  */
 CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
 carquet_status_t carquet_writer_new_row_group(carquet_writer_t* writer);
+
+/**
+ * @brief Get the number of leaf columns the writer expects.
+ *
+ * Mirrors @ref carquet_reader_num_columns for the write side. This is the count
+ * of leaf columns in the schema the writer was created with, i.e. the valid
+ * range of @p column_index for @ref carquet_writer_write_batch.
+ *
+ * @param[in] writer File writer
+ * @return Number of leaf columns
+ *
+ * @note Thread-safe: Yes (read-only)
+ */
+CARQUET_API CARQUET_PURE CARQUET_NONNULL(1)
+int32_t carquet_writer_num_columns(const carquet_writer_t* writer);
 
 /**
  * @brief Close the writer and finalize the file.
@@ -2215,6 +2842,9 @@ void carquet_writer_abort(carquet_writer_t* writer);
  * Utility Functions
  * ============================================================================ */
 
+/** @brief Maximum length (including NUL) of carquet_file_info_t::created_by. */
+#define CARQUET_CREATED_BY_MAX 256
+
 /**
  * @brief File information from metadata (without full parsing).
  */
@@ -2224,7 +2854,14 @@ typedef struct carquet_file_info {
     int32_t num_row_groups;     /**< Number of row groups */
     int32_t num_columns;        /**< Number of columns */
     int32_t version;            /**< Parquet format version */
-    const char* created_by;     /**< Creator identification (may be NULL) */
+    /**
+     * @brief Creator identification, NUL-terminated.
+     *
+     * Empty string if the file declares no creator. Stored inline (caller
+     * owns the carquet_file_info_t), so no separate free is needed. A creator
+     * string longer than CARQUET_CREATED_BY_MAX-1 bytes is truncated.
+     */
+    char created_by[CARQUET_CREATED_BY_MAX];
 } carquet_file_info_t;
 
 /**
@@ -2364,6 +3001,8 @@ typedef struct carquet_page_stats {
     const void* max_value;      /**< Maximum value (type depends on column) */
     int32_t max_value_size;     /**< Size of max_value in bytes */
     bool is_null_page;          /**< True if page contains only nulls */
+    bool has_null_count;        /**< False when the ColumnIndex carries no null_counts
+                                 *   (optional field): null_count is then unknown, not 0 */
 } carquet_page_stats_t;
 
 /**
@@ -2471,6 +3110,173 @@ CARQUET_API
 void carquet_offset_index_free(carquet_offset_index_t* index);
 
 /* ============================================================================
+ * Page Filter API
+ * ============================================================================
+ *
+ * Page-level predicate pushdown for the batch reader. Each filter is a
+ * conjunction (AND) of clauses; each clause references one column and
+ * compares it against a literal value (or value set). Clauses are evaluated
+ * against per-page min/max statistics in the column index, and only pages
+ * whose value range could match the predicate are decompressed.
+ *
+ * Both the predicate column(s) and the projection are independent — the
+ * filter may reference columns that are not projected, in which case those
+ * columns are inspected only via their column + offset index (no pages of
+ * those columns are decompressed).
+ *
+ * Page filters are conservative: rows within a matching page that do not
+ * satisfy the predicate are still returned. Callers needing exact filtering
+ * should apply the predicate themselves after the batch.
+ *
+ * The file must have been written with write_page_index = true for every
+ * column the filter references. INT96 columns have no defined sort order
+ * per the Parquet spec and cannot be used in a filter.
+ */
+
+/**
+ * @brief Comparison operators for page filter clauses.
+ */
+typedef enum carquet_filter_op {
+    CARQUET_FILTER_EQ = 0,
+    CARQUET_FILTER_NE,
+    CARQUET_FILTER_LT,
+    CARQUET_FILTER_LE,
+    CARQUET_FILTER_GT,
+    CARQUET_FILTER_GE,
+    CARQUET_FILTER_RANGE,        /**< closed [lo, hi]; either endpoint may be omitted */
+    CARQUET_FILTER_IN,           /**< value membership; values + value_count */
+    CARQUET_FILTER_IS_NULL,
+    CARQUET_FILTER_IS_NOT_NULL,
+} carquet_filter_op_t;
+
+/**
+ * @brief One clause in a conjunctive page filter.
+ *
+ * For numeric types (INT32/INT64/FLOAT/DOUBLE/BOOLEAN), `value` points to
+ * a scalar of the column's native width and `value_size` is ignored.
+ *
+ * For BYTE_ARRAY, `value` is a pointer to the raw bytes and `value_size`
+ * is the byte length. For FIXED_LEN_BYTE_ARRAY, `value_size` must equal
+ * the column's declared type_length.
+ *
+ * For RANGE: when has_lo is true, lo/lo_size give the lower bound;
+ * when has_hi is true, hi/hi_size give the upper bound. At least one
+ * endpoint must be present.
+ *
+ * For IN: `values` points to a packed array of `value_count` entries.
+ * For fixed-width numeric types, the entries are native-width scalars laid
+ * out contiguously (stride = sizeof(physical type)). For BYTE_ARRAY and
+ * FIXED_LEN_BYTE_ARRAY, `values` is a contiguous array of
+ * carquet_byte_array_t entries.
+ *
+ * For IS_NULL / IS_NOT_NULL, all value fields are ignored.
+ *
+ * The clauses array and all data it points to are referenced (not copied)
+ * by the batch reader for the lifetime of the filter — the caller must
+ * keep them alive until set_page_filter() is called again or the batch
+ * reader is freed.
+ */
+typedef struct carquet_filter_clause {
+    int32_t column_index;
+    carquet_filter_op_t op;
+
+    /* Unary ops (EQ, NE, LT, LE, GT, GE) */
+    const void* value;
+    int32_t value_size;
+
+    /* RANGE */
+    const void* lo;
+    int32_t lo_size;
+    const void* hi;
+    int32_t hi_size;
+    bool has_lo;
+    bool has_hi;
+
+    /* IN */
+    const void* values;
+    int32_t value_count;
+} carquet_filter_clause_t;
+
+/**
+ * @brief Attach a conjunctive page filter to the batch reader.
+ *
+ * Pass clauses = NULL or count = 0 to clear any previously installed filter.
+ *
+ * The filter is evaluated lazily, per row group, the first time each row
+ * group is read. Subsequent batches within a row group reuse the cached
+ * row-range list.
+ *
+ * @param[in] reader   Batch reader
+ * @param[in] clauses  Array of filter clauses (AND'd together), or NULL
+ * @param[in] count    Number of clauses
+ * @return CARQUET_OK on success;
+ *         CARQUET_ERROR_INVALID_ARGUMENT for an out-of-range column,
+ *         a type/size mismatch, or an INT96 predicate;
+ *         CARQUET_ERROR_PAGE_INDEX_REQUIRED (surfacing from
+ *         carquet_batch_reader_next) if any referenced column lacks an
+ *         offset index (file was not written with write_page_index = true).
+ *         A column with an offset index but no column index (no page bounds
+ *         were available to the writer, e.g. statistics disabled) is not
+ *         pruned: every row of its row groups is read.
+ *
+ * @note Thread-safe: No
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_batch_reader_set_page_filter(
+    carquet_batch_reader_t* reader,
+    const carquet_filter_clause_t* clauses,
+    int32_t count);
+
+/**
+ * @brief Number of rows skipped by the active page filter so far.
+ *
+ * Returns 0 when no filter is set, or when no rows have been skipped yet.
+ * Useful for confirming that filtering is firing on a given workload.
+ */
+CARQUET_API CARQUET_PURE CARQUET_NONNULL(1)
+int64_t carquet_batch_reader_rows_skipped(const carquet_batch_reader_t* reader);
+
+/**
+ * @brief Restrict the batch reader to an arbitrary [offset, offset+limit) row
+ *        range, independent of any predicate.
+ *
+ * After this call, carquet_batch_reader_next() yields only the requested
+ * logical rows, in order, across as many batches as needed (each still clipped
+ * to config.batch_size). Row groups entirely outside the window are skipped
+ * without I/O; the leading rows of a partially-selected row group are skipped
+ * via the offset index when present, otherwise by read-and-discard.
+ *
+ * @param[in] reader  Batch reader
+ * @param[in] offset  Zero-based index of the first row to return (>= 0).
+ * @param[in] limit   Number of rows to return, or a negative value for "all
+ *                    remaining rows from @p offset to end of file".
+ *
+ * Semantics:
+ *   - offset == 0 && limit < 0 clears any active range (full sequential read).
+ *   - limit == 0 selects zero rows (the first next() returns
+ *     CARQUET_ERROR_END_OF_DATA).
+ *   - An offset at or beyond the total row count yields no rows.
+ *
+ * Calling this resets iteration to the start of the file, so it may be used to
+ * re-position a reader that has already produced batches.
+ *
+ * @return CARQUET_OK on success;
+ *         CARQUET_ERROR_INVALID_ARGUMENT if offset < 0, or if a page filter is
+ *         currently installed (the two features are mutually exclusive).
+ *
+ * @note A row range is not combined with repeated (nested/LIST/MAP) columns:
+ *       next() returns CARQUET_ERROR_NOT_IMPLEMENTED for such a projection.
+ * @note A row range and a page filter are mutually exclusive; installing one
+ *       while the other is active returns CARQUET_ERROR_INVALID_ARGUMENT.
+ * @note Thread-safe: No
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_batch_reader_set_row_range(
+    carquet_batch_reader_t* reader,
+    int64_t offset,
+    int64_t limit);
+
+/* ============================================================================
  * Key-Value Metadata API
  * ============================================================================
  *
@@ -2515,6 +3321,95 @@ CARQUET_API CARQUET_PURE CARQUET_NONNULL(1, 2)
 const char* carquet_reader_find_metadata(
     const carquet_reader_t* reader,
     const char* key);
+
+/**
+ * @brief Number of Arrow per-field metadata entries for a leaf column.
+ *
+ * Recovered from the file's `ARROW:schema` footer blob (variable
+ * labels/descriptions written via @ref carquet_schema_set_field_metadata, or
+ * by PyArrow / Arrow C++). Returns 0 when the file has no `ARROW:schema` blob,
+ * the blob is malformed, or the column carries no field metadata.
+ *
+ * @param[in] reader File reader
+ * @param[in] column_index Leaf column index (0 to num_columns - 1)
+ * @return Entry count, or 0 on an invalid column index
+ */
+CARQUET_API CARQUET_PURE CARQUET_NONNULL(1)
+int32_t carquet_reader_column_num_metadata(
+    const carquet_reader_t* reader,
+    int32_t column_index);
+
+/**
+ * @brief Get an Arrow per-field metadata entry for a leaf column by index.
+ *
+ * @param[in] reader File reader
+ * @param[in] column_index Leaf column index (0 to num_columns - 1)
+ * @param[in] index Entry index (0 to column_num_metadata - 1)
+ * @param[out] key Output key string (valid until reader is closed)
+ * @param[out] value Output value string (may be NULL)
+ * @return CARQUET_OK on success, CARQUET_ERROR_INVALID_ARGUMENT if out of range
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1, 4, 5)
+carquet_status_t carquet_reader_column_get_metadata(
+    const carquet_reader_t* reader,
+    int32_t column_index,
+    int32_t index,
+    const char** key,
+    const char** value);
+
+/**
+ * @brief Find an Arrow per-field metadata value for a leaf column by key.
+ *
+ * Convenience lookup, e.g. `carquet_reader_column_find_metadata(r, i, "Label")`
+ * to read a variable label.
+ *
+ * @param[in] reader File reader
+ * @param[in] column_index Leaf column index (0 to num_columns - 1)
+ * @param[in] key Key to search for
+ * @return Value string, or NULL if the column/key is not found
+ */
+CARQUET_API CARQUET_PURE CARQUET_NONNULL(1, 3)
+const char* carquet_reader_column_find_metadata(
+    const carquet_reader_t* reader,
+    int32_t column_index,
+    const char* key);
+
+/**
+ * @brief Arrow type refinements recovered from the "ARROW:schema" footer blob.
+ *
+ * Some Arrow types cannot be expressed by the Parquet type system, so a
+ * PyArrow / Arrow C++ writer stores the original Arrow type only in the
+ * "ARROW:schema" footer. On read, carquet recovers the ones that apply to a
+ * flat leaf column; the leaf's Parquet physical type is unchanged (e.g. a
+ * LargeUtf8 column is still stored as a `BYTE_ARRAY` with STRING logical type)
+ * but the refinement tells the caller the original 64-bit-offset Arrow type.
+ */
+typedef enum carquet_arrow_type_refinement {
+    CARQUET_ARROW_REFINE_NONE = 0,          /**< No Arrow-only refinement */
+    CARQUET_ARROW_REFINE_LARGE_UTF8 = 1,    /**< Arrow LargeUtf8 (64-bit offsets) */
+    CARQUET_ARROW_REFINE_LARGE_BINARY = 2,  /**< Arrow LargeBinary (64-bit offsets) */
+    CARQUET_ARROW_REFINE_LARGE_LIST = 3     /**< Arrow LargeList (64-bit offsets) */
+} carquet_arrow_type_refinement_t;
+
+/**
+ * @brief Recover the Arrow type refinement for a leaf column, if any.
+ *
+ * Reads the refinement recovered from the file's "ARROW:schema" blob (see
+ * @ref carquet_arrow_type_refinement_t). Returns @ref CARQUET_ARROW_REFINE_NONE
+ * when the file has no "ARROW:schema", the column is not a flat top-level
+ * field, or the field carried no 64-bit-offset Arrow type. Purely informational
+ * — it never changes how the column's values are read.
+ *
+ * @param[in] reader File reader
+ * @param[in] column_index Leaf column index (0 to num_columns - 1)
+ * @return The recovered refinement, or CARQUET_ARROW_REFINE_NONE
+ *
+ * @note Thread-safe: Yes (read-only)
+ */
+CARQUET_API CARQUET_PURE CARQUET_NONNULL(1)
+carquet_arrow_type_refinement_t carquet_reader_column_arrow_type_refinement(
+    const carquet_reader_t* reader,
+    int32_t column_index);
 
 /**
  * @brief Add key-value metadata to the file being written.
@@ -2576,6 +3471,49 @@ carquet_status_t carquet_reader_column_chunk_metadata(
     int32_t column_index,
     carquet_column_chunk_metadata_t* metadata);
 
+/** @brief Maximum geometry type codes reported in geospatial statistics. */
+#define CARQUET_MAX_GEOSPATIAL_TYPES 64
+
+/**
+ * @brief GeospatialStatistics for a GEOMETRY/GEOGRAPHY column chunk.
+ *
+ * @c has_bbox is true when a coordinate bounding box was recorded. @c has_z /
+ * @c has_m indicate whether the Z (elevation) and M dimensions are present.
+ * @c geometry_types holds the distinct ISO-WKB type codes encountered
+ * (e.g. 1 = Point XY, 1001 = Point XYZ); an empty list means "unknown".
+ */
+typedef struct carquet_geospatial_statistics {
+    bool has_bbox;
+    double xmin, xmax, ymin, ymax;
+    bool has_z;
+    double zmin, zmax;
+    bool has_m;
+    double mmin, mmax;
+    int32_t num_geometry_types;
+    int32_t geometry_types[CARQUET_MAX_GEOSPATIAL_TYPES];
+} carquet_geospatial_statistics_t;
+
+/**
+ * @brief Get GeospatialStatistics for a GEOMETRY/GEOGRAPHY column chunk.
+ *
+ * @param[in] reader File reader
+ * @param[in] row_group_index Row group index
+ * @param[in] column_index Column index
+ * @param[out] stats Output statistics
+ * @return CARQUET_OK if the column chunk carries geospatial statistics;
+ *         CARQUET_ERROR_INVALID_METADATA if it does not (not an error for
+ *         non-geospatial columns); CARQUET_ERROR_INVALID_ARGUMENT on bad
+ *         indices.
+ *
+ * @note Thread-safe: Yes (read-only)
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1, 4)
+carquet_status_t carquet_reader_geospatial_statistics(
+    const carquet_reader_t* reader,
+    int32_t row_group_index,
+    int32_t column_index,
+    carquet_geospatial_statistics_t* stats);
+
 /* ============================================================================
  * Per-Column Writer Options
  * ============================================================================
@@ -2619,6 +3557,54 @@ carquet_status_t carquet_writer_set_column_compression(
     int32_t level);
 
 /**
+ * @brief Override the target byte-based page-flush size for one column.
+ *
+ * Overrides `carquet_writer_options_t.page_size` for the given column.
+ * Useful when some columns benefit from smaller pages (finer page-level
+ * pruning via the page index) while others benefit from larger pages
+ * (lower per-page header overhead). Must be called before writing data,
+ * like the other per-column setters.
+ *
+ * @param[in] writer File writer
+ * @param[in] column_index Column index
+ * @param[in] bytes Target page size in bytes (must be > 0)
+ * @return CARQUET_OK on success; CARQUET_ERROR_INVALID_ARGUMENT if
+ *         @p column_index is out of range or @p bytes is non-positive.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_writer_set_column_page_size(
+    carquet_writer_t* writer,
+    int32_t column_index,
+    int64_t bytes);
+
+/**
+ * @brief Maximum stored size of variable-length min/max statistics.
+ *
+ * Caps how many bytes of a BYTE_ARRAY column's `min` / `max` are stored in
+ * column statistics. Longer values are truncated: the min is stored as the
+ * leading prefix (still a valid lower bound), and the max is stored as the
+ * leading prefix incremented lexicographically (still a valid upper bound).
+ * If the max prefix is all `0xFF` so the increment cannot be represented,
+ * the max is omitted entirely rather than being stored as an invalid bound.
+ * The `is_min_value_exact` / `is_max_value_exact` flags reflect whether the
+ * stored value equals the actual column min / max.
+ *
+ * Fixed-width physical types (numeric, BOOLEAN, FIXED_LEN_BYTE_ARRAY) are
+ * stored at their natural width and ignore this setting.
+ *
+ * Default: 32 bytes (matches Arrow and the Parquet spec recommendation).
+ *
+ * @param[in] writer File writer
+ * @param[in] bytes Maximum stored size (must be > 0)
+ * @return CARQUET_OK on success; CARQUET_ERROR_INVALID_ARGUMENT if
+ *         @p bytes is non-positive.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_writer_set_max_statistics_size(
+    carquet_writer_t* writer,
+    int64_t bytes);
+
+/**
  * @brief Enable or disable statistics for a specific column.
  *
  * @param[in] writer File writer
@@ -2645,6 +3631,65 @@ carquet_status_t carquet_writer_set_column_bloom_filter(
     carquet_writer_t* writer,
     int32_t column_index,
     bool enabled);
+
+/**
+ * @brief Enable or disable a bloom filter for a column with explicit sizing.
+ *
+ * Like carquet_writer_set_column_bloom_filter() but additionally lets the
+ * caller control the expected number of distinct values (NDV) and the target
+ * false-positive probability (FPP) used to size the filter.
+ *
+ * Using this for any column switches bloom emission to per-column opt-in: only
+ * columns enabled through this function or through
+ * carquet_writer_set_column_bloom_filter() get a filter. Columns left untouched
+ * do not gain a default filter even though enabling one here turns the global
+ * write_bloom_filters flag on. The two setters compose freely and may be mixed.
+ *
+ * @param[in] writer File writer
+ * @param[in] column_index Column index
+ * @param[in] enabled Whether to write a bloom filter
+ * @param[in] ndv Expected number of distinct values (<= 0 => use default)
+ * @param[in] fpp Target false-positive probability in (0, 1)
+ *                (<= 0 or >= 1 => use default 0.01)
+ * @return CARQUET_OK on success
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_writer_set_column_bloom_filter_options(
+    carquet_writer_t* writer,
+    int32_t column_index,
+    bool enabled,
+    int64_t ndv,
+    double fpp);
+
+/**
+ * @brief Describes a column's contribution to a row group's sort order.
+ *
+ * Mirrors the Parquet Thrift `SortingColumn` structure.
+ */
+typedef struct carquet_sorting_column {
+    int32_t column_index;  /**< Ordinal position of the column in the row group */
+    bool descending;       /**< true => column is sorted in descending order */
+    bool nulls_first;      /**< true => nulls sort before non-null values */
+} carquet_sorting_column_t;
+
+/**
+ * @brief Declare the sort order of row groups.
+ *
+ * The supplied list is recorded in the `sorting_columns` metadata of every
+ * row group written by this writer (matching PyArrow's behavior). This only
+ * declares the order; the writer does not sort or verify the data. Pass
+ * count == 0 to clear a previously set order.
+ *
+ * @param[in] writer File writer
+ * @param[in] columns Array of sorting column descriptors (copied)
+ * @param[in] count Number of entries in @p columns
+ * @return CARQUET_OK on success
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT CARQUET_NONNULL(1)
+carquet_status_t carquet_writer_set_sorting_columns(
+    carquet_writer_t* writer,
+    const carquet_sorting_column_t* columns,
+    int32_t count);
 
 /* ============================================================================
  * Writer Buffer API
@@ -2686,6 +3731,221 @@ carquet_status_t carquet_writer_get_buffer(
     carquet_writer_t* writer,
     void** buffer,
     size_t* size);
+
+/* ============================================================================
+ * Arrow C Data Interface Bridge
+ * ============================================================================
+ *
+ * Implements the standard Arrow C Data Interface (`ArrowSchema` / `ArrowArray`)
+ * so Carquet data can be handed to — and accepted from — the wider Arrow
+ * ecosystem (PyArrow, DuckDB, nanoarrow, ...) without a bespoke copy at every
+ * boundary.
+ *
+ * Scope (v0.7.0): nested types are supported. carquet_arrow_export_schema() and
+ * carquet_arrow_import_schema() map Arrow <-> Parquet struct / list / map at any
+ * depth; carquet_reader_read_arrow() / carquet_writer_write_arrow() reassemble
+ * and shred arbitrarily nested arrays. The zero-copy batch export
+ * carquet_arrow_export_batch() covers what a row batch can represent — flat
+ * columns plus single-level LIST<T> and MAP<K,V>; STRUCT and deeper nesting
+ * there return CARQUET_ERROR_NOT_IMPLEMENTED (use carquet_reader_read_arrow()).
+ *
+ * Ownership:
+ * - Export (carquet_arrow_export_*): Carquet allocates and owns every buffer,
+ *   child, and string reachable from the produced struct. The consumer takes
+ *   ownership and must call `out->release(out)` exactly once. Exported buffers
+ *   are independent copies, valid after the source batch is freed.
+ * - Import (carquet_arrow_import_schema, carquet_writer_write_arrow): the call
+ *   consumes the passed-in struct(s). On both success and failure the struct's
+ *   `release` callback is invoked (Arrow "move" semantics), so the caller must
+ *   not release them again.
+ *
+ * @see https://arrow.apache.org/docs/format/CDataInterface.html
+ */
+
+/* Arrow C Data Interface ABI (verbatim from the specification). Guarded by
+ * ARROW_C_DATA_INTERFACE so that including a real Arrow abi.h / nanoarrow.h
+ * alongside carquet.h does not produce a redefinition. */
+#ifndef ARROW_C_DATA_INTERFACE
+#define ARROW_C_DATA_INTERFACE
+
+#define ARROW_FLAG_DICTIONARY_ORDERED 1
+#define ARROW_FLAG_NULLABLE 2
+#define ARROW_FLAG_MAP_KEYS_SORTED 4
+
+struct ArrowSchema {
+    const char* format;
+    const char* name;
+    const char* metadata;
+    int64_t flags;
+    int64_t n_children;
+    struct ArrowSchema** children;
+    struct ArrowSchema* dictionary;
+    void (*release)(struct ArrowSchema*);
+    void* private_data;
+};
+
+struct ArrowArray {
+    int64_t length;
+    int64_t null_count;
+    int64_t offset;
+    int64_t n_buffers;
+    int64_t n_children;
+    const void** buffers;
+    struct ArrowArray** children;
+    struct ArrowArray* dictionary;
+    void (*release)(struct ArrowArray*);
+    void* private_data;
+};
+
+#endif /* ARROW_C_DATA_INTERFACE */
+
+/**
+ * @brief Export a flat Carquet schema as an Arrow C Data Interface schema.
+ *
+ * Produces a top-level struct schema (`format = "+s"`) whose children are the
+ * schema's leaf columns, in order. Each child's `format` string encodes the
+ * Arrow type derived from the column's physical + logical type; `name` is the
+ * column name; ARROW_FLAG_NULLABLE is set for non-REQUIRED columns.
+ *
+ * @param[in] schema Flat (non-nested) schema. A leaf with `max_rep_level > 0`
+ *                   is rejected.
+ * @param[out] out Uninitialised ArrowSchema to populate. On success the caller
+ *                 owns it and must call `out->release(out)`.
+ * @param[out] error Error details (may be NULL).
+ * @return CARQUET_OK, or an error (INVALID_ARGUMENT / NOT_IMPLEMENTED /
+ *         OUT_OF_MEMORY). On error @p out is left released (untouched).
+ */
+/* No CARQUET_NONNULL: these are an external ABI boundary (Arrow structs may
+ * originate from other-language producers), so the runtime NULL checks are
+ * intentional and must not be optimised away. */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT
+carquet_status_t carquet_arrow_export_schema(
+    const carquet_schema_t* schema,
+    struct ArrowSchema* out,
+    carquet_error_t* error);
+
+/**
+ * @brief Export a flat Carquet row batch as an Arrow C Data Interface array.
+ *
+ * Produces a top-level struct array whose children are the batch columns. Every
+ * buffer is a freshly allocated copy owned by @p out_array, so the export
+ * survives freeing the source batch or advancing the batch reader.
+ *
+ * Buffer layout per child follows the Arrow spec:
+ * - primitive fixed-width: `[validity, data]`
+ * - BOOLEAN: `[validity, data]` with the data buffer bit-packed (LSB-first)
+ * - UTF8 / binary (BYTE_ARRAY): `[validity, offsets(int32), data]`
+ * - fixed-size binary (FIXED_LEN_BYTE_ARRAY): `[validity, data]`
+ *
+ * The @p schema supplies column names, logical types, and nullability; its leaf
+ * column count must equal the batch column count (batch read without column
+ * projection). Dictionary-preserved batch columns are rejected.
+ *
+ * @param[in] batch Source row batch.
+ * @param[in] schema Matching flat schema (leaf count == batch columns).
+ * @param[out] out_schema Optional ArrowSchema for the batch (may be NULL); when
+ *                        non-NULL, caller must release it.
+ * @param[out] out_array ArrowArray to populate; caller must release.
+ * @param[out] error Error details (may be NULL).
+ * @return CARQUET_OK or an error. On error nothing is left owned by the caller.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT
+carquet_status_t carquet_arrow_export_batch(
+    const carquet_row_batch_t* batch,
+    const carquet_schema_t* schema,
+    struct ArrowSchema* out_schema,
+    struct ArrowArray* out_array,
+    carquet_error_t* error);
+
+/**
+ * @brief Build a Carquet schema from an Arrow C Data Interface schema.
+ *
+ * Accepts a top-level struct schema (`format = "+s"`) and creates a flat
+ * Carquet schema whose columns mirror the struct's children. Each child's Arrow
+ * `format` string is mapped back to a Carquet physical + logical type; the
+ * ARROW_FLAG_NULLABLE flag selects OPTIONAL vs REQUIRED.
+ *
+ * Consumes @p schema: its `release` callback is called before returning
+ * (success or failure). Nested children (struct, list, large list, fixed-size
+ * list, map) are imported to any depth; dictionary-encoded fields take the
+ * dictionary's value type. Arrow types with no Parquet physical equivalent are
+ * coerced as pyarrow does: `decimal32/64/128/256` ("d:p,s[,bits]") to
+ * FIXED_LEN_BYTE_ARRAY DECIMAL(p, s) with parquet-cpp's byte length, `date64`
+ * ("tdm") to DATE, `time32[s]` ("tts") to TIME(MILLIS), `timestamp[s]`
+ * ("tss:tz") to TIMESTAMP(MILLIS), and 8/16-bit integers to INT32 with an
+ * INTEGER annotation. Unions and run-end-encoded arrays are rejected with
+ * CARQUET_ERROR_NOT_IMPLEMENTED.
+ *
+ * @param[in] schema Arrow struct schema to import (consumed).
+ * @param[out] out Receives a new carquet_schema_t; free with carquet_schema_free.
+ * @param[out] error Error details (may be NULL).
+ * @return CARQUET_OK or an error.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT
+carquet_status_t carquet_arrow_import_schema(
+    struct ArrowSchema* schema,
+    carquet_schema_t** out,
+    carquet_error_t* error);
+
+/**
+ * @brief Write an Arrow C Data Interface array to a Carquet writer.
+ *
+ * Accepts a top-level struct array (from any Arrow C Data Interface exporter)
+ * and writes each child column to @p writer via the normal column batch path —
+ * converting Arrow validity bitmaps to Parquet definition levels and compacting
+ * values as required. The array's children map positionally to the writer's
+ * columns; the child count must equal the writer column count.
+ *
+ * Consumes both @p array and @p schema: their `release` callbacks are called
+ * before returning (success or failure). Nested children are shredded to any
+ * depth (see docs/nested-data.md), dictionary-encoded children are resolved to
+ * their values, sliced arrays (`offset != 0` at any level) write exactly the
+ * slice, and the type coercions listed at @ref carquet_arrow_import_schema are
+ * applied to the values. Every child's `length` must cover the struct's
+ * `offset + length`.
+ *
+ * @param[in] writer Target writer.
+ * @param[in] array Arrow struct array to write (consumed).
+ * @param[in] schema Arrow schema describing @p array (consumed).
+ * @param[out] error Error details (may be NULL).
+ * @return CARQUET_OK or an error.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT
+carquet_status_t carquet_writer_write_arrow(
+    carquet_writer_t* writer,
+    struct ArrowArray* array,
+    struct ArrowSchema* schema,
+    carquet_error_t* error);
+
+/**
+ * @brief Read one Parquet row group directly into a nested Arrow C Data array.
+ *
+ * Reassembles the row group as a top-level Arrow struct array whose children
+ * are the file's top-level fields, reconstructing struct, list, large-list and
+ * map nesting to any depth from the columns' repetition/definition levels. This
+ * is the read-side counterpart to @ref carquet_writer_write_arrow and handles
+ * the full nesting the flat @ref carquet_arrow_export_batch cannot.
+ *
+ * Every buffer is a freshly allocated copy owned by @p out_array (and
+ * @p out_schema when requested), so the result outlives @p reader. The consumer
+ * takes ownership and must call `out_array->release(out_array)` (and the schema
+ * release if requested) exactly once.
+ *
+ * @param[in] reader Open reader.
+ * @param[in] row_group_index Row group to read (0-based).
+ * @param[out] out_schema Optional ArrowSchema for the file (may be NULL); when
+ *                        non-NULL the caller must release it.
+ * @param[out] out_array ArrowArray to populate; caller must release.
+ * @param[out] error Error details (may be NULL).
+ * @return CARQUET_OK or an error. On error nothing is left owned by the caller.
+ */
+CARQUET_API CARQUET_WARN_UNUSED_RESULT
+carquet_status_t carquet_reader_read_arrow(
+    carquet_reader_t* reader,
+    int32_t row_group_index,
+    struct ArrowSchema* out_schema,
+    struct ArrowArray* out_array,
+    carquet_error_t* error);
 
 /* ============================================================================
  * C++ Compatibility - End

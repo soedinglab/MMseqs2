@@ -31,6 +31,7 @@ typedef struct parquet_statistics parquet_statistics_t;
 typedef struct parquet_page_encoding_stats parquet_page_encoding_stats_t;
 typedef struct parquet_column_metadata parquet_column_metadata_t;
 typedef struct parquet_column_chunk parquet_column_chunk_t;
+typedef struct parquet_sorting_column parquet_sorting_column_t;
 typedef struct parquet_row_group parquet_row_group_t;
 typedef struct parquet_key_value parquet_key_value_t;
 typedef struct parquet_file_metadata parquet_file_metadata_t;
@@ -79,6 +80,23 @@ struct parquet_schema_element {
     /* Field 10: logicalType (modern logical type) */
     bool has_logical_type;
     carquet_logical_type_t logical_type;
+
+    /* Carquet extension (NOT part of the Parquet SchemaElement wire format):
+     * per-field key/value metadata mirroring Arrow's Field.custom_metadata,
+     * used for variable labels/descriptions. Emitted only into the
+     * "ARROW:schema" footer blob; never written to the Parquet schema itself.
+     * Owned by whoever populates it (see carquet_schema_set_field_metadata /
+     * store_schema_elements). NULL / 0 when the field carries no metadata. */
+    int32_t num_field_metadata;
+    parquet_key_value_t* field_metadata;
+
+    /* Carquet extension: an Arrow type refinement recovered from the
+     * "ARROW:schema" footer blob that the Parquet type system alone cannot
+     * express (e.g. 64-bit-offset LargeUtf8 / LargeBinary / LargeList).
+     * 0 (== CARQUET_ARROW_REFINE_NONE) when no refinement was recovered.
+     * Values mirror carquet_arrow_type_refinement_t. Read-only: never written
+     * to the Parquet schema. */
+    int32_t arrow_type_refinement;
 };
 
 /* ============================================================================
@@ -103,11 +121,16 @@ struct parquet_statistics {
     bool has_distinct_count;
     int64_t distinct_count;
 
-    /* Field 5: max_value */
+    /* Field 5: max_value.
+     * has_max_value records that the field was present, independently of its
+     * length, so that a legitimately empty (zero-length) BYTE_ARRAY min/max is
+     * not mistaken for absent. max_value may be NULL when the value is empty. */
+    bool has_max_value;
     uint8_t* max_value;
     int32_t max_value_len;
 
     /* Field 6: min_value */
+    bool has_min_value;
     uint8_t* min_value;
     int32_t min_value_len;
 
@@ -119,6 +142,54 @@ struct parquet_statistics {
     bool has_is_min_value_exact;
     bool is_min_value_exact;
 };
+
+/* ============================================================================
+ * Geospatial Statistics (for GEOMETRY / GEOGRAPHY logical types)
+ * ============================================================================
+ * Parquet GeospatialStatistics: a coordinate bounding box plus the set of
+ * ISO-WKB geometry type codes present in the column chunk.
+ */
+
+#define CARQUET_GEO_MAX_TYPES 64
+
+struct parquet_geospatial_statistics {
+    bool valid;                 /* at least one finite coordinate accumulated */
+    /* BoundingBox: x/y always present; z/m only if seen. */
+    double xmin, xmax, ymin, ymax;
+    bool has_z;
+    double zmin, zmax;
+    bool has_m;
+    double mmin, mmax;
+    /* Distinct ISO-WKB geometry type codes encountered (e.g. 1=Point XY,
+     * 1001=Point XYZ). Empty list means "unknown". */
+    int32_t types[CARQUET_GEO_MAX_TYPES];
+    int32_t num_types;
+};
+typedef struct parquet_geospatial_statistics parquet_geospatial_statistics_t;
+
+/* ============================================================================
+ * Size Statistics (Parquet 2.9)
+ * ============================================================================
+ *
+ * ColumnMetaData field 16. Histograms are heap/arena-allocated; a length of 0
+ * means the corresponding optional list is absent.
+ */
+
+struct parquet_size_statistics {
+    /* Field 1: total unencoded BYTE_ARRAY value bytes (length prefixes
+     * excluded). Only meaningful for BYTE_ARRAY columns. */
+    bool has_unencoded_byte_array_data_bytes;
+    int64_t unencoded_byte_array_data_bytes;
+
+    /* Field 2: repetition_level_histogram (length max_rep_level + 1). */
+    int64_t* repetition_level_histogram;
+    int32_t repetition_level_histogram_len;
+
+    /* Field 3: definition_level_histogram (length max_def_level + 1). */
+    int64_t* definition_level_histogram;
+    int32_t definition_level_histogram_len;
+};
+typedef struct parquet_size_statistics parquet_size_statistics_t;
 
 /* ============================================================================
  * Page Encoding Stats
@@ -190,6 +261,14 @@ struct parquet_column_metadata {
     /* Field 15: bloom_filter_length */
     bool has_bloom_filter_length;
     int32_t bloom_filter_length;
+
+    /* Field 16: size_statistics (Parquet 2.9) */
+    bool has_size_statistics;
+    parquet_size_statistics_t size_statistics;
+
+    /* Field 17: geospatial_statistics (GEOMETRY / GEOGRAPHY) */
+    bool has_geospatial_statistics;
+    parquet_geospatial_statistics_t geospatial_statistics;
 };
 
 /* ============================================================================
@@ -230,6 +309,16 @@ struct parquet_column_chunk {
  * ============================================================================
  */
 
+/* Parquet Thrift: SortingColumn */
+struct parquet_sorting_column {
+    /* Field 1: column_idx (ordinal position of the column in this row group) */
+    int32_t column_idx;
+    /* Field 2: descending (true => sorted descending) */
+    bool descending;
+    /* Field 3: nulls_first (true => nulls before non-null values) */
+    bool nulls_first;
+};
+
 struct parquet_row_group {
     /* Field 1: columns */
     parquet_column_chunk_t* columns;
@@ -241,7 +330,9 @@ struct parquet_row_group {
     /* Field 3: num_rows */
     int64_t num_rows;
 
-    /* Field 4: sorting_columns (we skip for now) */
+    /* Field 4: sorting_columns (optional) */
+    parquet_sorting_column_t* sorting_columns;
+    int32_t num_sorting_columns;
 
     /* Field 5: file_offset */
     bool has_file_offset;
@@ -293,7 +384,12 @@ struct parquet_file_metadata {
     /* Field 6: created_by */
     char* created_by;
 
-    /* Field 7: column_orders (we skip for now) */
+    /* Field 7: column_orders (one ColumnOrder union per column).
+     * column_order_types[i] holds the set union member's Thrift field id
+     * (1 = TypeDefinedOrder, the only member the spec defines). NULL when the
+     * footer omitted field 7; then only num_column_orders is meaningful. */
+    int32_t num_column_orders;
+    int16_t* column_order_types;
 
     /* Field 8: encryption_algorithm (we skip for now) */
 

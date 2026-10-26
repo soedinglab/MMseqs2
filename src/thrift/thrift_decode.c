@@ -3,6 +3,7 @@
  * @brief Thrift Compact Protocol decoder implementation
  */
 
+#include "core/allocator.h"
 #include "thrift_decode.h"
 #include "core/endian.h"
 #include <stdlib.h>
@@ -166,7 +167,7 @@ char* thrift_read_string_alloc(thrift_decoder_t* dec) {
 
     if (!data && length == 0 && dec->status == CARQUET_OK) {
         /* Empty string */
-        char* str = (char*)malloc(1);
+        char* str = (char*)carquet_mem_malloc(1);
         if (str) str[0] = '\0';
         return str;
     }
@@ -175,7 +176,7 @@ char* thrift_read_string_alloc(thrift_decoder_t* dec) {
         return NULL;
     }
 
-    char* str = (char*)malloc((size_t)length + 1);
+    char* str = (char*)carquet_mem_malloc((size_t)length + 1);
     if (!str) {
         set_error(dec, CARQUET_ERROR_OUT_OF_MEMORY, "Failed to allocate string");
         return NULL;
@@ -308,10 +309,15 @@ void thrift_read_list_begin(thrift_decoder_t* dec,
 
     /* Each list element consumes at least 1 byte, so count cannot exceed
      * remaining data.  This prevents billion-iteration busy loops from
-     * malicious varints in tiny payloads. */
+     * malicious varints in tiny payloads.
+     *
+     * Report this as TRUNCATED, not DECODE: callers that parse out of a
+     * growable window (see read_and_parse_page_header_fread) only enlarge the
+     * window on TRUNCATED, so misclassifying it turns "need more bytes" into a
+     * hard parse failure on an otherwise valid structure. */
     size_t remaining = carquet_buffer_reader_remaining(&dec->reader);
     if ((size_t)*count > remaining) {
-        set_error(dec, CARQUET_ERROR_THRIFT_DECODE, "List count exceeds remaining data");
+        set_error(dec, CARQUET_ERROR_THRIFT_TRUNCATED, "List count exceeds remaining data");
         *count = 0;
     }
 }
@@ -349,7 +355,7 @@ void thrift_read_map_begin(thrift_decoder_t* dec,
      * billion-iteration busy loops from malicious varints. */
     size_t remaining = carquet_buffer_reader_remaining(&dec->reader);
     if ((size_t)*count > remaining) {
-        set_error(dec, CARQUET_ERROR_THRIFT_DECODE, "Map count exceeds remaining data");
+        set_error(dec, CARQUET_ERROR_THRIFT_TRUNCATED, "Map count exceeds remaining data");
         *count = 0;
         *key_type = THRIFT_TYPE_STOP;
         *value_type = THRIFT_TYPE_STOP;
@@ -366,6 +372,21 @@ void thrift_read_map_begin(thrift_decoder_t* dec,
  * Skip Functions
  * ============================================================================
  */
+
+void thrift_skip(thrift_decoder_t* dec, thrift_type_t type);
+
+/* Skip one container element. Only a struct field carries a boolean inside
+ * its header; in a list, set or map each boolean is a byte of its own. */
+static void thrift_skip_element(thrift_decoder_t* dec, thrift_type_t type) {
+    if (type == THRIFT_TYPE_TRUE || type == THRIFT_TYPE_FALSE) {
+        if (dec->status == CARQUET_OK &&
+            carquet_buffer_reader_skip(&dec->reader, 1) != CARQUET_OK) {
+            set_error(dec, CARQUET_ERROR_THRIFT_DECODE, "Truncated boolean element");
+        }
+        return;
+    }
+    thrift_skip(dec, type);
+}
 
 void thrift_skip(thrift_decoder_t* dec, thrift_type_t type) {
     if (dec->status != CARQUET_OK) {
@@ -411,9 +432,21 @@ void thrift_skip(thrift_decoder_t* dec, thrift_type_t type) {
             thrift_type_t elem_type;
             int32_t count;
             thrift_read_list_begin(dec, &elem_type, &count);
-            for (int32_t i = 0; i < count && dec->status == CARQUET_OK; i++) {
-                thrift_skip(dec, elem_type);
+            /* Bound recursion depth: a malformed footer can nest LIST/SET/MAP
+             * containers arbitrarily (one C stack frame per level), which is not
+             * covered by the STRUCT-only nesting cap. Charge each container
+             * level against nesting_level so a hostile file cannot exhaust the
+             * stack. read_struct_begin's own >= cap check keeps last_field_id[]
+             * indexing in range even when the depth was spent on containers. */
+            if (dec->nesting_level >= THRIFT_MAX_NESTING) {
+                set_error(dec, CARQUET_ERROR_THRIFT_DECODE, "Thrift nesting too deep");
+                break;
             }
+            dec->nesting_level++;
+            for (int32_t i = 0; i < count && dec->status == CARQUET_OK; i++) {
+                thrift_skip_element(dec, elem_type);
+            }
+            dec->nesting_level--;
             break;
         }
 
@@ -421,10 +454,16 @@ void thrift_skip(thrift_decoder_t* dec, thrift_type_t type) {
             thrift_type_t key_type, value_type;
             int32_t count;
             thrift_read_map_begin(dec, &key_type, &value_type, &count);
-            for (int32_t i = 0; i < count && dec->status == CARQUET_OK; i++) {
-                thrift_skip(dec, key_type);
-                thrift_skip(dec, value_type);
+            if (dec->nesting_level >= THRIFT_MAX_NESTING) {
+                set_error(dec, CARQUET_ERROR_THRIFT_DECODE, "Thrift nesting too deep");
+                break;
             }
+            dec->nesting_level++;
+            for (int32_t i = 0; i < count && dec->status == CARQUET_OK; i++) {
+                thrift_skip_element(dec, key_type);
+                thrift_skip_element(dec, value_type);
+            }
+            dec->nesting_level--;
             break;
         }
 

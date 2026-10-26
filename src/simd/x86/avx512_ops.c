@@ -12,6 +12,7 @@
  */
 
 #include <carquet/error.h>
+#include "simd/simd_unaligned.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -661,7 +662,7 @@ void carquet_avx512_gather_i32(const int32_t* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -681,7 +682,7 @@ void carquet_avx512_gather_i64(const int64_t* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -726,7 +727,7 @@ bool carquet_avx512_checked_gather_i32(const int32_t* dict, int32_t dict_count,
         if (idx >= (uint32_t)dict_count) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_loadu(dict + (idx));
     }
 
     return true;
@@ -753,7 +754,7 @@ bool carquet_avx512_checked_gather_i64(const int64_t* dict, int32_t dict_count,
         if (idx >= (uint32_t)dict_count) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_loadu(dict + (idx));
     }
 
     return true;
@@ -867,40 +868,6 @@ void carquet_avx512_memcpy(void* dest, const void* src, size_t n) {
         *d++ = *s++;
         n--;
     }
-}
-
-uint32_t carquet_avx512_crc32c(uint32_t crc, const uint8_t* data, size_t len) {
-    size_t i = 0;
-
-    /* Standard CRC32C convention: pre-invert, process, post-invert */
-    crc = ~crc;
-
-#ifdef __x86_64__
-    for (; i + 8 <= len; i += 8) {
-        uint64_t val;
-        memcpy(&val, data + i, 8);
-        crc = (uint32_t)_mm_crc32_u64(crc, val);
-    }
-#endif
-
-    for (; i + 4 <= len; i += 4) {
-        uint32_t val;
-        memcpy(&val, data + i, 4);
-        crc = _mm_crc32_u32(crc, val);
-    }
-
-    if (i + 2 <= len) {
-        uint16_t val;
-        memcpy(&val, data + i, 2);
-        crc = _mm_crc32_u16(crc, val);
-        i += 2;
-    }
-
-    if (i < len) {
-        crc = _mm_crc32_u8(crc, data[i]);
-    }
-
-    return ~crc;
 }
 
 void carquet_avx512_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset) {
@@ -1099,7 +1066,7 @@ void carquet_avx512_build_null_bitmap(const int16_t* def_levels, int64_t count,
 
     for (; i + 32 <= count; i += 32, byte_index += 4) {
         __m512i levels = _mm512_loadu_si512((const void*)(def_levels + i));
-        __mmask32 mask = _mm512_cmp_epi16_mask(levels, max_vec, _MM_CMPINT_LT);
+        __mmask32 mask = _mm512_cmp_epi16_mask(levels, max_vec, _MM_CMPINT_EQ);
         uint32_t bits = (uint32_t)mask;
         memcpy(null_bitmap + byte_index, &bits, sizeof(bits));
     }
@@ -1107,7 +1074,7 @@ void carquet_avx512_build_null_bitmap(const int16_t* def_levels, int64_t count,
     for (; i < count; byte_index++) {
         uint8_t bits = 0;
         for (int j = 0; j < 8 && i < count; j++, i++) {
-            if (def_levels[i] < max_def_level) {
+            if (def_levels[i] == max_def_level) {
                 bits |= (uint8_t)(1u << j);
             }
         }

@@ -547,8 +547,9 @@ def main():
     arrow_cpp_bin = os.path.join(build_dir, "benchmark_arrow_cpp")
 
     if not args.no_carquet and not os.path.isfile(carquet_bin):
-        print(f"{RED}Error:{RST} {carquet_bin} not found. Build first:")
-        print(f"  cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build")
+        print(f"{RED}Error:{RST} {carquet_bin} not found. Build the benchmark first:")
+        print(f"  cmake -B build -DCMAKE_BUILD_TYPE=Release -DCARQUET_BUILD_BENCHMARKS=ON -DCARQUET_NATIVE_ARCH=ON && cmake --build build")
+        print(f"  (CARQUET_BUILD_BENCHMARKS is OFF by default; CARQUET_NATIVE_ARCH=ON gives the fastest, most representative numbers)")
         sys.exit(1)
 
     # Collect metadata
@@ -562,6 +563,8 @@ def main():
         print(f"{YLW}Warning:{RST} Arrow C++ benchmark not built, skipping")
         print("         Build with -DCARQUET_BUILD_BENCHMARKS=ON "
               "-DCARQUET_BUILD_ARROW_CPP_BENCHMARK=ON")
+        print("         (requires Arrow/Parquet C++ libs; on macOS: brew install apache-arrow,")
+        print("          or point CMake at a prefix with -DCARQUET_ARROW_CPP_ROOT=/path)")
 
     # Find Python with pyarrow
     python = sys.executable

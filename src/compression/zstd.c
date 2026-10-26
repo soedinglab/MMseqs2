@@ -10,24 +10,23 @@
 #include <stddef.h>
 #include <zstd.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 /* ============================================================================
  * Thread-local ZSTD context management
  *
  * ZSTD contexts are expensive to create (~650KB each) so we cache them per
- * thread.  The challenge is cleanup: __thread / __declspec(thread) have no
- * destructor, so contexts allocated by OMP worker threads leak when the
- * thread pool is torn down.
+ * thread.  They MUST be per-thread: the batch reader decompresses pages on a
+ * worker-thread pool, and a ZSTD_DCtx entered concurrently corrupts and
+ * crashes.  The challenge is cleanup — TLS contexts have no destructor, so
+ * contexts allocated by worker threads leak when the thread pool is torn down.
  *
  * Strategy:
- *   POSIX (any)      -> pthread_key_create with destructors.  Works for both
- *                        OpenMP threads and worker pool pthreads.  The pthread
- *                        runtime calls the destructor when each thread exits.
- *   Windows + OpenMP -> __declspec(thread) with explicit carquet_zstd_cleanup.
- *   Windows no OMP   -> plain global statics with explicit carquet_zstd_cleanup.
+ *   POSIX (any) -> pthread_key_create with destructors.  Works for both
+ *                  OpenMP threads and worker pool pthreads.  The pthread
+ *                  runtime calls the destructor when each thread exits.
+ *   Windows     -> Win32 FLS API (FlsAlloc with destructor/FlsGetValue/FlsSetValue), which is
+ *                  reliably per-thread for every thread including raw
+ *                  CreateThread worker threads (native __declspec(thread) is
+ *                  not), with explicit carquet_zstd_cleanup per thread.
  *
  * carquet_cleanup() (public API) calls carquet_zstd_cleanup() for the
  * calling thread.  On POSIX the worker-thread contexts are freed
@@ -89,44 +88,80 @@ void carquet_zstd_cleanup(void) {
     }
 }
 
-#elif defined(_OPENMP)
-/* ---- Windows + OpenMP: __declspec(thread) with explicit cleanup ---- */
-static __declspec(thread) ZSTD_DCtx* tls_dctx = NULL;
-static __declspec(thread) ZSTD_CCtx* tls_cctx = NULL;
-
-static ZSTD_DCtx* get_dctx(void) {
-    if (!tls_dctx) tls_dctx = ZSTD_createDCtx();
-    return tls_dctx;
-}
-
-static ZSTD_CCtx* get_cctx(void) {
-    if (!tls_cctx) tls_cctx = ZSTD_createCCtx();
-    return tls_cctx;
-}
-
-void carquet_zstd_cleanup(void) {
-    if (tls_dctx) { ZSTD_freeDCtx(tls_dctx); tls_dctx = NULL; }
-    if (tls_cctx) { ZSTD_freeCCtx(tls_cctx); tls_cctx = NULL; }
-}
-
 #else
-/* ---- Windows no OpenMP: global contexts ---- */
-static ZSTD_DCtx* global_dctx = NULL;
-static ZSTD_CCtx* global_cctx = NULL;
+/* ---- Windows: Win32 TLS API (per-thread, works for every thread) ----
+ *
+ * Per-thread, NOT global: the batch reader runs its own worker pool
+ * (carquet_worker_pool, plain Win32 threads) to decompress pages in
+ * parallel whether or not OpenMP is present. A single shared ZSTD_DCtx
+ * would then be entered concurrently by several threads — ZSTD_DCtx is
+ * not thread-safe, so its internals corrupt and decode reads a wild
+ * pointer (crash).
+ *
+ * We use TlsAlloc/TlsGetValue/TlsSetValue rather than __declspec(thread):
+ * native TLS is NOT reliably allocated per-thread for threads created
+ * with the raw CreateThread API under every loader/runtime (observed all
+ * worker threads sharing one slot), whereas the explicit TLS API is
+ * guaranteed per-thread for every thread. The FLS variant of that API adds
+ * a per-thread destructor, so worker-thread contexts are freed when the
+ * thread exits (v0.7.2; TlsAlloc leaked them at pool teardown). */
+#include <windows.h>
+
+/* Fiber-local storage (Vista+): same per-thread guarantee as TlsAlloc for
+ * every thread, including raw CreateThread pool workers, plus a destructor
+ * that the system runs when the thread exits, so worker contexts no longer
+ * leak at pool teardown. FlsSetValue(idx, NULL) in the explicit cleanup
+ * below does not invoke the callback, so there is no double free. */
+static DWORD tls_dctx_index = FLS_OUT_OF_INDEXES;
+static DWORD tls_cctx_index = FLS_OUT_OF_INDEXES;
+
+static void WINAPI fls_free_dctx(PVOID p) { if (p) ZSTD_freeDCtx((ZSTD_DCtx*)p); }
+static void WINAPI fls_free_cctx(PVOID p) { if (p) ZSTD_freeCCtx((ZSTD_CCtx*)p); }
+static INIT_ONCE tls_index_once = INIT_ONCE_STATIC_INIT;
+
+static BOOL CALLBACK init_tls_indices(PINIT_ONCE once, PVOID param, PVOID* ctx) {
+    (void)once; (void)param; (void)ctx;
+    tls_dctx_index = FlsAlloc(fls_free_dctx);
+    tls_cctx_index = FlsAlloc(fls_free_cctx);
+    return TRUE;
+}
+
+static void ensure_tls_indices(void) {
+    InitOnceExecuteOnce(&tls_index_once, init_tls_indices, NULL, NULL);
+}
 
 static ZSTD_DCtx* get_dctx(void) {
-    if (!global_dctx) global_dctx = ZSTD_createDCtx();
-    return global_dctx;
+    ensure_tls_indices();
+    if (tls_dctx_index == FLS_OUT_OF_INDEXES) return NULL;
+    ZSTD_DCtx* dctx = (ZSTD_DCtx*)FlsGetValue(tls_dctx_index);
+    if (!dctx) {
+        dctx = ZSTD_createDCtx();
+        if (dctx) FlsSetValue(tls_dctx_index, dctx);
+    }
+    return dctx;
 }
 
 static ZSTD_CCtx* get_cctx(void) {
-    if (!global_cctx) global_cctx = ZSTD_createCCtx();
-    return global_cctx;
+    ensure_tls_indices();
+    if (tls_cctx_index == FLS_OUT_OF_INDEXES) return NULL;
+    ZSTD_CCtx* cctx = (ZSTD_CCtx*)FlsGetValue(tls_cctx_index);
+    if (!cctx) {
+        cctx = ZSTD_createCCtx();
+        if (cctx) FlsSetValue(tls_cctx_index, cctx);
+    }
+    return cctx;
 }
 
 void carquet_zstd_cleanup(void) {
-    if (global_dctx) { ZSTD_freeDCtx(global_dctx); global_dctx = NULL; }
-    if (global_cctx) { ZSTD_freeCCtx(global_cctx); global_cctx = NULL; }
+    ensure_tls_indices();
+    if (tls_dctx_index != FLS_OUT_OF_INDEXES) {
+        ZSTD_DCtx* dctx = (ZSTD_DCtx*)FlsGetValue(tls_dctx_index);
+        if (dctx) { ZSTD_freeDCtx(dctx); FlsSetValue(tls_dctx_index, NULL); }
+    }
+    if (tls_cctx_index != FLS_OUT_OF_INDEXES) {
+        ZSTD_CCtx* cctx = (ZSTD_CCtx*)FlsGetValue(tls_cctx_index);
+        if (cctx) { ZSTD_freeCCtx(cctx); FlsSetValue(tls_cctx_index, NULL); }
+    }
 }
 #endif
 

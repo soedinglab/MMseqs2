@@ -169,12 +169,17 @@ struct carquet_column_reader {
     bool page_loaded;           /* Is a page currently loaded? */
     int32_t page_num_values;    /* Total values in current page */
     int32_t page_values_read;   /* Values already read from current page */
+    int32_t dense_cursor_pos;   /* page_values_read at which dense_cursor_val is valid */
+    int32_t dense_cursor_val;   /* present values before dense_cursor_pos (OPTIONAL columns) */
     int32_t page_header_size;   /* Size of current page header */
     int32_t page_compressed_size; /* Size of current page compressed data */
     uint8_t* decoded_values;    /* Buffer for decoded values from current page */
     int16_t* decoded_def_levels; /* Buffer for decoded definition levels */
     int16_t* decoded_rep_levels; /* Buffer for decoded repetition levels */
-    size_t decoded_capacity;    /* Capacity of decoded buffers */
+    size_t decoded_capacity;    /* Capacity of decoded buffers, in values */
+    size_t decoded_value_size;  /* Per-value byte width the values buffer was
+                                 * allocated with; realloc when it changes (e.g.
+                                 * preserve_dictionary flips index/value width) */
     carquet_data_ownership_t decoded_ownership; /* OWNED or VIEW (mmap) */
 
     /* Reusable buffers to reduce allocations */
@@ -182,9 +187,21 @@ struct carquet_column_reader {
     size_t indices_capacity;    /* Capacity of indices buffer */
     uint8_t* decompress_buffer; /* Reusable decompression buffer */
     size_t decompress_capacity; /* Capacity of decompression buffer */
+    int16_t* scratch_def_levels; /* Reusable def-level scratch for batch reads
+                                  * on a nullable column when the caller passes
+                                  * def_levels == NULL; grown on demand, freed
+                                  * with the reader (was a malloc/free per call) */
+    size_t scratch_def_capacity; /* Capacity of scratch_def_levels, in levels */
 
     /* Dictionary preservation mode */
     bool preserve_dictionary;   /* If true, skip materialization, keep indices */
+
+    /* Last failure seen by this column reader, for callers that read through an
+     * API with no error out-parameter (the batch reader). Written only by the
+     * thread that owns this column reader — the batch reader's parallel column
+     * loop gives each thread its own reader, so this is not a shared write.
+     * Cleared by carquet_column_read_batch_ex() on entry. */
+    carquet_error_t last_error;
 };
 
 /* ============================================================================
@@ -199,6 +216,13 @@ carquet_schema_t* build_schema(
     carquet_arena_t* arena,
     const parquet_file_metadata_t* metadata,
     carquet_error_t* error);
+
+/**
+ * Validate a row group index against a reader's loaded metadata.
+ */
+bool carquet_reader_row_group_index_valid(
+    const carquet_reader_t* reader,
+    int32_t row_group_index);
 
 /**
  * Open file with memory mapping.
@@ -245,6 +269,43 @@ uint8_t* carquet_column_retain_page(
  */
 void carquet_column_clear_retained_pages(carquet_column_reader_t* reader);
 
+/**
+ * Ensure the column's dictionary page (if any) is loaded. Idempotent.
+ * After this returns CARQUET_OK, reader->data_start_offset points to the
+ * first data page even when the writer recorded a stale data_page_offset.
+ */
+carquet_status_t carquet_column_ensure_dictionary_loaded(
+    carquet_column_reader_t* reader,
+    carquet_error_t* error);
+
+/**
+ * Seek the column reader to a specific data page so that the next page
+ * load decodes that page. Dictionary state is preserved. The value count
+ * for skipped pages is recovered by walking page headers between the
+ * current position and the target, so the caller does not need to know
+ * it; the `values_before_page` parameter is informational only.
+ *
+ * @param reader              Column reader
+ * @param page_file_offset    Absolute file offset of the target data page
+ * @param values_before_page  Reserved; currently unused (pass 0).
+ */
+carquet_status_t carquet_column_reader_seek_to_data_page(
+    carquet_column_reader_t* reader,
+    int64_t page_file_offset,
+    int64_t values_before_page,
+    carquet_error_t* error);
+
+/**
+ * @brief Pick the offset of the first data page of a dictionary-encoded chunk.
+ *
+ * @param data_page_offset ColumnMetaData.data_page_offset as recorded by the writer
+ * @param dict_end         dictionary_page_offset + dict header + dict payload
+ * @return @p data_page_offset unless it is provably wrong (at or before
+ *         @p dict_end), in which case @p dict_end.
+ */
+int64_t carquet_resolve_data_start_offset(int64_t data_page_offset,
+                                          int64_t dict_end);
+
 /* ============================================================================
  * Page Decompression (shared between page_reader and batch_reader)
  * ============================================================================
@@ -257,6 +318,28 @@ carquet_status_t carquet_decompress_page(
     uint8_t* decompressed,
     size_t decompressed_capacity,
     size_t* decompressed_size);
+
+/** @brief Size of the buffer to pass to carquet_decompress_page_diag(). */
+#define CARQUET_DECOMPRESS_DIAG_SIZE 192
+
+/**
+ * @brief Decompress a page, additionally writing a codec-specific description
+ *        of the failure into @p diag.
+ *
+ * On failure the caller can fold @p diag into its error message so that a
+ * single failing run on a multi-gigabyte file identifies the exact check that
+ * rejected the block. @p diag is always NUL-terminated; it is set to the empty
+ * string when the codec has no detail to report.
+ */
+carquet_status_t carquet_decompress_page_diag(
+    carquet_compression_t codec,
+    const uint8_t* compressed,
+    size_t compressed_size,
+    uint8_t* decompressed,
+    size_t decompressed_capacity,
+    size_t* decompressed_size,
+    char* diag,
+    size_t diag_size);
 
 #ifdef __cplusplus
 }

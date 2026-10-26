@@ -28,6 +28,7 @@
 #endif
 
 #include <carquet/carquet.h>
+#include "core/compat.h"
 
 /* Portable temp directory helper */
 static const char* get_temp_dir(void) {
@@ -1003,11 +1004,11 @@ static int test_nullable_mixed(void) {
     const int32_t* read_values = (const int32_t*)data;
     const int32_t expected_values[10] = {1, 0, 3, 0, 5, 0, 7, 0, 9, 0};
     for (int i = 0; i < 10; i++) {
-        int is_null = (null_bitmap[i / 8] >> (i % 8)) & 1;
+        int is_present = (null_bitmap[i / 8] >> (i % 8)) & 1;
         if ((i % 2) == 1) {
-            ASSERT_TRUE(is_null, "nullable_mixed", "expected null bit");
+            ASSERT_TRUE(!is_present, "nullable_mixed", "expected null bit");
         } else {
-            ASSERT_TRUE(!is_null, "nullable_mixed", "unexpected null bit");
+            ASSERT_TRUE(is_present, "nullable_mixed", "unexpected null bit");
         }
         if (read_values[i] != expected_values[i]) {
             carquet_row_batch_free(batch);
@@ -1027,6 +1028,80 @@ static int test_nullable_mixed(void) {
     remove(test_file);
 
     TEST_PASS("nullable_mixed");
+    return 0;
+}
+
+static int test_nullable_partial_reads(void) {
+    const char* test_name = "nullable_partial_reads";
+    char test_file[512];
+    make_temp_path(test_file, sizeof(test_file), "carquet_nullable_partial_reads");
+
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_schema_t* schema = carquet_schema_create(&err);
+    if (!schema) TEST_FAIL(test_name, "schema creation failed");
+
+    carquet_status_t status = carquet_schema_add_column(
+        schema, "value", CARQUET_PHYSICAL_INT32, NULL,
+        CARQUET_REPETITION_OPTIONAL, 0, 0);
+    ASSERT_OK(status, test_name, "add column failed");
+
+    carquet_writer_options_t opts;
+    carquet_writer_options_init(&opts);
+    opts.page_size = 16;
+
+    carquet_writer_t* writer = carquet_writer_create(test_file, schema, &opts, &err);
+    if (!writer) {
+        carquet_schema_free(schema);
+        remove(test_file);
+        TEST_FAIL(test_name, "writer creation failed");
+    }
+
+    int32_t values[5] = {10, 30, 50, 70, 90};
+    int16_t def_levels[10] = {1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
+    status = carquet_writer_write_batch(writer, 0, values, 10, def_levels, NULL);
+    ASSERT_OK(status, test_name, "write failed");
+    status = carquet_writer_close(writer);
+    ASSERT_OK(status, test_name, "close failed");
+
+    carquet_reader_t* reader = carquet_reader_open(test_file, NULL, &err);
+    if (!reader) {
+        carquet_schema_free(schema);
+        remove(test_file);
+        TEST_FAIL(test_name, "reader open failed");
+    }
+
+    carquet_column_reader_t* col = carquet_reader_get_column(reader, 0, 0, &err);
+    if (!col) {
+        carquet_reader_close(reader);
+        carquet_schema_free(schema);
+        remove(test_file);
+        TEST_FAIL(test_name, "column open failed");
+    }
+
+    int32_t out[4] = {0};
+    int16_t defs[4] = {0};
+    int64_t n = carquet_column_read_batch(col, out, 3, defs, NULL);
+    ASSERT_TRUE(n == 3, test_name, "first partial count mismatch");
+    ASSERT_TRUE(defs[0] == 1 && defs[1] == 0 && defs[2] == 1,
+                test_name, "first partial defs mismatch");
+    ASSERT_TRUE(out[0] == 10 && out[1] == 30,
+                test_name, "first partial sparse values mismatch");
+
+    memset(out, 0, sizeof(out));
+    memset(defs, 0, sizeof(defs));
+    n = carquet_column_read_batch(col, out, 4, defs, NULL);
+    ASSERT_TRUE(n == 4, test_name, "second partial count mismatch");
+    ASSERT_TRUE(defs[0] == 0 && defs[1] == 1 && defs[2] == 0 && defs[3] == 1,
+                test_name, "second partial defs mismatch");
+    ASSERT_TRUE(out[0] == 50 && out[1] == 70,
+                test_name, "second partial sparse values mismatch");
+
+    carquet_column_reader_free(col);
+    carquet_reader_close(reader);
+    carquet_schema_free(schema);
+    remove(test_file);
+
+    TEST_PASS(test_name);
     return 0;
 }
 
@@ -1199,10 +1274,10 @@ static int test_compression_roundtrip(carquet_compression_t compression, const c
     /* Get file size for compression ratio */
     FILE* f = fopen(test_file, "rb");
     if (f) {
-        fseek(f, 0, SEEK_END);
-        long size = ftell(f);
+        carquet_fseek64(f, 0, SEEK_END);
+        int64_t size = carquet_ftell64(f);
         fclose(f);
-        printf("  %s: file size = %ld bytes (raw = 4000)\n", name, size);
+        printf("  %s: file size = %lld bytes (raw = 4000)\n", name, (long long)size);
     }
 
     carquet_reader_close(reader);
@@ -1455,10 +1530,10 @@ static int test_stress_large_data(void) {
 
     /* Get file size */
     FILE* f = fopen(test_file, "rb");
-    long file_size = 0;
+    int64_t file_size = 0;
     if (f) {
-        fseek(f, 0, SEEK_END);
-        file_size = ftell(f);
+        carquet_fseek64(f, 0, SEEK_END);
+        file_size = carquet_ftell64(f);
         fclose(f);
     }
 
@@ -1660,6 +1735,7 @@ int main(void) {
     test_nullable_all_null();
     test_nullable_none_null();
     test_nullable_mixed();
+    test_nullable_partial_reads();
 
     /* Section 4: Error Handling */
     printf("\n--- Error Handling Tests ---\n");

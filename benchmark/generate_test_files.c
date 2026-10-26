@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>   /* _mkdir */
+#endif
 
 #include <carquet/carquet.h>
 

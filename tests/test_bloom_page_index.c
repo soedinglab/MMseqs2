@@ -10,14 +10,38 @@
 
 #include <carquet/carquet.h>
 #include "reader/reader_internal.h"
+#include "core/compat.h"
 #include "test_helpers.h"
 
 /* Bloom filter API (from bloom_filter.c) */
+extern carquet_bloom_filter_t* carquet_bloom_filter_create(size_t num_bytes);
 extern carquet_bloom_filter_t* carquet_bloom_filter_from_data(const uint8_t* data, size_t size);
+extern void carquet_bloom_filter_insert_hash(carquet_bloom_filter_t* filter, uint64_t hash);
+extern const uint8_t* carquet_bloom_filter_data(const carquet_bloom_filter_t* filter);
+extern size_t carquet_bloom_filter_size(const carquet_bloom_filter_t* filter);
 extern void carquet_bloom_filter_destroy(carquet_bloom_filter_t* filter);
 extern bool carquet_bloom_filter_check_i32(const carquet_bloom_filter_t* filter, int32_t value);
 extern bool carquet_bloom_filter_check_i64(const carquet_bloom_filter_t* filter, int64_t value);
 extern bool carquet_bloom_filter_check_double(const carquet_bloom_filter_t* filter, double value);
+
+typedef struct carquet_column_index_builder carquet_column_index_builder_t;
+extern carquet_column_index_builder_t* carquet_column_index_builder_create(
+    carquet_physical_type_t type, const carquet_logical_type_t* logical_type,
+    int32_t type_length);
+extern void carquet_column_index_builder_destroy(carquet_column_index_builder_t* builder);
+extern carquet_status_t carquet_column_index_add_page(
+    carquet_column_index_builder_t* builder,
+    int64_t null_count, const void* min_value, int32_t min_value_len,
+    const void* max_value, int32_t max_value_len, bool is_null_page,
+    const int64_t* rep_level_hist, int32_t rep_level_hist_len,
+    const int64_t* def_level_hist, int32_t def_level_hist_len);
+extern carquet_status_t carquet_column_index_page_might_match(
+    const carquet_column_index_builder_t* builder,
+    int32_t page_idx,
+    const void* min_value,
+    const void* max_value,
+    int32_t value_len,
+    bool* might_match);
 
 /* ============================================================================
  * Test: Bloom filter write + verify via metadata offsets
@@ -98,7 +122,7 @@ static int test_bloom_filter_write(void) {
 
     uint8_t* bf0_data = malloc(bf0_length);
     assert(bf0_data);
-    fseek(f, (long)bf0_offset, SEEK_SET);
+    carquet_fseek64(f, bf0_offset, SEEK_SET);
     assert(fread(bf0_data, 1, bf0_length, f) == (size_t)bf0_length);
 
     /* The bloom filter data starts after the Thrift header.
@@ -506,6 +530,90 @@ static int test_bloom_filter_nullable(void) {
 }
 
 /* ============================================================================
+ * Test: Bloom filter block selection follows Parquet spec
+ * ============================================================================ */
+
+static int test_bloom_filter_spec_block_index(void) {
+    carquet_bloom_filter_t* filter = carquet_bloom_filter_create(96);
+    if (!filter) {
+        TEST_FAIL("bloom_filter_spec_block_index", "create failed");
+    }
+
+    /* With three blocks and top hash bits 0x80000000, the Parquet formula
+     * (top_bits * num_blocks) >> 32 selects block 1. A modulo-based selector
+     * would select block 2, so this catches that compatibility bug. */
+    carquet_bloom_filter_insert_hash(filter, 0x8000000000000001ULL);
+
+    const uint8_t* data = carquet_bloom_filter_data(filter);
+    size_t size = carquet_bloom_filter_size(filter);
+    if (!data || size != 96) {
+        carquet_bloom_filter_destroy(filter);
+        TEST_FAIL("bloom_filter_spec_block_index", "unexpected filter size");
+    }
+
+    bool block0_set = false;
+    bool block1_set = false;
+    bool block2_set = false;
+    for (int i = 0; i < 32; i++) {
+        block0_set = block0_set || data[i] != 0;
+        block1_set = block1_set || data[32 + i] != 0;
+        block2_set = block2_set || data[64 + i] != 0;
+    }
+
+    carquet_bloom_filter_destroy(filter);
+
+    if (block0_set || !block1_set || block2_set) {
+        TEST_FAIL("bloom_filter_spec_block_index", "hash inserted into wrong block");
+    }
+
+    TEST_PASS("bloom_filter_spec_block_index");
+    return 0;
+}
+
+static int test_page_index_unsigned_logical_order(void) {
+    const char* tname = "page_index_unsigned_logical_order";
+    carquet_logical_type_t u32_type = {
+        .id = CARQUET_LOGICAL_INTEGER,
+        .params.integer = { .bit_width = 32, .is_signed = false }
+    };
+
+    carquet_column_index_builder_t* builder =
+        carquet_column_index_builder_create(CARQUET_PHYSICAL_INT32, &u32_type, 0);
+    if (!builder) TEST_FAIL(tname, "builder create failed");
+
+    uint32_t min_v = 1u;
+    uint32_t max_v = UINT32_MAX;
+    if (carquet_column_index_add_page(builder, 0, &min_v, 4, &max_v, 4, false,
+                                      NULL, 0, NULL, 0) != CARQUET_OK) {
+        carquet_column_index_builder_destroy(builder);
+        TEST_FAIL(tname, "add page failed");
+    }
+
+    bool might_match = false;
+    uint32_t query_min = UINT32_MAX - 1u;
+    uint32_t query_max = UINT32_MAX;
+    if (carquet_column_index_page_might_match(
+            builder, 0, &query_min, &query_max, 4, &might_match) != CARQUET_OK ||
+        !might_match) {
+        carquet_column_index_builder_destroy(builder);
+        TEST_FAIL(tname, "unsigned high range was incorrectly rejected");
+    }
+
+    query_min = 0u;
+    query_max = 0u;
+    if (carquet_column_index_page_might_match(
+            builder, 0, &query_min, &query_max, 4, &might_match) != CARQUET_OK ||
+        might_match) {
+        carquet_column_index_builder_destroy(builder);
+        TEST_FAIL(tname, "unsigned low range was not rejected");
+    }
+
+    carquet_column_index_builder_destroy(builder);
+    TEST_PASS(tname);
+    return 0;
+}
+
+/* ============================================================================
  * Main
  * ============================================================================ */
 
@@ -520,6 +628,8 @@ int main(void) {
     failures += test_page_index_multi_row_groups();
     failures += test_bloom_filter_disabled_default();
     failures += test_bloom_filter_nullable();
+    failures += test_bloom_filter_spec_block_index();
+    failures += test_page_index_unsigned_logical_order();
 
     printf("\n");
     if (failures == 0) {
