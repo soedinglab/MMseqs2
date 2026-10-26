@@ -3,6 +3,7 @@
 
 #include "Util.h"
 #include "MemoryMapped.h"
+#include "NcbiTaxonomy.h"
 #include <algorithm>
 
 class MappingReader {
@@ -31,16 +32,16 @@ public:
             count = (dataSize - magicLen) / sizeof(Pair);
             return;
         }
-        std::vector<std::pair<unsigned int, unsigned int>> mapping;
+        std::vector<std::pair<DBKeyType, TaxID>> mapping;
         size_t currPos = 0;
         const char *cols[3];
         size_t isSorted = true;
-        unsigned int prevId = 0;
+        DBKeyType prevId = 0;
         while (currPos < dataSize) {
             Util::getWordsOfLine(data, cols, 2);
-            unsigned int id = Util::fast_atoi<size_t>(cols[0]);
+            DBKeyType id = Util::fast_atoi<DBKeyType>(cols[0]);
             isSorted *= (id >= prevId);
-            unsigned int taxid = Util::fast_atoi<size_t>(cols[1]);
+            TaxID taxid = Util::fast_atoi<TaxID>(cols[1]);
             data = Util::skipLine(data);
             mapping.push_back(std::make_pair(id, taxid));
             currPos = data - (char *) file->getData();
@@ -74,8 +75,8 @@ public:
         }
     }
 
-    unsigned int lookup(unsigned int key) {
-        unsigned int taxon = 0;
+    TaxID lookup(DBKeyType key) {
+        TaxID taxon = 0;
         // match dbKey to its taxon based on mapping
         Pair val;
         val.dbkey = key;
@@ -92,13 +93,13 @@ public:
 private:
     MemoryMapped* file;
     struct __attribute__((__packed__)) Pair{
-        unsigned int dbkey;
-        unsigned int taxon;
+        DBKeyType dbkey;
+        TaxID taxon;
     };
     Pair* entries;
     size_t count;
     //                    T  A   X   M  Version
-    const char magic[5] = {19, 0, 23, 12, 0};
+    const char magic[5] = {19, 0, 23, 12, sizeof(DBKeyType) == sizeof(uint64_t) ? 2 : 0};
     const size_t magicLen = 5;
     static bool compareTaxa(const Pair &lhs, const Pair &rhs) {
         return (lhs.dbkey <= rhs.dbkey);

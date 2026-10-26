@@ -21,17 +21,17 @@ public:
 
 private:
 
-    void writeData(DBWriter *dbw, const std::pair<unsigned int, unsigned int> * ret, size_t dbSize);
+    void writeData(DBWriter *dbw, const std::pair<DBKeyType, DBKeyType> * ret, size_t dbSize);
 
-    DBReader<unsigned int> *seqDbr;
-    DBReader<unsigned int> *alnDbr;
+    DBReader<DBKeyType> *seqDbr;
+    DBReader<DBKeyType> *alnDbr;
 
     bool needSET;
-    unsigned int seqnum;
-    unsigned int *keyToSet;
+    size_t seqnum;
+    DBKeyType *keyToSet;
     size_t *sourceOffsets;
-    unsigned int **sourceLookupTable;
-    unsigned int *sourceList;
+    DBKeyType **sourceLookupTable;
+    DBKeyType *sourceList;
 
     //values for affinity clustering
     unsigned int maxIteration;

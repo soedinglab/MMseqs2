@@ -16,7 +16,7 @@ static bool compareToFirstString(const std::pair<std::string, TaxID>& lhs, const
     return (lhs.first <= rhs.first);
 }
 
-static bool sortMappingByDbKey(const std::pair<unsigned int, TaxID>& lhs, const std::pair<unsigned int, TaxID>& rhs){
+static bool sortMappingByDbKey(const std::pair<DBKeyType, TaxID>& lhs, const std::pair<DBKeyType, TaxID>& rhs){
     return (lhs.first <= rhs.first);
 }
 
@@ -105,8 +105,8 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
     }
     nodesCopy.clear();
 
-    DBReader<unsigned int> reader(seqHdrData.c_str(), seqHdrIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(seqHdrData.c_str(), seqHdrIndex.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     DBWriter writer(resultDbData.c_str(), resultDbIndex.c_str(), par.threads, false, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
@@ -130,7 +130,7 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             char* data = reader.getData(i, thread_idx);
 
             char* start = data;
@@ -218,7 +218,7 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
     char* data = (char *) mappingUnsorted.getData();
-    std::vector<std::pair<unsigned int, TaxID>> mapping;
+    std::vector<std::pair<DBKeyType, TaxID>> mapping;
     mapping.reserve(processed);
     const char *entry[255];
     progress.reset(processed);
@@ -230,8 +230,8 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
             Debug(Debug::ERROR) << "Invalid mapping file " << resultDbData << "\n";
             EXIT(EXIT_FAILURE);
         }
-        unsigned int dbKey = Util::fast_atoi<unsigned int>(entry[0]);
-        unsigned int taxId = Util::fast_atoi<unsigned int>(entry[1]);
+        DBKeyType dbKey = Util::fast_atoi<DBKeyType>(entry[0]);
+        TaxID taxId = Util::fast_atoi<TaxID>(entry[1]);
         mapping.emplace_back(dbKey, taxId);
     }
     mappingUnsorted.close();

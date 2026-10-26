@@ -5,9 +5,9 @@
     Need to link with -lnvToolsExt to use this
 */
 
-#ifdef __NVCC__
+#if defined(__NVCC__) || defined(__HIPCC__)
 
-#ifndef NO_NVTOOLSEXT
+#if defined(__NVCC__) && !defined(NO_NVTOOLSEXT)
 #include <nvtx3/nvToolsExt.h>
 #endif
 
@@ -18,7 +18,7 @@ namespace nvtx {
 
     inline
     void push_range(const std::string& name, int cid){
-#ifndef NO_NVTOOLSEXT
+#if defined(__NVCC__) && !defined(NO_NVTOOLSEXT)
         const uint32_t colors_[] = { 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff, 0xffff0000, 0xffffffff, 0xdeadbeef, 0x12345678, 0xabcdef42 };
         const int num_colors_ = sizeof(colors_)/sizeof(uint32_t);
 
@@ -39,7 +39,7 @@ namespace nvtx {
 
     inline
     void pop_range(const std::string& /*name*/){
-#ifndef NO_NVTOOLSEXT
+#if defined(__NVCC__) && !defined(NO_NVTOOLSEXT)
         nvtxRangePop();
         //std::cerr << "pop " << name << std::endl;
 #endif
@@ -47,7 +47,7 @@ namespace nvtx {
 
     inline
     void pop_range(){
-#ifndef NO_NVTOOLSEXT
+#if defined(__NVCC__) && !defined(NO_NVTOOLSEXT)
         nvtxRangePop();
         //std::cerr << "pop " << std::endl;
 #endif

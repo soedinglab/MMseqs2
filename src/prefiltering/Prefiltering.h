@@ -52,7 +52,7 @@ public:
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const MultiParam<NuclAA<std::string>> &scoringMatrixFile, MultiParam<NuclAA<int>> alphabetSize, float bitFactor, bool profileState, bool isNucl);
 
-    static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const unsigned int querySeqType, const int threads,
+    static void setupSplit(DBReader<DBKeyType>& dbr, const int alphabetSize, const unsigned int querySeqType, const int threads,
                            const bool templateDBIsIndex, const size_t memoryLimit, const size_t qDbSize,
                            size_t& maxResListLen, int& kmerSize, int& split, int& splitMode);
 
@@ -67,9 +67,9 @@ private:
     const std::string queryDBIndex;
     const std::string targetDB;
     const std::string targetDBIndex;
-    DBReader<unsigned int> *qdbr;
-    DBReader<unsigned int> *tdbr;
-    DBReader<unsigned int> *tidxdbr;
+    DBReader<DBKeyType> *qdbr;
+    DBReader<DBKeyType> *tdbr;
+    DBReader<DBKeyType> *tidxdbr;
     bool sameQTDB;
 
     BaseMatrix *kmerSubMat;
@@ -119,7 +119,7 @@ private:
     bool runSplit(const std::string &resultDB, const std::string &resultDBIndex, size_t split, bool merge);
 
     // compute kmer size and split size for index table
-    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize,
+    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<DBKeyType> *tdbr, int alphabetSize, int kmerSize,
                                              unsigned int querySeqType, unsigned int threads);
 
     // estimates memory consumption while runtime

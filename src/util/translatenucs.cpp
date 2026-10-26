@@ -15,14 +15,14 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     bool addOrfStop = par.addOrfStop;
-    DBReader<unsigned int> *header = NULL;
+    DBReader<DBKeyType> *header = NULL;
     if (addOrfStop == true) {
-        header = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        header->open(DBReader<unsigned int>::NOSORT);
+        header = new DBReader<DBKeyType>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+        header->open(DBReader<DBKeyType>::NOSORT);
     }
 
     size_t entries = reader.getSize();
@@ -48,7 +48,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             char* data = reader.getData(i, thread_idx);
             if (*data == '\0') {
                 continue;
@@ -67,7 +67,14 @@ int translatenucs(int argc, const char **argv, const Command& command) {
             // ignore null char at the end
             // needs to be int in order to be able to check
             size_t length = reader.getEntryLen(i) - 1;
-            if ((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
+            // Only inspect bytes inside this entry. data[length] points one byte
+            // past the entry and is not guaranteed to be mapped: for the last entry
+            // of a file whose size is a multiple of the page size, reading it
+            // segfaults (issue #1107). Strip a trailing newline from the length.
+            if (length > 0 && data[length - 1] == '\n') {
+                length -= 1;
+            }
+            if (length % 3 != 0) {
                 Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Adjust length to (length=" <<  length - (length % 3) << ").\n";
                 length = length - (length % 3);
             }
@@ -104,7 +111,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         delete[] aa;
     }
     writer.close(true);
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<DBKeyType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     if (addOrfStop == true) {
         header->close();

@@ -15,8 +15,8 @@ int translateaa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
     writer.open();
@@ -67,7 +67,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
             aaSequence.mapSequence(0, key, data, reader.getSeqLen(i));
 
@@ -84,7 +84,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
     }
     writer.close(true);
     reader.close();
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<DBKeyType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

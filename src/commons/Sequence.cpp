@@ -30,7 +30,7 @@ void Sequence::registerAuxSplit(unsigned int extFlag,
 }
 
 const Sequence::SeqAuxInfo* Sequence::getAuxInfo(int seqType) {
-    unsigned int extDbtype = DBReader<unsigned int>::getExtendedDbtype(seqType);
+    unsigned int extDbtype = DBReader<DBKeyType>::getExtendedDbtype(seqType);
     for (size_t i = 0; i < auxRegistry.size(); i++) {
         if (extDbtype & auxRegistry[i].extFlag) {
             return &auxRegistry[i];
@@ -245,7 +245,7 @@ std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int 
     return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
 }
 
-void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, unsigned int seqLen) {
+void Sequence::mapSequence(size_t id, DBKeyType dbKey, const char *sequence, unsigned int seqLen) {
     this->id = id;
     this->dbKey = dbKey;
     this->seqData = sequence;
@@ -261,7 +261,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, 
 
 }
 
-void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
+void Sequence::mapSequence(size_t id, DBKeyType dbKey, std::pair<const unsigned char *,const unsigned int> data){
     this->id = id;
     this->dbKey = dbKey;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS)
@@ -411,7 +411,7 @@ void Sequence::mapSequence(const char * sequence, unsigned int dataLen){
 }
 
 void Sequence::printPSSM(){
-    printf("Query profile of sequence %d\n", dbKey);
+    printf("Query profile of sequence %llu\n", static_cast<unsigned long long>(dbKey));
     printf("Pos ");
     for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
         printf("%3c ", subMat->num2aa[aa]);
@@ -428,7 +428,7 @@ void Sequence::printPSSM(){
 }
 
 void Sequence::printProfile() const {
-    printf("Query profile of sequence %d\n", dbKey);
+    printf("Query profile of sequence %llu\n", static_cast<unsigned long long>(dbKey));
     printf("Pos ");
     for (size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
         printf("%6c ", subMat->num2aa[aa]);

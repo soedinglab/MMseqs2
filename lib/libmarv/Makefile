@@ -1,14 +1,20 @@
 # settings
 DIALECT      = -std=c++17
 OPTIMIZATION = -O3 -g
+USE_HIP ?= 0
+
+ifeq ($(USE_HIP),1)
+WARNINGS     = -Wall -Wextra -Wno-deprecated-pragma -Wno-deprecated-declarations -Wno-unused-variable -Wno-char-subscripts -Wno-sign-compare -Wno-assume -Wno-unused-parameter -Wno-unused-result -Wno-pessimizing-move
+NVCC_FLAGS   = --offload-arch=native -fopenmp
+LDFLAGS      = -pthread $(NVCC_FLAGS) -lz
+COMPILER     = hipcc
+else
 WARNINGS     = -Xcompiler="-Wall -Wextra"
-
-# NVCC_FLAGS   = -DCUDASW_DEBUG_CHECK_CORRECTNESS -arch=native -lineinfo --expt-relaxed-constexpr -rdc=true --extended-lambda -lnvToolsExt -Xcompiler="-fopenmp" #-res-usage #-Xptxas "-v"
-NVCC_FLAGS   = -arch=native -lineinfo --expt-relaxed-constexpr -rdc=true --extended-lambda -lnvToolsExt -Xcompiler="-fopenmp" #-res-usage #-Xptxas "-v"
-
-
-LDFLAGS      = -Xcompiler="-pthread"  $(NVCC_FLAGS) -lz
+NVCC_FLAGS   = -arch=native -lineinfo --expt-relaxed-constexpr -rdc=true --extended-lambda -lnvToolsExt -Xcompiler="-fopenmp"
+LDFLAGS      = -Xcompiler="-pthread" $(NVCC_FLAGS) -lz
 COMPILER     = nvcc
+endif
+
 ARTIFACT     = align
 
 BUILDDIR = build
@@ -33,9 +39,19 @@ clean :
 	rm -f $(TILECONFIGSEARCH)
 
 # compiler call
-COMPILE = $(COMPILER) $(NVCC_FLAGS) $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $< -o $@
+COMPILE = $(COMPILER) $(NVCC_FLAGS) $(NVCC_ARCH) $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $< -o $@
 
-CUDASW_OBJS =  $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/options.o $(BUILDDIR)/blosum.o $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_float.o $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_dpx.o $(BUILDDIR)/pssmkernels_gapless_instantiation_half2.o $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx.o $(BUILDDIR)/pssmkernels_gapless_instantiation_half2_kernelparamzero.o $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx_kernelparamzero.o
+COMPILE_INT8 =  ~/cuda-13.2/bin/nvcc $(NVCC_FLAGS) -gencode=arch=compute_120f,code=sm_120 $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $< -o $@
+
+CUDASW_OBJS =  $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/options.o $(BUILDDIR)/blosum.o $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_float.o $(BUILDDIR)/pssmkernels_gapless_instantiation_half2.o $(BUILDDIR)/pssmkernels_gapless_instantiation_half2_kernelparamzero.o
+
+ifneq ($(USE_HIP),1)
+CUDASW_OBJS += $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_dpx.o $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx.o $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx_kernelparamzero.o
+endif
+
+ifeq ($(USE_HIP),0)
+CUDASW_OBJS += $(BUILDDIR)/pssmkernels_gapless_instantiation_int8.o
+endif
 
 # link object files into executable
 $(ARTIFACT): $(BUILDDIR)/main.o $(CUDASW_OBJS)
@@ -70,23 +86,31 @@ $(BUILDDIR)/blosum.o : src/blosum.cu src/blosum.hpp
 $(BUILDDIR)/pssmkernels_gapless_instantiation_half2.o : src/pssmkernels_gapless_instantiation_half2.cu src/pssmkernels_gapless.cuh src/convert.cuh src/util.cuh
 	$(COMPILE)
 
+ifeq ($(USE_HIP),0)
 $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx.o : src/pssmkernels_gapless_instantiation_dpx.cu src/pssmkernels_gapless.cuh src/convert.cuh src/util.cuh
 	$(COMPILE)	
+endif
 
 $(BUILDDIR)/pssmkernels_gapless_instantiation_half2_kernelparamzero.o : src/pssmkernels_gapless_instantiation_half2_kernelparamzero.cu src/pssmkernels_gapless.cuh src/convert.cuh src/util.cuh
 	$(COMPILE)
 
+ifeq ($(USE_HIP),0)
 $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx_kernelparamzero.o : src/pssmkernels_gapless_instantiation_dpx_kernelparamzero.cu src/pssmkernels_gapless.cuh src/convert.cuh src/util.cuh
 	$(COMPILE)	
+endif
 
 $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_float.o : src/pssmkernels_smithwaterman_instantiation_float.cu src/pssmkernels_smithwaterman.cuh src/convert.cuh src/util.cuh
 	$(COMPILE)
 
+ifeq ($(USE_HIP),0)
 $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_dpx.o : src/pssmkernels_smithwaterman_instantiation_dpx.cu src/pssmkernels_smithwaterman.cuh src/convert.cuh src/util.cuh
 	$(COMPILE)
+endif
 
 $(BUILDDIR)/makedb.o : src/makedb.cpp src/dbdata.hpp src/sequence_io.h
 	$(COMPILE)
 
-
-
+ifeq ($(USE_HIP),0)
+$(BUILDDIR)/pssmkernels_gapless_instantiation_int8.o : src/pssmkernels_gapless_instantiation_int8.cu src/util.cuh
+	$(COMPILE_INT8)
+endif

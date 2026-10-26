@@ -14,6 +14,7 @@
 #include "Parameters.h"
 
 #include <iomanip>
+#include <sstream>
 #include <climits>
 #include <cassert>
 
@@ -227,8 +228,8 @@ int search(int argc, const char **argv, const Command& command) {
     int targetSrcDbType = -1;
     if(indexStr != "" || Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
         indexStr = par.db2;
-        DBReader<unsigned int> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        dbr.open(DBReader<unsigned int>::NOSORT);
+        DBReader<DBKeyType> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+        dbr.open(DBReader<DBKeyType>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
         targetSrcDbType = data.srcSeqType;
         targetDbType = data.seqType;
@@ -407,7 +408,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.addBacktrace = true;
         int originalNumIterations = par.numIterations;
         par.numIterations = 1;
-        int originalEval = par.evalThr;
+        double originalEval = par.evalThr;
         int originalPcmode = par.pcmode;
         par.pcmode = 0;
         //does expandaln's gap-open cost affect the score? -> NO!

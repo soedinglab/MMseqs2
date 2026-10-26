@@ -1,8 +1,9 @@
 #ifndef HELPERS_CUDA_RAII_WRAPPERS_CUH
 #define HELPERS_CUDA_RAII_WRAPPERS_CUH
 
+#include "../cuda_hip_rename.h"
 
-#ifdef __NVCC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 
 #include "cuda_helpers.cuh"
 

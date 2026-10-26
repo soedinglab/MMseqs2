@@ -1,6 +1,8 @@
 #ifndef CUDASW4_CUH
 #define CUDASW4_CUH
 
+#include "cuda_hip_rename.h"
+
 #include "hpc_helpers/cuda_raiiwrappers.cuh"
 #include "hpc_helpers/all_helpers.cuh"
 #include "hpc_helpers/nvtx_markers.cuh"
@@ -22,6 +24,9 @@
 
 #include "pssm.cuh"
 #include "pssmkernels_gapless.cuh"
+#ifdef CUDASW_INT8_GAPLESS
+#include "pssmkernels_gapless_int8.cuh"
+#endif
 #include "pssmkernels_smithwaterman.cuh"
 
 #include "gpudatabaseallocation.cuh"
@@ -34,6 +39,12 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/distance.h>
+#include <thrust/tuple.h>
+
+#if defined(__HIPCC__)
+    #include "hip/hip_runtime.h"
+    #include <hipcub/hipcub.hpp>
+#endif
 
 #include <iostream>
 #include <string>
@@ -717,8 +728,8 @@ namespace cudasw4{
             BlosumType blosumType,
             const MemoryConfig& memoryConfig,
             bool verbose_,
-            const KernelConfigFilenames& kernelConfigFilenames
-        ) : deviceIds(std::move(deviceIds_)), verbose(verbose_)
+            const KernelConfigFilenames& kernelConfigFilenames_
+        ) : deviceIds(std::move(deviceIds_)), verbose(verbose_), kernelConfigFilenames(kernelConfigFilenames_)
         {
             #ifdef CUDASW_DEBUG_CHECK_CORRECTNESS
                 blosumType = BlosumType::BLOSUM62_20;
@@ -754,6 +765,11 @@ namespace cudasw4{
         CudaSW4(CudaSW4&&) = default;
         CudaSW4& operator=(const CudaSW4&) = delete;
         CudaSW4& operator=(CudaSW4&&) = default;
+
+        void allowInt8(bool allow){
+            int8IsAllowed = allow;
+            initializeListOfAvailableKernelConfigs(kernelConfigFilenames);
+        }
 
         void setGapOpenScore(int score){
             if(verbose && score >= 0){
@@ -840,7 +856,7 @@ namespace cudasw4{
                 numTop = value;
                 updateNumResultsPerQuery();
 
-                cub::SwitchDevice sd(deviceIds[0]);
+                MySwitchDevice sd(deviceIds[0]);
                 const int numGpus = deviceIds.size();           
 
                 h_finalAlignmentScores.resize(results_per_query);
@@ -1067,12 +1083,18 @@ namespace cudasw4{
                     int gpu = h_finalAlignmentScores[i];
                     const int cpu = cpuScores[refId];
 
-
+                    // std::cout << "cpu " << cpu << ", gpu " << gpu << "\n";
                     //if(getReferenceLength(refId) <= boundaries[boundaries.size() - 2]){
-                        //gpu scores for all but last length partition are computed in half precision. don't report errors caused by rounding.
-                        if(gpu > 2048){
-                            gpu = cpu;
-                            numGreater2048++;
+                        if(allowInt8){
+                            if(cpu >= 255-currentInt8SubstitutionScoreBias){
+                                gpu = cpu;
+                                numGreater2048++;
+                            }
+                        }else{
+                            if(cpu >= 2048){
+                                gpu = cpu;
+                                numGreater2048++;
+                            }
                         }
                     //}
                     if(cpu != gpu){
@@ -1098,7 +1120,7 @@ namespace cudasw4{
                     }
                 }
                 if(numErrors == 0){
-                    std::cout << "Check ok, cpu and gpu produced same results. > 2048: " << numGreater2048 << " / " << numToCheck << "\n";
+                    std::cout << "Check ok, cpu and gpu produced same results. > threshold: " << numGreater2048 << " / " << numToCheck << "\n";
                 }else{
                     std::cout << "Check not ok!!! " << numErrors << " sequences produced different results\n";
                 }
@@ -1288,8 +1310,57 @@ namespace cudasw4{
             }
         }
 
+        // check if we can use GPU unified memory
+        bool canUseHostDbInPlace() const {
+            if(deviceIds.empty()){
+                return false;
+            }
+            for(int id : deviceIds){
+                int usesHostPageTables = 0;
+                cudaDeviceGetAttribute(&usesHostPageTables, cudaDevAttrPageableMemoryAccessUsesHostPageTables, id);
+                if(usesHostPageTables != 1){
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // check if DB fits in host memory
+        bool hostDbFitsInMemory() const {
+            const auto& data = fullDB.getData();
+            const size_t dbBytes = data.numChars()
+                + data.numSequences() * (sizeof(SequenceLengthT) + sizeof(size_t));
+            const size_t reserve = memoryConfig.maxTempBytes + (size_t(1) << 30);
+            RevertDeviceId rdi{};
+            for(int id : deviceIds){
+                cudaSetDevice(id);
+                size_t freeMem = 0, totalMem = 0;
+                cudaMemGetInfo(&freeMem, &totalMem);
+                if(dbBytes + reserve > totalMem){
+                    return false;
+                }
+            }
+            return true;
+        }
+
         void makeReady(){
             nvtx::ScopedRange sr("makeReady", 0);
+            // don't duplicate memory on unified-memory GPUs, unless the database is too large
+            if(canUseHostDbInPlace() && hostDbFitsInMemory()){
+                const auto& data = fullDB.getData();
+                std::vector<std::shared_ptr<GpuDatabaseAllocationBase>> hostViews(
+                    deviceIds.size(),
+                    std::make_shared<GpuDatabaseAllocationView>(
+                        const_cast<char*>(data.chars()),
+                        const_cast<SequenceLengthT*>(data.lengths()),
+                        const_cast<size_t*>(data.offsets()),
+                        data.numChars(),
+                        data.numSequences()
+                    )
+                );
+                makeReadyWithExistingFullGpuDB(hostViews);
+                return;
+            }
             #ifdef CUDASW_DEBUG_CHECK_CORRECTNESS
             const auto& dbData = fullDB.getData();
             size_t numDBSequences = dbData.numSequences();
@@ -1879,6 +1950,25 @@ namespace cudasw4{
                 }                
             }();
 
+
+            const auto gaplessKernelConfig = [&](){
+                if(currentQueryLength <= getMaxSingleTileQueryLength_Gapless()){
+                    return getSingleTileGroupRegConfigForPSSM_Gapless(currentQueryLength);
+                }else{
+                    return getMultiTileGroupRegConfigForPSSM_Gapless(currentQueryLength);
+                }
+            }();
+
+            if(int8IsAllowed){
+                currentInt8SubstitutionScoreBias = std::abs(std::min(0, hostFullQueryPSSM.getMinElement()));
+
+                for(int r = 0; r < 21; r++){
+                    for(int c = 0; c < queryLength; c++){
+                        hostFullQueryPSSM[r][c] = hostFullQueryPSSM[r][c] + currentInt8SubstitutionScoreBias;
+                    }
+                }
+            }
+
             // std::cout << "hostFullQueryPSSM\n";
             // for(int r = 0; r < 21; r++){
             //     for(int l = 0; l < queryLength; l++){
@@ -1922,32 +2012,33 @@ namespace cudasw4{
                 ws.gpuFullQueryPSSM.upload(hostFullQueryPSSM, gpuStreams[gpu]);
 
                 auto makeGaplessPSSM = [&](){
-                    if(currentQueryLength <= getMaxSingleTileQueryLength_Gapless()){
-                        auto config = getSingleTileGroupRegConfigForPSSM_Gapless(currentQueryLength);
-                        if(verbose){
+                    const auto& config = gaplessKernelConfig;
+                    if(verbose){
+                        if(currentQueryLength <= getMaxSingleTileQueryLength_Gapless()){
+                            const int simdfactor = config.datatype == GaplessKernelConfig::Datatype::UInt8x4 ? 4 : 2;
                             std::cout << "Query length " << currentQueryLength << ". Set up PSSM for single-tile processing. "
-                                << "Tilesize " << (config.groupsize * config.numRegs * 2) << " = " << config.groupsize << " * " << config.numRegs << " * 2" 
-                                ", dpx: " << config.dpx << ", approach: " << to_string(config.approach) << "\n";
-                        }
-                        constexpr int accessSize = 16; //kernel uses float4 for pssm access
-                        if(!config.dpx){
-                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<half, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                                << "Tilesize " << (config.groupsize * config.numRegs * simdfactor) << " = " << config.groupsize << " * " << config.numRegs << " * " << simdfactor 
+                                << ", datatype: " << to_string(config.datatype) << ", approach: " << to_string(config.approach) << "\n";
                         }else{
-                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<short, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
-                        }
-                    }else{
-                        auto config = getMultiTileGroupRegConfigForPSSM_Gapless(currentQueryLength);
-                        if(verbose){
+                            const int simdfactor = config.datatype == GaplessKernelConfig::Datatype::UInt8x4 ? 4 : 2;
                             std::cout << "Query length " << currentQueryLength << ". Set up PSSM for multi-tile processing. "
-                                << "Tilesize " << (config.groupsize * config.numRegs * 2) << " = " << config.groupsize << " * " << config.numRegs << " * 2" 
-                                ", dpx: " << config.dpx << ", approach: " << to_string(config.approach) << "\n";
+                                << "Tilesize " << (config.groupsize * config.numRegs * simdfactor) << " = " << config.groupsize << " * " << config.numRegs << " * " << simdfactor 
+                                << ", datatype: " << to_string(config.datatype) << ", approach: " << to_string(config.approach) << "\n";
                         }
-                        constexpr int accessSize = 16; //kernel uses float4 for pssm access
-                        if(!config.dpx){
+                    }
+                    constexpr int accessSize = 16; //kernel uses float4 for pssm access
+                    switch(config.datatype){
+                        case GaplessKernelConfig::Datatype::Half2:
                             ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<half, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
-                        }else{
+                            break;
+                        case GaplessKernelConfig::Datatype::Short2:
                             ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<short, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
-                        }
+                            break;
+                        case GaplessKernelConfig::Datatype::UInt8x4:
+                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<std::uint8_t, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            break;
+                        default:
+                            throw std::runtime_error("invalid config.datatype");
                     }
                 };
 
@@ -1989,11 +2080,6 @@ namespace cudasw4{
                     makeGaplessPSSM();
                     makeSWPSSM();
                 }
-
-                //THIS cudaMemcpyToSymbolAsync IS ONLY REQUIRED FOR THE NON-PSSM KERNELS
-
-                //TODO leave query in gmem, dont use cmem ???
-                // cudaMemcpyToSymbolAsync(constantQuery4, ws.d_query.data(), currentQueryLength, 0, cudaMemcpyDeviceToDevice, gpuStreams[gpu]); CUERR
 
             }
 
@@ -3678,7 +3764,15 @@ namespace cudasw4{
             #define X(g,r)\
                 validRegConfigs.push_back(std::make_tuple(g,r));
             
+#ifdef CUDASW_INT8_GAPLESS
+            if(int8IsAllowed){
+                PSSM_GAPLESS_INT8_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
+            }else{
+                PSSM_GAPLESS_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
+            }
+#else
             PSSM_GAPLESS_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
+#endif
 
             #undef X
             return validRegConfigs;
@@ -3689,7 +3783,15 @@ namespace cudasw4{
             #define X(g,r)\
                 validRegConfigs.push_back(std::make_tuple(g,r));
             
+#ifdef CUDASW_INT8_GAPLESS
+            if(int8IsAllowed){
+                PSSM_GAPLESS_INT8_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
+            }else{
+                PSSM_GAPLESS_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
+            }
+#else
             PSSM_GAPLESS_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
+#endif
 
             #undef X
             return validRegConfigs;
@@ -3718,12 +3820,17 @@ namespace cudasw4{
         }
 
         void initializeListOfAvailableKernelConfigs(const KernelConfigFilenames& kernelConfigFilenames){
+            // this may be called more than once (e.g. allowInt8 toggles); start fresh
+            availableKernelConfigs_gapless_singletile.clear();
+            availableKernelConfigs_gapless_multitile.clear();
+            availableKernelConfigs_sw_singletile.clear();
+            availableKernelConfigs_sw_multitile.clear();
 
             const auto configsGapless = [&](){
                 if(kernelConfigFilenames.gapless){
                     return loadKernelConfigsFromFile_gapless(kernelConfigFilenames.gapless.value());
                 }else{
-                    return getOptimalKernelConfigs_gapless(deviceIds[0]);
+                    return getOptimalKernelConfigs_gapless(deviceIds[0], int8IsAllowed);
                 }
             }();
 
@@ -3830,7 +3937,7 @@ namespace cudasw4{
                     config.tilesize = std::stoi(tokens[0]);
                     config.groupsize = std::stoi(tokens[1]);
                     config.numRegs = std::stoi(tokens[2]);
-                    config.dpx = std::stoi(tokens[3]);
+                    config.datatype = static_cast<GaplessKernelConfig::Datatype>(std::stoi(tokens[3]));
                     config.approach = GaplessKernelConfig::Approach(std::stoi(tokens[4]));
                     result.push_back(config);
                 }
@@ -4055,7 +4162,8 @@ namespace cudasw4{
             if(currentQueryLength <= getMaxSingleTileQueryLength_Gapless()){
                 auto config = getSingleTileGroupRegConfigForPSSM_Gapless(currentQueryLength);
 
-                if(!config.dpx){
+                switch(config.datatype){
+                case GaplessKernelConfig::Datatype::Half2:
                     if(config.approach == GaplessKernelConfig::Approach::hardcodedzero){
                         PSSM_2D_View<half2> strided_PSSM = permutedPSSM.makeHalf2View();
                         hardcodedzero::call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512>( 
@@ -4073,7 +4181,9 @@ namespace cudasw4{
                             currentQueryLength, strided_PSSM, stream
                         );
                     }
-                }else{
+                    break;
+                case GaplessKernelConfig::Datatype::Short2:
+#if defined(__CUDACC__)
                     if(config.approach == GaplessKernelConfig::Approach::hardcodedzero){
                         PSSM_2D_View<short2> strided_PSSM = permutedPSSM.makeShort2View();
                         hardcodedzero::call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512>(
@@ -4091,7 +4201,30 @@ namespace cudasw4{
                             currentQueryLength, strided_PSSM, stream
                         );
                     }
+#else
+                    throw std::runtime_error("short2 not supported");
+#endif
+                    break;
+#ifdef CUDASW_INT8_GAPLESS
+                case GaplessKernelConfig::Datatype::UInt8x4:
+                {
+                    if(!int8IsAllowed){
+                        throw std::runtime_error("attempt to call uint8x4 kernel, but int8 is not allowed");
+                    }
+                    PSSM_2D_View<ScoreType_u8x4> strided_PSSM = permutedPSSM.makeUint8x4View();
+                    uint8x4::call_GaplessFilter_strided_PSSM_singletile_uint8x4_kernel<ScoreType_u8x4, 512>(
+                        config.groupsize, config.numRegs, d_inputChars, 
+                        d_scores, d_inputOffsets, d_inputLengths, 
+                        d_selectedPositions, numSequences, 
+                        currentQueryLength, strided_PSSM, currentInt8SubstitutionScoreBias, stream
+                    );
+                    break;
                 }
+#endif
+            default:
+                throw std::runtime_error("invalid config.datatype");
+            }
+
             }else{
                 
 
@@ -4116,6 +4249,7 @@ namespace cudasw4{
                 const size_t tempStorageElementsAvailable = tempStorageBytes / sizeof(float2);
 
                 const size_t maxNumBlocks = tempStorageElementsAvailable / tempStorageElementsPerBlock;
+
                 if(maxNumBlocks == 0){
                     std::cout << "query with length " << currentQueryLength << " cannot be processed. ";
                     std::cout << "Not enough temp storage for a single threadblock. setting all scores to 0\n";
@@ -4132,52 +4266,89 @@ namespace cudasw4{
 
                     float2* const multiTileTempStorage = (float2*)d_tempStorage;
 
-                    if(!config.dpx){
-                        if(config.approach == GaplessKernelConfig::Approach::hardcodedzero){
-                            PSSM_2D_View<half2> strided_PSSM = permutedPSSM.makeHalf2View();
-                            hardcodedzero::call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512>(                              
-                                numThreadBlocks, config.groupsize, config.numRegs, 
+                    switch(config.datatype){
+                    case GaplessKernelConfig::Datatype::Half2:
+                        {
+                            if(config.approach == GaplessKernelConfig::Approach::hardcodedzero){
+                                PSSM_2D_View<half2> strided_PSSM = permutedPSSM.makeHalf2View();
+                                hardcodedzero::call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512>(                              
+                                    numThreadBlocks, config.groupsize, config.numRegs, 
+                                    d_inputChars, 
+                                    d_scores, d_inputOffsets, d_inputLengths, 
+                                    d_selectedPositions, numSequences, 
+                                    currentQueryLength, strided_PSSM, 
+                                    multiTileTempStorage, tempStorageElementsPerGroup, stream
+                                );
+                            }else{
+                                PSSM_2D_View<half2> strided_PSSM = permutedPSSM.makeHalf2View();
+                                kernelparamzero::call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512>(
+                                    numThreadBlocks, config.groupsize, config.numRegs, 
+                                    d_inputChars, 
+                                    d_scores, d_inputOffsets, d_inputLengths, 
+                                    d_selectedPositions, numSequences, 
+                                    currentQueryLength, strided_PSSM, 
+                                    multiTileTempStorage, tempStorageElementsPerGroup, stream
+                                );
+                            }
+                        }
+                        break;
+                    case GaplessKernelConfig::Datatype::Short2:
+                        {
+#if defined(__CUDACC__)
+                            if(config.approach == GaplessKernelConfig::Approach::hardcodedzero){
+                                PSSM_2D_View<short2> strided_PSSM = permutedPSSM.makeShort2View();
+                                hardcodedzero::call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512>(
+                                    numThreadBlocks, config.groupsize, config.numRegs, 
+                                    d_inputChars, 
+                                    d_scores, d_inputOffsets, d_inputLengths, 
+                                    d_selectedPositions, numSequences, 
+                                    currentQueryLength, strided_PSSM, 
+                                    multiTileTempStorage, tempStorageElementsPerGroup, stream
+                                );
+                            }else{
+                                PSSM_2D_View<short2> strided_PSSM = permutedPSSM.makeShort2View();
+                                kernelparamzero::call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512>(
+                                    numThreadBlocks, config.groupsize, config.numRegs, 
+                                    d_inputChars, 
+                                    d_scores, d_inputOffsets, d_inputLengths, 
+                                    d_selectedPositions, numSequences, 
+                                    currentQueryLength, strided_PSSM, 
+                                    multiTileTempStorage, tempStorageElementsPerGroup, stream
+                                );
+                            }
+#else
+                            throw std::runtime_error("short2 not supported");
+#endif
+                        }
+                        break;
+#ifdef CUDASW_INT8_GAPLESS
+                    case GaplessKernelConfig::Datatype::UInt8x4:
+                        {
+                            if(!int8IsAllowed){
+                                throw std::runtime_error("attempt to call uint8x4 kernel, but int8 is not allowed");
+                            }
+                            std::uint32_t* const multiTileTempStorage = (std::uint32_t*)d_tempStorage;
+                            PSSM_2D_View<ScoreType_u8x4> strided_PSSM = permutedPSSM.makeUint8x4View();
+                            uint8x4::call_GaplessFilter_strided_PSSM_multitile_uint8x4_kernel<ScoreType_u8x4, 512>(
+                                numSMs, 
+                                //4,4,
+                                config.groupsize, config.numRegs, 
                                 d_inputChars, 
                                 d_scores, d_inputOffsets, d_inputLengths, 
                                 d_selectedPositions, numSequences, 
                                 currentQueryLength, strided_PSSM, 
-                                multiTileTempStorage, tempStorageElementsPerGroup, stream
-                            );
-                        }else{
-                            PSSM_2D_View<half2> strided_PSSM = permutedPSSM.makeHalf2View();
-                            kernelparamzero::call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512>(
-                                numThreadBlocks, config.groupsize, config.numRegs, 
-                                d_inputChars, 
-                                d_scores, d_inputOffsets, d_inputLengths, 
-                                d_selectedPositions, numSequences, 
-                                currentQueryLength, strided_PSSM, 
-                                multiTileTempStorage, tempStorageElementsPerGroup, stream
+                                currentInt8SubstitutionScoreBias,
+                                multiTileTempStorage, 
+                                tempStorageElementsPerGroup, 
+                                stream
                             );
                         }
-                    }else{
-                        if(config.approach == GaplessKernelConfig::Approach::hardcodedzero){
-                            PSSM_2D_View<short2> strided_PSSM = permutedPSSM.makeShort2View();
-                            hardcodedzero::call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512>(
-                                numThreadBlocks, config.groupsize, config.numRegs, 
-                                d_inputChars, 
-                                d_scores, d_inputOffsets, d_inputLengths, 
-                                d_selectedPositions, numSequences, 
-                                currentQueryLength, strided_PSSM, 
-                                multiTileTempStorage, tempStorageElementsPerGroup, stream
-                            );
-                        }else{
-                            PSSM_2D_View<short2> strided_PSSM = permutedPSSM.makeShort2View();
-                            kernelparamzero::call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512>(
-                                numThreadBlocks, config.groupsize, config.numRegs, 
-                                d_inputChars, 
-                                d_scores, d_inputOffsets, d_inputLengths, 
-                                d_selectedPositions, numSequences, 
-                                currentQueryLength, strided_PSSM, 
-                                multiTileTempStorage, tempStorageElementsPerGroup, stream
-                            );
-                        }
+                        break;
+#endif
+                    default:
+                        throw std::runtime_error("invalid config.datatype");
                     }
-                }
+                }                
             }
         }
 
@@ -4220,6 +4391,7 @@ namespace cudasw4{
                         stream
                     );
                 }else{
+#if defined(__CUDACC__)
                     PSSM_2D_View<int> strided_PSSM = permutedPSSM.makeView<int>();
                     call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<int, 512, withEndPosition, subjectIsCaseSensitive>(
                         numBlocks,
@@ -4232,6 +4404,9 @@ namespace cudasw4{
                         gex,
                         stream
                     );
+#else
+                    throw std::runtime_error("dpx not supported");
+#endif
                 }
             }else{
                 auto config = getMultiTileGroupRegConfigForPSSM_SW(currentQueryLength);
@@ -4289,6 +4464,7 @@ namespace cudasw4{
                             stream
                         );
                     }else{
+#if defined(__CUDACC__)
                         PSSM_2D_View<int> strided_PSSM = permutedPSSM.makeView<int>();
                         call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<int, threadBlockSize, withEndPosition, subjectIsCaseSensitive>(
                             numBlocks,
@@ -4308,6 +4484,9 @@ namespace cudasw4{
                             tempBytesPerGroup, 
                             stream
                         );
+#else
+                        throw std::runtime_error("dpx not supported");
+#endif
                     }
                 }
             }
@@ -4318,7 +4497,7 @@ namespace cudasw4{
                 numTop = value;
                 updateNumResultsPerQuery();
 
-                cub::SwitchDevice sd(deviceIds[0]);
+                MySwitchDevice sd(deviceIds[0]);
                 const int numGpus = deviceIds.size();           
 
                 h_finalAlignmentScores.resize(results_per_query);
@@ -4329,6 +4508,8 @@ namespace cudasw4{
                 d_finalEndPositions_allGpus.resize(results_per_query * numGpus);              
             }
         }
+
+        int currentInt8SubstitutionScoreBias = 0;
 
 
         std::vector<size_t> fullDB_numSequencesPerLengthPartition;
@@ -4389,6 +4570,7 @@ namespace cudasw4{
 
         //--------------------------------------
         bool verbose = false;
+        bool int8IsAllowed = false;
         int gop = -11;
         int gex = -1;
         int numTop = 10;
@@ -4397,6 +4579,7 @@ namespace cudasw4{
         int maxReduceArraySize = MaxNumberOfResults::value();
 
         MemoryConfig memoryConfig;
+        KernelConfigFilenames kernelConfigFilenames;
         
         std::vector<int> deviceIds;
 

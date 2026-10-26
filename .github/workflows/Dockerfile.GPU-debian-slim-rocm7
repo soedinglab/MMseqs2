@@ -1,0 +1,112 @@
+FROM debian:12-slim AS builder
+ARG ROCM_VER="7.2"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROCM_PATH=/opt/rocm
+ENV HIP_PATH=/opt/rocm
+ENV PATH="/root/.cargo/bin:/opt/rocm/bin:/opt/rocm/lib/llvm/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH}"
+ENV HIPCC_COMPILE_FLAGS_APPEND="-parallel-jobs=8"
+ENV LIBGCC=/usr/lib/gcc/x86_64-linux-gnu/12
+
+WORKDIR /opt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        bzip2 \
+        ca-certificates \
+        curl \
+        gpg \
+        libxml2 \
+        ninja-build \
+        perl \
+        wget && \
+    mkdir -p /etc/apt/keyrings && \
+    wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor > /etc/apt/keyrings/rocm.gpg && \
+    printf '%s\n' \
+        "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/${ROCM_VER} jammy main" \
+        > /etc/apt/sources.list.d/rocm.list && \
+    printf '%s\n' \
+        'Package: *' \
+        'Pin: release o=repo.radeon.com' \
+        'Pin-Priority: 600' \
+        > /etc/apt/preferences.d/rocm-pin-600 && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        hipcc \
+        hipcub-dev \
+        hip-dev \
+        hsa-rocr-dev \
+        libatomic1 \
+        libstdc++-12-dev \
+        rocprim-dev \
+        rocm-core \
+        rocm-device-libs \
+        rocm-hip-runtime-dev \
+        rocm-llvm \
+        rocthrust-dev && \
+    wget -q https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh && \
+    chmod +x cmake-3.31.0-linux-x86_64.sh && \
+    ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/usr/local && \
+    mkdir /deps && \
+    cd /deps && \
+    wget -q https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz && \
+    tar xzf bzip2-1.0.8.tar.gz && \
+    cd bzip2-1.0.8 && \
+    make install PREFIX=/deps && \
+    rm -rf /deps/bzip2-1.0.8 /deps/bzip2-1.0.8.tar.gz && \
+    cd /deps && \
+    wget -q https://www.zlib.net/zlib-1.3.2.tar.gz && \
+    tar xzf zlib-1.3.2.tar.gz && \
+    cd zlib-1.3.2 && \
+    ./configure --prefix=/deps --static && \
+    make install && \
+    cd /opt && \
+    rm -rf /deps/zlib-1.3.2 /deps/zlib-1.3.2.tar.gz && \
+    curl -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+ADD . .
+RUN mkdir -p /work/build && cd /work/build && \
+    if [ -e "${LIBGCC}/libgomp.so" ]; then \
+        mv -f -- "${LIBGCC}/libgomp.so" "${LIBGCC}/libgomp.so.disabled"; \
+    fi && \
+    /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
+        -DOpenMP_C_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY="${LIBGCC}/libgomp.a" \
+        -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
+        -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
+        -DZLIB_ROOT=/deps -DZLIB_USE_STATIC_LIBS=ON -DBZIP2_ROOT=/deps \
+        -DFORCE_STATIC_DEPS=1 -DENABLE_HIP=1 \
+        -DCMAKE_HIP_ARCHITECTURES="gfx942;gfx90a;gfx9-generic;gfx9-4-generic;gfx10-1-generic;gfx10-3-generic;gfx11-generic;gfx12-generic" \
+            .. && \
+    cmake --build . -j"$(nproc --all)" -v
+
+FROM debian:12-slim AS runtime
+ARG ROCM_VER="7.2"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/opt/mmseqs/bin:/opt/rocm/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH}"
+
+WORKDIR /opt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates gpg wget && \
+    mkdir -p /etc/apt/keyrings && \
+    wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor > /etc/apt/keyrings/rocm.gpg && \
+    printf '%s\n' \
+        "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/${ROCM_VER} jammy main" \
+        > /etc/apt/sources.list.d/rocm.list && \
+    printf '%s\n' \
+        'Package: *' \
+        'Pin: release o=repo.radeon.com' \
+        'Pin-Priority: 600' \
+        > /etc/apt/preferences.d/rocm-pin-600 && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends --no-install-suggests hip-runtime-amd hsa-rocr rocm-core && \
+    apt-get purge -y --auto-remove gpg wget && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /work/build/src/mmseqs /opt/mmseqs/bin/mmseqs
+
+ENTRYPOINT ["/opt/mmseqs/bin/mmseqs"]

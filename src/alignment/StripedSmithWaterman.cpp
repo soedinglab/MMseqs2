@@ -26,7 +26,6 @@
 #include "Parameters.h"
 #include "simd.h"
 #include "StripedSmithWaterman.h"
-#include "UngappedAlignment.h"
 
 #include "Util.h"
 #include "SubstitutionMatrix.h"
@@ -70,7 +69,6 @@ struct s_profile {
 	int32_t alphabetSize;
 	uint8_t bias;
 	short ** profile_word_linear;
-	int32_t ** profile_int_linear;
 };
 
 struct s_block {
@@ -406,7 +404,7 @@ std::pair<alignment_end, alignment_end> sw_sse2_word(
 				simdi_store(pvHStore + j, vH);
 				vH = simdui16_subs(vH, vGapO);
 				vF = simdui16_subs(vF, vGapE);
-				if (UNLIKELY(!simd_any(simdi16_gt(vF, vH)))) goto end;
+				if (UNLIKELY(!simdi16_gt_any(vF, vH))) goto end;
 			}
 		}
 
@@ -518,7 +516,6 @@ std::pair<alignment_end, alignment_end> sw_sse2_int(
 
 	simd_int vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
 	simd_int vMaxMark = vZero; /* Trace the highest score till the previous column. */
-	simd_int vTemp;
 	int32_t edge, begin = 0, end = db_length, step = 1;
 
 	/* outer loop to process the reference sequence */
@@ -585,14 +582,12 @@ std::pair<alignment_end, alignment_end> sw_sse2_int(
 				simdi_store(pvHStore + j, vH);
 				vH = simdui32_subs(vH, vGapO);
 				vF = simdui32_subs(vF, vGapE);
-				if (UNLIKELY(! simdi8_movemask(simdi32_gt(vF, vH)))) goto end;
+				if (UNLIKELY(! simdi32_gt_any(vF, vH))) goto end;
 			}
 		}
 		end:
 		vMaxScore = simdi32_max(vMaxScore, vMaxColumn);
-		vTemp = simdi32_eq(vMaxMark, vMaxScore);
-		uint32_t cmp = simdi8_movemask(vTemp);
-		if (cmp != SIMD_MOVEMASK_MAX) {
+		if (!simdi32_eq_all(vMaxMark, vMaxScore)) {
 			uint32_t temp;
 			vMaxMark = vMaxScore;
 			max4(temp, vMaxScore);
@@ -653,23 +648,72 @@ std::pair<alignment_end, alignment_end> sw_sse2_int(
 
 SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
                              float aaBiasCorrectionScale, SubstitutionMatrix * subMat) {
-	maxSequenceLength += 1;
 	this->subMat = subMat;
+	this->aaSize = aaSize;
     this->aaBiasCorrectionScale = aaBiasCorrectionScale;
 	this->aaBiasCorrection = aaBiasCorrection;
+	queryCapacity = maxSequenceLength + 1;
+	targetCapacity = maxSequenceLength + 1;
+	blockQueryCapacity = 0;
+	blockTargetCapacity = 0;
 
-	// int32_t alignment needs larger seqSize, was +7/8 for word before
-    segSize = (maxSequenceLength+3)/4;
 	simdData = new simd_data();
+	profile = new s_profile();
+	block = new s_block();
+	profile->profile_word_linear = new short*[aaSize];
+	block->mat_aa = block_new_simple_aamatrix(1, -1);
+
+	allocQuery();
+	allocTarget();
+}
+
+SmithWaterman::~SmithWaterman(){
+	freeQuery();
+	freeTarget();
+	freeBlockTrace();
+	block_free_aamatrix(block->mat_aa);
+	delete [] profile->profile_word_linear;
+	delete profile;
+	delete simdData;
+	delete block;
+}
+
+void SmithWaterman::resizeQuery(size_t queryLen) {
+	if (queryLen + 1 <= queryCapacity) {
+		return;
+	}
+	freeQuery();
+	queryCapacity = queryLen + 1;
+	allocQuery();
+}
+
+void SmithWaterman::resizeTarget(size_t targetLen) {
+	if (targetLen + 1 <= targetCapacity) {
+		return;
+	}
+	freeTarget();
+	targetCapacity = targetLen + 1;
+	allocTarget();
+}
+
+void SmithWaterman::resizeBlockTrace(size_t queryLen, size_t targetLen) {
+	if (queryLen <= blockQueryCapacity && targetLen <= blockTargetCapacity) {
+		return;
+	}
+	freeBlockTrace();
+	blockQueryCapacity = std::max(blockQueryCapacity, queryLen + 1);
+	blockTargetCapacity = std::max(blockTargetCapacity, targetLen + 1);
+	block->block_trace = block_new_aa_trace_xdrop(blockQueryCapacity, blockTargetCapacity, MAX_SIZE);
+}
+
+void SmithWaterman::allocQuery() {
+	// int32_t alignment needs larger seqSize, was +7/8 for word before
+	segSize = (queryCapacity + 3) / 4;
 	simdData->vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	simdData->vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	simdData->vE      = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	simdData->vHmax   = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 
-    isQueryProfile = false;
-
-    // setting up query
-	profile = new s_profile();
 	// query profile
 	profile->profile_byte = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 	profile->profile_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
@@ -680,39 +724,30 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	profile->profile_rev_int = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 
 	// query sequence
-    profile->query_sequence     = new int8_t[maxSequenceLength];
-	profile->query_rev_sequence = new int8_t[maxSequenceLength];
-	profile->composition_bias   = new int8_t[maxSequenceLength];
-	profile->composition_bias_rev   = new int8_t[maxSequenceLength];
-	profile->profile_word_linear = new short*[aaSize];
-	profile_word_linear_data = new short[aaSize*maxSequenceLength];
-	profile->profile_int_linear = new int32_t*[aaSize];
-	profile_int_linear_data = new int32_t[aaSize*maxSequenceLength];
-	profile->mat_rev            = new int8_t[std::max(maxSequenceLength, (size_t)aaSize) * aaSize * 2]; // why multiply 2?
-	profile->mat                = new int8_t[std::max(maxSequenceLength, (size_t)aaSize) * aaSize * 2];
-	tmp_composition_bias   = new float[maxSequenceLength];
-    scorePerCol = new int8_t[maxSequenceLength];
-    /* array to record the largest score of each reference position */
-	simdData->maxColumn = new uint8_t[maxSequenceLength*sizeof(uint32_t)];
-	memset(simdData->maxColumn, 0, maxSequenceLength*sizeof(uint32_t));
-	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->mat_rev, 0, maxSequenceLength * aaSize);
-	memset(profile->composition_bias, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->composition_bias_rev, 0, maxSequenceLength * sizeof(int8_t));
+    profile->query_sequence     = new int8_t[queryCapacity];
+	profile->query_rev_sequence = new int8_t[queryCapacity];
+	profile->composition_bias   = new int8_t[queryCapacity];
+	profile->composition_bias_rev   = new int8_t[queryCapacity];
+	profile_word_linear_data = new short[aaSize*queryCapacity];
+	profile->mat_rev            = new int8_t[std::max(queryCapacity, (size_t)aaSize) * aaSize * 2]; // why multiply 2?
+	profile->mat                = new int8_t[std::max(queryCapacity, (size_t)aaSize) * aaSize * 2];
+	tmp_composition_bias   = new float[queryCapacity];
+    scorePerCol = new int8_t[queryCapacity];
+	memset(profile->query_sequence, 0, queryCapacity * sizeof(int8_t));
+	memset(profile->query_rev_sequence, 0, queryCapacity * sizeof(int8_t));
+	memset(profile->mat_rev, 0, queryCapacity * aaSize);
+	memset(profile->composition_bias, 0, queryCapacity * sizeof(int8_t));
+	memset(profile->composition_bias_rev, 0, queryCapacity * sizeof(int8_t));
 
 	// blockaligner
-	block = new s_block();
-	block->query = block_new_padded_aa(maxSequenceLength, MAX_SIZE);
-	block->query_bias = block_new_pos_bias(maxSequenceLength, MAX_SIZE);
-	block->mat_aa = block_new_simple_aamatrix(1, -1);
-	block->block_trace = block_new_aa_trace_xdrop(maxSequenceLength, maxSequenceLength, MAX_SIZE);
-	block->query_bias_arr = new int16_t[maxSequenceLength];
+	block->query = block_new_padded_aa(queryCapacity, MAX_SIZE);
+	block->query_bias = block_new_pos_bias(queryCapacity, MAX_SIZE);
+	block->query_bias_arr = new int16_t[queryCapacity];
 
-	profile->pos_aa_rev = new int8_t[maxSequenceLength * 32];
+	profile->pos_aa_rev = new int8_t[queryCapacity * 32];
 }
 
-SmithWaterman::~SmithWaterman(){
+void SmithWaterman::freeQuery() {
 	free(simdData->vHStore);
 	free(simdData->vHLoad);
 	free(simdData->vE);
@@ -727,63 +762,35 @@ SmithWaterman::~SmithWaterman(){
 	delete [] profile->query_sequence;
 	delete [] profile->composition_bias;
 	delete [] profile->composition_bias_rev;
-	delete [] profile->profile_word_linear;
 	delete [] profile_word_linear_data;
-	delete [] profile->profile_int_linear;
-	delete [] profile_int_linear_data;
 	delete [] profile->mat_rev;
 	delete [] profile->mat;
 	delete [] tmp_composition_bias;
 	delete [] scorePerCol;
-	delete [] simdData->maxColumn;
 	delete [] profile->pos_aa_rev;
-	delete profile;
-	delete simdData;
 
 	block_free_padded_aa(block->query);
 	block_free_pos_bias(block->query_bias);
-	block_free_aamatrix(block->mat_aa);
-	block_free_aa_trace_xdrop(block->block_trace);
 	delete [] block->query_bias_arr;
-	delete block;
 }
 
+void SmithWaterman::allocTarget() {
+	/* array to record the largest score of each reference position */
+	simdData->maxColumn = new uint8_t[targetCapacity*sizeof(uint32_t)];
+	memset(simdData->maxColumn, 0, targetCapacity*sizeof(uint32_t));
+}
 
-/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch. */
-template <typename T, size_t Elements, unsigned int type>
-void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat,
-        const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength) {
-	const int32_t segLen = (query_length + Elements - 1) / Elements;
-	T* t = (T*) profile;
-    for (int32_t nt = 0; LIKELY(nt < aaSize); nt++) {
-		for (int32_t i = 0; i < segLen; i++) {
-			int32_t  j = i;
-			for (size_t segNum = 0; LIKELY(segNum < Elements) ; segNum++) {
-				// if will be optmized out by compiler
-				if(type == SmithWaterman::SUBSTITUTIONMATRIX) {    // substitution score for query_seq constrained by nt
-					// query_sequence starts from 1 to n
-					// *t++ = ( j >= query_length) ? bias : mat[nt * aaSize + query_sequence[j + offset ]] + composition_bias[j + offset] + bias; // mat[nt][q[j]] mat eq 20*20
-					if (j >= query_length) {
-						*t++ = bias;
-					} else {
-						const int q = query_sequence[j + offset];
-						const float cb = composition_bias[j + offset];
-						*t++ = mat[nt * aaSize + q] + cb + bias;
-					}
-				} if(type == SmithWaterman::PROFILE) {
-                    // profile starts by 0
-//                    *t++ = (j >= query_length) ? bias : (mat[nt * entryLength + (j + (offset - 1))] + bias); //mat eq L*20  // mat[nt][j]
-                    *t++ = (j >= query_length) ? bias : mat[nt * entryLength + j + offset] + bias;
-//					// profile starts by 0 // TODO: offset?
-//					*t++ = (j >= query_length) ? bias : mat[nt * entryLength + j + offset] + bias; //mat eq L*20  // mat[nt][j]
-//					printf("(%1d, %1d) ", j , *(t-1));
-				}
-				j += segLen;
-			}
-			// std::cout << std::endl;
-		}
+void SmithWaterman::freeTarget() {
+	delete [] simdData->maxColumn;
+}
+
+void SmithWaterman::freeBlockTrace() {
+	if (block->block_trace != NULL) {
+		block_free_aa_trace_xdrop(block->block_trace);
+		block->block_trace = NULL;
 	}
 }
+
 
 uint8_t SmithWaterman::computeBias(const int32_t target_length, const int8_t *mat, const int32_t aaSize) {
     int8_t db_bias = 0;
@@ -815,6 +822,7 @@ s_align SmithWaterman::ssw_align (
         EvalueComputation * evaluer,
         const int covMode, const float covThr, const float correlationScoreWeight,
         const int32_t maskLen) {
+    resizeTarget(db_length);
     s_align alignment;
     // check if both query and target are profiles
 	if (profile->isProfile) {
@@ -862,15 +870,14 @@ s_align SmithWaterman::ssw_align_private (
 		return align;
 	}
 
-	// run very shot and long overflowing alignments with SW instead of block aligner
-	// short alignments are very fast with byte SW, long alignments produce slightly different scores FIXME
-	if (align.word != 1) {
+	// byte SW is faster than the block aligner on the short alignments it can score
+	if (align.word == 0) {
 		return alignStartPosBacktrace<type>(db_sequence, db_length, gap_open, gap_extend, alignmentMode, backtrace, align, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
 	}
 
 	bool blockAlignFailed = false;
 	s_align alignTmp = alignStartPosBacktraceBlock<type>(db_sequence, db_length, gap_open, gap_extend, backtrace, align);
-	if (align.score1 == UINT32_MAX) {
+	if (alignTmp.score1 == UINT32_MAX) {
 		blockAlignFailed = true;
 	} else {
 		align = alignTmp;
@@ -915,16 +922,15 @@ s_align SmithWaterman::alignScoreEndPos (
 	// 2. word
 	if (bests.first.score == 255) {
 		bests = sw_sse2_word<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
-                    profile->profile_word, USHRT_MAX, maskLen, simdData);
+                    profile->profile_word, INT16_MAX, maskLen, simdData);
         r.word = 1;
 	}
 	// 3. int
-	// Comment out int32_t now for benchmark
-	// if (bests.first.score == INT16_MAX) {
-	// 	bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
-	// 				profile->profile_int, USHRT_MAX, maskLen, simdData);
-	// 	r.word = 2;
-	// }
+	if (bests.first.score == INT16_MAX) {
+		bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
+					profile->profile_int, UINT32_MAX, maskLen, simdData);
+		r.word = 2;
+	}
 
 	r.score1 = bests.first.score;
     r.dbEndPos1 = bests.first.ref;
@@ -961,6 +967,8 @@ s_align SmithWaterman::alignStartPosBacktraceBlock(
 	// set query
 	int32_t queryAlnLen = r.qEndPos1 + 1;
 	int32_t queryStartPos = query_len - queryAlnLen;
+	int32_t targetAlnLen = r.dbEndPos1 + 1;
+	resizeBlockTrace(queryAlnLen, targetAlnLen);
 	if (type == PROFILE_SEQ) {
 		queryProfile = block_new_aaprofile(queryAlnLen, MAX_SIZE, gaps.extend);
 		// Fill pos_aa_block and aa_pos_block with the relevant range(0-qEndPos, queryAlnLen)
@@ -997,7 +1005,6 @@ s_align SmithWaterman::alignStartPosBacktraceBlock(
 		block_set_pos_bias(block->query_bias, block->query_bias_arr + queryStartPos, queryAlnLen);
 	}
 	// set target
-	int32_t targetAlnLen = r.dbEndPos1 + 1;
 	int32_t targetStartPos = target_len - targetAlnLen;
 	PaddedBytes* target = block_new_padded_aa(target_len, MAX_SIZE);
 
@@ -1173,20 +1180,18 @@ s_align SmithWaterman::alignStartPosBacktrace (
 		bests_reverse = sw_sse2_word<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
 										   gap_extend, profile->profile_rev_word,
 										   r.score1, maskLen, simdData);
+	} else if (r.word == 2) {
+        if ((type == PROFILE_SEQ)) {
+			createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
+																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
+		}  else if (type == SEQ_SEQ) {
+			createQueryProfile<int32_t, VECSIZE_INT * 1, SUBSTITUTIONMATRIX>(profile->profile_rev_int, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
+																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
+		}
+		bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
+											gap_extend, profile->profile_rev_int,
+											r.score1, maskLen, simdData);
 	}
-	// Comment out int32_t now for benchmark
-	// else if (r.word == 2) {
-    //     if ((type == PROFILE_SEQ)) {
-	// 		createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
-	// 																r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
-	// 	}  else if (type == SEQ_SEQ) {
-	// 		createQueryProfile<int32_t, VECSIZE_INT * 1, SUBSTITUTIONMATRIX>(profile->profile_rev_int, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
-	// 																r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
-	// 	}
-	// 	bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
-	// 										gap_extend, profile->profile_rev_int,
-	// 										r.score1, maskLen, simdData);
-	// }
 
     if(bests_reverse.first.score != r.score1){
 		Debug(Debug::ERROR) << "r.word: " << r.word << "\n";
@@ -1364,6 +1369,7 @@ int SmithWaterman::computeCorrelationScore(int8_t * scorePreCol, size_t length){
 void SmithWaterman::ssw_init(const Sequence* q,
 							 const int8_t* mat,
 							 const BaseMatrix *m) {
+	resizeQuery(q->L);
 	//init profile
     profile->bias = 0;
 	profile->query_length = q->L;
@@ -1792,85 +1798,17 @@ s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputa
 	r.qCov =  1.0;
 	r.tCov = 1.0;
     r.cigar = NULL;
-	short score = 0;
+	int32_t score = 0;
+	int32_t maxScore = 0;
 	for(int pos = 0; pos < L; pos++){
 		int currScore = profile->profile_word_linear[dbSeq[pos]][pos];
 		score += currScore;
+		score = (score <= 0) ? 0 : score;
+		maxScore = std::max(maxScore, score);
         backtrace.push_back('M');
 	}
-	r.score1=score;
+	r.score1=maxScore;
 	r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
     r.identicalAACnt = L;
 	return r;
-}
-
-template <typename F>
-inline F simd_hmax(const F * in, unsigned int n) {
-    F current = std::numeric_limits<F>::min();
-    do {
-        current = std::max(current, *in++);
-    } while(--n);
-
-    return current;
-}
-
-int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
-#define SWAP(tmp, arg1, arg2) tmp = arg1; arg1 = arg2; arg2 = tmp;
-
-    int i; // position in query bands (0,..,W-1)
-    int j; // position in db sequence (0,..,dbseq_length-1)
-    int element_count = (VECSIZE_INT * 4);
-    const int W = (profile->query_length + (element_count - 1)) /
-                  element_count; // width of bands in query and score matrix = hochgerundetes LQ/16
-
-    simd_int *p;
-    simd_int S;              // 16 unsigned bytes holding S(b*W+i,j) (b=0,..,15)
-    simd_int Smax = simdi_setzero();
-    simd_int Soffset; // all scores in query profile are shifted up by Soffset to obtain pos values
-    simd_int *s_prev, *s_curr; // pointers to Score(i-1,j-1) and Score(i,j), resp.
-    simd_int *qji;             // query profile score in row j (for residue x_j)
-    simd_int *s_prev_it, *s_curr_it;
-    simd_int *query_profile_it = (simd_int *) profile->profile_byte;
-
-    // Load the score offset to all 16 unsigned byte elements of Soffset
-    Soffset = simdi8_set(profile->bias);
-    s_curr = simdData->vHStore;
-    s_prev = simdData->vHLoad;
-
-    memset(simdData->vHStore, 0, W * sizeof(simd_int));
-    memset(simdData->vHLoad, 0, W * sizeof(simd_int));
-
-    for (j = 0; j < db_length; ++j) // loop over db sequence positions
-    {
-
-        // Get address of query scores for row j
-        qji = query_profile_it + db_sequence[j] * W;
-
-        // Load the next S value
-        S = simdi_load(s_curr + W - 1);
-        S = simdi8_shiftl(S, 1);
-
-        // Swap s_prev and s_curr, smax_prev and smax_curr
-        SWAP(p, s_prev, s_curr);
-
-        s_curr_it = s_curr;
-        s_prev_it = s_prev;
-
-        for (i = 0; i < W; ++i) // loop over query band positions
-        {
-            // Saturated addition and subtraction to score S(i,j)
-            S = simdui8_adds(S, *(qji++)); // S(i,j) = S(i-1,j-1) + (q(i,x_j) + Soffset)
-            S = simdui8_subs(S, Soffset);       // S(i,j) = max(0, S(i,j) - Soffset)
-            simdi_store(s_curr_it++, S);       // store S to s_curr[i]
-            Smax = simdui8_max(Smax, S);       // Smax(i,j) = max(Smax(i,j), S(i,j))
-
-            // Load the next S and Smax values
-            S = simdi_load(s_prev_it++);
-        }
-    }
-    int score = simd_hmax((unsigned char *) &Smax, element_count);
-
-    /* return largest score */
-    return score;
-#undef SWAP
 }

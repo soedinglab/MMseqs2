@@ -14,9 +14,9 @@
 #include <omp.h>
 #endif
 
-ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr,
+ClusteringAlgorithms::ClusteringAlgorithms(DBReader<DBKeyType>* seqDbr, DBReader<DBKeyType>* alnDbr,
                                            int threads, int scoretype, int maxiterations,
-                                           unsigned int *keyToSet, size_t *sourceOffsets, unsigned int **sourceLookupTable, unsigned int *sourceList, unsigned int sourceLen, bool needSET){
+                                           DBKeyType *keyToSet, size_t *sourceOffsets, DBKeyType **sourceLookupTable, DBKeyType *sourceList, size_t sourceLen, bool needSET){
     this->seqDbr=seqDbr;
     if(seqDbr->getSize() != alnDbr->getSize() && needSET == false){
         Debug(Debug::ERROR) << "Sequence db size != result db size\n";
@@ -34,7 +34,11 @@ ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBRea
     this->sourceLen=sourceLen;
     this->needSET=needSET;
     ///time
-    this->clustersizes=new int[dbSize];
+#ifdef MMSEQS_INT64_IDS
+    this->clustersizes=new int64_t[dbSize];
+#else
+    this->clustersizes=new int32_t[dbSize];
+#endif
     std::fill_n(clustersizes, dbSize, 0);
 }
 
@@ -42,14 +46,14 @@ ClusteringAlgorithms::~ClusteringAlgorithms(){
     delete [] clustersizes;
 }
 
-std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) {
+std::pair<DBKeyType, DBKeyType> * ClusteringAlgorithms::execute(int mode) {
     // init data
     if(needSET){
         dbSize = sourceLen;
     }
-    unsigned int *assignedcluster = new(std::nothrow) unsigned int[dbSize];
+    DBLocalId *assignedcluster = new(std::nothrow) DBLocalId[dbSize];
     Util::checkAllocation(assignedcluster, "Can not allocate assignedcluster memory in ClusteringAlgorithms::execute");
-    std::fill_n(assignedcluster, dbSize, UINT_MAX);
+    std::fill_n(assignedcluster, dbSize, DB_LOCAL_ID_INVALID);
 
     //time
     if (mode==4 || mode==2) {
@@ -69,9 +73,9 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
                 elementCount += (*data == '\0') ? 1 : Util::countLines(data, dataSize);
             }
         }
-        unsigned int * elements = new(std::nothrow) unsigned int[elementCount];
+        DBLocalId * elements = new(std::nothrow) DBLocalId[elementCount];
         Util::checkAllocation(elements, "Can not allocate elements memory in ClusteringAlgorithms::execute");
-        unsigned int ** elementLookupTable = new(std::nothrow) unsigned int*[dbSize];
+        DBLocalId ** elementLookupTable = new(std::nothrow) DBLocalId*[dbSize];
         Util::checkAllocation(elementLookupTable, "Can not allocate elementLookupTable memory in ClusteringAlgorithms::execute");
         unsigned short **scoreLookupTable = new(std::nothrow) unsigned short *[dbSize];
         Util::checkAllocation(scoreLookupTable, "Can not allocate scoreLookupTable memory in ClusteringAlgorithms::execute");
@@ -89,25 +93,25 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
             setCover(elementLookupTable, scoreLookupTable, assignedcluster, bestscore, elementOffsets);
         } else if (mode == 3) {
             Debug(Debug::INFO) << "connected component mode" << "\n";
-            for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-                unsigned int representative = sorted_clustersizes[cl_size];
-                if (assignedcluster[representative] == UINT_MAX) {
+            for (size_t cl_size = dbSize; cl_size > 0; cl_size--) {
+                DBLocalId representative = sorted_clustersizes[cl_size - 1];
+                if (assignedcluster[representative] == DB_LOCAL_ID_INVALID) {
                     assignedcluster[representative] = representative;
-                    std::queue<int> myqueue;
+                    std::queue<DBLocalId> myqueue;
                     myqueue.push(representative);
                     std::queue<int> iterationcutoffs;
                     iterationcutoffs.push(0);
                     //delete clusters of members;
                     while (!myqueue.empty()) {
-                        int currentid = myqueue.front();
+                        DBLocalId currentid = myqueue.front();
                         int iterationcutoff = iterationcutoffs.front();
                         assignedcluster[currentid] = representative;
                         myqueue.pop();
                         iterationcutoffs.pop();
                         size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
                         for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                            unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                            if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
+                            DBLocalId elementtodelete = elementLookupTable[currentid][elementId];
+                            if (assignedcluster[elementtodelete] == DB_LOCAL_ID_INVALID && iterationcutoff < maxiterations) {
                                 myqueue.push(elementtodelete);
                                 iterationcutoffs.push((iterationcutoff + 1));
                             }
@@ -133,13 +137,13 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
     }
 
 
-    std::pair<unsigned int, unsigned int> * assignment = new std::pair<unsigned int, unsigned int> [dbSize];
+    std::pair<DBKeyType, DBKeyType> * assignment = new std::pair<DBKeyType, DBKeyType> [dbSize];
 #pragma omp parallel
     {
 
 #pragma omp for schedule(static)
         for (size_t i = 0; i < dbSize; i++) {
-            if (assignedcluster[i] == UINT_MAX) {
+            if (assignedcluster[i] == DB_LOCAL_ID_INVALID) {
                 Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) << "\t" << i <<
                                     "\tis not assigned to a cluster\n";
                 continue;
@@ -155,32 +159,32 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
 }
 
 void ClusteringAlgorithms::initClustersizes(){
-    unsigned int * setsize_abundance = new unsigned int[maxClustersize+1];
+    DBLocalId * setsize_abundance = new DBLocalId[maxClustersize+1];
 
     std::fill_n(setsize_abundance, maxClustersize+1, 0);
     //count how often a set size occurs
-    for (unsigned int i = 0; i < dbSize; ++i) {
+    for (size_t i = 0; i < dbSize; ++i) {
         setsize_abundance[clustersizes[i]]++;
     }
     //compute offsets
-    borders_of_set = new unsigned int[maxClustersize+1];
+    borders_of_set = new size_t[maxClustersize+1];
     borders_of_set[0] = 0;
-    for (unsigned int i = 1; i < maxClustersize+1; ++i) {
+    for (size_t i = 1; i < maxClustersize+1; ++i) {
         borders_of_set[i] = borders_of_set[i-1] + setsize_abundance[i-1];
     }
     //fill array
-    sorted_clustersizes = new(std::nothrow) unsigned int[dbSize + 1];
+    sorted_clustersizes = new(std::nothrow) DBLocalId[dbSize + 1];
     Util::checkAllocation(sorted_clustersizes, "Can not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
 
     std::fill_n(sorted_clustersizes, dbSize+1, 0);
-    clusterid_to_arrayposition = new(std::nothrow) unsigned int[dbSize + 1];
+    clusterid_to_arrayposition = new(std::nothrow) DBLocalId[dbSize + 1];
     Util::checkAllocation(clusterid_to_arrayposition, "Can not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
 
     std::fill_n(clusterid_to_arrayposition, dbSize + 1, 0);
     //reuse setsize_abundance as offset counter
     std::fill_n(setsize_abundance, maxClustersize + 1, 0);
-    for (unsigned int i = 0; i < dbSize; ++i) {
-        unsigned int position = borders_of_set[clustersizes[i]] + setsize_abundance[clustersizes[i]];
+    for (size_t i = 0; i < dbSize; ++i) {
+        size_t position = borders_of_set[clustersizes[i]] + setsize_abundance[clustersizes[i]];
         sorted_clustersizes[position] = i;
         clusterid_to_arrayposition[i] = position;
         setsize_abundance[clustersizes[i]]++;
@@ -189,17 +193,17 @@ void ClusteringAlgorithms::initClustersizes(){
 }
 
 
-void ClusteringAlgorithms::removeClustersize(unsigned int clusterid){
+void ClusteringAlgorithms::removeClustersize(DBLocalId clusterid){
     clustersizes[clusterid]=0;
-    sorted_clustersizes[clusterid_to_arrayposition[clusterid]] = UINT_MAX;
-    clusterid_to_arrayposition[clusterid]=UINT_MAX;
+    sorted_clustersizes[clusterid_to_arrayposition[clusterid]] = DB_LOCAL_ID_INVALID;
+    clusterid_to_arrayposition[clusterid]=DB_LOCAL_ID_INVALID;
 }
 
-void ClusteringAlgorithms::decreaseClustersize(unsigned int clusterid){
-    const unsigned int oldposition=clusterid_to_arrayposition[clusterid];
-    const unsigned int newposition=borders_of_set[clustersizes[clusterid]];
-    const unsigned int swapid=sorted_clustersizes[newposition];
-    if(swapid != UINT_MAX){
+void ClusteringAlgorithms::decreaseClustersize(DBLocalId clusterid){
+    const size_t oldposition=clusterid_to_arrayposition[clusterid];
+    const size_t newposition=borders_of_set[clustersizes[clusterid]];
+    const DBLocalId swapid=sorted_clustersizes[newposition];
+    if(swapid != DB_LOCAL_ID_INVALID){
         clusterid_to_arrayposition[swapid]=oldposition;
     }
     sorted_clustersizes[oldposition]=swapid;
@@ -210,11 +214,11 @@ void ClusteringAlgorithms::decreaseClustersize(unsigned int clusterid){
     clustersizes[clusterid]--;
 }
 
-void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned short ** elementScoreLookupTable,
-                                    unsigned int *assignedcluster, short *bestscore, size_t *newElementOffsets) {
+void ClusteringAlgorithms::setCover(DBLocalId **elementLookupTable, unsigned short ** elementScoreLookupTable,
+                                    DBLocalId *assignedcluster, short *bestscore, size_t *newElementOffsets) {
     for (int64_t cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-        const unsigned int representative = sorted_clustersizes[cl_size];
-        if (representative == UINT_MAX) {
+        const DBLocalId representative = sorted_clustersizes[cl_size];
+        if (representative == DB_LOCAL_ID_INVALID) {
             continue;
         }
 //          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
@@ -223,7 +227,7 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
         //delete clusters of members;
         size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
         for (size_t elementId = 0; elementId < elementSize; elementId++) {
-            const unsigned int elementtodelete = elementLookupTable[representative][elementId];
+            const DBLocalId elementtodelete = elementLookupTable[representative][elementId];
             // float seqId = elementScoreTable[representative][elementId];
             const short seqId = elementScoreLookupTable[representative][elementId];
             //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
@@ -244,8 +248,8 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
 
         for (size_t elementId = 0; elementId < elementSize; elementId++) {
             bool representativefound = false;
-            const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-            const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
+            const DBLocalId elementtodelete = elementLookupTable[representative][elementId];
+            const size_t currElementSize = (newElementOffsets[elementtodelete + 1] -
                                                 newElementOffsets[elementtodelete]);
             if (elementtodelete == representative) {
                 clustersizes[elementtodelete] = -1;
@@ -257,7 +261,7 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
             clustersizes[elementtodelete] = -1;
             //decrease clustersize of sets that contain the element
             for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
-                const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
+                const DBLocalId elementtodecrease = elementLookupTable[elementtodelete][elementId2];
                 if (representative == elementtodecrease) {
                     representativefound = true;
                 }
@@ -277,20 +281,20 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
     }
 }
 
-void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluster) {
+void ClusteringAlgorithms::greedyIncrementalLowMem( DBLocalId *assignedcluster) {
 
     const long BUFFER_SIZE = 100000; // Set this to a suitable value.
     const long numBuffers = (dbSize + BUFFER_SIZE - 1) / BUFFER_SIZE;
 
     // Pre-allocate buffer outside the loop to reuse it
-    std::vector<std::pair<unsigned int, std::vector<unsigned int>>> buffer(BUFFER_SIZE);
+    std::vector<std::pair<DBLocalId, std::vector<DBKeyType>>> buffer(BUFFER_SIZE);
 
     for (long bufferIndex = 0; bufferIndex < numBuffers; bufferIndex++) {
         long start = bufferIndex * BUFFER_SIZE;
         long end = std::min(start + BUFFER_SIZE, static_cast<long>(dbSize));
 
         // Clear the vectors within the buffer, but don't deallocate
-        for (std::pair<unsigned int, std::vector<unsigned int>>& entry : buffer) {
+        for (std::pair<DBLocalId, std::vector<DBKeyType>>& entry : buffer) {
             entry.second.clear();
         }
 
@@ -303,21 +307,21 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 #endif
 #pragma omp for schedule(dynamic, 4)
             for (long i = start; i < end; i++) {
-                unsigned int clusterKey = seqDbr->getDbKey(i);
-                std::vector<unsigned int>& keys = buffer[i - start].second;
+                DBKeyType clusterKey = seqDbr->getDbKey(i);
+                std::vector<DBKeyType>& keys = buffer[i - start].second;
                 if(needSET) {
                     size_t start1 = sourceOffsets[clusterKey];
                     size_t end1 = sourceOffsets[clusterKey+1];
                     size_t len = end1 - start1;
                     for (size_t j = 0; j < len; ++j) {
-                        unsigned int value = sourceLookupTable[clusterKey][j];
-                        if (value != UINT_MAX) {
+                        DBKeyType value = sourceLookupTable[clusterKey][j];
+                        if (value != DB_KEY_INVALID) {
                             const size_t alnId = alnDbr->getId(value);
                             char *data = alnDbr->getData(alnId, thread_idx);
                             while (*data != '\0') {
                                 char dbKey[255 + 1];
                                 Util::parseKey(data, dbKey);
-                                const unsigned int key = keyToSet[(unsigned int)strtoul(dbKey, NULL, 10)];
+                                const DBKeyType key = keyToSet[Util::fast_atoi<DBKeyType>(dbKey)];
                                 keys.push_back(key);
                                 data = Util::skipLine(data);
                             }
@@ -329,7 +333,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                     while (*data != '\0') {
                         char dbKey[255 + 1];
                         Util::parseKey(data, dbKey);
-                        const unsigned int key = (unsigned int)strtoul(dbKey, NULL, 10);
+                        const DBKeyType key = Util::fast_atoi<DBKeyType>(dbKey);
                         keys.push_back(key);
                         data = Util::skipLine(data);
                     }
@@ -341,10 +345,10 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 
         // Sequential processing of the buffer
         for (long j = 0; j < (end - start); j++) {
-            unsigned int clusterId = buffer[j].first;
-            const std::vector<unsigned int>& keys = buffer[j].second;
+            DBLocalId clusterId = buffer[j].first;
+            const std::vector<DBKeyType>& keys = buffer[j].second;
 
-            if (assignedcluster[clusterId] != UINT_MAX) {
+            if (assignedcluster[clusterId] != DB_LOCAL_ID_INVALID) {
                 continue;
             }
 
@@ -352,10 +356,10 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                 continue;
             }
 
-            for (unsigned int key : keys) {
-                unsigned int currElement = seqDbr->getId(key);
+            for (DBKeyType key : keys) {
+                size_t currElement = seqDbr->getId(key);
 
-                if (assignedcluster[currElement] == UINT_MAX) {
+                if (currElement != DB_ENTRY_NOT_FOUND && assignedcluster[currElement] == DB_LOCAL_ID_INVALID) {
                     assignedcluster[currElement] = clusterId;
                 }
             }
@@ -366,13 +370,13 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
     for (size_t id = 0; id < dbSize; ++id) {
         // check if the assigned clusterid is a rep. sequence
         // if not, make it a rep. seq. again
-        if(assignedcluster[id] == UINT_MAX){
+        if(assignedcluster[id] == DB_LOCAL_ID_INVALID){
             assignedcluster[id] = id;
         }
     }
 }
 
-void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
+void ClusteringAlgorithms::readInClusterData(DBLocalId **elementLookupTable, DBLocalId *&elements,
                                              unsigned short **scoreLookupTable, unsigned short *&scores,
                                              size_t *elementOffsets, size_t totalElementCount) {
     Timer timer;
@@ -384,15 +388,15 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
 #endif
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < seqDbr->getSize(); i++) {
-            const unsigned int clusterId = seqDbr->getDbKey(i);
+            const DBKeyType clusterId = seqDbr->getDbKey(i);
             if(needSET) {
                 size_t start = sourceOffsets[clusterId];
                 size_t end = sourceOffsets[clusterId+1];
                 size_t len = end - start;
                 size_t lineCounts = 0;
                 for (size_t j = 0; j < len; ++j) {
-                    unsigned int value = sourceLookupTable[clusterId][j];
-                    if (value != UINT_MAX) {
+                    DBKeyType value = sourceLookupTable[clusterId][j];
+                    if (value != DB_KEY_INVALID) {
                         const size_t alnId = alnDbr->getId(value);
                         const char *data = alnDbr->getData(alnId, thread_idx);
                         const size_t dataSize = alnDbr->getEntryLen(alnId);
@@ -413,7 +417,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     // make offset table
     AlignmentSymmetry::computeOffsetFromCounts(elementOffsets, dbSize);
     // set element edge pointers by using the offset table
-    AlignmentSymmetry::setupPointers<unsigned int>(elements, elementLookupTable, elementOffsets, dbSize,
+    AlignmentSymmetry::setupPointers<DBLocalId>(elements, elementLookupTable, elementOffsets, dbSize,
                                                    totalElementCount);
     // fill elements
     if(needSET) {
@@ -435,9 +439,9 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                                                                              threads);
     // resize elements
     delete[] elements;
-    elements = new(std::nothrow) unsigned int[symmetricElementCount];
+    elements = new(std::nothrow) DBLocalId[symmetricElementCount];
     Util::checkAllocation(elements, "Can not allocate elements memory in readInClusterData");
-    std::fill_n(elements, symmetricElementCount, UINT_MAX);
+    std::fill_n(elements, symmetricElementCount, DB_LOCAL_ID_INVALID);
     // init score vector
     scores = new(std::nothrow) unsigned short[symmetricElementCount];
     Util::checkAllocation(scores, "Can not allocate scores memory in readInClusterData");
@@ -445,7 +449,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     if(needSET == false){
         Debug(Debug::INFO) << "Found " << symmetricElementCount - totalElementCount << " new connections.\n";
     }
-    AlignmentSymmetry::setupPointers<unsigned int>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
+    AlignmentSymmetry::setupPointers<DBLocalId>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     AlignmentSymmetry::setupPointers<unsigned short>(scores, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     //time
     Debug(Debug::INFO) << "Reconstruct initial order\n";
@@ -461,7 +465,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {
         size_t elementCount = newElementOffsets[i + 1] - newElementOffsets[i];
-        maxClustersize = std::max((unsigned int) elementCount, maxClustersize);
+        maxClustersize = std::max(elementCount, maxClustersize);
         clustersizes[i] = elementCount;
     }
 

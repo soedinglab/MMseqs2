@@ -30,7 +30,7 @@ public:
     const static int ALN_RES_WITH_ORF_AND_BT_COL_CNT = 15;
 
     struct result_t {
-        unsigned int dbKey;
+        DBKeyType dbKey;
         int score;
         float qcov;
         float dbcov;
@@ -48,7 +48,7 @@ public:
         int dbOrfStartPos;
         int dbOrfEndPos;
         std::string backtrace;
-        result_t(unsigned int dbkey,int score,
+        result_t(DBKeyType dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
                  unsigned int alnLength,
@@ -70,7 +70,7 @@ public:
                                           dbOrfStartPos(dbOrfStartPos), dbOrfEndPos(dbOrfEndPos),
                                           backtrace(backtrace) {};
 
-        result_t(unsigned int dbkey,int score,
+        result_t(DBKeyType dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
                  unsigned int alnLength,
@@ -88,7 +88,11 @@ public:
                                           dbOrfStartPos(-1), dbOrfEndPos(-1),
                                           backtrace(backtrace) {};
 
-        result_t(){};
+        result_t() : dbKey(DB_KEY_INVALID), score(0), qcov(0), dbcov(0), seqId(0), eval(0),
+                     alnLength(0), qStartPos(0), qEndPos(0), qLen(0),
+                     dbStartPos(0), dbEndPos(0), dbLen(0),
+                     queryOrfStartPos(-1), queryOrfEndPos(-1),
+                     dbOrfStartPos(-1), dbOrfEndPos(-1) {};
 
         static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace){
             double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
@@ -209,7 +213,7 @@ public:
 
     static void readAlignmentResults(std::vector<result_t> &result, char *data, bool readCompressed = false);
 
-    static float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
+    static float estimateSeqIdByScorePerCol(uint32_t score, unsigned int qLen, unsigned int tLen);
 
     static std::string compressAlignment(const std::string &bt);
 

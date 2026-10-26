@@ -12,11 +12,11 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, true, 0);
 
-    DBReader<unsigned int> setReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    setReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> setReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    setReader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
-//    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-//    resultReader.open(DBReader<unsigned int>::NOSORT);
+//    DBReader<DBKeyType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+//    resultReader.open(DBReader<DBKeyType>::NOSORT);
 
 
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
@@ -33,7 +33,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
                              (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
 
     int dbType = resultReader.sequenceReader->getDbtype();
-    dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+    dbType = DBReader<DBKeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, dbType);
     dbw.open();
 #pragma omp parallel
@@ -51,9 +51,9 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
             // go through the results in the cluster and add them to one entry
             while (*data != '\0'){
                 Util::parseKey(data, dbKey);
-                unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
+                DBKeyType key = Util::fast_atoi<DBKeyType>(dbKey);
                 size_t id = resultReader.sequenceReader->getId(key);
-                if (id == UINT_MAX) {
+                if (id == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::ERROR) << "Invalid key " << key << " in entry " << i << ".\n";
                     EXIT(EXIT_FAILURE);
                 }

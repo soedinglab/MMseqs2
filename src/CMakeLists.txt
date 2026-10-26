@@ -6,6 +6,7 @@ set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
 #set(DISABLE_LTO 0 CACHE BOOL "Disable link-time optimization in non-debug builds")
 set(REQUIRE_OPENMP 1 CACHE BOOL "Require availability of OpenMP")
 set(ATOMIC_LIB_OVERRIDE "" CACHE PATH "Override path to libatomic")
+set(USE_PCH 0 CACHE BOOL "Use precompiled headers to speed up compilation (needs CMake >= 3.16)")
 
 include(AppendTargetProperty)
 
@@ -53,6 +54,35 @@ target_include_directories(mmseqs-framework PUBLIC linclust)
 target_include_directories(mmseqs-framework PUBLIC taxonomy)
 target_include_directories(mmseqs-framework PUBLIC util)
 target_include_directories(mmseqs-framework PUBLIC .)
+
+if (NOT (MMSEQS_AVX512_DISPATCH_FLAGS STREQUAL ""))
+    # PUBLIC: the dispatch lives inline in UngappedAligner.h/Fwbw.h, so every includer
+    # (including the test targets) needs to see the same decision.
+    target_compile_definitions(mmseqs-framework PUBLIC -DMMSEQS_HAVE_AVX512_DISPATCH=1)
+endif ()
+
+if (USE_PCH)
+    if (CMAKE_VERSION VERSION_LESS "3.16")
+        message(WARNING "-- USE_PCH needs CMake >= 3.16, ignoring")
+    else ()
+        message("-- Using precompiled headers")
+        target_precompile_headers(mmseqs-framework PRIVATE
+                <algorithm> <cstdio> <cstdlib> <cstring> <limits> <map> <string> <vector>
+                alignment/Matcher.h
+                commons/DBReader.h
+                commons/DBWriter.h
+                commons/Debug.h
+                commons/FileUtil.h
+                commons/IndexReader.h
+                commons/MemoryMapped.h
+                commons/Orf.h
+                commons/Parameters.h
+                commons/Sequence.h
+                commons/SubstitutionMatrix.h
+                commons/Util.h
+                commons/itoa.h)
+    endif ()
+endif ()
 
 add_dependencies(mmseqs-framework generated)
 
@@ -225,7 +255,7 @@ if (OPENMP_FOUND)
     message("-- Found OpenMP")
     target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
     # hack: remove pthread from openmp deps, it gets linked correctly by cuda later
-    if (FORCE_STATIC_DEPS AND ENABLE_CUDA)
+    if (FORCE_STATIC_DEPS AND ENABLE_CUDA AND NOT ENABLE_HIP)
         set(FILTERED_LIBRARIES "")
         foreach (LIB ${OpenMP_CXX_LIBRARIES})
             if (NOT LIB MATCHES "pthread")
@@ -254,23 +284,34 @@ if (HAVE_GPROF)
 endif ()
 
 if (ENABLE_CUDA)
-    find_package(CUDAToolkit REQUIRED)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_CUDA=1)
+    if (ENABLE_HIP)
+        target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_HIP=1)
+    endif ()
     target_link_libraries(mmseqs-framework marv)
+    if (NOT ENABLE_HIP)
+        find_package(CUDAToolkit REQUIRED)
+    endif ()
     if (FORCE_STATIC_DEPS)
         # link to rt explicitly so it doesn't get statically compiled and adds GLIBC_PRIVATE symbols
         target_link_libraries(mmseqs-framework rt)
-        # remove librt.a which introduces GLIBC_PRIVATE symbols
-        get_property(linked_libraries TARGET CUDA::cudart_static_deps PROPERTY INTERFACE_LINK_LIBRARIES)
-        set(FILTERED_LIBRARIES "")
-        foreach (LIB ${linked_libraries})
-            if (NOT LIB MATCHES ".*librt\\.a$")
-                list(APPEND FILTERED_LIBRARIES ${LIB})
-            endif ()
-        endforeach ()
-        set_target_properties(CUDA::cudart_static_deps PROPERTIES INTERFACE_LINK_LIBRARIES "${FILTERED_LIBRARIES}")
+        if (NOT ENABLE_HIP)
+            # remove librt.a which introduces GLIBC_PRIVATE symbols
+            get_property(linked_libraries TARGET CUDA::cudart_static_deps PROPERTY INTERFACE_LINK_LIBRARIES)
+            set(FILTERED_LIBRARIES "")
+            foreach (LIB ${linked_libraries})
+                if (NOT LIB MATCHES ".*librt\\.a$")
+                    list(APPEND FILTERED_LIBRARIES ${LIB})
+                endif ()
+            endforeach ()
+            set_target_properties(CUDA::cudart_static_deps PROPERTIES INTERFACE_LINK_LIBRARIES "${FILTERED_LIBRARIES}")
+        else()
+            target_link_libraries(mmseqs-framework ${CMAKE_DL_LIBS})
+        endif ()
     endif ()
-    target_link_libraries(mmseqs-framework CUDA::cudart_static)
+    if (NOT ENABLE_HIP)
+        target_link_libraries(mmseqs-framework CUDA::cudart_static)
+    endif ()
 endif ()
 
 if (NOT FRAMEWORK_ONLY)

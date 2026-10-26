@@ -18,8 +18,8 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
     MappingReader mapping(par.db1);
     std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
 
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
     bool isTaxresult = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
@@ -41,7 +41,7 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
             size_t length = reader.getEntryLen(i);
 
@@ -65,9 +65,9 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
                     continue;
                 }
                 if (par.pickIdFrom == Parameters::EXTRACT_TARGET) {
-                    unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
+                    DBKeyType id = Util::fast_atoi<DBKeyType>(entry[0]);
                     if(isTaxresult){
-                        taxon = id;
+                        taxon = Util::fast_atoi<TaxID>(entry[0]);
                     }else{
                         taxon = mapping.lookup(id);
                     }
@@ -117,4 +117,3 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
     delete t;
     return EXIT_SUCCESS;
 }
-

@@ -11,8 +11,8 @@ Aggregation::Aggregation(const std::string &targetDbName, const std::string &res
         : resultDbName(resultDbName), outputDbName(outputDbName), threads(threads), compressed(compressed) {
     std::string sizeDbName = targetDbName + "_member_to_set";
     std::string sizeDbIndex = targetDbName + "_member_to_set.index";
-    targetSetReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    targetSetReader->open(DBReader<unsigned int>::NOSORT);
+    targetSetReader = new DBReader<DBKeyType>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    targetSetReader->open(DBReader<DBKeyType>::NOSORT);
 }
 
 Aggregation::~Aggregation() {
@@ -21,7 +21,7 @@ Aggregation::~Aggregation() {
 }
 
 // build a map with the value in [target column] field as a key and the rest of the line, cut in fields, as values
-void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate) {
+void Aggregation::buildMap(char *data, int thread_idx, std::map<DBKeyType, std::vector<std::vector<std::string>>> &dataToAggregate) {
     while (*data != '\0') {
         char *current = data;
         data = Util::skipLine(data);
@@ -32,22 +32,22 @@ void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, st
         }
 
         std::vector<std::string> columns = Util::split(line, "\t");
-        unsigned int targetKey = Util::fast_atoi<unsigned int>(columns[0].c_str());
+        DBKeyType targetKey = Util::fast_atoi<DBKeyType>(columns[0].c_str());
         size_t setId = targetSetReader->getId(targetKey);
-        if (setId == UINT_MAX) {
+        if (setId == DB_ENTRY_NOT_FOUND) {
             Debug(Debug::ERROR) << "Invalid target database key " << columns[0] << ".\n";
             EXIT(EXIT_FAILURE);
         }
         char *data = targetSetReader->getData(setId, thread_idx);
-        unsigned int setKey = Util::fast_atoi<unsigned int>(data);
+        DBKeyType setKey = Util::fast_atoi<DBKeyType>(data);
         dataToAggregate[setKey].push_back(columns);
     }
 }
 
 int Aggregation::run() {
     std::string inputDBIndex = resultDbName + ".index";
-    DBReader<unsigned int> reader(resultDbName.c_str(), inputDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(resultDbName.c_str(), inputDBIndex.c_str(), threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     std::string outputDBIndex = outputDbName + ".index";
     DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -63,19 +63,19 @@ int Aggregation::run() {
         std::string buffer;
         buffer.reserve(10 * 1024);
 
-        std::map<unsigned int, std::vector<std::vector<std::string>>> dataToMerge;
+        std::map<DBKeyType, std::vector<std::vector<std::string>>> dataToMerge;
 #pragma omp for
         for (size_t i = 0; i < reader.getSize(); i++) {
             progress.updateProgress();
             dataToMerge.clear();
 
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             buildMap(reader.getData(i, thread_idx), thread_idx, dataToMerge);
             prepareInput(key, thread_idx);
             
-            for (std::map<unsigned int, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
+            for (std::map<DBKeyType, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
                  it != dataToMerge.end(); ++it) {
-                unsigned int targetKey = it->first;
+                DBKeyType targetKey = it->first;
                 std::vector<std::vector<std::string>> columns = it->second;
                 buffer.append(aggregateEntry(columns, key, targetKey, thread_idx));
                 buffer.append("\n");

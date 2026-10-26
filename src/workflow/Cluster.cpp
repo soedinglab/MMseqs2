@@ -138,6 +138,19 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     }
     setClusterAutomagicParameters(par);
 
+    // --switch-consensus-rep reuses the representative-to-member alignments produced by
+    // align2clust, so it is only supported by cascaded protein cluster-version 2.
+    const bool writeAlnFiles = par.PARAM_INCLUDE_ALIGN_FILES.wasSet;
+    if (par.switchConsensusRep &&
+        (isNucleotideDb || par.singleStepClustering || par.clusterVersion != Parameters::CLUSTER_VERSION2)) {
+        Debug(Debug::WARNING) << "--switch-consensus-rep is only supported with --cluster-version 2 (cascaded protein clustering); ignoring.\n";
+        par.switchConsensusRep = false;
+    }
+    if (par.switchConsensusRep) {
+        par.includeAlignFiles = true;
+        par.addBacktrace = true;
+    }
+
     std::string tmpDir = par.db3;
     std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.clusterworkflow));
     if (par.reuseLatest) {
@@ -261,9 +274,17 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             } else {
                 par.sensitivity = 3.0f * (0.7f - par.seqIdThr) / (0.7f - 0.3f);
             }
+            // build the inner linclust parameters without propagating the rep switch,
+            // so the switch happens only once on the final cascaded clustering
+            bool prevSwitch = par.switchConsensusRep;
+            par.switchConsensusRep = false;
             cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
+            par.switchConsensusRep = prevSwitch;
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
             cmd.addVariable("ALIGN2CLUST_PAR", par.createParameterString(par.align2clust).c_str());
+            cmd.addVariable("SWITCH_CONSENSUS_REP", par.switchConsensusRep ? "TRUE" : NULL);
+            cmd.addVariable("KEEP_SWITCH_ALN", (par.switchConsensusRep && writeAlnFiles) ? "TRUE" : NULL);
+            cmd.addVariable("PICKREP_PAR", par.createParameterString(par.pickrepprofile).c_str());
         }
         std::string program = tmpDir + "/cascaded_clustering.sh";
         FileUtil::writeFile(program, cascaded_clustering_sh, cascaded_clustering_sh_len);

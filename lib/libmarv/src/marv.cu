@@ -2,6 +2,12 @@
 #include <string>
 #include <vector>
 
+#include "cuda_hip_rename.h"
+
+#if defined(__HIPCC__)
+    #include "hip/hip_runtime.h"
+#endif
+
 #include "hpc_helpers/all_helpers.cuh"
 #include "hpc_helpers/peer_access.cuh"
 
@@ -55,7 +61,7 @@ Marv::Marv(size_t dbEntries, int alphabetSize, int maxSeqLength, size_t maxSeqs,
 
     const int maxResults = std::min((int)maxSeqs, cudasw4::MaxNumberOfResults::value());
     const bool verbose = false;
-    KernelConfigFilenames kernelConfigFilenames;
+    cudasw4::KernelConfigFilenames kernelConfigFilenames;
     //set the following to overwrite the hardcoded config
     // kernelConfigFilenames.gapless = "configfileA.txt";
     // kernelConfigFilenames.sw = "configfileB.txt";
@@ -69,6 +75,19 @@ Marv::Marv(size_t dbEntries, int alphabetSize, int maxSeqLength, size_t maxSeqs,
         kernelConfigFilenames
     ));
     cudasw4::CudaSW4* sw = static_cast<cudasw4::CudaSW4*>(cudasw);
+
+#ifdef CUDASW_INT8_GAPLESS
+    bool allBlackwell = !deviceIds.empty();
+    for (int devId : deviceIds) {
+        int ccMajor = 0;
+        cudaDeviceGetAttribute(&ccMajor, cudaDevAttrComputeCapabilityMajor, devId); CUERR
+        if (ccMajor < 12) { allBlackwell = false; break; }
+    }
+    if (allBlackwell) {
+        sw->allowInt8(true);
+    }
+#endif
+
     sw->setScanType(mapCswScanType(alignmentType));
 }
 std::vector<std::shared_ptr<GpuDatabaseAllocationBase>> allocations_all;

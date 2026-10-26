@@ -153,7 +153,7 @@ public:
     }
 
     static inline double log2(double x) {
-        return log10(x) / 0.301029996;
+        return std::log2(x);
     }
 
     static inline unsigned short sadd16(const unsigned short a, const unsigned short b) {

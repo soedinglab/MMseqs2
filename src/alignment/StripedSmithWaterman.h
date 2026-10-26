@@ -41,6 +41,7 @@
 #endif
 
 #include "BaseMatrix.h"
+#include "Util.h"
 
 #include "Sequence.h"
 #include "EvalueComputation.h"
@@ -74,7 +75,7 @@ typedef struct {
 } s_align;
 
 typedef struct {
-    uint16_t score;
+    uint32_t score;
     int32_t ref;    //0-based position
     int32_t read;   //alignment ending position on read, 0-based
 } alignment_end;
@@ -179,17 +180,6 @@ public:
                         const int32_t maskLen);
 
 
-    /*!	@function computed ungapped alignment score
-
-   @param	db_sequence	pointer to the target sequence; the target sequence needs to be numbers and corresponding to the mat parameter of
-   function ssw_init
-
-   @param	db_length	length of the target sequence
-   @return	max diagonal score
-   */
-   int ungapped_alignment(const unsigned char *db_sequence,
-                          int32_t db_length);
-
   /*!	@function	Create the query profile using the query sequence.
    @param	read	pointer to the query sequence; the query sequence needs to be numbers
    @param	readLen	length of the query sequence
@@ -255,12 +245,6 @@ public:
 private:
     simd_data* simdData;
 
-    // target variables
-    int segSize;
-
-    // needed for type checking query and target databases
-    bool isQueryProfile;
-
     typedef struct {
         uint32_t* seq;
         int32_t length;
@@ -291,14 +275,65 @@ private:
     float *tmp_composition_bias;
     int8_t * scorePerCol;
     short * profile_word_linear_data;
-    int32_t * profile_int_linear_data;
+
+    int segSize;
+    size_t queryCapacity;
+    size_t targetCapacity;
+    size_t blockQueryCapacity;
+    size_t blockTargetCapacity;
+    int aaSize;
 
     bool aaBiasCorrection;
     float aaBiasCorrectionScale;
     SubstitutionMatrix * subMat;
 
+    void resizeQuery(size_t queryLen);
+    void resizeTarget(size_t targetLen);
+    void resizeBlockTrace(size_t queryLen, size_t targetLen);
+    void allocQuery();
+    void freeQuery();
+    void allocTarget();
+    void freeTarget();
+    void freeBlockTrace();
+
     uint8_t computeBias(const int32_t target_length, const int8_t *mat, const int32_t aaSize);
 
     void reverseMat(int8_t *rev_mat, const int8_t *mat, const int32_t aaSize, const int32_t target_length);
 };
+
+/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch.
+   Defined here (and not in StripedSmithWaterman.cpp) because the runtime-dispatched gapless
+   aligner builds the same striped profile at its own vector width. The body is plain scalar
+   code -- Elements is just a number -- so it carries no SIMD types and each translation unit
+   instantiates it for the width it was compiled for. */
+template <typename T, size_t Elements, unsigned int type, typename ProfileT>
+void createQueryProfile(ProfileT *profile, const int8_t *query_sequence, const int8_t *composition_bias,
+                        const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias,
+                        const int32_t offset, const int32_t entryLength) {
+	const int32_t segLen = (query_length + Elements - 1) / Elements;
+	T* t = (T*) profile;
+	for (int32_t nt = 0; LIKELY(nt < aaSize); nt++) {
+		for (int32_t i = 0; i < segLen; i++) {
+			int32_t  j = i;
+			for (size_t segNum = 0; LIKELY(segNum < Elements) ; segNum++) {
+				// if will be optmized out by compiler
+				if (type == SmithWaterman::SUBSTITUTIONMATRIX) {    // substitution score for query_seq constrained by nt
+					// query_sequence starts from 1 to n
+					if (j >= query_length) {
+						*t++ = bias;
+					} else {
+						const int q = query_sequence[j + offset];
+						const float cb = composition_bias[j + offset];
+						*t++ = mat[nt * aaSize + q] + cb + bias;
+					}
+				} if (type == SmithWaterman::PROFILE) {
+					// profile starts by 0
+					*t++ = (j >= query_length) ? bias : mat[nt * entryLength + j + offset] + bias;
+				}
+				j += segLen;
+			}
+		}
+	}
+}
+
 #endif /* SMITH_WATERMAN_SSE2_H */

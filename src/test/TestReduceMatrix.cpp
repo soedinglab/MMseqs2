@@ -10,6 +10,7 @@
 #include "ReducedMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Parameters.h"
+#include <iostream>
 
 const char* binary_name = "test_reducematrix";
 DEFAULT_PARAMETER_SINGLETON_INIT

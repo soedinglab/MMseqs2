@@ -18,6 +18,8 @@
 #include "MemoryMapped.h"
 #include "MemoryTracker.h"
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <sys/mman.h>
 #include <fstream>      // std::ifstream
 
@@ -45,6 +47,34 @@ int Util::readMapping(std::string mappingFilename, std::vector<std::pair<unsigne
         unsigned int id = Util::fast_atoi<size_t>(cols[0]);
         isSorted *= (id >= prevId);
         unsigned int taxid = Util::fast_atoi<size_t>(cols[1]);
+        indexDataChar = Util::skipLine(indexDataChar);
+        mapping.push_back(std::make_pair(id, taxid));
+        currPos = indexDataChar - (char *) indexData.getData();
+
+        prevId = id;
+    }
+    indexData.close();
+
+    return isSorted;
+}
+
+int Util::readMappingDBKey(std::string mappingFilename, std::vector<std::pair<DBKeyType, DBKeyType>> & mapping){
+    MemoryMapped indexData(mappingFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    if (!indexData.isValid()){
+        Debug(Debug::ERROR) << "Could not open index file " << mappingFilename << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t currPos = 0;
+    char* indexDataChar = (char *) indexData.getData();
+    const char* cols[3];
+    size_t isSorted = true;
+    DBKeyType prevId=0;
+    while (currPos < indexData.size()){
+        Util::getWordsOfLine(indexDataChar, cols, 2 );
+        DBKeyType id = Util::fast_atoi<DBKeyType>(cols[0]);
+        isSorted *= (id >= prevId);
+        DBKeyType taxid = Util::fast_atoi<DBKeyType>(cols[1]);
         indexDataChar = Util::skipLine(indexDataChar);
         mapping.push_back(std::make_pair(id, taxid));
         currPos = indexDataChar - (char *) indexData.getData();
@@ -131,7 +161,6 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
     };
 
     const struct Databases databases[] = {
-            { "uc",   2, 0}, // Uniclust
             { "cl|",   3, 1},
             { "sp|",   3, 1}, // Swiss prot
             { "tr|",   3, 1}, // trembl
@@ -146,7 +175,7 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
             { "pat|",  4, 2}, // Patents
             { "gi|",   3, 3}  // NCBI GI
     };
-    const unsigned int database_count = 14;
+    const unsigned int database_count = 13;
 
     for (size_t i = 0; i < database_count; ++i) {
         if (Util::startWith(databases[i].prefix, header, offset)) {
@@ -232,20 +261,22 @@ char* Util::fastSeqIdToBuffer(float seqId, char* buffer) {
         *(buffer) = '0';
         buffer++;
         *(buffer) = '\0';
+        buffer++;
     } else {
+        const int scaledSeqId = static_cast<int>(seqId * 1000);
         *(buffer) = '0';
         buffer++;
         *(buffer) = '.';
         buffer++;
-        if (seqId < 0.10) {
+        if (scaledSeqId < 100) {
             *(buffer) = '0';
             buffer++;
         }
-        if (seqId < 0.01) {
+        if (scaledSeqId < 10) {
             *(buffer) = '0';
             buffer++;
         }
-        buffer = Itoa::i32toa_sse2((int)(seqId * 1000), buffer);
+        buffer = Itoa::i32toa_sse2(scaledSeqId, buffer);
     }
     return buffer;
 }
@@ -331,12 +362,53 @@ uint64_t Util::getL2CacheSize() {
     return 262144;
 }
 
-char Util::touchMemory(const char *memory, size_t size) {
+int Util::madviseLogged(void* addr, size_t len, int advice, const char* context) {
 #ifdef HAVE_POSIX_MADVISE
-    if (size > 0 && posix_madvise ((void*)memory, size, POSIX_MADV_WILLNEED) != 0){
-        Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
+    if (len == 0) {
+        return 0;
     }
+    int rc = posix_madvise(addr, len, advice);
+    if (rc == 0) {
+        return 0;
+    }
+    // SEQUENTIAL is a pure readahead hint; failure is never functional.
+    // WILLNEED with EINVAL is also benign: unaligned tail on large-page
+    // kernels (e.g. ARM64 64K pages) or advice unsupported for the VMA
+    // type (HugeTLB, certain filesystems). Other WILLNEED errnos
+    // (EIO/EBADF/ENOMEM) indicate real problems.
+    const char* adviceName = (advice == POSIX_MADV_WILLNEED)   ? "WILLNEED"
+                           : (advice == POSIX_MADV_SEQUENTIAL) ? "SEQUENTIAL"
+                           : (advice == POSIX_MADV_RANDOM)     ? "RANDOM"
+                           : (advice == POSIX_MADV_NORMAL)     ? "NORMAL"
+                           : (advice == POSIX_MADV_DONTNEED)   ? "DONTNEED"
+                                                               : "?";
+    bool benign = (advice == POSIX_MADV_SEQUENTIAL) || (rc == EINVAL);
+    Debug(benign ? Debug::WARNING : Debug::ERROR)
+        << "posix_madvise(" << adviceName << ") failed for " << context
+        << ": " << strerror(rc) << "\n";
+    return rc;
+#else
+    (void)addr; (void)len; (void)advice; (void)context;
+    return 0;
 #endif
+}
+
+void Util::adviseHugePages(void* addr, size_t len) {
+#ifdef MADV_HUGEPAGE
+    const uintptr_t hugePageSize = 2 * 1024 * 1024;
+    const uintptr_t begin = (reinterpret_cast<uintptr_t>(addr) + hugePageSize - 1) & ~(hugePageSize - 1);
+    const uintptr_t end = (reinterpret_cast<uintptr_t>(addr) + len) & ~(hugePageSize - 1);
+    if (end > begin) {
+        // purely a performance hint, THP might be disabled
+        madvise(reinterpret_cast<void*>(begin), end - begin, MADV_HUGEPAGE);
+    }
+#else
+    (void)addr; (void)len;
+#endif
+}
+
+char Util::touchMemory(const char *memory, size_t size) {
+    Util::madviseLogged((void*)memory, size, POSIX_MADV_WILLNEED, "touchMemory");
     if(size > Util::getTotalSystemMemory()){
         Debug(Debug::WARNING) << "Can not touch " << size << " into main memory\n";
         return 0;
@@ -439,8 +511,8 @@ int Util::omp_thread_count() {
     n += 1;
     return n;
 }
-std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const unsigned char removeSplit) {
-    std::map<unsigned int, std::string> mapping;
+std::map<DBKeyType, std::string> Util::readLookup(const std::string& file, const unsigned char removeSplit) {
+    std::map<DBKeyType, std::string> mapping;
     if (file.length() > 0) {
         std::ifstream mappingStream(file);
         if (mappingStream.fail()) {
@@ -451,7 +523,7 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file, co
         std::string line;
         while (std::getline(mappingStream, line)) {
             std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
+            DBKeyType id = Util::fast_atoi<DBKeyType>(split[0].c_str());
 
             std::string& name = split[1];
 

@@ -21,8 +21,8 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> sequenceDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    sequenceDbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> sequenceDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    sequenceDbr.open(DBReader<DBKeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         sequenceDbr.readMmapedDataInMemory();
     }
@@ -36,8 +36,8 @@ int transitivealign(int argc, const char **argv, const Command &command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
     }
 
-    DBReader<unsigned int> alnReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    alnReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> alnReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    alnReader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
@@ -78,15 +78,19 @@ int transitivealign(int argc, const char **argv, const Command &command) {
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
 
-                const unsigned int alnKey = alnReader.getDbKey(id);
+                const DBKeyType alnKey = alnReader.getDbKey(id);
                 char *data = alnReader.getData(id, thread_idx);
 
                 results.clear();
                 Matcher::readAlignmentResults(results, data, false);
                 resultWriter.writeStart(thread_idx);
                 for (size_t entryIdx_i = 0; entryIdx_i < results.size(); entryIdx_i++) {
-                    const unsigned int queryId = sequenceDbr.getId(results[entryIdx_i].dbKey);
-                    const unsigned int queryKey = sequenceDbr.getDbKey(queryId);
+                    const size_t queryId = sequenceDbr.getId(results[entryIdx_i].dbKey);
+                    if (queryId == DB_ENTRY_NOT_FOUND) {
+                        Debug(Debug::ERROR) << "Invalid query key " << results[entryIdx_i].dbKey << " in alignment entry " << alnKey << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    const DBKeyType queryKey = sequenceDbr.getDbKey(queryId);
                     // we need A->B->C to infer A->C
                     // in center start the oriontation is B->A
                     // so we need to swap the result A->B
@@ -94,9 +98,9 @@ int transitivealign(int argc, const char **argv, const Command &command) {
                     Matcher::result_t::swapResult(swappedResult, evaluer, true);
                     char *querySeq = sequenceDbr.getData(queryId, thread_idx);
 
-                    char * tmpBuff = Itoa::u32toa_sse2((uint32_t) queryKey, buffer);
+                    char * tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(queryKey), buffer);
                     *(tmpBuff-1) = '\t';
-                    const unsigned int queryIdLen = tmpBuff - buffer;
+                    const size_t queryIdLen = tmpBuff - buffer;
                     if(queryKey == alnKey){
                         for (size_t aliId = 0; aliId < results.size(); aliId++) {
                             size_t len = Matcher::resultToBuffer(tmpBuff, results[aliId], true, true);
@@ -106,7 +110,11 @@ int transitivealign(int argc, const char **argv, const Command &command) {
                     }
 
                     for (size_t entryIdx_j = 0; entryIdx_j < results.size(); entryIdx_j++) {
-                        const unsigned int targetId = sequenceDbr.getId(results[entryIdx_j].dbKey);
+                        const size_t targetId = sequenceDbr.getId(results[entryIdx_j].dbKey);
+                        if (targetId == DB_ENTRY_NOT_FOUND) {
+                            Debug(Debug::ERROR) << "Invalid target key " << results[entryIdx_j].dbKey << " in alignment entry " << alnKey << ".\n";
+                            EXIT(EXIT_FAILURE);
+                        }
                         char *targetSeq = sequenceDbr.getData(targetId, thread_idx);
 
                         if (Util::canBeCovered(par.covThr, par.covMode, swappedResult.qLen, results[entryIdx_j].dbLen) == false) {
@@ -163,14 +171,14 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     memset(targetElementExists, 0, sizeof(char) * (maxTargetId + 1));
 #pragma omp parallel for
     for (size_t i = 0; i < sequenceDbr.getSize(); ++i) {
-        unsigned int key = sequenceDbr.getDbKey(i);
+        DBKeyType key = sequenceDbr.getDbKey(i);
         targetElementExists[key] = 1;
     }
 
 
 
-    DBReader<unsigned int> resultDbr(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> resultDbr(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    resultDbr.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     const size_t resultSize = resultDbr.getSize();
     Debug(Debug::INFO) << "Computing offsets.\n";
@@ -187,16 +195,16 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 #pragma omp  for schedule(dynamic, 100)
         for (size_t i = 0; i < resultSize; ++i) {
             progress.updateProgress();
-            const unsigned int resultId = resultDbr.getDbKey(i);
+            const DBKeyType resultId = resultDbr.getDbKey(i);
             char queryKeyStr[1024];
-            char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
+            char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(resultId), queryKeyStr);
             *(tmpBuff) = '\0';
             char *data = resultDbr.getData(i, thread_idx);
             char dbKeyBuffer[255 + 1];
             while (*data != '\0') {
                 Util::parseKey(data, dbKeyBuffer);
                 size_t targetKeyLen = strlen(dbKeyBuffer);
-                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                const DBKeyType dbKey = Util::fast_atoi<DBKeyType>(dbKeyBuffer);
                 char *nextLine = Util::skipLine(data);
                 size_t lineLen = nextLine - data;
                 lineLen -= (targetKeyLen + 1);
@@ -210,7 +218,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
 
     // compute splits
-    std::vector<std::pair<unsigned int, size_t > > splits;
+    std::vector<std::pair<DBKeyType, size_t > > splits;
     std::vector<std::pair<std::string , std::string > > splitFileNames;
     size_t bytesToWrite = 0;
     for (size_t i = 0; i <= maxTargetId; i++) {
@@ -226,10 +234,10 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     std::string parOutDbStr(par.db3);
     std::string parOutDbIndexStr(par.db3Index);
 
-    unsigned int prevDbKeyToWrite = 0;
+    DBKeyType prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
     for (size_t split = 0; split < splits.size(); split++) {
-        unsigned int dbKeyToWrite = splits[split].first;
+        DBKeyType dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new(std::nothrow) char[bytesToWrite];
         Util::checkAllocation(tmpData, "Cannot allocate tmpData memory");
@@ -245,9 +253,9 @@ int transitivealign(int argc, const char **argv, const Command &command) {
             for (size_t i = 0; i < resultSize; ++i) {
                 progress.updateProgress();
                 char *data = resultDbr.getData(i, thread_idx);
-                unsigned int queryKey = resultDbr.getDbKey(i);
+                DBKeyType queryKey = resultDbr.getDbKey(i);
                 char queryKeyStr[1024];
-                char *tmpBuff = Itoa::u32toa_sse2((uint32_t) queryKey, queryKeyStr);
+                char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(queryKey), queryKeyStr);
                 *(tmpBuff) = '\0';
                 char dbKeyBuffer[255 + 1];
                 while (*data != '\0') {
@@ -258,7 +266,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
                     size_t newLineLen = oldLineLen;
                     newLineLen -= (targetKeyLen + 1);
                     //newLineLen += queryKeyLen;
-                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    const DBKeyType dbKey = Util::fast_atoi<DBKeyType>(dbKeyBuffer);
                     // update offset but do not copy memory
                     size_t offset = __sync_fetch_and_add(&(targetElementSize[dbKey]), newLineLen) - prevBytesToWrite;
                     if (dbKey >= prevDbKeyToWrite && dbKey <= dbKeyToWrite) {
@@ -270,7 +278,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
             }
         }
         //revert offsets
-        for (unsigned int i = maxTargetId + 1; i > 0; i--) {
+        for (size_t i = maxTargetId + 1; i > 0; i--) {
             targetElementSize[i] = targetElementSize[i - 1];
         }
         targetElementSize[0] = 0;
@@ -322,7 +330,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
         delete[] tmpData;
     }
 
-    DBReader<unsigned int>::removeDb(tmpRes);
+    DBReader<DBKeyType>::removeDb(tmpRes);
 
     if(splits.size() > 1){
         DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);

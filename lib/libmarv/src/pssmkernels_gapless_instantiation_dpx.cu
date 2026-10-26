@@ -1,5 +1,7 @@
 #include "pssmkernels_gapless.cuh"
 
+#include "cuda_hip_rename.h"
+
 namespace cudasw4{
 
 namespace hardcodedzero{

@@ -55,8 +55,8 @@ int linsearch(int argc, const char **argv, const Command &command) {
     }
     int targetDbType = 0;
     if(indexStr != ""){
-        DBReader<unsigned int> dbr(indexStr.c_str(), (indexStr+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        dbr.open(DBReader<unsigned int>::NOSORT);
+        DBReader<DBKeyType> dbr(indexStr.c_str(), (indexStr+".index").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+        dbr.open(DBReader<DBKeyType>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
         targetDbType = data.seqType;
         dbr.close();

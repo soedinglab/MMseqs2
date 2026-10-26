@@ -317,10 +317,10 @@ bool MemoryMapped::remap(uint64_t offset, size_t mappedBytes)
     }
     // assume that file will be accessed soon
     //linuxHint |= MADV_WILLNEED;
-    // assume that file will be large
-    //linuxHint |= MADV_HUGEPAGE;
 
     ::madvise(_mappedView, _mappedBytes, linuxHint);
+    // let the page cache keep the file in huge pages (see DBReader::mmapData)
+    Util::adviseHugePages(_mappedView, _mappedBytes);
 
     return true;
 #endif

@@ -12,6 +12,7 @@
 #include "NucleotideMatrix.h"
 #include "IndexReader.h"
 #include "FastSort.h"
+#include "Sequence.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -44,13 +45,13 @@ float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double
 
 int doRescorediagonal(Parameters &par,
                       DBWriter &resultWriter,
-                      DBReader<unsigned int> &resultReader,
+                      DBReader<DBKeyType> &resultReader,
               const size_t dbFrom, const size_t dbSize) {
 
 
     IndexReader * qDbrIdx = NULL;
-    DBReader<unsigned int> * qdbr = NULL;
-    DBReader<unsigned int> * tdbr = NULL;
+    DBReader<DBKeyType> * qdbr = NULL;
+    DBReader<DBKeyType> * tdbr = NULL;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES,   (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     int querySeqType = 0;
@@ -90,6 +91,17 @@ int doRescorediagonal(Parameters &par,
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
+    // Build byte-to-ASCII remap table for interleaved DBs (e.g. foldseek _ss)
+    // raw byte -> primaryRemap -> num2aa -> ASCII letter usable with fastMatrix
+    unsigned char rawToAscii[256];
+    bool needsRemap = false;
+    const Sequence::SeqAuxInfo *auxInfo = Sequence::getAuxInfo(targetSeqType);
+    if (auxInfo != NULL && auxInfo->primaryRemap != NULL) {
+        needsRemap = true;
+        for (int i = 0; i < 256; i++) {
+            rawToAscii[i] = subMat->num2aa[auxInfo->primaryRemap[i]];
+        }
+    }
 
     float scorePerColThr = 0.0;
     if (par.filterHits) {
@@ -142,19 +154,29 @@ int doRescorediagonal(Parameters &par,
             if (reversePrefilterResult == true) {
                 queryRevSeq = static_cast<char*>(malloc(queryRevSeqLen));
             }
+            std::string queryRemapBuffer;
+            std::string targetRemapBuffer;
+            if (needsRemap) {
+                queryRemapBuffer.reserve(par.maxSeqLen + 1);
+                targetRemapBuffer.reserve(par.maxSeqLen + 1);
+            }
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
 
                 char *data = resultReader.getData(id, thread_idx);
-                size_t queryKey = resultReader.getDbKey(id);
+                DBKeyType queryKey = resultReader.getDbKey(id);
 
                 char *querySeq = NULL;
                 std::string queryToWrap; // needed only for wrapped end-start scoring
-                unsigned int queryId = UINT_MAX;
+                size_t queryId = DB_ENTRY_NOT_FOUND;
                 int queryLen = -1, origQueryLen = -1;
                 if(*data !=  '\0'){
                     queryId = qdbr->getId(queryKey);
+                    if (queryId == DB_ENTRY_NOT_FOUND) {
+                        Debug(Debug::ERROR) << "Invalid query key " << queryKey << " in result database.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     querySeq = qdbr->getData(queryId, thread_idx);
                     queryLen = static_cast<int>(qdbr->getSeqLen(queryId));
                     origQueryLen = queryLen;
@@ -182,6 +204,13 @@ int doRescorediagonal(Parameters &par,
                         queryBuffer.append(querySeq, queryLen);
                         querySeq = (char *) queryBuffer.c_str();
                     }
+                    if (needsRemap) {
+                        queryRemapBuffer.resize(queryLen);
+                        for (int i = 0; i < queryLen; i++) {
+                            queryRemapBuffer[i] = rawToAscii[static_cast<unsigned char>(querySeq[i])];
+                        }
+                        querySeq = (char *) queryRemapBuffer.c_str();
+                    }
                 }
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
 //                    query.mapSequence(id, queryId, querySeq);
@@ -201,10 +230,21 @@ int doRescorediagonal(Parameters &par,
                         }
                     }
 
-                    unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
+                    size_t targetId = tdbr->getId(results[entryIdx].seqId);
+                    if (targetId == DB_ENTRY_NOT_FOUND) {
+                        Debug(Debug::ERROR) << "Invalid target key " << results[entryIdx].seqId << " in result entry " << queryKey << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameQTDB)) ? true : false;
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = static_cast<int>(tdbr->getSeqLen(targetId));
+                    if (needsRemap) {
+                        targetRemapBuffer.resize(dbLen);
+                        for (int i = 0; i < dbLen; i++) {
+                            targetRemapBuffer[i] = rawToAscii[static_cast<unsigned char>(targetSeq[i])];
+                        }
+                        targetSeq = (char *) targetRemapBuffer.c_str();
+                    }
 
                     float queryLength = static_cast<float>(origQueryLen);
                     float targetLength = static_cast<float>(dbLen);
@@ -391,8 +431,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    resultReader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
     int dbtype = resultReader.getDbtype(); // this is DBTYPE_PREFILTER_RES || DBTYPE_PREFILTER_REV_RES
     if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
        par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
@@ -432,5 +472,4 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     resultReader.close();
     return status;
 }
-
 

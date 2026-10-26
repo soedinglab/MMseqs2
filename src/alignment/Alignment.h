@@ -110,19 +110,19 @@ private:
     // needed for realignment
     BaseMatrix *realign_m;
 
-    DBReader<unsigned int> *qdbr;
+    DBReader<DBKeyType> *qdbr;
     IndexReader * qDbrIdx;
 
-    DBReader<unsigned int> *tdbr;
+    DBReader<DBKeyType> *tdbr;
     IndexReader * tDbrIdx;
 
-    DBReader<unsigned int> *prefdbr;
+    DBReader<DBKeyType> *prefdbr;
 
     bool reversePrefilterResult;
 
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 
-    void computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
+    void computeAlternativeAlignment(DBKeyType queryDbKey, Sequence &dbSeq,
                                      std::vector<Matcher::result_t> &vector, Matcher &matcher,
                                      float covThr, float evalThr, int swMode, int thread_idx);
 };

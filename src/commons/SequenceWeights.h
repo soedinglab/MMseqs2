@@ -5,10 +5,12 @@
 #ifndef MMSEQS_SEQUENCEWEIGHTS_H
 #define MMSEQS_SEQUENCEWEIGHTS_H
 
+#include "IndexTypes.h"
+
 class SequenceWeights{
 public:
     struct WeightIndexEntry {
-        unsigned int id;
+        DBKeyType id;
         float weight;
 
         static bool compareByIdOnly(const WeightIndexEntry &x, const WeightIndexEntry &y) {
@@ -17,13 +19,13 @@ public:
     };
 
     WeightIndexEntry *weightIndex;
-    unsigned int indexSize;
+    size_t indexSize;
 
     SequenceWeights(const char* dataFileName);
 
     ~SequenceWeights();
 
-    float getWeightById(unsigned int id);
+    float getWeightById(DBKeyType id);
 };
 
 

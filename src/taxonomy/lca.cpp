@@ -17,8 +17,8 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
     NcbiTaxonomy* t = NcbiTaxonomy::openTaxonomy(par.db1);
     MappingReader mapping(par.db1);
 
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     if (majority) {
         if (par.voteMode != Parameters::AGG_TAX_UNIFORM && Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_CLUSTER_RES)) {
@@ -96,7 +96,7 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
             size_t length = reader.getEntryLen(i);
 
@@ -110,7 +110,7 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
                     continue;
                 }
 
-                unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
+                DBKeyType id = Util::fast_atoi<DBKeyType>(entry[0]);
                 TaxID taxon = mapping.lookup(id);
                 if (taxon == 0) {
                     // TODO: Check which taxa were not found

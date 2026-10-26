@@ -19,6 +19,7 @@
 #include "result_viz_prelude.html.zst.h"
 
 #include <map>
+#include <set>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -96,8 +97,8 @@ qset        Query set
 tset        Target set
  */
 
-std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
-    std::map<unsigned int, unsigned int> mapping;
+std::map<DBKeyType, DBKeyType> readKeyToSet(const std::string& file) {
+    std::map<DBKeyType, DBKeyType> mapping;
     if (file.length() == 0) {
         return mapping;
     }
@@ -112,7 +113,7 @@ std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
             Debug(Debug::WARNING) << "Not enough columns in lookup file " << file << "\n";
             continue;
         }
-        mapping.emplace(Util::fast_atoi<unsigned int>(entry[0]), Util::fast_atoi<unsigned int>(entry[2]));
+        mapping.emplace(Util::fast_atoi<DBKeyType>(entry[0]), Util::fast_atoi<DBKeyType>(entry[2]));
         data = Util::skipLine(data);
     }
     lookup.close();
@@ -120,8 +121,8 @@ std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
 }
 
 
-std::map<unsigned int, std::string> readSetToSource(const std::string& file) {
-    std::map<unsigned int, std::string> mapping;
+std::map<DBKeyType, std::string> readSetToSource(const std::string& file) {
+    std::map<DBKeyType, std::string> mapping;
     if (file.length() == 0) {
         return mapping;
     }
@@ -138,7 +139,7 @@ std::map<unsigned int, std::string> readSetToSource(const std::string& file) {
         }
         data = Util::skipLine(data);
         std::string source(entry[1], data - entry[1] - 1);
-        mapping.emplace(Util::fast_atoi<unsigned int>(entry[0]), source);
+        mapping.emplace(Util::fast_atoi<DBKeyType>(entry[0]), source);
     }
     source.close();
     return mapping;
@@ -187,10 +188,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     bool isTranslatedSearch = false;
 
-    int dbaccessMode = needSequenceDB ? (DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA) : (DBReader<unsigned int>::USE_INDEX);
+    int dbaccessMode = needSequenceDB ? (DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA) : (DBReader<DBKeyType>::USE_INDEX);
 
-    std::map<unsigned int, unsigned int> qKeyToSet;
-    std::map<unsigned int, unsigned int> tKeyToSet;
+    std::map<DBKeyType, DBKeyType> qKeyToSet;
+    std::map<DBKeyType, DBKeyType> tKeyToSet;
     if (needLookup) {
         std::string file1 = par.db1 + ".lookup";
         std::string file2 = par.db2 + ".lookup";
@@ -198,8 +199,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tKeyToSet = readKeyToSet(file2);
     }
 
-    std::map<unsigned int, std::string> qSetToSource;
-    std::map<unsigned int, std::string> tSetToSource;
+    std::map<DBKeyType, std::string> qSetToSource;
+    std::map<DBKeyType, std::string> tSetToSource;
     if (needSource) {
         std::string file1 = par.db1 + ".source";
         std::string file2 = par.db2 + ".source";
@@ -261,8 +262,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
     }
 
-    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    alnDbr.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     size_t localThreads = 1;
 #ifdef OPENMP
@@ -283,9 +284,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     if (format == Parameters::FORMAT_ALIGNMENT_SAM) {
         char buffer[1024];
-        unsigned int lastKey = tDbr->sequenceReader->getLastKey();
-        bool *headerWritten = new bool[lastKey + 1];
-        memset(headerWritten, 0, sizeof(bool) * (lastKey + 1));
+        std::set<DBKeyType> headerWritten;
         resultWriter.writeStart(0);
         std::string header = "@HD\tVN:1.4\tSO:queryname\n";
         resultWriter.writeAdd(header.c_str(), header.size(), 0);
@@ -295,12 +294,19 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 char dbKeyBuffer[255 + 1];
                 Util::parseKey(data, dbKeyBuffer);
-                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
-                if (headerWritten[dbKey] == false) {
-                    headerWritten[dbKey] = true;
-                    unsigned int tId = tDbr->sequenceReader->getId(dbKey);
+                const DBKeyType dbKey = Util::fast_atoi<DBKeyType>(dbKeyBuffer);
+                if (headerWritten.insert(dbKey).second) {
+                    size_t tId = tDbr->sequenceReader->getId(dbKey);
+                    if (tId == DB_ENTRY_NOT_FOUND) {
+                        Debug(Debug::ERROR) << "Invalid target key " << dbKey << " in alignment entry " << alnDbr.getDbKey(i) << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     unsigned int seqLen = tDbr->sequenceReader->getSeqLen(tId);
-                    unsigned int tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
+                    size_t tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
+                    if (tHeaderId == DB_ENTRY_NOT_FOUND) {
+                        Debug(Debug::ERROR) << "Invalid target header key " << dbKey << " in alignment entry " << alnDbr.getDbKey(i) << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, 0);
                     std::string targetId = Util::parseFastaHeader(tHeader);
                     int count = snprintf(buffer, sizeof(buffer), "@SQ\tSN:%s\tLN:%d\n", targetId.c_str(),
@@ -315,7 +321,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 data = Util::skipLine(data);
             }
         }
-        delete[] headerWritten;
     } else if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
         size_t dstSize = ZSTD_findDecompressedSize(result_viz_prelude_html_zst, result_viz_prelude_html_zst_len);
         char* dst = (char*)malloc(sizeof(char) * dstSize);
@@ -378,7 +383,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
             progress.updateProgress();
 
-            const unsigned int queryKey = alnDbr.getDbKey(i);
+            const DBKeyType queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;
             size_t querySeqLen = 0;
             queryProfData.clear();
@@ -1099,4 +1104,3 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
-

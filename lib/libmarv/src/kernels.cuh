@@ -8,6 +8,8 @@
 
 using namespace cudasw4;
 
+#ifndef __HIPCC__
+
 //THIS IS ONLY USED BY THE NON-PSSM KERNELS. INCREASE TO SUPPORT LONGER QUERIES.MAX ALLOWED QUERY LENGTH IS 4 * (length of constantQuery4)
 //REQUIRES cudaMemcpyToSymbolAsync IN cudasw4.cuh
 __constant__ char4 constantQuery4[2048];   
@@ -1152,6 +1154,8 @@ void call_GaplessFilter_float_many_pass(
 }
 
 
+
+#endif // !__HIPCC__
 
 #undef cBLOSUM62_dev
 

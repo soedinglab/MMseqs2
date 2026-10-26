@@ -9,9 +9,22 @@
 #include <thrust/fill.h>
 
 
+#include "cuda_hip_rename.h"
 
 namespace cudasw4{
 
+
+    struct MySwitchDevice{
+        int oldDeviceId;
+        MySwitchDevice(int newDeviceId){
+            cudaGetDevice(&oldDeviceId);
+            cudaSetDevice(newDeviceId);
+        }
+
+        ~MySwitchDevice(){
+            cudaSetDevice(oldDeviceId);
+        }
+    };
 
 template<class T, int numRows, int numColumns>
 struct SharedPSSM_singletile{

@@ -19,10 +19,10 @@ int gff2db(int argc, const char **argv, const Command &command) {
     std::string seqDb = par.filenames.back();
     par.filenames.pop_back();
 
-    DBReader<unsigned int> reader(seqDb.c_str(), (seqDb + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_LOOKUP_REV);
-    reader.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> headerReader((seqDb + "_h").c_str(), (seqDb + "_h.index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    headerReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> reader(seqDb.c_str(), (seqDb + ".index").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_LOOKUP_REV);
+    reader.open(DBReader<DBKeyType>::NOSORT);
+    DBReader<DBKeyType> headerReader((seqDb + "_h").c_str(), (seqDb + "_h.index").c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    headerReader.open(DBReader<DBKeyType>::NOSORT);
 
     std::string outDbIndex = outDb + ".index";
     DBWriter writer(outDb.c_str(), outDbIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
@@ -58,7 +58,7 @@ int gff2db(int argc, const char **argv, const Command &command) {
         Debug(Debug::WARNING) << "Not enough GFF files are provided. Some results might be omitted\n";
     }
 
-    unsigned int entries_num = 0;
+    size_t entries_num = 0;
     Debug::Progress progress(par.filenames.size());
 #pragma omp parallel
     {
@@ -127,14 +127,14 @@ int gff2db(int argc, const char **argv, const Command &command) {
                     Debug(Debug::ERROR) << "GFF entry not found in database lookup: " << name << "\n";
                     EXIT(EXIT_FAILURE);
                 }
-                unsigned int lookupKey = reader.getLookupKey(lookupId);
+                DBKeyType lookupKey = reader.getLookupKey(lookupId);
                 size_t seqId = reader.getId(lookupKey);
-                if (seqId == UINT_MAX) {
+                if (seqId == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::ERROR) << "GFF entry not found in sequence database: " << name << "\n";
                     EXIT(EXIT_FAILURE);
                 }
 
-                unsigned int key = __sync_fetch_and_add(&(entries_num), 1);
+                DBKeyType key = static_cast<DBKeyType>(__sync_fetch_and_add(&(entries_num), 1));
                 size_t bufferLen;
                 if (strand == "+") {
                     bufferLen = Orf::writeOrfHeader(buffer, lookupKey, start, end, 0, 0);
@@ -148,11 +148,11 @@ int gff2db(int argc, const char **argv, const Command &command) {
                 ssize_t length = end - start + 1;
                 writer.writeStart(thread_idx);
                 if (strand == "+") {
-                    size_t len = snprintf(buffer, sizeof(buffer), "%u\t%s_%zu_%zu_%zu\t%zu\n", key, name.c_str(), idx, start, end, i);
+                    size_t len = snprintf(buffer, sizeof(buffer), "%llu\t%s_%zu_%zu_%zu\t%zu\n", static_cast<unsigned long long>(key), name.c_str(), idx, start, end, i);
                     lookupWriter.writeData(buffer, len, thread_idx, false, false);
                     writer.writeAdd(seq + start - 1 , length, thread_idx);
                 } else {
-                    size_t len = snprintf(buffer, sizeof(buffer), "%u\t%s_%zu_%zu_%zu\t%zu\n", key, name.c_str(), idx, end, start, i);
+                    size_t len = snprintf(buffer, sizeof(buffer), "%llu\t%s_%zu_%zu_%zu\t%zu\n", static_cast<unsigned long long>(key), name.c_str(), idx, end, start, i);
                     lookupWriter.writeData(buffer, len, thread_idx, false, false);
                     for (size_t i = end - 1 ; i >= end - length; i--) {
                         revStr.append(1, Orf::complement(seq[i]));
@@ -207,6 +207,5 @@ int gff2db(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
-
 
 

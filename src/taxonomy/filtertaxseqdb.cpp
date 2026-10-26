@@ -19,8 +19,8 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
     NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
     MappingReader mapping(par.db1);
     
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
     const bool isCompressed = reader.isCompressed();
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, 0, Parameters::DBTYPE_OMIT_FILE);
@@ -43,12 +43,12 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            DBKeyType key = reader.getDbKey(i);
             size_t offset = reader.getOffset(i);
             size_t length = reader.getEntryLen(i);
 
             // match dbKey to its taxon based on mapping
-            unsigned int taxon = mapping.lookup(key);
+            TaxID taxon = mapping.lookup(key);
 
             // if taxon is a descendent of the requested taxid, it will be retained.
             // e.g. if in taxonomyExpression taxid=2 (bacteria) and taxon=562 (E.coli) 
@@ -77,10 +77,10 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
 
     writer.close(true);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_NO_DATA_INDEX);
+        DBReader<DBKeyType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_NO_DATA_INDEX);
     } else {
         DBWriter::writeDbtypeFile(par.db2.c_str(), reader.getDbtype(), isCompressed);
-        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+        DBReader<DBKeyType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
     }
 
     reader.close();

@@ -1,7 +1,15 @@
 #ifndef PSSM_KERNELS_CUH
 #define PSSM_KERNELS_CUH
 
+#if defined(__HIPCC__)
+    #include "hip/hip_runtime.h"
+    #include <hip/hip_fp16.h>
+    #include <hip/hip_cooperative_groups.h>
+#else
 #include <cuda_fp16.h>
+#endif
+
+#include "cuda_hip_rename.h"
 
 #include <map>
 
@@ -10,8 +18,12 @@
 #include "mathops.cuh"
 #include "util.cuh"
 
+#if defined(__CUDACC__)
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
+#endif
+#include "cuda_hip_compatibility.cuh"
+
 namespace cg = cooperative_groups;
 
 
@@ -413,7 +425,7 @@ namespace hardcodedzero{
                 int deviceId;
                 cudaGetDevice(&deviceId); CUERR;
                 if(!isSet[deviceId]){
-                    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
+                    cudaFuncSetAttribute(reinterpret_cast<const void*>(kernel), cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
                     isSet[deviceId] = true;
                 }
             }
@@ -908,7 +920,7 @@ namespace hardcodedzero{
                 int deviceId;
                 cudaGetDevice(&deviceId); CUERR;
                 if(!isSet[deviceId]){
-                    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
+                    cudaFuncSetAttribute(reinterpret_cast<const void*>(kernel), cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
                     isSet[deviceId] = true;
                 }
             }
@@ -1378,7 +1390,7 @@ namespace kernelparamzero{
                 int deviceId;
                 cudaGetDevice(&deviceId); CUERR;
                 if(!isSet[deviceId]){
-                    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
+                    cudaFuncSetAttribute(reinterpret_cast<const void*>(kernel), cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
                     isSet[deviceId] = true;
                 }
             }
@@ -1875,7 +1887,7 @@ namespace kernelparamzero{
                 int deviceId;
                 cudaGetDevice(&deviceId); CUERR;
                 if(!isSet[deviceId]){
-                    cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
+                    cudaFuncSetAttribute(reinterpret_cast<const void*>(kernel), cudaFuncAttributeMaxDynamicSharedMemorySize, smem); CUERR;
                     isSet[deviceId] = true;
                 }
             }

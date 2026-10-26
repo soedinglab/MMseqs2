@@ -212,6 +212,8 @@ int main(int argc, char* argv[])
     if(targetSubjectIds){
         cudaSW4.setTargetSubjectIds(targetSubjectIds);
     }
+    
+    cudaSW4.allowInt8(options.allowInt8);
 
     if(!options.usePseudoDB){
         if(options.verbose){

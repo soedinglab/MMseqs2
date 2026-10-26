@@ -17,7 +17,14 @@ extern const char* version;
 
 std::string GPUSharedMemory::getShmHash(const std::string& db) {
     std::string dbpath = FileUtil::getRealPathFromSymLink(PrefilteringIndexReader::dbPathWithoutIndex(db));
+    #ifdef HAVE_HIP
+    char* visibleDevices = getenv("HIP_VISIBLE_DEVICES");
+    if (!visibleDevices) {
+        visibleDevices = getenv("CUDA_VISIBLE_DEVICES");
+    }
+    #else
     char* visibleDevices = getenv("CUDA_VISIBLE_DEVICES");
+    #endif
     if (visibleDevices) {
         dbpath.append(visibleDevices);
     }

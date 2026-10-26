@@ -32,9 +32,9 @@ int result2msa(int argc, const char **argv, const Command &command) {
     const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
     const bool shouldWriteNullByte = par.msaFormatMode != Parameters::FORMAT_MSA_STOCKHOLM_FLAT;
 
-    DBReader<unsigned int> *tDbr = NULL;
+    DBReader<DBKeyType> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
-    DBReader<unsigned int> *targetHeaderReader = NULL;
+    DBReader<DBKeyType> *targetHeaderReader = NULL;
     IndexReader *targetHeaderReaderIdx = NULL;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
 
@@ -42,7 +42,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Cannot use result2msa with indexed target database for CA3M output\n";
         return EXIT_FAILURE;
     }
-    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+    uint16_t extended = DBReader<DBKeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(par.db2, par.threads,
                               extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
@@ -53,16 +53,16 @@ int result2msa(int argc, const char **argv, const Command &command) {
                                             (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     targetHeaderReader = targetHeaderReaderIdx->sequenceReader;
 
-    DBReader<unsigned int> *qDbr = NULL;
-    DBReader<unsigned int> *queryHeaderReader = NULL;
+    DBReader<DBKeyType> *qDbr = NULL;
+    DBReader<DBKeyType> *queryHeaderReader = NULL;
     if (!sameDatabase) {
-        qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        qDbr->open(DBReader<unsigned int>::NOSORT);
+        qDbr = new DBReader<DBKeyType>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+        qDbr->open(DBReader<DBKeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
         }
-        queryHeaderReader = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        queryHeaderReader->open(DBReader<unsigned int>::NOSORT);
+        queryHeaderReader = new DBReader<DBKeyType>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+        queryHeaderReader->open(DBReader<DBKeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             queryHeaderReader->readMmapedDataInMemory();
         }
@@ -73,7 +73,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     const unsigned int maxSequenceLength = std::max(tDbr->getMaxSeqLen(), qDbr->getMaxSeqLen());
 
     DBConcat *seqConcat = NULL;
-    DBReader<unsigned int> *refReader = NULL;
+    DBReader<DBKeyType> *refReader = NULL;
     std::string outDb = par.db4;
     std::string outIndex = par.db4Index;
     if (isCA3M == true) {
@@ -88,15 +88,15 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #endif
         // When exporting in ca3m, we need to access with SORT_BY_LINE
         // mode in order to keep track of the original line number in the index file.
-        refReader = new DBReader<unsigned int>(refData.c_str(), refIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX);
-        refReader->open(DBReader<unsigned int>::SORT_BY_LINE);
+        refReader = new DBReader<DBKeyType>(refData.c_str(), refIndex.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX);
+        refReader->open(DBReader<DBKeyType>::SORT_BY_LINE);
 
         outDb = par.db4 + "_ca3m.ffdata";
         outIndex = par.db4 + "_ca3m.ffindex";
     }
 
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX);
+    resultReader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
     size_t dbFrom = 0;
     size_t dbSize = 0;
 #ifdef HAVE_MPI
@@ -184,7 +184,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
         std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
 
-        std::vector<unsigned int> seqKeys;
+        std::vector<DBKeyType> seqKeys;
         seqKeys.reserve(300);
 
         std::string result;
@@ -194,9 +194,9 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             progress.updateProgress();
-            unsigned int queryKey = resultReader.getDbKey(id);
+            DBKeyType queryKey = resultReader.getDbKey(id);
             size_t queryId = qDbr->getId(queryKey);
-            if (queryId == UINT_MAX) {
+            if (queryId == DB_ENTRY_NOT_FOUND) {
                 Debug(Debug::WARNING) << "Invalid query sequence " << queryKey << "\n";
                 continue;
             }
@@ -210,7 +210,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 //            }
 
             size_t centerHeaderId = queryHeaderReader->getId(queryKey);
-            if (centerHeaderId == UINT_MAX) {
+            if (centerHeaderId == DB_ENTRY_NOT_FOUND) {
                 Debug(Debug::WARNING) << "Invalid query header " << queryKey << "\n";
                 continue;
             }
@@ -227,7 +227,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
 
-                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                const DBKeyType key = Util::fast_atoi<DBKeyType>(dbKey);
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
                     data = Util::skipLine(data);
@@ -235,7 +235,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                if (edgeId == UINT_MAX) {
+                if (edgeId == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -271,7 +271,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if (i == 0) {
                             headers.emplace_back(centerSequenceHeader, centerHeaderLength);
                         } else if (kept[i] == true) {
-                            unsigned int key = seqKeys[i - 1];
+                            DBKeyType key = seqKeys[i - 1];
                             size_t id = targetHeaderReader->getId(key);
                             char *header = targetHeaderReader->getData(id, thread_idx);
                             size_t length = targetHeaderReader->getEntryLen(id) - 1;
@@ -303,7 +303,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         header = centerSequenceHeader;
                         length = centerHeaderLength;
                     } else {
-                        unsigned int key = seqKeys[i - 1];
+                        DBKeyType key = seqKeys[i - 1];
                         size_t id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
@@ -370,7 +370,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if(isOnlyGap) {
                             header = "DUMMY";
                         }else {
-                            unsigned int key = seqKeys[i - 1];
+                            DBKeyType key = seqKeys[i - 1];
                             size_t id = targetHeaderReader->getId(key);
                             header = targetHeaderReader->getData(id, thread_idx);
                         }
@@ -417,7 +417,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                             result.append(Util::parseFastaHeader(centerSequenceHeader));
                         }
                     } else {
-                        unsigned int key = seqKeys[i - 1];
+                        DBKeyType key = seqKeys[i - 1];
                         size_t id = targetHeaderReader->getId(key);
                         if(isOnlyGap){
                             result.append("DUMMY");
@@ -505,15 +505,24 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append("\n;");
                 }
                 Matcher::result_t queryAln;
-                unsigned int newQueryKey = seqConcat->dbAKeyMap(queryKey);
+                DBKeyType newQueryKey = seqConcat->dbAKeyMap(queryKey);
                 queryAln.qStartPos = 0;
                 queryAln.dbStartPos = 0;
                 queryAln.backtrace = std::string(centerSequence.L, 'M'); // only matches
-                CompressedA3M::hitToBuffer(refReader->getId(newQueryKey), queryAln, result);
+                size_t newQueryId = refReader->getId(newQueryKey);
+                if (newQueryId == DB_ENTRY_NOT_FOUND) {
+                    Debug(Debug::ERROR) << "Compressed A3M target key " << newQueryKey << " cannot be found.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                CompressedA3M::hitToBuffer(newQueryId, queryAln, result);
                 for (size_t i = 0; i < alnResults.size(); ++i) {
-                    unsigned int key = alnResults[i].dbKey;
-                    unsigned int targetKey = seqConcat->dbBKeyMap(key);
-                    unsigned int targetId = refReader->getId(targetKey);
+                    DBKeyType key = alnResults[i].dbKey;
+                    DBKeyType targetKey = seqConcat->dbBKeyMap(key);
+                    size_t targetId = refReader->getId(targetKey);
+                    if (targetId == DB_ENTRY_NOT_FOUND) {
+                        Debug(Debug::ERROR) << "Compressed A3M target key " << targetKey << " cannot be found.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     CompressedA3M::hitToBuffer(targetId, alnResults[i], result);
                 }
             }
@@ -575,4 +584,3 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #endif
     return EXIT_SUCCESS;
 }
-

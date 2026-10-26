@@ -1,0 +1,27 @@
+name: Test GPU ROCm
+on:
+  push:
+    branches:
+        - master
+  workflow_dispatch:
+jobs:
+  test_gpu_rocm:
+    runs-on: [ self-hosted, rocm ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Test GPU
+        run: |
+          export ROCM_PATH=/opt/rocm HIP_PATH=/opt/rocm
+          export PATH="/opt/rocm/bin:/opt/rocm/lib/llvm/bin:$PATH"
+          export LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:$LD_LIBRARY_PATH"
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_HIP=1 -DCMAKE_HIP_ARCHITECTURES="native" ..
+          make -j$(nproc --all)
+      - name: Regression
+        run: |
+          export PATH="/opt/rocm/bin:$PATH"
+          export LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:$LD_LIBRARY_PATH"
+          export CUDA_VISIBLE_DEVICES=0
+          ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH

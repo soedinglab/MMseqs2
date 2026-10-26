@@ -35,3 +35,19 @@ jobs:
 
       - name: Test
         run: ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH
+
+      - name: Build 64-bit ID configuration
+        run: |
+          mkdir -p build-int64
+          cd build-int64
+          LIBOMP=$(brew --prefix libomp)
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMMSEQS_INT64_IDS=1 \
+            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
+            -DOpenMP_C_LIB_NAMES=omp \
+            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
+            -DOpenMP_CXX_LIB_NAMES=omp \
+            -DOpenMP_omp_LIBRARY=${LIBOMP}/lib/libomp.a \
+            ..
+          make -j$(sysctl -n hw.ncpu)

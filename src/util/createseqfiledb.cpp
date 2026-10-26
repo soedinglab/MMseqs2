@@ -12,20 +12,20 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> headerDb(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    headerDb.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> headerDb(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    headerDb.open(DBReader<DBKeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         headerDb.readMmapedDataInMemory();
     }
 
-    DBReader<unsigned int> seqDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    seqDb.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> seqDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    seqDb.open(DBReader<DBKeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         seqDb.readMmapedDataInMemory();
     }
 
-    DBReader<unsigned int> resultDb(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    resultDb.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> resultDb(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    resultDb.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
@@ -45,7 +45,7 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < resultDb.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int key = resultDb.getDbKey(i);
+            DBKeyType key = resultDb.getDbKey(i);
             char *data = resultDb.getData(i, thread_idx);
 
             size_t entries = Util::countLines(data, resultDb.getEntryLen(i) - 1);
@@ -59,14 +59,14 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
                 Util::parseKey(data, dbKey);
                 data = Util::skipLine(data);
 
-                const unsigned int memberKey = (unsigned int) strtoul(dbKey, NULL, 10);
+                const DBKeyType memberKey = Util::fast_atoi<DBKeyType>(dbKey);
                 size_t headerId = headerDb.getId(memberKey);
-                if (headerId == UINT_MAX) {
+                if (headerId == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";
                     EXIT(EXIT_FAILURE);
                 }
                 size_t seqId = seqDb.getId(memberKey);
-                if (seqId == UINT_MAX) {
+                if (seqId == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -74,14 +74,14 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
                     char *header = headerDb.getData(headerId, thread_idx);
                     size_t headerLen = headerDb.getEntryLen(headerId) - 1;
                     size_t accessionLen = Util::skipNoneWhitespace(header);
-                    char *sequence = seqDb.getData(headerId, thread_idx);
-                    size_t sequenceLen = seqDb.getEntryLen(headerId) - 1;
+                    char *sequence = seqDb.getData(seqId, thread_idx);
+                    size_t sequenceLen = seqDb.getEntryLen(seqId) - 1;
                     result.append(1, '#');
                     result.append(header, headerLen);
                     result.append(1, '>');
                     result.append(header, accessionLen);
                     result.append("_consensus\n");
-                    result.append(sequence, seqDb.getEntryLen(headerId) - 1);
+                    result.append(sequence, seqDb.getEntryLen(seqId) - 1);
                     result.append(1, '>');
                     result.append(header, headerLen);
                     result.append(sequence, sequenceLen);

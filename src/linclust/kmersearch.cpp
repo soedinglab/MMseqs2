@@ -20,7 +20,7 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
-KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, DBReader<unsigned int> & seqDbr,
+KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, DBReader<DBKeyType> & seqDbr,
                                                                     Parameters & par, BaseMatrix  * subMat) {
 
     KmerPosition<short, false, true> * hashSeqPair = initKmerPositionMemory<short, false, true>(totalKmers);
@@ -61,7 +61,7 @@ KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t total
 template <int TYPE>
 void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *kmers, size_t kmerCount) {
     size_t repSeqId = SIZE_T_MAX;
-    unsigned int prevHitId;
+    DBKeyType prevHitId;
     char buffer[100];
     std::string prefResultsOutString;
     prefResultsOutString.reserve(100000000);
@@ -74,7 +74,7 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
         }
         if (repSeqId != currId) {
             if(repSeqId != SIZE_T_MAX){
-                dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), static_cast<unsigned int>(repSeqId), 0);
+                dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), static_cast<DBKeyType>(repSeqId), 0);
             }
             repSeqId = currId;
             prefResultsOutString.clear();
@@ -87,9 +87,9 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
         int bestRevertMask = reverMask;
         short bestDiagonal = kmers[i].pos;
         int topScore = 0;
-        unsigned int tmpCurrId = currId;
+        size_t tmpCurrId = currId;
 
-        unsigned int hitId;
+        DBKeyType hitId;
         do {
             prevHitId = kmers[i].id;
             prevDiagonal = kmers[i].pos;
@@ -102,6 +102,9 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
             }
             topScore++;
             i++;
+            if (i >= kmerCount) {
+                break;
+            }
             hitId = kmers[i].id;
             tmpCurrId = kmers[i].kmer;
             if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
@@ -123,7 +126,7 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
     // last element
     if(prefResultsOutString.size()>0){
         if(repSeqId != SIZE_T_MAX){
-            dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), static_cast<unsigned int>(repSeqId), 0);
+            dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), static_cast<DBKeyType>(repSeqId), 0);
         }
     }
 }
@@ -142,8 +145,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<unsigned int> tidxdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    tidxdbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> tidxdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    tidxdbr.open(DBReader<DBKeyType>::NOSORT);
     PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&tidxdbr);
     if(par.PARAM_K.wasSet){
         if(par.kmerSize != 0 && data.kmerSize != par.kmerSize){
@@ -174,8 +177,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
     adjustedKmerSize = data.compBiasCorr;
 
-    DBReader<unsigned int> queryDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    queryDbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> queryDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    queryDbr.open(DBReader<DBKeyType>::NOSORT);
     int querySeqType = queryDbr.getDbtype();
     if (Parameters::isEqualDbtype(querySeqType, targetSeqType) == false) {
         Debug(Debug::ERROR) << "Dbtype of query and target database do not match !\n";

@@ -3,6 +3,8 @@
 #include "config.hpp"
 #include "pssmkernels_smithwaterman.cuh"
 
+#include "cuda_hip_rename.h"
+
 #include <thrust/iterator/counting_iterator.h>
 
 namespace cudasw4{

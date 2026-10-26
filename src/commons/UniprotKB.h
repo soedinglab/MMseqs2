@@ -5,6 +5,8 @@
 #ifndef MMSEQS_UNIPROTKB_H
 #define MMSEQS_UNIPROTKB_H
 
+#include <sstream>
+
 class UniprotKB {
 public:
     UniprotKB() : dbColumns(17), isInEntry(false), hasEntry(false) {

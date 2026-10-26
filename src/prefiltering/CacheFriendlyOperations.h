@@ -44,6 +44,8 @@
    )
 
 struct __attribute__((__packed__)) CounterResult {
+    // split-local id (< 2^32 by construction; reconstructed to the global key via + dbFrom).
+    // Kept 32-bit even in the 64-bit build to avoid inflating the counting bins.
     unsigned int id;
     unsigned short diagonal;
     unsigned char count;
@@ -98,6 +100,8 @@ private:
     CounterResult *binDataFrame;
 
     struct __attribute__((__packed__)) TmpResult {
+        // split-local id (sibling temp buffer of CounterResult); kept 32-bit even in the 64-bit
+        // build so tmpElementBuffer stays compact. Reconstructed to the global key via + dbFrom.
         unsigned int id;
         unsigned short diagonal;
     };

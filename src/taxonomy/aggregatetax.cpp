@@ -20,18 +20,18 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
     NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
     
     // open mapping of set to sequence
-    DBReader<unsigned int> setToSeqReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    setToSeqReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> setToSeqReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    setToSeqReader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     // open tax assignments per sequence
-    DBReader<unsigned int> taxSeqReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    taxSeqReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> taxSeqReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+    taxSeqReader.open(DBReader<DBKeyType>::NOSORT);
 
     // open alignment per sequence - will be used only if useAln
-    DBReader<unsigned int>* alnSeqReader = NULL;
+    DBReader<DBKeyType>* alnSeqReader = NULL;
     if (useAln == true) {
-        alnSeqReader = new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        alnSeqReader->open(DBReader<unsigned int>::NOSORT);
+        alnSeqReader = new DBReader<DBKeyType>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+        alnSeqReader->open(DBReader<DBKeyType>::NOSORT);
     }
 
     // output is either db4 or db5
@@ -66,17 +66,17 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
         for (size_t i = 0; i < setToSeqReader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int setKey = setToSeqReader.getDbKey(i);
+            DBKeyType setKey = setToSeqReader.getDbKey(i);
 
             char *results = setToSeqReader.getData(i, thread_idx);
 
             // process a specific set
             while (*results != '\0') {
                 Util::getWordsOfLine(results, entry, 255);
-                unsigned int seqKey = Util::fast_atoi<unsigned int>(entry[0]);
+                DBKeyType seqKey = Util::fast_atoi<DBKeyType>(entry[0]);
 
                 size_t seqId = taxSeqReader.getId(seqKey);
-                if (seqId == UINT_MAX) {
+                if (seqId == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::ERROR) << "Missing key " << seqKey << " in tax result\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -85,7 +85,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
 
                 if (useAln == true && taxon != 0) {
                     size_t alnId = alnSeqReader->getId(seqKey);
-                    if (alnId == UINT_MAX) {
+                    if (alnId == DB_ENTRY_NOT_FOUND) {
                         Debug(Debug::ERROR) << "Missing key " << alnId << " in alignment result\n";
                         EXIT(EXIT_FAILURE);
                     }

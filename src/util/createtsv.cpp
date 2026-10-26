@@ -26,12 +26,12 @@ int createtsv(int argc, const char **argv, const Command &command) {
     queryHeaderType = (par.idxSeqSrc == 0) ? queryHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
     IndexReader qDbrHeader(par.db1, par.threads, queryHeaderType, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     IndexReader * tDbrHeader=NULL;
-    DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
-    DBReader<unsigned int> * targetDB = NULL;
+    DBReader<DBKeyType> * queryDB = qDbrHeader.sequenceReader;
+    DBReader<DBKeyType> * targetDB = NULL;
     bool sameDB = (par.db2.compare(par.db1) == 0);
     const bool hasTargetDB = par.filenames.size() > 3;
-    DBReader<unsigned int>::Index * qHeaderIndex = qDbrHeader.sequenceReader->getIndex();
-    DBReader<unsigned int>::Index * tHeaderIndex = NULL;
+    DBReader<DBKeyType>::Index * qHeaderIndex = qDbrHeader.sequenceReader->getIndex();
+    DBReader<DBKeyType>::Index * tHeaderIndex = NULL;
 
     if (hasTargetDB) {
         if (sameDB) {
@@ -49,19 +49,19 @@ int createtsv(int argc, const char **argv, const Command &command) {
         }
     }
 
-    DBReader<unsigned int> *reader;
+    DBReader<DBKeyType> *reader;
     if (hasTargetDB) {
 
-        reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        reader = new DBReader<DBKeyType>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
     } else {
 
-        reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        reader = new DBReader<DBKeyType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
     }
-    reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    reader->open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
-    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(reader->getDbtype());
+    uint16_t extended = DBReader<DBKeyType>::getExtendedDbtype(reader->getDbtype());
     bool needSET = false;
-    std::map<unsigned int, std::string> qSetToSource, tSetToSource;
+    std::map<DBKeyType, std::string> qSetToSource, tSetToSource;
     if (extended & Parameters::DBTYPE_EXTENDED_SET) {
         needSET = true;
         if (hasTargetDB) {
@@ -95,7 +95,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < reader->getSize(); ++i) {
-            unsigned int queryKey = reader->getDbKey(i);
+            DBKeyType queryKey = reader->getDbKey(i);
             size_t queryIndex;
             char *headerData;
             if(needSET == false) {
@@ -134,7 +134,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
                 if(targetColumn == SIZE_T_MAX){
                     targetAccession = "";
                 } else if (hasTargetDB) {
-                    unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
+                    DBKeyType targetKey = Util::fast_atoi<DBKeyType>(dbKey);
                     size_t targetIndex = targetDB->getId(targetKey);
                     char *targetData;
                     if(needSET == false) {

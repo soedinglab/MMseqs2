@@ -138,7 +138,6 @@ private:
     int querySeqType;
     int16_t* queryCompBias;
     int16_t* targetCompBias;
-    int16_t* queryCompBiasRevArr;
     float *tmpCompBias;
     int8_t* queryRevNumSeq;
     int16_t* queryCompBiasRev;

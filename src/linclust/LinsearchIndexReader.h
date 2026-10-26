@@ -6,13 +6,13 @@
 
 struct FileKmer {
     size_t kmer;
-    unsigned int id;
+    DBKeyType id;
     unsigned int file;
     unsigned short seqLen;
     short pos;
     bool reverse;
     FileKmer(){}
-    FileKmer(size_t kmer, unsigned int id, short pos, short seqLen, bool reverse, unsigned int file):
+    FileKmer(size_t kmer, DBKeyType id, short pos, short seqLen, bool reverse, unsigned int file):
             kmer(kmer), id(id), file(file), seqLen(seqLen),  pos(pos), reverse(reverse) {}
 
 };
@@ -56,9 +56,9 @@ public:
 
     static void writeKmerIndexToDisk(std::string fileName, KmerPosition<short, false, true> *kmers, size_t kmerCnt);
 
-    static bool checkIfIndexFile(DBReader<unsigned int> *pReader);
+    static bool checkIfIndexFile(DBReader<DBKeyType> *pReader);
 
-    static std::string findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &parameters, int dbtype);
+    static std::string findIncompatibleParameter(DBReader<DBKeyType> & index, Parameters &parameters, int dbtype);
 
     static std::string searchForIndex(const std::string& dbName);
 };

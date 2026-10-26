@@ -95,7 +95,7 @@ DBWriter::~DBWriter() {
     }
 }
 
-void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
+void DBWriter::sortDatafileByIdOrder(DBReader<DBKeyType> &dbr) {
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -328,7 +328,7 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
     return totalWriten;
 }
 
-void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
+void DBWriter::writeEnd(DBKeyType key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
     // close stream
     bool isCompressedDB = (mode & Parameters::WRITER_COMPRESSED_MODE) != 0;
     if(isCompressedDB) {
@@ -398,7 +398,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
     }
 }
 
-void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx){
+void DBWriter::writeIndexEntry(DBKeyType key, size_t offset, size_t length, unsigned int thrIdx){
     char buffer[1024];
     size_t len = indexToBuffer(buffer, key, offset, length );
     size_t written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
@@ -409,15 +409,15 @@ void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, u
 }
 
 
-void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
+void DBWriter::writeData(const char *data, size_t dataSize, DBKeyType key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
     writeStart(thrIdx);
     writeAdd(data, dataSize, thrIdx);
     writeEnd(key, thrIdx, addNullByte, addIndexEntry);
 }
 
-size_t DBWriter::indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len){
+size_t DBWriter::indexToBuffer(char *buff1, DBKeyType key, size_t offsetStart, size_t len){
     char * basePos = buff1;
-    char * tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(key), buff1);
+    char * tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(key), buff1);
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(offsetStart), tmpBuff);
     *(tmpBuff-1) = '\t';
@@ -480,8 +480,8 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
 }
 
 template <>
-void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index){
-    char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index.id,buff1);
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<DBKeyType>::Index &index){
+    char * tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(index.id), buff1);
     *(tmpBuff-1) = '\t';
     size_t currOffset = index.offset;
     tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
@@ -512,7 +512,7 @@ void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::s
 }
 
 template <>
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index) {
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<DBKeyType>::Index *index) {
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
         writeIndexEntryToFile(outFile, buff1, index[id]);
@@ -597,7 +597,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             // that should be moved to the final destination dest instead of dest.0
             FileUtil::move(filenames[0].c_str(), outFileName);
         } else {
-            DBReader<unsigned int>::moveDatafiles(filenames, outFileName);
+            DBReader<DBKeyType>::moveDatafiles(filenames, outFileName);
         }
     } else {
         FILE *outFh = FileUtil::openAndDelete(outFileName, "w");
@@ -630,10 +630,10 @@ void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, c
     }
     size_t globalOffset = dataSizes[0];
     for (unsigned int fileIdx = 1; fileIdx < fileCount; fileIdx++) {
-        DBReader<unsigned int> reader(indexFilenames[fileIdx], indexFilenames[fileIdx], 1, DBReader<unsigned int>::USE_INDEX);
-        reader.open(DBReader<unsigned int>::HARDNOSORT);
+        DBReader<DBKeyType> reader(indexFilenames[fileIdx], indexFilenames[fileIdx], 1, DBReader<DBKeyType>::USE_INDEX);
+        reader.open(DBReader<DBKeyType>::HARDNOSORT);
         if (reader.getSize() > 0) {
-            DBReader<unsigned int>::Index * index = reader.getIndex();
+            DBReader<DBKeyType>::Index * index = reader.getIndex();
             for (size_t i = 0; i < reader.getSize(); i++) {
                 size_t currOffset = index[i].offset;
                 index[i].offset = globalOffset + currOffset;
@@ -654,9 +654,9 @@ void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, c
 void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameIndex, const bool lexicographicOrder){
     if (lexicographicOrder == false) {
         // sort the index
-        DBReader<unsigned int> indexReader(inFileNameIndex, inFileNameIndex, 1, DBReader<unsigned int>::USE_INDEX);
-        indexReader.open(DBReader<unsigned int>::NOSORT);
-        DBReader<unsigned int>::Index *index = indexReader.getIndex();
+        DBReader<DBKeyType> indexReader(inFileNameIndex, inFileNameIndex, 1, DBReader<DBKeyType>::USE_INDEX);
+        indexReader.open(DBReader<DBKeyType>::NOSORT);
+        DBReader<DBKeyType>::Index *index = indexReader.getIndex();
         FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index);
         if (fclose(index_file) != 0) {
@@ -688,15 +688,15 @@ void DBWriter::writeThreadBuffer(unsigned int idx, size_t dataSize) {
 }
 
 void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, int sortMode) {
-    DBReader<unsigned int>* lookupReader = NULL;
+    DBReader<DBKeyType>* lookupReader = NULL;
     FILE *sLookup = NULL;
     if (origData.empty() == false && origIndex.empty() == false) {
-        lookupReader = new DBReader<unsigned int>(origData.c_str(), origIndex.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
-        lookupReader->open(DBReader<unsigned int>::NOSORT);
+        lookupReader = new DBReader<DBKeyType>(origData.c_str(), origIndex.c_str(), 1, DBReader<DBKeyType>::USE_LOOKUP);
+        lookupReader->open(DBReader<DBKeyType>::NOSORT);
         sLookup = FileUtil::openAndDelete((dataFile + ".lookup").c_str(), "w");
     }
 
-    DBReader<unsigned int> reader(dataFile.c_str(), indexFile.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
+    DBReader<DBKeyType> reader(dataFile.c_str(), indexFile.c_str(), 1, DBReader<DBKeyType>::USE_INDEX);
     reader.open(sortMode);
     std::string indexTmp = indexFile + "_tmp";
     FILE *sIndex = FileUtil::openAndDelete(indexTmp.c_str(), "w");
@@ -704,13 +704,13 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
     char buffer[1024];
     std::string strBuffer;
     strBuffer.reserve(1024);
-    DBReader<unsigned int>::LookupEntry* lookup = NULL;
+    DBReader<DBKeyType>::LookupEntry* lookup = NULL;
     if (lookupReader != NULL) {
         lookup = lookupReader->getLookup();
     }
     for (size_t i = 0; i < reader.getSize(); i++) {
-        DBReader<unsigned int>::Index *idx = (reader.getIndex(i));
-        size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, idx->length);
+        DBReader<DBKeyType>::Index *idx = (reader.getIndex(i));
+        size_t len = DBWriter::indexToBuffer(buffer, static_cast<DBKeyType>(i), idx->offset, idx->length);
         int written = fwrite(buffer, sizeof(char), len, sIndex);
         if (written != (int) len) {
             Debug(Debug::ERROR) << "Can not write to data file " << indexFile << "_tmp\n";
@@ -718,8 +718,8 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
         }
         if (lookupReader != NULL) {
             size_t lookupId = lookupReader->getLookupIdByKey(idx->id);
-            DBReader<unsigned int>::LookupEntry copy = lookup[lookupId];
-            copy.id = i;
+            DBReader<DBKeyType>::LookupEntry copy = lookup[lookupId];
+            copy.id = static_cast<DBKeyType>(i);
             copy.entryName = SSTR(idx->id);
             lookupReader->lookupEntryToBuffer(strBuffer, copy);
             written = fwrite(strBuffer.c_str(), sizeof(char), strBuffer.size(), sLookup);

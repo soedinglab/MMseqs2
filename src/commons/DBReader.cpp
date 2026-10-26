@@ -170,9 +170,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         incrementMemory(sizeof(SourceEntry) * this->sourceSize);
         readSource(sourceDataChar, sourceDataSize, source);
         if (dataMode & USE_SOURCE) {
-            SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareById);
+            SORT_SERIAL(source, source + sourceSize, SourceEntry::compareById);
         } else {
-            SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareByFileName);
+            SORT_SERIAL(source, source + sourceSize, SourceEntry::compareByFileName);
         }
         sourceData.close();
     }
@@ -208,6 +208,11 @@ template <typename T> bool DBReader<T>::open(int accessType){
 
     compression = isCompressed(dbtype);
     padded = (getExtendedDbtype(dbtype) & Parameters::DBTYPE_EXTENDED_GPU);
+    // A DB may pack two alphabets into a single byte (primary * auxAlphabetSize + aux, so
+    // values run past 20); such a DB is flagged with Parameters::DBTYPE_EXTENDED_AUX_SEQ and
+    // stores those raw bytes on disk whether it is padded or not. getUnpadded()'s numeric->ASCII
+    // re-encoding assumes single-alphabet codes in 0..20 and must be skipped for that layout.
+    packedAlphabet = (getExtendedDbtype(dbtype) & Parameters::DBTYPE_EXTENDED_AUX_SEQ) != 0;
 
     if(compression == COMPRESSED || padded){
         compressedBufferSizes = new size_t[threads];
@@ -235,217 +240,8 @@ template <typename T> bool DBReader<T>::open(int accessType){
 }
 
 template<typename T>
-void DBReader<T>::sortIndex(bool) {
-}
-template<typename T>
-void DBReader<T>::sortIndex(float*) {
-}
-
-template<typename T>
 bool DBReader<T>::isSortedByOffset(){
     return sortedByOffset;
-}
-
-template<>
-void DBReader<std::string>::sortIndex(bool isSortedById) {
-    if (accessType == SORT_BY_ID){
-        if (isSortedById) {
-            return;
-        }
-        SORT_PARALLEL(index, index + size, Index::compareById);
-    } else {
-        if(accessType != NOSORT && accessType != HARDNOSORT){
-            Debug(Debug::ERROR) << "DBReader<std::string> cannot be opened in sort mode\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-}
-
-template<>
-void DBReader<unsigned int>::sortIndex(float *weights) {
-
-    this->accessType=DBReader::SORT_BY_WEIGHTS;
-    std::pair<unsigned int, float> *sortForMapping = new std::pair<unsigned int, float>[size];
-    id2local = new unsigned int[size];
-    local2id = new unsigned int[size];
-    incrementMemory(sizeof(unsigned int) * 2 * size);
-    for (size_t i = 0; i < size; i++) {
-        id2local[i] = i;
-        local2id[i] = i;
-        sortForMapping[i] = std::make_pair(i, weights[i]);
-    }
-    //this sort has to be stable to assure same clustering results
-    SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairByWeight());
-    for (size_t i = 0; i < size; i++) {
-        id2local[sortForMapping[i].first] = i;
-        local2id[i] = sortForMapping[i].first;
-    }
-    delete[] sortForMapping;
-}
-
-template<>
-void DBReader<unsigned int>::sortIndex(bool isSortedById) {
-
-    // First, we sort the index by IDs and we keep track of the original
-    // ordering in mappingToOriginalIndex array
-    size_t* mappingToOriginalIndex=NULL;
-    if (accessType == SORT_BY_LINE) {
-        mappingToOriginalIndex = new size_t[size];
-    }
-    
-    if ((isSortedById == false) && (accessType != HARDNOSORT) && (accessType != SORT_BY_OFFSET)) {
-        // create an array of the joint original indeces --> this will be sorted:
-        unsigned int *sortedIndices = new unsigned int[size];
-        for (unsigned int i = 0; i < size; ++i) {
-            sortedIndices[i] = i;
-        }
-        // sort sortedIndices based on index.id:
-        SORT_PARALLEL(sortedIndices, sortedIndices + size, sortIndecesById(index));
-
-        // re-order will destroy sortedIndices so copy it, if needed:
-        if (accessType == SORT_BY_LINE) {
-            for (size_t i = 0; i < size; ++i) {
-                mappingToOriginalIndex[i] = sortedIndices[i];
-            }
-        }
-
-        // re-order in-place according to sortedIndices (ruined in the process)
-        // based on: https://stackoverflow.com/questions/7365814/in-place-array-reordering
-        Index indexAndOffsetBuff;
-
-        for (unsigned int i = 0; i < size; i++) {
-            // fill buffers with what will be overwritten:
-            indexAndOffsetBuff.id = index[i].id;
-            indexAndOffsetBuff.offset = index[i].offset;
-            indexAndOffsetBuff.length = index[i].length;
-
-            unsigned int j = i;
-            while (1) {
-                // The inner loop won't re-process already processed elements
-                unsigned int k = sortedIndices[j];
-                sortedIndices[j] = j; // mutating sortedIndices in the process
-                if (k == i) {
-                    break;
-                }
-                // overwite at destination place:
-                index[j].id = index[k].id;
-                index[j].offset = index[k].offset;
-                index[j].length = index[k].length;
-                // re-write what was overwritten at its destination: 
-                j = k;
-                index[j].id = indexAndOffsetBuff.id;
-                index[j].offset = indexAndOffsetBuff.offset;
-                index[j].length = indexAndOffsetBuff.length;
-            }
-        }
-        delete[] sortedIndices;
-    } else if (accessType == SORT_BY_LINE) {
-        for (size_t i = 0; i < size; ++i) {
-            mappingToOriginalIndex[i] = i;
-        }
-    }
-    if (accessType == SORT_BY_LENGTH) {
-        // sort the entries by the length of the sequences
-        std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
-        for (size_t i = 0; i < size; i++) {
-            id2local[i] = i;
-            local2id[i] = i;
-            sortForMapping[i] = std::make_pair(i, index[i].length);
-        }
-        //this sort has to be stable to assure same clustering results
-        SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairBySeqLength());
-        for (size_t i = 0; i < size; i++) {
-            id2local[sortForMapping[i].first] = i;
-            local2id[i] = sortForMapping[i].first;
-        }
-        delete[] sortForMapping;
-    } else if (accessType == SHUFFLE) {
-        size_t *tmpIndex = new size_t[size];
-        for (size_t i = 0; i < size; i++) {
-            tmpIndex[i] = i;
-        }
-
-        std::mt19937 rnd(0);
-        std::shuffle(tmpIndex, tmpIndex + size, rnd);
-
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
-
-        for (size_t i = 0; i < size; i++) {
-            id2local[tmpIndex[i]] = i;
-            local2id[i] = tmpIndex[i];
-        }
-        delete[] tmpIndex;
-
-    } else if (accessType == LINEAR_ACCCESS) {
-        // do not sort if its already in correct order
-        bool isSortedByOffset = true;
-        size_t prevOffset = index[0].offset;
-        for (size_t i = 0; i < size; i++) {
-            isSortedByOffset &= (prevOffset <= index[i].offset);
-            prevOffset = index[i].offset;
-        }
-        if(isSortedByOffset == true && isSortedById == true){
-            accessType = NOSORT;
-            return;
-        }
-
-        // sort the entries by the offset of the sequences
-        std::pair<unsigned int, size_t> *sortForMapping = new std::pair<unsigned int, size_t>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
-
-        for (size_t i = 0; i < size; i++) {
-            id2local[i] = i;
-            local2id[i] = i;
-            sortForMapping[i] = std::make_pair(i, index[i].offset);
-        }
-        SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairByOffset());
-        for (size_t i = 0; i < size; i++) {
-            id2local[sortForMapping[i].first] = i;
-            local2id[i] = sortForMapping[i].first;
-        }
-        delete[] sortForMapping;
-    } else if (accessType == SORT_BY_ID_OFFSET) {
-        // sort the entries by the offset of the sequences
-        std::pair<unsigned int, Index> *sortForMapping = new std::pair<unsigned int, Index>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
-
-        for (size_t i = 0; i < size; i++) {
-            id2local[i] = i;
-            local2id[i] = i;
-            sortForMapping[i] = std::make_pair(i, index[i]);
-        }
-        SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairByIdAndOffset());
-        for (size_t i = 0; i < size; i++) {
-            id2local[sortForMapping[i].first] = i;
-            local2id[i] = sortForMapping[i].first;
-        }
-        delete[] sortForMapping;
-    } else if (accessType == SORT_BY_LINE) {
-        // sort the entries by the original line number in the index file
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
-
-        for (size_t i = 0; i < size; i++) {
-            id2local[i] = mappingToOriginalIndex[i];
-            local2id[mappingToOriginalIndex[i]] = i;
-        }
-    } else if (accessType == SORT_BY_OFFSET) {
-        // sort index based on index.offset (no id sorting):
-        SORT_PARALLEL(index, index + size, Index::compareByOffset);
-    }
-    if (mappingToOriginalIndex) {
-        delete [] mappingToOriginalIndex;
-    }
 }
 
 template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize) {
@@ -474,6 +270,8 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
                 Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << ". Error " << errsv << ".\n";
                 EXIT(EXIT_FAILURE);
             }
+            // if this mapping reads the file first, the page cache keeps it in huge pages
+            Util::adviseHugePages(ret, *dataSize);
         } else {
             ret = static_cast<char*>(malloc(*dataSize));
             Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
@@ -558,6 +356,17 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
 template <typename T> char* DBReader<T>::getUnpadded(size_t id, int thrIdx) {
     char *data = getDataUncompressed(id);
     size_t seqLen = getSeqLen(id);
+
+    if (packedAlphabet) {
+        // Packed two-alphabet bytes (up to 251) are the on-disk representation of the unpadded DB
+        // as well, and are decoded downstream by Sequence's remap tables. Hand them back verbatim;
+        // running them through CODE_TO_CHAR below would index a 21-entry table out of bounds.
+        // Only the trailing SIMD padding is dropped, which getSeqLen() already excludes.
+        memcpy(compressedBuffers[thrIdx], data, seqLen);
+        compressedBuffers[thrIdx][seqLen + 0] = '\n';
+        compressedBuffers[thrIdx][seqLen + 1] = '\0';
+        return compressedBuffers[thrIdx];
+    }
 
     static const char CODE_TO_CHAR[21] = {
             'A', /*  0 */ 'C', /*  1 */ 'D', /*  2 */
@@ -679,11 +488,11 @@ void DBReader<T>::touchData(size_t id) {
 template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
     size_t id = getId(dbKey);
     if(compression == COMPRESSED ){
-        return (id != UINT_MAX) ? getDataCompressed(id, thrIdx) : NULL;
+        return (id != DB_ENTRY_NOT_FOUND) ? getDataCompressed(id, thrIdx) : NULL;
     } if(padded) {
-        return (id != UINT_MAX) ? getUnpadded(id, thrIdx) : NULL;
+        return (id != DB_ENTRY_NOT_FOUND) ? getUnpadded(id, thrIdx) : NULL;
     } else{
-        return (id != UINT_MAX) ? getDataByOffset(index[id].offset) : NULL;
+        return (id != DB_ENTRY_NOT_FOUND) ? getDataByOffset(index[id].offset) : NULL;
     }
 }
 
@@ -757,7 +566,7 @@ template <typename T> std::string DBReader<T>::getLookupEntryName (size_t id){
     return lookup[id].entryName;
 }
 
-template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
+template <typename T> DBKeyType DBReader<T>::getLookupFileNumber(size_t id){
     if (id >= lookupSize){
         Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
         Debug(Debug::ERROR) << "getLookupFileNumber: local id (" << id << ") >= db size (" << lookupSize << ")\n";
@@ -767,7 +576,7 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
 }
 
 template<>
-void DBReader<unsigned int>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
+void DBReader<DBKeyType>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
     buffer.append(SSTR(entry.id));
     buffer.append(1, '\t');
     buffer.append(entry.entryName);
@@ -825,22 +634,22 @@ template <typename T> size_t DBReader<T>::getSourceIdByFileName(const std::strin
 
 template <typename T> void DBReader<T>::sortSourceById(){
     if (source != NULL) {
-        SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareById);
+        SORT_SERIAL(source, source + sourceSize, SourceEntry::compareById);
     }
 }
 
 template <typename T> void DBReader<T>::sortSourceByFileName(){
     if (source != NULL) {
-        SORT_PARALLEL(source, source + sourceSize, SourceEntry::compareByFileName);
+        SORT_SERIAL(source, source + sourceSize, SourceEntry::compareByFileName);
     }
 }
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
     if (id2local != NULL) {
-        return (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
+        return (id < size && index[id].id == dbKey) ? id2local[id] : DB_ENTRY_NOT_FOUND;
     }
-    return (id < size && index[id].id == dbKey ) ? id : UINT_MAX;
+    return (id < size && index[id].id == dbKey ) ? id : DB_ENTRY_NOT_FOUND;
 }
 
 template <typename T> size_t DBReader<T>::maxCount(char c) {
@@ -915,8 +724,8 @@ bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size
     unsigned int localMaxSeqLen = 0;
     size_t localDataSize = 0;
 
-    unsigned int localLastKey = 0;
-    const unsigned int BATCH_SIZE = 1048576;
+    DBKeyType localLastKey = 0;
+    const size_t BATCH_SIZE = 1048576;
 #pragma omp parallel num_threads(threadCnt) reduction(max: localMaxSeqLen, localLastKey) reduction(+: localDataSize) reduction(min:isSortedById)
     {
         size_t currPos = 0;
@@ -973,16 +782,16 @@ void DBReader<std::string>::readIndexId(std::string* id, char* line, const char*
     id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, const char** cols) {
-    *id = Util::fast_atoi<unsigned int>(cols[0]);
+void DBReader<DBKeyType>::readIndexId(DBKeyType* id, char*, const char** cols) {
+    *id = Util::fast_atoi<DBKeyType>(cols[0]);
 }
 
 template<>
-unsigned int DBReader<std::string>::indexIdToNum(std::string * id){
+DBKeyType DBReader<std::string>::indexIdToNum(std::string * id){
     return id->size();
 }
 template<>
-unsigned int DBReader<unsigned int>::indexIdToNum(unsigned int * id) {
+DBKeyType DBReader<DBKeyType>::indexIdToNum(DBKeyType * id) {
     return *id;
 }
 
@@ -1018,53 +827,53 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
 }
 
 template <>
-size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
+size_t DBReader<DBKeyType>::indexMemorySize(const DBReader<DBKeyType> &idx) {
     size_t memSize = // size + dataSize
             2 * sizeof(size_t)
             // maxSeqLen + lastKey + dbtype
-            + 3 * sizeof(unsigned int)
+            + sizeof(DBKeyType) + sizeof(int) + sizeof(unsigned int)
             // index
-            + idx.size * sizeof(DBReader<unsigned int>::Index);
+            + idx.size * sizeof(DBReader<DBKeyType>::Index);
 
     return memSize;
 }
 
 template <>
-char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
+char* DBReader<DBKeyType>::serialize(const DBReader<DBKeyType> &idx) {
     char* data = (char*) malloc(indexMemorySize(idx));
     char* p = data;
     memcpy(p, &idx.size, sizeof(size_t));
     p += sizeof(size_t);
     memcpy(p, &idx.dataSize, sizeof(size_t));
     p += sizeof(size_t);
-    memcpy(p, &idx.lastKey, sizeof(unsigned int));
-    p += sizeof(unsigned int);
+    memcpy(p, &idx.lastKey, sizeof(DBKeyType));
+    p += sizeof(DBKeyType);
     memcpy(p, &idx.dbtype, sizeof(int));
-    p += sizeof(unsigned int);
+    p += sizeof(int);
     memcpy(p, &idx.maxSeqLen, sizeof(unsigned int));
     p += sizeof(unsigned int);
-    memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
-    p += idx.size * sizeof(DBReader<unsigned int>::Index);
+    memcpy(p, idx.index, idx.size * sizeof(DBReader<DBKeyType>::Index));
+    p += idx.size * sizeof(DBReader<DBKeyType>::Index);
     return data;
 }
 
 template <>
-DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, int threads) {
+DBReader<DBKeyType> *DBReader<DBKeyType>::unserialize(const char* data, int threads) {
     const char* p = data;
     size_t size = *((size_t*)p);
     p += sizeof(size_t);
     size_t dataSize = *((size_t*)p);
     p += sizeof(size_t);
-    unsigned int lastKey = *((unsigned int*)p);
-    p += sizeof(unsigned int);
+    DBKeyType lastKey = *((DBKeyType*)p);
+    p += sizeof(DBKeyType);
     int dbType = *((int*)p);
     p += sizeof(int);
     unsigned int maxSeqLen = *((unsigned int*)p);
     p += sizeof(unsigned int);
-    DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
-    p += size * sizeof(DBReader<unsigned int>::Index);
+    DBReader<DBKeyType>::Index *idx = (DBReader<DBKeyType>::Index *)p;
+    p += size * sizeof(DBReader<DBKeyType>::Index);
 
-    return new DBReader<unsigned int>(idx, size, dataSize, lastKey, dbType, maxSeqLen, threads);
+    return new DBReader<DBKeyType>(idx, size, dataSize, lastKey, dbType, maxSeqLen, threads);
 }
 
 template<typename T>
@@ -1125,14 +934,10 @@ int DBReader<T>::isCompressed(int dbtype) {
 
 template<typename T>
 void DBReader<T>::setSequentialAdvice() {
-#ifdef HAVE_POSIX_MADVISE
     for(size_t i = 0; i < dataFileCnt; i++){
         size_t dataSize = dataSizeOffset[i+1] - dataSizeOffset[i];
-        if (dataSize > 0 && posix_madvise (dataFiles[i], dataSize, POSIX_MADV_SEQUENTIAL) != 0){
-            Debug(Debug::ERROR) << "posix_madvise returned an error " << dataFileName << "\n";
-        }
+        Util::madviseLogged(dataFiles[i], dataSize, POSIX_MADV_SEQUENTIAL, dataFileName);
     }
-#endif
 }
 
 template<typename T>
@@ -1149,7 +954,7 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
         Util::getWordsOfLine(lookupData, cols, 3);
         lookup[i].id = Util::fast_atoi<size_t>(cols[0]);
         lookup[i].entryName = std::string(cols[1], (cols[2] - cols[1]) - 1);
-        lookup[i].fileNumber = Util::fast_atoi<size_t>(cols[2]);
+        lookup[i].fileNumber = Util::fast_atoi<DBKeyType>(cols[2]);
         lookupData = Util::skipLine(lookupData);
 
         currPos = lookupData - (char *) data;
@@ -1362,5 +1167,5 @@ void DBReader<T>::decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize,
     free(entriesPerWorker);
 }
 
-template class DBReader<unsigned int>;
+template class DBReader<DBKeyType>;
 template class DBReader<std::string>;

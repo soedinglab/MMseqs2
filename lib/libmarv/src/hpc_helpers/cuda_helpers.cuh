@@ -1,6 +1,8 @@
 #ifndef HELPERS_CUDA_HELPERS_CUH
 #define HELPERS_CUDA_HELPERS_CUH
 
+#include "../cuda_hip_rename.h"
+
 #include <iostream>
 #include <cstdint>
 #include <vector>
@@ -18,8 +20,31 @@
 
 #include "hpc_helpers.h"
 
+#if defined(__HIPCC__)
+    #include "hip/hip_runtime.h"
+#endif
+
 // error checking
-#ifdef __CUDACC__
+#ifdef __HIPCC__
+    #define CUERR {                                                            \
+        hipError_t err;                                                       \
+        if ((err = cudaGetLastError()) != cudaSuccess) {                       \
+            std::cout << "HIP error: " << cudaGetErrorString(err) << " : "    \
+                    << __FILE__ << ", line " << __LINE__ << std::endl;       \
+            exit(1);                                                           \
+        }                                                                      \
+    }
+#elif defined(__HIP_PLATFORM_AMD__)
+    #define CUERR {                                                            \
+        cudaError_t err;                                                       \
+        if ((err = cudaGetLastError()) != cudaSuccess) {                       \
+            std::cout << "HIP error: " << cudaGetErrorString(err) << " : "    \
+                    << __FILE__ << ", line " << __LINE__ << std::endl;       \
+            exit(1);                                                           \
+        }                                                                      \
+    }
+
+#elif defined(__CUDACC__)
     #define CUERR {                                                            \
         cudaError_t err;                                                       \
         if ((err = cudaGetLastError()) != cudaSuccess) {                       \
@@ -41,37 +66,37 @@
 #define D2D (cudaMemcpyDeviceToDevice)
 
 // cross platform classifiers
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
     #define HOSTDEVICEQUALIFIER  __host__ __device__
 #else
     #define HOSTDEVICEQUALIFIER
 #endif
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
     #define INLINEQUALIFIER  __forceinline__
 #else
     #define INLINEQUALIFIER inline
 #endif
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
     #define GLOBALQUALIFIER  __global__
 #else
     #define GLOBALQUALIFIER
 #endif
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
     #define DEVICEQUALIFIER  __device__
 #else
     #define DEVICEQUALIFIER
 #endif
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
     #define HOSTQUALIFIER  __host__
 #else
     #define HOSTQUALIFIER
 #endif
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
     #define HD_WARNING_DISABLE #pragma hd_warning_disable
 #else
     #define HD_WARNING_DISABLE
@@ -170,7 +195,9 @@
     {
         return __ffsll(x);
     }
+#endif
 
+#if defined(__CUDACC__) || defined(__HIPCC__)
     namespace helpers {
 
         #ifdef __CUDACC_EXTENDED_LAMBDA__

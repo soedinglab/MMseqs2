@@ -60,18 +60,18 @@ public:
             : Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha), shortOutput(shortOutput) {
         std::string data = queryDbName + "_set_size";
         std::string index = queryDbName + "_set_size.index";
-        querySizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        querySizeReader->open(DBReader<unsigned int>::NOSORT);
+        querySizeReader = new DBReader<DBKeyType>(data.c_str(), index.c_str(), threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+        querySizeReader->open(DBReader<DBKeyType>::NOSORT);
 
         data = targetDbName + "_set_size";
         index = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        targetSizeReader->open(DBReader<unsigned int>::NOSORT);
+        targetSizeReader = new DBReader<DBKeyType>(data.c_str(), index.c_str(), threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+        targetSizeReader->open(DBReader<DBKeyType>::NOSORT);
 
         data = targetDbName + "_nucl";
         index = targetDbName + "_nucl.index";
-        targetSourceReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        targetSourceReader->open(DBReader<unsigned int>::USE_INDEX);
+        targetSourceReader = new DBReader<DBKeyType>(data.c_str(), index.c_str(), threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+        targetSourceReader->open(DBReader<DBKeyType>::USE_INDEX);
     }
 
     ~SetSummaryAggregator() {
@@ -86,10 +86,10 @@ public:
     }
 
 
-    void prepareInput(unsigned int, unsigned int) {}
+    void prepareInput(DBKeyType, unsigned int) {}
 
-    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
-                               unsigned int targetSetKey, unsigned int thread_idx) {
+    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, DBKeyType querySetKey,
+                               DBKeyType targetSetKey, unsigned int thread_idx) {
         double targetGeneCount = std::strtod(targetSizeReader->getDataByDBKey(targetSetKey, thread_idx), NULL);
         double pvalThreshold = this->alpha / targetGeneCount;
         std::vector<std::pair<long, long>> genesPositions;
@@ -205,9 +205,9 @@ public:
     }
 
 private:
-    DBReader<unsigned int> *querySizeReader;
-    DBReader<unsigned int> *targetSourceReader;
-    DBReader<unsigned int> *targetSizeReader;
+    DBReader<DBKeyType> *querySizeReader;
+    DBReader<DBKeyType> *targetSourceReader;
+    DBReader<DBKeyType> *targetSizeReader;
     float alpha;
     bool shortOutput;
 };

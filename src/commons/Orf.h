@@ -53,7 +53,7 @@ public:
     };
 
     struct SequenceLocation {
-        unsigned int id;
+        DBKeyType id;
         size_t from, to;
         bool hasIncompleteStart, hasIncompleteEnd;
         Strand strand;
@@ -90,7 +90,7 @@ public:
 
     std::pair<const char *, size_t> getSequence(const SequenceLocation &location);
 
-    static Matcher::result_t getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader, int thread_idx);
+    static Matcher::result_t getFromDatabase(const size_t id, DBReader<DBKeyType> & contigsReader, DBReader<DBKeyType> & orfHeadersReader, int thread_idx);
 
     static SequenceLocation parseOrfHeader(const char *data);
 
@@ -101,7 +101,7 @@ public:
         return iupacReverseComplementTable[static_cast<unsigned char>(c)];
     }
 
-    static size_t writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_t toPos, bool hasIncompleteStart,
+    static size_t writeOrfHeader(char *buffer, DBKeyType key, size_t fromPos, size_t toPos, bool hasIncompleteStart,
                                bool hasIncompleteEnd);
 
 private:

@@ -20,7 +20,7 @@ SequenceWeights::SequenceWeights(const char* dataFileName) {
     char keyData[255];
     std::string line;
     this->indexSize = 0;
-    unsigned int  pos = 0;
+    size_t pos = 0;
     while(std::getline(tsv, line)) {
         this->indexSize++;
     }
@@ -34,7 +34,7 @@ SequenceWeights::SequenceWeights(const char* dataFileName) {
         char *current = (char *) line.c_str();
         Util::parseKey(current, keyData);
         const std::string key(keyData);
-        unsigned int keyId = strtoull(key.c_str(), NULL, 10);
+        DBKeyType keyId = Util::fast_atoi<DBKeyType>(key.c_str());
 
         char *restStart = current + key.length();
         restStart = restStart + Util::skipWhitespace(restStart);
@@ -45,7 +45,7 @@ SequenceWeights::SequenceWeights(const char* dataFileName) {
     }
 }
 
-float SequenceWeights::getWeightById(unsigned int id) {
+float SequenceWeights::getWeightById(DBKeyType id) {
 
     WeightIndexEntry val;
     val.id = id;
@@ -56,4 +56,3 @@ float SequenceWeights::getWeightById(unsigned int id) {
 SequenceWeights::~SequenceWeights() {
     delete[] weightIndex;
 }
-

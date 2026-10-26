@@ -1,9 +1,16 @@
 #ifndef MATH_OPS_CUH
 #define MATH_OPS_CUH
 
-#include <cuda_fp16.h>
-#include <cooperative_groups.h>
-#include <cooperative_groups/reduce.h>
+#if defined(__HIPCC__)
+    #include <hip/hip_fp16.h>
+    #include <hip/hip_cooperative_groups.h>
+#endif
+// #include <cooperative_groups/reduce.h>
+
+#include "cuda_hip_compatibility.cuh"
+
+#include "ptx_wrappers.cuh"
+#include "custom_score_types.cuh"
 
 // from https://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__HALF__CONSTANTS.html
 #ifndef CUDART_ZERO_FP16
@@ -39,7 +46,7 @@ namespace cudasw4{
         //max(a,b)
         __device__
         static VecType max(const VecType& a, const VecType& b){
-            return __hmax2(a, b);
+            return compatibility::hmax2(a, b);
         }
 
         //max(a,b)
@@ -83,13 +90,13 @@ namespace cudasw4{
         //max(a,b,c)
         __device__
         static VecType max3(const VecType& a, const VecType& b, const VecType& c){
-            return __hmax2(a, __hmax2(b,c));
+            return compatibility::hmax2(a, compatibility::hmax2(b,c));
         }
 
         //max(a+b,c)
         __device__
         static VecType add_max(const VecType& a, const VecType& b, const VecType& c){
-            return __hmax2(__hadd2(a,b), c);
+            return compatibility::hmax2(__hadd2(a,b), c);
         }
 
         //max(a+b,c)
@@ -120,11 +127,15 @@ namespace cudasw4{
         template<class Group>
         __device__
         static VecType reduce_max(Group& group, VecType val){
-            return cooperative_groups::reduce(group, val, [](const auto& l, const auto& r){return __hmax2(l,r);});
+            //return cooperative_groups::reduce(group, val, [](const auto& l, const auto& r){return __hmax2(l,r);});
+
+            return compatibility::group_reduce_max(
+                group, val);
             //return cooperative_groups::reduce(group, val, cooperative_groups::greater<VecType>{});
         }
     };
 
+#if defined(__CUDACC__)
     template<>
     struct MathOps<short2>{
         using Type = short;
@@ -212,10 +223,12 @@ namespace cudasw4{
         template<class Group>
         __device__
         static VecType reduce_max(Group& group, VecType val){
-            return asVec(cooperative_groups::reduce(group, asUint(val), [](const auto& l, const auto& r){return __vmaxs2(l,r);}));
+            return asVec(
+                compatibility::group_reduce(group, asUint(val), [](const auto& l, const auto& r){return __vmaxs2(l,r);}));
             //return cooperative_groups::reduce(group, val, cooperative_groups::greater<VecType>{});
         }
     };
+#endif
 
 
     template<>
@@ -284,7 +297,8 @@ namespace cudasw4{
         template<class Group>
         __device__
         static Type reduce_max(Group& group, Type val){
-            return cooperative_groups::reduce(group, val, cooperative_groups::greater<Type>{});
+            //return compatibility::group_reduce(group, val, cooperative_groups::greater<Type>{});
+            return compatibility::group_reduce_max(group, val);
         }
     };
 
@@ -304,6 +318,7 @@ namespace cudasw4{
             return ::max(a,b);
         }
 
+#if defined(__CUDACC__)
         //max(a,b)
         __device__
         static Type max(const Type& a, const Type& b, bool* firstIsMax){
@@ -339,11 +354,11 @@ namespace cudasw4{
         static Type add_max_relu(const Type& a, const Type& b, const Type& c){
             return __viaddmax_s32_relu(a,b,c);
         }    
-
+#endif
         template<class Group>
         __device__
         static Type reduce_max(Group& group, Type val){
-            return cooperative_groups::reduce(group, val, cooperative_groups::greater<Type>{});
+            return compatibility::group_reduce_max(group, val);
         }
     };
 
@@ -384,7 +399,7 @@ namespace cudasw4{
         template<class Group>
         __device__
         static Type reduce_max(Group& group, Type val){
-            return cooperative_groups::reduce(group, val, cooperative_groups::greater<Type>{});
+            return compatibility::group_reduce_max(group, val);
         }
     };
 
@@ -425,9 +440,94 @@ namespace cudasw4{
         template<class Group>
         __device__
         static Type reduce_max(Group& group, Type val){
-            return cooperative_groups::reduce(group, val, cooperative_groups::greater<Type>{});
+            return compatibility::group_reduce_max(group, val);
         }
     };
+
+
+#if defined(__CUDACC__)
+    template<>
+    struct MathOps<ScoreType_u8x4>{
+        using Type = cuda::std::uint8_t;
+        using VecType = ScoreType_u8x4;
+
+        __host__ __device__
+        static VecType zero_score(){
+            return VecType{};
+        }
+
+        //max(a,b)
+        __device__
+        static VecType max(const VecType& a, const VecType& b){
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_max_u8x4(a, b);
+            #else
+            return __vmaxu4(a,b);
+            #endif
+        }
+
+        //max(a,b,c)
+        __device__
+        static VecType max3(const VecType& a, const VecType& b, const VecType& c){
+            return max(a, max(b,c));
+        }
+
+        __device__
+        static VecType add(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_add_u8x4(a,b);
+            #else
+            return __vadd4(a,b);
+            #endif
+        }
+
+        __device__
+        static VecType add_sat(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_add_sat_u8x4(a,b);
+            #else
+            return __vaddus4(a,b);
+            #endif
+        }
+
+        __device__
+        static VecType add_sat_relu(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_add_sat_u8x4(a,b);
+            #else
+            return __vaddus4(a,b);
+            #endif
+        }
+
+
+        __device__
+        static VecType sub_sat(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_sub_sat_u8x4(a,b);
+            #else
+            return __vsubus4(a,b);
+            #endif
+        }
+
+        template<class Group>
+        __device__
+        static VecType reduce_max(Group& group, VecType val){
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return VecType(
+                cooperative_groups::reduce(group, static_cast<unsigned int>(val), [](const auto& l, const auto& r){return ptx_max_u8x4(l,r);})
+            );
+            #else
+            return VecType(
+                cooperative_groups::reduce(group, static_cast<unsigned int>(val), [](const auto& l, const auto& r){return __vmaxu4(l,r);})
+            );            
+            #endif
+        }
+    };
+#endif // defined(__CUDACC__)
 
 
 } //namespace cudasw4

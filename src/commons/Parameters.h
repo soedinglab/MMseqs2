@@ -93,6 +93,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
     static const unsigned int DBTYPE_EXTENDED_GPU = 8;
     static const unsigned int DBTYPE_EXTENDED_SET = 16;
+    static const unsigned int DBTYPE_EXTENDED_AUX_SEQ = 32;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -100,6 +101,7 @@ public:
     static const int LINCLUST_VERSION2 = 2;
     static const int CLUSTER_VERSION1 = 1;
     static const int CLUSTER_VERSION2 = 2;
+
     static const int SEARCH_TYPE_AUTO = 0;
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
@@ -429,6 +431,7 @@ public:
     float    compBiasCorrectionScale;    // Aminoacid composiont correction scale factor
 
     bool   diagonalScoring;              // switch diagonal scoring
+    bool   useAuxScoring;                // use auxiliary sequence scoring in prefilter
     int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
     float  maskProb;                     // mask probability
@@ -561,6 +564,9 @@ public:
     MultiParam<PseudoCounts> pcb;
     int profileOutputMode;
 
+    // pickrepprofile / pickconsensusrepfast
+    bool switchConsensusRep;
+
     // sequence2profile
     float neff;
     float tau;
@@ -664,6 +670,7 @@ public:
     // mergedbs
     std::string mergePrefixes;
     bool mergeStopEmpty;
+    bool mergeFilterTarget;
 
     // summarizetabs
     float overlap;
@@ -924,6 +931,9 @@ public:
     PARAMETER(PARAM_PCB)
     PARAMETER(PARAM_PROFILE_OUTPUT_MODE)
 
+    // pickrepprofile / pickconsensusrepfast
+    PARAMETER(PARAM_SWITCH_CONSENSUS_REP)
+
     // sequence2profile
     PARAMETER(PARAM_NEFF)
     PARAMETER(PARAM_TAU)
@@ -1083,6 +1093,7 @@ public:
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
     PARAMETER(PARAM_MERGE_STOP_EMPTY)
+    PARAMETER(PARAM_MERGE_FILTER_TARGET)
 
     // summarizetabs
     PARAMETER(PARAM_OVERLAP)
@@ -1229,6 +1240,8 @@ public:
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
     std::vector<MMseqsParameter*> result2repseq;
+    std::vector<MMseqsParameter*> pickrepprofile;
+    std::vector<MMseqsParameter*> pickconsensusrepfast;
     std::vector<MMseqsParameter*> gff2db;
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;

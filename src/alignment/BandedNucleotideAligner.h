@@ -1,3 +1,5 @@
+#ifndef BANDEDNUCLEOTIDEALIGNER_H
+#define BANDEDNUCLEOTIDEALIGNER_H
 //
 // Written by Martin Steinegger
 //
@@ -44,3 +46,4 @@ private:
     int gape;
     int zdrop;
 };
+#endif

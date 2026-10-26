@@ -75,14 +75,6 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
     result.seqId = identities;
 }
 
-static bool compareHitsByKeyScore(const Matcher::result_t &first, const Matcher::result_t &second) {
-    if (first.score > second.score)
-        return true;
-    if (second.score > first.score)
-        return false;
-    return false;
-}
-
 int expandaln(int argc, const char **argv, const Command& command, bool returnAlnRes) {
     Parameters &par = Parameters::getInstance();
     // default for expand2profile to filter MSA
@@ -97,19 +89,19 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     }
     std::sort(qid_vec.begin(), qid_vec.end());
 
-    DBReader<unsigned int> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    aReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    aReader.open(DBReader<DBKeyType>::NOSORT);
     const int aSeqDbType = aReader.getDbtype();
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         aReader.readMmapedDataInMemory();
     }
 
-    DBReader<unsigned int> *resultAbReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> *resultAbReader = new DBReader<DBKeyType>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    resultAbReader->open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
-    DBReader<unsigned int> *cReader = NULL;
+    DBReader<DBKeyType> *cReader = NULL;
     IndexReader *cReaderIdx = NULL;
-    DBReader<unsigned int> *resultBcReader = NULL;
+    DBReader<DBKeyType> *resultBcReader = NULL;
     IndexReader *resultBcReaderIdx = NULL;
     if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
@@ -122,14 +114,14 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                             (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
         resultBcReader = resultBcReaderIdx->sequenceReader;
     } else {
-        cReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        cReader->open(DBReader<unsigned int>::NOSORT);
+        cReader = new DBReader<DBKeyType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+        cReader->open(DBReader<DBKeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             cReader->readMmapedDataInMemory();
         }
 
-        resultBcReader = new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        resultBcReader->open(DBReader<unsigned int>::NOSORT);
+        resultBcReader = new DBReader<DBKeyType>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+        resultBcReader->open(DBReader<DBKeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             resultBcReader->readMmapedDataInMemory();
         }
@@ -149,10 +141,10 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
         if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
-            dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+            dbType = DBReader<DBKeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
         }
     } else {
-        dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+        dbType = DBReader<DBKeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
     DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), localThreads, par.compressed, dbType);
     writer.open();
@@ -227,7 +219,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
         Matcher::result_t resultAc;
         resultAc.backtrace.reserve(par.maxSeqLen + 1);
-        std::map<unsigned int, IntervalArray *> interval;
+        std::map<DBKeyType, IntervalArray *> interval;
         std::stack<IntervalArray *> intervalBuffer;
         std::vector<Matcher::result_t> resultsAc;
         resultsAc.reserve(1000);
@@ -236,7 +228,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         for (size_t i = 0; i < resultAbReader->getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int queryKey = resultAbReader->getDbKey(i);
+            DBKeyType queryKey = resultAbReader->getDbKey(i);
 
             size_t aSeqId = aReader.getId(queryKey);
             if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
@@ -266,15 +258,16 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     EXIT(EXIT_FAILURE);
                 }
 
-                unsigned int bResKey = resultAb.dbKey;
+                DBKeyType bResKey = resultAb.dbKey;
                 size_t bResId = resultBcReader->getId(bResKey);
-                if (bResId == UINT_MAX) {
+                if (bResId == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::WARNING) << "Missing alignments for sequence " << bResKey << "\n";
                     continue;
                 }
                 Matcher::readAlignmentResults(resultsBc, resultBcReader->getData(bResId, thread_idx), false);
                 if (filterBc) {
                     bool hasRep = false;
+                    size_t repIdx = 0;
                     for (size_t k = 0; k < resultsBc.size(); ++k) {
                         Matcher::result_t &resultBc = resultsBc[k];
                         if (resultBc.backtrace.size() == 0) {
@@ -282,20 +275,29 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                             EXIT(EXIT_FAILURE);
                         }
                         if (hasRep == false && resultBc.seqId == 1.0 && resultBc.qcov == 1.0) {
-                            unsigned int bSeqKey = resultBc.dbKey;
+                            DBKeyType bSeqKey = resultBc.dbKey;
                             size_t bSeqId = cReader->getId(bSeqKey);
+                            if (bSeqId == DB_ENTRY_NOT_FOUND) {
+                                Debug(Debug::ERROR) << "Invalid representative sequence key " << bSeqKey << ".\n";
+                                EXIT(EXIT_FAILURE);
+                            }
                             bSeq->mapSequence(bSeqId, bSeqKey, cReader->getData(bSeqId, thread_idx), cReader->getSeqLen(bSeqId));
                             hasRep = true;
+                            repIdx = k;
                         } else {
-                            unsigned int cSeqKey = resultBc.dbKey;
+                            DBKeyType cSeqKey = resultBc.dbKey;
                             size_t cSeqId = cReader->getId(cSeqKey);
+                            if (cSeqId == DB_ENTRY_NOT_FOUND) {
+                                Debug(Debug::ERROR) << "Invalid target sequence key " << cSeqKey << ".\n";
+                                EXIT(EXIT_FAILURE);
+                            }
                             cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
                             subSeqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                         }
                     }
                     if (hasRep == true) {
-                        Matcher::result_t query = *(resultsBc.begin());
-                        resultsBc.erase(resultsBc.begin());
+                        Matcher::result_t query = resultsBc[repIdx];
+                        resultsBc.erase(resultsBc.begin() + repIdx);
                         MultipleAlignment::MSAResult res = aligner->computeMSA(bSeq, subSeqSet, resultsBc, true);
                         filter->filter(res, resultsBc, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
                         resultsBc.insert(resultsBc.begin(), query);
@@ -305,8 +307,6 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     }
                     subSeqSet.clear();
                 }
-                //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
-
                 for (size_t k = 0; k < resultsBc.size(); ++k) {
                     Matcher::result_t &resultBc = resultsBc[k];
                     if (resultBc.backtrace.size() == 0) {
@@ -323,10 +323,10 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         continue;
                     }
 
-                    unsigned int cSeqKey = resultBc.dbKey;
+                    DBKeyType cSeqKey = resultBc.dbKey;
                     // A single target sequence can cover a query just a single time
                     // If a target has the same domain several times, then we only consider one
-                    std::map<unsigned int, IntervalArray *>::iterator it = interval.find(cSeqKey);
+                    std::map<DBKeyType, IntervalArray *>::iterator it = interval.find(cSeqKey);
                     if (it != interval.end()) {
                         if (it->second->doesOverlap(resultAc.qStartPos, resultAc.qEndPos)) {
                             continue;
@@ -334,6 +334,10 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     } else {
                         if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
                             size_t cSeqId = cReader->getId(cSeqKey);
+                            if (cSeqId == DB_ENTRY_NOT_FOUND) {
+                                Debug(Debug::ERROR) << "Invalid target sequence key " << cSeqKey << ".\n";
+                                EXIT(EXIT_FAILURE);
+                            }
                             cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
                         }
                         //rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
@@ -379,7 +383,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 }
                 resultsBc.clear();
             }
-            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); ++it) {
+            for (std::map<DBKeyType, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); ++it) {
                 it->second->reset();
                 intervalBuffer.push(it->second);
             }

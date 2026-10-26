@@ -235,18 +235,18 @@ std::string LinsearchIndexReader::indexName(std::string baseName) {
     return result;
 }
 
-bool LinsearchIndexReader::checkIfIndexFile(DBReader<unsigned int> *pReader) {
+bool LinsearchIndexReader::checkIfIndexFile(DBReader<DBKeyType> *pReader) {
     char * version = pReader->getDataByDBKey(PrefilteringIndexReader::VERSION, 0);
     if(version == NULL){
         return false;
     }
-    return (strncmp(version, index_version_compatible, strlen(index_version_compatible)) == 0 ) ? true : false;
+    return (strcmp(version, index_version_compatible) == 0) ? true : false;
 }
 
 void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPosition<short, false, true> *kmers, size_t kmerCnt){
     FILE* filePtr = fopen(fileName.c_str(), "wb");
     if(filePtr == NULL) { perror(fileName.c_str()); EXIT(EXIT_FAILURE); }
-    fwrite(kmers, sizeof(KmerPosition<unsigned short>), kmerCnt, filePtr);
+    fwrite(kmers, sizeof(*kmers), kmerCnt, filePtr);
     if (fclose(filePtr) != 0) {
         Debug(Debug::ERROR) << "Cannot close file " << fileName << "\n";
         EXIT(EXIT_FAILURE);
@@ -254,7 +254,7 @@ void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPositi
 }
 
 
-std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &par, int dbtype) {
+std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<DBKeyType> & index, Parameters &par, int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
         return "maxSeqLen";

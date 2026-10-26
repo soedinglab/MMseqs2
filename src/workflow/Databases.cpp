@@ -158,6 +158,13 @@ std::vector<DatabaseDownload> downloads = {{
                                                    true, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
                                                    { { "SILVA_REL", "138" } }
                                            }, {
+                                                   "RNAcentral",
+                                                   "RNAcentral is a comprehensive database of non-coding RNA sequences that aggregates data from multiple expert databases.",
+                                                   "RNAcentral Consortium: RNAcentral 2021: secondary structure integration, improved sequence search and new member databases. Nucleic Acids Res 49(D1), D212-D220 (2021)",
+                                                   "https://rnacentral.org",
+                                                   false, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
+                                                   { { "RNACENTRAL_REL", "26.0" } }
+                                           }, {
                                                    "Resfinder",
                                                    "ResFinder is a database that captures antimicrobial resistance genes from whole-genome data sets.",
                                                    "Zankari et al: Identification of acquired antimicrobial resistance genes. J Antimicrob Chemother 67(11), 2640-2644 (2012)",

@@ -46,8 +46,8 @@ int db2tar(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_LOOKUP);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_LOOKUP);
+    reader.open(DBReader<DBKeyType>::NOSORT);
 
     int err;
     mtar_t tar;
@@ -67,7 +67,7 @@ int db2tar(int argc, const char **argv, const Command& command) {
     }
 
     for (size_t i = 0; i < reader.getSize(); ++i) {
-        // unsigned int key = reader.getDbKey(i);
+        // DBKeyType key = reader.getDbKey(i);
         char* data = reader.getData(i, 0);
         size_t length = std::max(reader.getEntryLen(i), (size_t)1) - 1;
 

@@ -1,3 +1,5 @@
+#ifndef GZREADER_H
+#define GZREADER_H
 #include "Debug.h"
 
 #include <cstdio>
@@ -91,3 +93,4 @@ private:
     gzFile gzHandle = NULL;
 #endif
 };
+#endif

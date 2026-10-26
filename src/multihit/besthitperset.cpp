@@ -14,8 +14,8 @@ public :
             Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), simpleBestHitMode(simpleBestHitMode) {
         std::string sizeDbName = targetDbName + "_set_size";
         std::string sizeDbIndex = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        targetSizeReader->open(DBReader<unsigned int>::NOSORT);
+        targetSizeReader = new DBReader<DBKeyType>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<DBKeyType>::USE_DATA|DBReader<DBKeyType>::USE_INDEX);
+        targetSizeReader->open(DBReader<DBKeyType>::NOSORT);
     }
 
     ~BestHitBySetFilter() {
@@ -24,9 +24,9 @@ public :
     }
 
 
-    void prepareInput(unsigned int, unsigned int) {}
+    void prepareInput(DBKeyType, unsigned int) {}
 
-    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey, unsigned int thread_idx)  {
+    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, DBKeyType, DBKeyType targetSetKey, unsigned int thread_idx)  {
         double bestScore = -DBL_MAX;
         double secondBestScore = -DBL_MAX;
         double bestEval = DBL_MAX;
@@ -37,7 +37,7 @@ public :
         // Look for the lowest p-value and retain only this line
         // dataToAggregate = [nbrTargetGene][Field of result]
         size_t targetId = targetSizeReader->getId(targetSetKey);
-        if (targetId == UINT_MAX) {
+        if (targetId == DB_ENTRY_NOT_FOUND) {
             Debug(Debug::ERROR) << "Invalid target size database key " << targetSetKey << ".\n";
             EXIT(EXIT_FAILURE);
         }
@@ -115,7 +115,7 @@ public :
     }
 
 private:
-    DBReader<unsigned int> *targetSizeReader;
+    DBReader<DBKeyType> *targetSizeReader;
     bool simpleBestHitMode;
 };
 

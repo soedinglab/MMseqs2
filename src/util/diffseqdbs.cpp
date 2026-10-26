@@ -18,25 +18,25 @@
 
 struct compareSecondEntry {
     bool
-    operator()(const std::pair<std::string, unsigned int> &lhs, const std::pair<std::string, unsigned int> &rhs) const {
+    operator()(const std::pair<std::string, DBKeyType> &lhs, const std::pair<std::string, DBKeyType> &rhs) const {
         return (lhs.second < rhs.second);
     }
 };
 
 struct compareFirstEntry {
     bool
-    operator()(const std::pair<std::string, unsigned int> &lhs, const std::pair<std::string, unsigned int> &rhs) const {
+    operator()(const std::pair<std::string, DBKeyType> &lhs, const std::pair<std::string, DBKeyType> &rhs) const {
         return (lhs.first < rhs.first) ||
                (lhs.first == rhs.first && lhs.second < rhs.second);
     }
 };
 
 struct compareKeyToFirstEntry {
-    bool operator()(const std::pair<std::string, unsigned int> &lhs, const std::string &rhs) const {
+    bool operator()(const std::pair<std::string, DBKeyType> &lhs, const std::string &rhs) const {
         return  (lhs.first < rhs);
     }
 
-    bool operator()(const std::string &lhs, const std::pair<std::string, unsigned int> &rhs) const {
+    bool operator()(const std::string &lhs, const std::pair<std::string, DBKeyType> &rhs) const {
         return  (lhs < rhs.first);
     }
 };
@@ -45,11 +45,11 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    oldReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    oldReader.open(DBReader<DBKeyType>::NOSORT);
 
-    DBReader<unsigned int> newReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    newReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> newReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+    newReader.open(DBReader<DBKeyType>::NOSORT);
 
     std::ofstream removedSeqDBWriter, keptSeqDBWriter, newSeqDBWriter;
     removedSeqDBWriter.open(par.db3);
@@ -59,8 +59,8 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     // Fill up the hash tables for the old and new DB
     size_t indexSizeOld = oldReader.getSize();
     // key pairs contain (headerID, key) where key is the DB key corresponding to the header
-    std::pair<std::string, unsigned int> *keysOld
-            = new std::pair<std::string, unsigned int>[indexSizeOld];
+    std::pair<std::string, DBKeyType> *keysOld
+            = new std::pair<std::string, DBKeyType>[indexSizeOld];
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -84,8 +84,8 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     }
 
     size_t indexSizeNew = newReader.getSize();
-    std::pair<std::string, unsigned int> *keysNew
-            = new std::pair<std::string, unsigned int>[indexSizeNew];
+    std::pair<std::string, DBKeyType> *keysNew
+            = new std::pair<std::string, DBKeyType>[indexSizeNew];
 
 #pragma omp parallel
     {
@@ -112,7 +112,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     // remove duplicates in new DB by setting the dbkey to UINT_MAX
     for(size_t i = 0; i + 1  < indexSizeNew; ++i) {
         if(keysNew[i].first == keysNew[i+1].first) {
-           keysNew[i+1].second = UINT_MAX;
+           keysNew[i+1].second = DB_KEY_INVALID;
         }
     }
     // default initialized with false
@@ -122,10 +122,10 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     bool* deletedIds = new bool[indexSizeOld]();
 
     // copy the orignal dbKey from keysOld to originalOldKeys
-    unsigned int* originalOldKeys = new unsigned int[indexSizeOld]();
+    DBKeyType* originalOldKeys = new DBKeyType[indexSizeOld]();
     for (size_t i = 0; i < indexSizeOld; ++i) {
         originalOldKeys[i] = keysOld[i].second;
-        keysOld[i].second = i;
+        keysOld[i].second = static_cast<DBKeyType>(i);
     }
 
     // sorting should be the same as with orignal dbKeys since they are monotonically increasing
@@ -148,7 +148,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
             continue;
         }
         const std::string &keyToSearch = keysOld[id].first;
-        std::pair<std::string, unsigned int> *mappedKey
+        std::pair<std::string, DBKeyType> *mappedKey
                 = std::lower_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
 
         if (mappedKey != (keysNew + indexSizeNew) && keyToSearch.compare(mappedKey->first) == 0) {
@@ -163,7 +163,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     }
 
     for (size_t id = 0; id < indexSizeNew; ++id) {
-        if (keysNew[id].second == UINT_MAX) {
+        if (keysNew[id].second == DB_KEY_INVALID) {
             continue;
         }
         if (checkedNew[id]) {
@@ -194,4 +194,3 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
-

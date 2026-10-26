@@ -15,16 +15,22 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    const int mode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
-    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
-    dbr.open(DBReader<unsigned int>::SORT_BY_LENGTH);
+    const int mode = DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA;
+    DBReader<DBKeyType> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
+    dbr.open(DBReader<DBKeyType>::SORT_BY_LENGTH);
 
-    DBReader<unsigned int> dbhr(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, mode);
-    dbhr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> dbhr(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, mode);
+    dbhr.open(DBReader<DBKeyType>::NOSORT);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
-    int dbType = DBReader<unsigned int>::setExtendedDbtype(dbr.getDbtype(), Parameters::DBTYPE_EXTENDED_GPU);
+    int dbType = DBReader<DBKeyType>::setExtendedDbtype(dbr.getDbtype(), Parameters::DBTYPE_EXTENDED_GPU);
+
+    const bool packedAlphabet =
+        (DBReader<DBKeyType>::getExtendedDbtype(dbr.getDbtype()) & Parameters::DBTYPE_EXTENDED_AUX_SEQ) != 0;
+    const Sequence::SeqAuxInfo *padAuxInfo = Sequence::getAuxInfo(dbr.getDbtype());
+    const unsigned int padAuxAlphabetSize = (padAuxInfo != NULL) ? padAuxInfo->auxAlphabetSize : 1;
+    const unsigned char packedPad = (unsigned char)(20 * padAuxAlphabetSize);
     DBWriter dbsw(par.db2.c_str(), par.db2Index.c_str(), par.threads, false, dbType);
     dbsw.open();
     DBWriter dbhw(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_GENERIC_DB);
@@ -47,7 +53,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     Sequence seq(dbr.getMaxSeqLen(), dbr.getDbtype(), &subMat,  0, false, false);
 
     size_t firstIt = SIZE_MAX;
-    unsigned int seqKey = 0;
+    DBKeyType seqKey = 0;
 
     size_t charSeqBufferSize = par.maxSeqLen + 1;
     unsigned char *charSequence = NULL;
@@ -64,29 +70,38 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
         }
 
         size_t id = dbr.getSize() - 1 - i;
-        unsigned int key = dbr.getDbKey(id);
+        DBKeyType key = dbr.getDbKey(id);
         char *data = dbr.getData(id, thread_idx);
         size_t seqLen = dbr.getSeqLen(id);
-        seq.mapSequence(id, key, data, seqLen);
-
-        if (charSequence != NULL) {
-            if ((size_t)seq.L >= charSeqBufferSize) {
-                charSeqBufferSize = seq.L * 1.5;
-                charSequence = (unsigned char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
-            }
-            memcpy(charSequence, seq.numSequence, seq.L);
-            masker.maskSequence(seq, par.maskMode, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
-            for (int i = 0; i < seq.L; i++) {
-                result.append(1, (seq.numSequence[i] == masker.maskLetterNum) ? charSequence[i] + 32 : charSequence[i]);
-            }
+        size_t writtenLen;
+        char padByte;
+        if (packedAlphabet) {
+            result.append(data, seqLen);
+            writtenLen = seqLen;
+            padByte = (char)packedPad;
         } else {
-            for (int i = 0; i < seq.L; i++) {
-                char aa = data[i];
-                result.append(1, (islower(aa)) ? seq.numSequence[i] + 32 : seq.numSequence[i]);
+            seq.mapSequence(id, key, data, seqLen);
+            if (charSequence != NULL) {
+                if ((size_t)seq.L >= charSeqBufferSize) {
+                    charSeqBufferSize = seq.L * 1.5;
+                    charSequence = (unsigned char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
+                }
+                memcpy(charSequence, seq.numSequence, seq.L);
+                masker.maskSequence(seq, par.maskMode, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
+                for (int i = 0; i < seq.L; i++) {
+                    result.append(1, (seq.numSequence[i] == masker.maskLetterNum) ? charSequence[i] + 32 : charSequence[i]);
+                }
+            } else {
+                for (int i = 0; i < seq.L; i++) {
+                    char aa = data[i];
+                    result.append(1, (islower(aa)) ? seq.numSequence[i] + 32 : seq.numSequence[i]);
+                }
             }
+            writtenLen = seq.L;
+            padByte = static_cast<char>(20);
         }
-        const size_t sequencepadding = (seq.L % ALIGN == 0) ? 0 : ALIGN - seq.L % ALIGN;
-        result.append(sequencepadding, static_cast<char>(20));
+        const size_t sequencepadding = (writtenLen % ALIGN == 0) ? 0 : ALIGN - writtenLen % ALIGN;
+        result.append(sequencepadding, padByte);
         dbsw.writeData(result.c_str(), result.size(), key, thread_idx, false, false);
 
         // + 2 is needed for newline and null character
@@ -95,9 +110,13 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "Misalligned entry\n";
             EXIT(EXIT_FAILURE);
         }
-        dbsw.writeIndexEntry(firstIt + seqKey, start, seq.L + 2, thread_idx);
+        dbsw.writeIndexEntry(firstIt + seqKey, start, writtenLen + 2, thread_idx);
 
-        unsigned int headerId = dbhr.getId(key);
+        size_t headerId = dbhr.getId(key);
+        if (headerId == DB_ENTRY_NOT_FOUND) {
+            Debug(Debug::ERROR) << "Invalid header key " << key << ".\n";
+            EXIT(EXIT_FAILURE);
+        }
         dbhw.writeData(dbhr.getData(headerId, thread_idx), dbhr.getEntryLen(headerId), firstIt + seqKey, thread_idx, false);
 
         seqKey++;
@@ -111,18 +130,18 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     dbhw.close(true, false);
     dbhr.close();
     if (par.writeLookup == true) {
-        DBReader<unsigned int> readerHeader(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-        readerHeader.open(DBReader<unsigned int>::NOSORT);
+        DBReader<DBKeyType> readerHeader(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX);
+        readerHeader.open(DBReader<DBKeyType>::NOSORT);
         // create lookup file
         std::string lookupFile = par.db2 + ".lookup";
         FILE* file = FileUtil::openAndDelete(lookupFile.c_str(), "w");
         std::string buffer;
         buffer.reserve(2048);
-        DBReader<unsigned int>::LookupEntry entry;
+        DBReader<DBKeyType>::LookupEntry entry;
         size_t totalSize = dbr.getSize();
-        for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
+        for (size_t id = 0; id < readerHeader.getSize(); id++) {
             char *header = readerHeader.getData(id, 0);
-            entry.id = id;
+            entry.id = static_cast<DBKeyType>(id);
             entry.entryName = Util::parseFastaHeader(header);
             entry.fileNumber = dbr.getDbKey(totalSize - 1 - id);
             readerHeader.lookupEntryToBuffer(buffer, entry);
@@ -138,6 +157,12 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
             EXIT(EXIT_FAILURE);
         }
         readerHeader.close();
+        // carry over the .source file so that the tset/source column in
+        // convertalignments keeps working on the padded GPU database (issue #960)
+        std::string sourceFile = par.db1 + ".source";
+        if (FileUtil::fileExists(sourceFile.c_str())) {
+            FileUtil::copyFile(sourceFile, par.db2 + ".source");
+        }
     }
     dbr.close();
     return EXIT_SUCCESS;

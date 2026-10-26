@@ -20,12 +20,12 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
     }
 
     // the sequence database will serve as the reference for sequence indexes
-    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX);
-    dbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX);
+    dbr.open(DBReader<DBKeyType>::NOSORT);
 
     // init the structure for cluster merging
     // it has the size of all possible cluster (sequence amount)
-    std::list<unsigned int> *mergedClustering = new std::list<unsigned int>[dbr.getSize()];
+    std::list<size_t> *mergedClustering = new std::list<size_t>[dbr.getSize()];
 
     // read the clustering from the first clustering step
     std::string firstClu = clusterings.front();
@@ -33,8 +33,8 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
     clusterings.pop_front();
 
     Debug(Debug::INFO) << "Clustering step 1\n";
-    DBReader<unsigned int> cluDb(firstClu.c_str(), firstCluStepIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    cluDb.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> cluDb(firstClu.c_str(), firstCluStepIndex.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+    cluDb.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     Debug::Progress progress(cluDb.getSize());
 #pragma omp parallel
@@ -48,13 +48,13 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < cluDb.getSize(); i++) {
             progress.updateProgress();
-            unsigned int clusterId = cluDb.getDbKey(i);
+            DBKeyType clusterId = cluDb.getDbKey(i);
             size_t cluId = dbr.getId(clusterId);
             char *data = cluDb.getData(i, thread_idx);
             // go through the sequences in the cluster and add them to the initial clustering
             while (*data != '\0') {
                 Util::parseKey(data, keyBuffer);
-                unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
+                DBKeyType key = Util::fast_atoi<DBKeyType>(keyBuffer);
                 size_t seqId = dbr.getId(key);
                 mergedClustering[cluId].push_back(seqId);
                 data = Util::skipLine(data);
@@ -72,8 +72,8 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
         std::string cluStepIndex = cluStep + ".index";
         clusterings.pop_front();
 
-        DBReader<unsigned int> cluDb(cluStep.c_str(), cluStepIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        cluDb.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        DBReader<DBKeyType> cluDb(cluStep.c_str(), cluStepIndex.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX | DBReader<DBKeyType>::USE_DATA);
+        cluDb.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
 
         progress.reset(cluDb.getSize());
         // go through the clusters and merge them into the clusters from the previous clustering step
@@ -93,7 +93,7 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
                 char *data = cluDb.getData(i, thread_idx);
                 while (*data != '\0') {
                     Util::parseKey(data, keyBuffer);
-                    unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
+                    DBKeyType key = Util::fast_atoi<DBKeyType>(keyBuffer);
                     size_t seqId = dbr.getId(key);
                     if (seqId != cluId) { // to avoid copies of the same cluster list
                         mergedClustering[cluId].splice(mergedClustering[cluId].end(), mergedClustering[seqId]);
@@ -132,9 +132,9 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
                 continue;
 
             // representative
-            unsigned int dbKey = dbr.getDbKey(i);
-            for (std::list<unsigned int>::iterator it = mergedClustering[i].begin(); it != mergedClustering[i].end(); ++it) {
-                char *tmpBuff = Itoa::u32toa_sse2(dbr.getDbKey(*it), buffer);
+            DBKeyType dbKey = dbr.getDbKey(i);
+            for (std::list<size_t>::iterator it = mergedClustering[i].begin(); it != mergedClustering[i].end(); ++it) {
+                char *tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(dbr.getDbKey(*it)), buffer);
                 size_t length = tmpBuff - buffer - 1;
                 res.append(buffer, length);
                 res.push_back('\n');

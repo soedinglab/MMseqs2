@@ -1,6 +1,8 @@
 #ifndef SW_KERNEL_CONFIG_CUH
 #define SW_KERNEL_CONFIG_CUH
 
+#include "cuda_hip_rename.h"
+
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -251,6 +253,34 @@ namespace cudasw4{
     }
 
     __inline__
+    std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_amd_gfx90a(){
+        std::vector<SmithWatermanKernelConfig> configs{
+            {16,4,4,0,SmithWatermanKernelConfig::Approach::Unused},
+            {32,4,8,0,SmithWatermanKernelConfig::Approach::Unused},
+            {48,4,12,0,SmithWatermanKernelConfig::Approach::Unused},
+            {64,4,16,0,SmithWatermanKernelConfig::Approach::Unused},
+            {80,4,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {96,4,24,0,SmithWatermanKernelConfig::Approach::Unused},
+            {112,4,28,0,SmithWatermanKernelConfig::Approach::Unused},
+            {128,4,32,0,SmithWatermanKernelConfig::Approach::Unused},
+            {144,4,36,0,SmithWatermanKernelConfig::Approach::Unused},
+            {160,8,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {192,8,24,0,SmithWatermanKernelConfig::Approach::Unused},
+            {224,8,28,0,SmithWatermanKernelConfig::Approach::Unused},
+            {256,8,32,0,SmithWatermanKernelConfig::Approach::Unused},
+            {320,16,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {384,16,24,0,SmithWatermanKernelConfig::Approach::Unused},
+            {448,16,28,0,SmithWatermanKernelConfig::Approach::Unused},
+            {512,16,32,0,SmithWatermanKernelConfig::Approach::Unused},
+            {576,16,36,0,SmithWatermanKernelConfig::Approach::Unused},
+            {640,32,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {768,32,24,0,SmithWatermanKernelConfig::Approach::Unused}
+        };
+
+        return configs;
+    }
+
+    __inline__
     std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_sm121(){
         std::vector<SmithWatermanKernelConfig> configs{
             {16, 4, 4, 1, SmithWatermanKernelConfig::Approach::Unused},
@@ -285,8 +315,35 @@ namespace cudasw4{
     }
 
     __inline__
+    std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_amd_gfx942(){
+        std::vector<SmithWatermanKernelConfig> configs{
+            {16,4,4,0,SmithWatermanKernelConfig::Approach::Unused},
+            {32,4,8,0,SmithWatermanKernelConfig::Approach::Unused},
+            {48,4,12,0,SmithWatermanKernelConfig::Approach::Unused},
+            {64,4,16,0,SmithWatermanKernelConfig::Approach::Unused},
+            {80,4,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {96,4,24,0,SmithWatermanKernelConfig::Approach::Unused},
+            {112,4,28,0,SmithWatermanKernelConfig::Approach::Unused},
+            {128,4,32,0,SmithWatermanKernelConfig::Approach::Unused},
+            {160,8,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {176,4,44,0,SmithWatermanKernelConfig::Approach::Unused},
+            {192,8,24,0,SmithWatermanKernelConfig::Approach::Unused},
+            {224,8,28,0,SmithWatermanKernelConfig::Approach::Unused},
+            {256,8,32,0,SmithWatermanKernelConfig::Approach::Unused},
+            {320,16,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {384,16,24,0,SmithWatermanKernelConfig::Approach::Unused},
+            {448,16,28,0,SmithWatermanKernelConfig::Approach::Unused},
+            {512,16,32,0,SmithWatermanKernelConfig::Approach::Unused},
+            {640,32,20,0,SmithWatermanKernelConfig::Approach::Unused},
+            {768,32,24,0,SmithWatermanKernelConfig::Approach::Unused}
+        };
+
+        return configs;
+    }
+
+    __inline__
     std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_default(){
-        return getOptimalKernelConfigs_SW_sm89();
+        return getOptimalKernelConfigs_SW_amd_gfx942();
     }
 
     __inline__
@@ -298,6 +355,7 @@ namespace cudasw4{
 
         std::vector<SmithWatermanKernelConfig> configs;
         
+    #if defined(__CUDACC__)
         if(ccMajor == 7 && ccMinor == 5){
             configs = getOptimalKernelConfigs_SW_sm75();
         }else if(ccMajor == 8 && ccMinor == 0){
@@ -315,6 +373,18 @@ namespace cudasw4{
         }else{
             configs = getOptimalKernelConfigs_SW_default();
         }
+
+    #elif defined(__HIPCC__)
+
+        if(ccMajor == 9 && ccMinor == 0){
+            configs = getOptimalKernelConfigs_SW_amd_gfx90a();
+        }else if(ccMajor == 9 && ccMinor == 4){
+            configs = getOptimalKernelConfigs_SW_amd_gfx942();
+        }else{
+            configs = getOptimalKernelConfigs_SW_default();
+        }
+
+    #endif
 
         return configs;
     }

@@ -70,9 +70,8 @@ class Sorter {
     void sequential(iterator begin, iterator end);
 
 #if defined(_REENTRANT) || defined(_OPENMP)
-    template <class TaskSorter>
     void parallelPrimary(iterator begin, iterator end, SharedData& shared,
-                         int num_threads, TaskSorter&& task_sorter);
+                         int num_threads);
 
     void parallelSecondary(SharedData& shared, int id, int num_threads);
 #endif

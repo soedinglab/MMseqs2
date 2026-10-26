@@ -4,14 +4,16 @@
 #include <string>
 #include <cstddef>
 #include <cstring>
+#include <cstdio>
 #include <vector>
 #include <limits>
 #include <map>
 #include <cstdint>
 #include "MMseqsMPI.h"
+#include "IndexTypes.h"
 
 #ifndef EXIT
-#define EXIT(exitCode) do { int __status = (exitCode); std::cerr.flush(); std::cout.flush(); exit(__status); } while(0)
+#define EXIT(exitCode) do { int __status = (exitCode); fflush(NULL); exit(__status); } while(0)
 #endif
 
 #define BIT_SET(a,b) ((a) | (1ULL<<(b)))
@@ -97,11 +99,38 @@ public:
 
     static char touchMemory(const char* memory, size_t size);
 
+    // Wrap posix_madvise with errno-aware logging. Returns posix_madvise's
+    // return value (errno-valued, 0 on success). Severity is WARNING for
+    // benign cases (advisory SEQUENTIAL hint failures, or EINVAL on
+    // WILLNEED — typically tail-page alignment on large-page kernels or
+    // VMA types that reject the advice) and ERROR for real failures
+    // (EIO/EBADF/ENOMEM on WILLNEED). A no-op when len == 0 or
+    // HAVE_POSIX_MADVISE is undefined. `context` annotates the log line.
+    //
+    // Fallback POSIX_MADV_* constants so call sites compile even on
+    // platforms without posix_madvise; madviseLogged is a no-op there,
+    // so the literal values are unused.
+#ifndef HAVE_POSIX_MADVISE
+#  ifndef POSIX_MADV_NORMAL
+#    define POSIX_MADV_NORMAL     0
+#    define POSIX_MADV_RANDOM     1
+#    define POSIX_MADV_SEQUENTIAL 2
+#    define POSIX_MADV_WILLNEED   3
+#    define POSIX_MADV_DONTNEED   4
+#  endif
+#endif
+    static int madviseLogged(void* addr, size_t len, int advice, const char* context);
+
+    // Ask for transparent huge pages on the 2 MB aligned interior of [addr, addr + len),
+    // before the memory is first touched. A no-op where MADV_HUGEPAGE is missing.
+    static void adviseHugePages(void* addr, size_t len);
+
     static size_t countLines(const char *data, size_t length);
 
     static size_t ompCountLines(const char *data, size_t length, unsigned int threads);
 
     static int readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int> > & mapping);
+    static int readMappingDBKey(std::string mappingFilename, std::vector<std::pair<DBKeyType, DBKeyType> > & mapping);
 
     template<typename T>
     static inline T fast_atoi( const char * str )
@@ -120,6 +149,8 @@ public:
         return sign * val;
     }
 
+    // Writes a null-terminated identity with three fractional digits for values in [0.0f, 1.0f]
+    // and returns one byte past the terminator.
     static char* fastSeqIdToBuffer(float seqId, char* buffer);
 
     static bool isNumber(const std::string& s)
@@ -355,8 +386,8 @@ public:
 
     static std::string removeWhiteSpace(std::string in);
 
-    static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
-                                                          const unsigned char removeSplit = 0);
+    static std::map<DBKeyType, std::string> readLookup(const std::string& lookupFile,
+                                                       const unsigned char removeSplit = 0);
 
     static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength);
 

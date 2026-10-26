@@ -5,6 +5,7 @@
 
 #include <set>
 #include <algorithm>
+#include <sstream>
 
 struct UniprotHeader {
     std::string dbType;

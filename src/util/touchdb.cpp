@@ -17,13 +17,13 @@ int touchdb(int argc, const char **argv, const Command& command) {
         db = indexDB;
         if (par.idList != "") {
             std::string idx = db + ".index";
-            DBReader<unsigned int> reader(db.c_str(), idx.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-            reader.open(DBReader<unsigned int>::NOSORT);
+            DBReader<DBKeyType> reader(db.c_str(), idx.c_str(), 1, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX);
+            reader.open(DBReader<DBKeyType>::NOSORT);
 
             std::vector<std::string> ids = Util::split(par.idList, ",");
             for (size_t i = 0; i < ids.size(); ++i) {
-                size_t id = reader.getId(Util::fast_atoi<unsigned int>(ids[i].c_str()));
-                if (id == UINT_MAX) {
+                size_t id = reader.getId(Util::fast_atoi<DBKeyType>(ids[i].c_str()));
+                if (id == DB_ENTRY_NOT_FOUND) {
                     Debug(Debug::WARNING) << "Key " << ids[i] << " not found in database\n";
                     continue;
                 }

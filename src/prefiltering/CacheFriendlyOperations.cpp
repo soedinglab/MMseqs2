@@ -92,7 +92,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalDuplicates(CounterResult *
         size_t n = currBinSize - 1;
         // write diagonals + 1 in reverse order in the byte array
         while (n != static_cast<size_t>(-1)) {
-            const unsigned int element = binStartPos[n].id >> (MASK_0_5_BIT);
+            const size_t element = binStartPos[n].id >> (MASK_0_5_BIT);
             duplicateBitArray[element] = static_cast<unsigned char>(binStartPos[n].diagonal) + 1;
             --n;
         }
@@ -100,7 +100,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalDuplicates(CounterResult *
         // we keep only the last diagonal element
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult &element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             output[doubleElementCount].id = element.id;
             output[doubleElementCount].count = element.count;
             output[doubleElementCount].diagonal = element.diagonal;
@@ -126,7 +126,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalKeepScoredHitsDuplicates(C
         const size_t currBinSize = (bins[bin] - binStartPos);
         // write diagonals + 1 in reverse order in the byte array
         for (size_t n = 0; n < currBinSize; n++) {
-            const unsigned int element = binStartPos[n].id >> (MASK_0_5_BIT);
+            const size_t element = binStartPos[n].id >> (MASK_0_5_BIT);
             duplicateBitArray[element] = static_cast<unsigned char>(binStartPos[n].diagonal) + 1;
         }
         // combine diagonals
@@ -134,7 +134,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalKeepScoredHitsDuplicates(C
         size_t n = currBinSize - 1;
         while (n != static_cast<size_t>(-1)) {
             const CounterResult &element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             output[doubleElementCount].id = element.id;
             output[doubleElementCount].count = element.count;
             output[doubleElementCount].diagonal = element.diagonal;
@@ -160,7 +160,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeScoreDuplicates(CounterResult *out
         // merge double hits
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult &element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             const unsigned char currScore = element.count;
             const unsigned char dbScore = duplicateBitArray[hashBinElement];
             const unsigned char newScore = (currScore > 0xFF - dbScore) ? 0xFF : dbScore + currScore;
@@ -169,7 +169,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeScoreDuplicates(CounterResult *out
         // extract final scores and set dubplicateBitArray to 0
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             output[doubleElementCount].id = element.id;
             output[doubleElementCount].count = duplicateBitArray[hashBinElement];
             output[doubleElementCount].diagonal = element.diagonal;
@@ -193,7 +193,7 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
         // find duplicates
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             //const unsigned int byteArrayPos = hashBinElement >> 3; // equal to hashBinElement / 8
             //const unsigned char bitPosMask = 1 << (hashBinElement & 7); // 7 = 00000111
             // check if duplicate element was found before
@@ -207,24 +207,28 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
         // check for overflow
-        if (doubleElementCount + std::min(elementCount, currBinSize/2) >= outputSize) {
+        // the extract loops below write up to elementCount entries into output,
+        // so the previous std::min(elementCount, currBinSize/2) bound underestimated
+        // the space needed when more than half a bin collides on the same diagonal
+        // (e.g. conserved framework k-mers), overflowing output -> see issue #1092
+        if (doubleElementCount + elementCount >= outputSize) {
             return doubleElementCount;
         }
         // set memory to zero
         if (computeTotalScore) {
             for (size_t n = 0; n < elementCount; n++) {
-                const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
+                const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
                 duplicateBitArray[element] = 0;
             }
             // sum up score
             for (size_t n = 0; n < elementCount; n++) {
-                const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
+                const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
                 duplicateBitArray[element] += (duplicateBitArray[element] < 255) ? 1 : 0;
             }
             // extract results
             for (size_t n = 0; n < elementCount; n++) {
-                const unsigned int element = tmpElementBuffer[n].id;
-                const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
+                const DBLocalId element = tmpElementBuffer[n].id;
+                const size_t hashBinElement = element >> (MASK_0_5_BIT);
                 output[doubleElementCount].id    = element;
                 output[doubleElementCount].count = duplicateBitArray[hashBinElement];
                 output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
@@ -238,15 +242,15 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
             // so (duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal) is true
             size_t n = elementCount - 1;
             while (n != static_cast<size_t>(-1)) {
-                const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
+                const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
                 duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
                 --n;
             }
 
             // extract results
             for (size_t n = 0; n < elementCount; n++) {
-                const unsigned int element = tmpElementBuffer[n].id;
-                const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
+                const DBLocalId element = tmpElementBuffer[n].id;
+                const size_t hashBinElement = element >> (MASK_0_5_BIT);
                 output[doubleElementCount].id    = element;
                 output[doubleElementCount].count = 0;
                 output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
@@ -263,7 +267,7 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
         // clean memory faster if current bin size is smaller duplicateBitArraySize
         if (currBinSize < duplicateBitArraySize/16) {
             for (size_t n = 0; n < currBinSize; n++) {
-                const unsigned int byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
+                const size_t byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
                 duplicateBitArray[byteArrayPos] = 0;
             }
         } else {
@@ -323,7 +327,7 @@ void CacheFriendlyOperations<BINSIZE>::hashElements(CounterResult *inputArray, s
     CounterResult *lastPosition = (binDataFrame + BINCOUNT * binSize) - 1;
     for (size_t n = 0; n < N; n++) {
         const CounterResult &element = inputArray[n];
-        const unsigned int bin = (element.id & MASK_0_5);
+        const size_t bin = (element.id & MASK_0_5);
         bins[bin]->id       = element.id;
         bins[bin]->diagonal = element.diagonal;
         bins[bin]->count    = element.count;
@@ -337,7 +341,7 @@ template<unsigned int BINSIZE>
 void CacheFriendlyOperations<BINSIZE>::hashIndexEntry(unsigned short position_i, IndexEntryLocal *inputArray, size_t N,  CounterResult *lastPosition) {
     for (size_t n = 0; n < N; n++) {
         const IndexEntryLocal &element = inputArray[n];
-        const unsigned int bin = (element.seqId & MASK_0_5);
+        const size_t bin = (element.seqId & MASK_0_5);
         bins[bin]->id = element.seqId;
         bins[bin]->diagonal = position_i - element.position_j;
         // do not write over boundary of the data frame
@@ -357,7 +361,7 @@ size_t CacheFriendlyOperations<BINSIZE>::keepMaxElement(CounterResult *output) {
         // found max element and store it in duplicateBitArray
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult &element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             const unsigned char currScore = element.count;
             const unsigned char dbScore = duplicateBitArray[hashBinElement];
             const unsigned char maxScore = (currScore > dbScore) ? currScore : dbScore;
@@ -366,7 +370,7 @@ size_t CacheFriendlyOperations<BINSIZE>::keepMaxElement(CounterResult *output) {
         // extract final scores and set duplicateBitArray to 0
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult element = binStartPos[n];
-            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
             output[doubleElementCount].id = element.id;
             output[doubleElementCount].count = element.count;
             output[doubleElementCount].diagonal = element.diagonal;

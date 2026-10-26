@@ -285,6 +285,14 @@ case "${SELECTION}" in
       push_back "${TMP_PATH}/silva.fasta.gz"
       INPUT_TYPE="FASTA_LIST"
     ;;
+    "RNAcentral")
+        if notExists "${TMP_PATH}/rnacentral.fasta.gz"; then
+            downloadFile "https://ftp.ebi.ac.uk/pub/databases/RNAcentral/releases/${RNACENTRAL_REL}/release_notes.txt" "${TMP_PATH}/version"
+            downloadFile "https://ftp.ebi.ac.uk/pub/databases/RNAcentral/releases/${RNACENTRAL_REL}/sequences/rnacentral_species_specific_ids.fasta.gz" "${TMP_PATH}/rnacentral.fasta.gz"
+        fi
+        push_back "${TMP_PATH}/rnacentral.fasta.gz"
+        INPUT_TYPE="FASTA_LIST"
+    ;;
     "Kalamari")
         if notExists "${TMP_PATH}/kalamari.tsv"; then
             printf "3.7 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"

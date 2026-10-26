@@ -19,8 +19,8 @@ int clusthash(int argc, const char **argv, const Command &command) {
     par.seqIdThr = (float)Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID/100.0f;
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<DBKeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX);
+    reader.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         reader.readMmapedDataInMemory();
     }
@@ -35,7 +35,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
     Debug(Debug::INFO) << "Hashing sequences...\n";
-    std::pair<size_t, unsigned int> *hashSeqPair = new std::pair<size_t, unsigned int>[reader.getSize() + 1];
+    std::pair<size_t, size_t> *hashSeqPair = new std::pair<size_t, size_t>[reader.getSize() + 1];
     // needed later to check if one of array
     hashSeqPair[reader.getSize()] = std::make_pair(UINT_MAX, 0);
     Debug::Progress progress(reader.getSize());
@@ -87,7 +87,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
         }
         prevHash = hashSeqPair[id].first;
     }
-    std::pair<size_t, unsigned int> **hashLookup = new std::pair<size_t, unsigned int>*[uniqHashes];
+    std::pair<size_t, size_t> **hashLookup = new std::pair<size_t, size_t>*[uniqHashes];
     hashLookup[0] = hashSeqPair;
     size_t currKey = 1;
     prevHash = hashSeqPair[0].first;
@@ -107,7 +107,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
         thread_idx = omp_get_thread_num();
 #endif
 
-        std::vector<unsigned int> setIds;
+        std::vector<size_t> setIds;
         setIds.reserve(300);
         std::vector<bool> found;
         found.reserve(300);
@@ -127,7 +127,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
                 pos++;
             }
             for (size_t i = 0; i < setIds.size(); i++) {
-                unsigned int queryKey = reader.getDbKey(setIds[i]);
+                DBKeyType queryKey = reader.getDbKey(setIds[i]);
                 unsigned int queryLength = reader.getSeqLen(setIds[i]);
                 const char *querySeq = reader.getData(setIds[i], thread_idx);
                 result.append(SSTR(queryKey));

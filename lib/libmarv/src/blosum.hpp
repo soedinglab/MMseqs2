@@ -10,7 +10,7 @@
 
 namespace cudasw4{
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 
 extern __constant__ std::int8_t deviceBlosum[25*25];
 extern __constant__ int deviceBlosumDim;

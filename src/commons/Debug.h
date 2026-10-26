@@ -1,11 +1,11 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <iostream>
 #include "Util.h"
 #include "Timer.h"
 #include "MathUtil.h"
 #include <unistd.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <cstddef>
 #include <sys/stat.h>
@@ -68,27 +68,7 @@ public:
         interactive = check.tty;
     };
 
-    ~Debug(){
-        if (level <= ERROR && level <= debugLevel){
-            std::cout << std::flush;
-            if(interactive){
-                std::cerr << "\033[" << Color::FG_RED << "m" << buffer << "\033[" << Color::FG_DEFAULT << "m";;
-            }else{
-                std::cerr << buffer;
-            }
-            std::cerr << std::flush;
-        } else if(level == WARNING && level <= debugLevel){
-            if(interactive){
-                std::cout << "\033[" << Color::FG_YELLOW << "m" << buffer << "\033[" << Color::FG_DEFAULT << "m";
-            }else{
-                std::cout << buffer;
-            }
-            std::cout << std::flush;
-        } else if(level > WARNING && level <= debugLevel) {
-            std::cout << buffer;
-//            std::cout << std::flush;
-        }
-    }
+    ~Debug();
 
 
     template<typename T>

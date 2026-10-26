@@ -1,4 +1,9 @@
+#if defined(__HIPCC__)
+#include "hip/hip_runtime.h"
+#endif
 #include <type_traits>
+
+#include "cuda_hip_compatibility.cuh"
 
 namespace cudasw4{
 
@@ -43,6 +48,7 @@ namespace cudasw4{
         return __shfl_sync(mask, val, 0);
     }
 
+    #ifdef __CUDACC__
     inline __device__ short2 viaddmax(const short2 a_in, const short2 b_in, const short2 c_in) {
         score_pack a, b, c, d;
         a.s2 = a_in;
@@ -76,7 +82,9 @@ namespace cudasw4{
         d.u = __vimax3_s16x2_relu(a.u, b.u, c.u);
         return(d.s2);
     }
+    #endif
 
+#ifndef __HIPCC__
     inline __device__ short2 shfl_up_2xint16(const uint32_t bitmap, const short2 value, const int lane, const int group_size) {
         score_pack v, res;
         v.s2 = value;
@@ -90,5 +98,6 @@ namespace cudasw4{
         res.u =__shfl_down_sync(bitmap, v.u, lane, group_size);
         return(res.s2);
     }
+#endif
 
 } //namespace cudasw4

@@ -110,6 +110,20 @@ struct StateAA<'a, M: Matrix> {
     x_drop: i32
 }
 
+struct State3di12st<'a, M: Matrix> {
+    query: PaddedBytes3di12st<'a>,
+    i: usize,
+    reference: PaddedBytes3di12st<'a>,
+    j: usize,
+    min_size: usize,
+    max_size: usize,
+    matrix: &'a M,
+    matrix_3di: &'a M,
+    matrix_12st: &'a M,
+    gaps: Gaps,
+    x_drop: i32
+}
+
 
 /// Data structure storing the settings for block aligner.
 pub struct Block<const TRACE: bool, const X_DROP: bool> {
@@ -1051,10 +1065,56 @@ impl<const TRACE: bool, const X_DROP: bool> Block<{ TRACE }, { X_DROP }> {
         unsafe { self.align_aa_core(s); }
     }
 
+    pub fn align_3di_12st(&mut self, query: &PaddedBytes, query_3di: &PaddedBytes, query_12st: &PaddedBytes, query_bias: &PosBias, reference: &PaddedBytes, reference_3di: &PaddedBytes, reference_12st: &PaddedBytes, reference_bias: &PosBias, matrix: &AAMatrix, matrix_3di: &AAMatrix, matrix_12st: &AAMatrix, gaps: Gaps, size: RangeInclusive<usize>, x_drop: i32) {
+        assert_eq!(query.len(), query_3di.len());
+        assert_eq!(query.len(), query_12st.len());
+        assert_eq!(query.len(), query_bias.len());
+        assert_eq!(reference.len(), reference_3di.len());
+        assert_eq!(reference.len(), reference_12st.len());
+        assert_eq!(reference.len(), reference_bias.len());
+        assert!(gaps.open < 0 && gaps.extend < 0, "Gap costs must be negative!");
+        assert!(gaps.open < gaps.extend, "Gap open must cost more than gap extend!");
+        let min_size = if *size.start() < L { L } else { *size.start() };
+        let max_size = if *size.end() < L { L } else { *size.end() };
+        assert!(min_size < (u16::MAX as usize) && max_size < (u16::MAX as usize), "Block sizes must be smaller than 2^16 - 1!");
+        assert!(min_size.is_power_of_two() && max_size.is_power_of_two(), "Block sizes must be powers of two!");
+        if X_DROP {
+            assert!(x_drop >= 0, "X-drop threshold amount must be nonnegative!");
+        }
+
+        unsafe { self.allocated.clear(query.len(), reference.len(), max_size, TRACE); }
+
+        let s = State3di12st {
+            query: PaddedBytes3di12st {
+                bytes: query,
+                bytes_3di: query_3di,
+                bytes_12st: query_12st,
+                pos_bias: query_bias
+            },
+            i: 0,
+            reference: PaddedBytes3di12st {
+                bytes: reference,
+                bytes_3di: reference_3di,
+                bytes_12st: reference_12st,
+                pos_bias: reference_bias
+            },
+            j: 0,
+            min_size,
+            max_size,
+            matrix,
+            matrix_3di,
+            matrix_12st,
+            gaps,
+            x_drop
+        };
+        unsafe { self.align_3di_12st_core(s); }
+    }
+
     align_core_gen!(align_core, Matrix, State, Self::place_block, Self::place_block);
     align_core_gen!(align_profile_core, Profile, StateProfile, Self::place_block_profile_right, Self::place_block_profile_down);
     align_core_gen!(align_3di_core, Matrix, State3di, Self::place_block_3di, Self::place_block_3di);
     align_core_gen!(align_aa_core, Matrix, StateAA, Self::place_block_aa, Self::place_block_aa);
+    align_core_gen!(align_3di_12st_core, Matrix, State3di12st, Self::place_block_3di_12st, Self::place_block_3di_12st);
 
     #[cfg_attr(feature = "simd_sse2", target_feature(enable = "sse2"))]
     #[cfg_attr(feature = "simd_avx2", target_feature(enable = "avx2"))]
@@ -1612,6 +1672,116 @@ impl<const TRACE: bool, const X_DROP: bool> Block<{ TRACE }, { X_DROP }> {
         (D_max, D_argmax_i, D_argmax_j)
     }
 
+    #[cfg_attr(feature = "simd_sse2", target_feature(enable = "sse2"))]
+    #[cfg_attr(feature = "simd_avx2", target_feature(enable = "avx2"))]
+    #[cfg_attr(feature = "simd_wasm", target_feature(enable = "simd128"))]
+    #[cfg_attr(feature = "simd_neon", target_feature(enable = "neon"))]
+    #[allow(non_snake_case)]
+    unsafe fn place_block_3di_12st<M: Matrix>(state: &State3di12st<M>,
+                                         query: PaddedBytes3di12st,
+                                         reference: PaddedBytes3di12st,
+                                         trace: &mut Trace,
+                                         start_i: usize,
+                                         start_j: usize,
+                                         width: usize,
+                                         height: usize,
+                                         D_col: *mut i16,
+                                         C_col: *mut i16,
+                                         D_row: *mut i16,
+                                         R_row: *mut i16,
+                                         mut D_corner: Simd,
+                                         right: bool) -> (Simd, Simd, Simd) {
+        let gap_open = simd_set1_i16(state.gaps.open as i16);
+        let gap_extend = simd_set1_i16(state.gaps.extend as i16);
+        let (gap_extend_all, prefix_scan_consts) = get_prefix_scan_consts(gap_extend);
+        let mut D_max = simd_set1_i16(MIN);
+        let mut D_argmax_i = simd_set1_i16(0);
+        let mut D_argmax_j = simd_set1_i16(0);
+
+        if width == 0 || height == 0 {
+            return (D_max, D_argmax_i, D_argmax_j);
+        }
+
+        for j in 0..width {
+            let mut R01 = simd_set1_i16(MIN);
+            let mut D11 = simd_set1_i16(MIN);
+            let mut R11 = simd_set1_i16(MIN);
+            let mut prev_trace_R = simd_set1_i16(0);
+
+            let c = reference.bytes.get(start_j + j);
+            let c_3di = reference.bytes_3di.get(start_j + j);
+            let c_12st = reference.bytes_12st.get(start_j + j);
+            let reference_bias = simd_set1_i16(reference.pos_bias.get(start_j + j));
+
+            let mut i = 0;
+            while i < height {
+                let D10 = simd_load(D_col.add(i) as _);
+                let C10 = simd_load(C_col.add(i) as _);
+                let D00 = simd_sl_i16!(D10, D_corner, 1);
+                D_corner = D10;
+
+                let scores = state.matrix.get_scores(c, halfsimd_loadu(query.bytes.as_ptr(start_i + i) as _), right);
+                let scores_3di = state.matrix_3di.get_scores(c_3di, halfsimd_loadu(query.bytes_3di.as_ptr(start_i + i) as _), right);
+                let scores_12st = state.matrix_12st.get_scores(c_12st, halfsimd_loadu(query.bytes_12st.as_ptr(start_i + i) as _), right);
+                let query_bias = query.pos_bias.get_biases(start_i + i);
+                let pos_bias = simd_adds_i16(reference_bias, query_bias);
+                D11 = simd_adds_i16(D00, simd_adds_i16(simd_adds_i16(simd_adds_i16(scores, scores_3di), scores_12st), pos_bias));
+                if start_i + i == 0 && start_j + j == 0 {
+                    D11 = simd_insert_i16!(D11, ZERO, 0);
+                }
+
+                let C11_open = simd_adds_i16(D10, gap_open);
+                let C11 = simd_max_i16(simd_adds_i16(C10, gap_extend), C11_open);
+                D11 = simd_max_i16(D11, C11);
+
+                let D11_open = simd_adds_i16(D11, simd_subs_i16(gap_open, gap_extend));
+                R11 = simd_prefix_scan_i16(D11_open, gap_extend, prefix_scan_consts);
+                R11 = simd_max_i16(R11, simd_adds_i16(simd_broadcasthi_i16(R01), gap_extend_all));
+                D11 = simd_max_i16(D11, R11);
+                R01 = R11;
+
+                if TRACE {
+                    let trace_D_C = simd_cmpeq_i16(D11, C11);
+                    let trace_D_R = simd_cmpeq_i16(D11, R11);
+                    let mask = simd_set1_i16(0xFF00u16 as i16);
+                    let trace_data = simd_movemask_i8(simd_blend_i8(trace_D_C, trace_D_R, mask));
+                    let temp_trace_R = simd_cmpeq_i16(R11, D11_open);
+                    let trace_R = simd_sl_i16!(temp_trace_R, prev_trace_R, 1);
+                    let trace_data2 = simd_movemask_i8(simd_blend_i8(simd_cmpeq_i16(C11, C11_open), trace_R, mask));
+                    prev_trace_R = temp_trace_R;
+                    trace.add_trace(trace_data as TraceType, trace_data2 as TraceType);
+                }
+
+                D_max = simd_max_i16(D_max, D11);
+
+                if X_DROP {
+                    let mask = simd_cmpeq_i16(D_max, D11);
+                    D_argmax_i = simd_blend_i8(D_argmax_i, simd_set1_i16(i as i16), mask);
+                    D_argmax_j = simd_blend_i8(D_argmax_j, simd_set1_i16(j as i16), mask);
+                }
+
+                simd_store(D_col.add(i) as _, D11);
+                simd_store(C_col.add(i) as _, C11);
+                i += L;
+            }
+
+            D_corner = simd_set1_i16(MIN);
+
+            ptr::write(D_row.add(j), simd_extract_i16!(D11, L - 1));
+            ptr::write(R_row.add(j), simd_extract_i16!(R11, L - 1));
+
+            if !X_DROP && start_i + height > query.len()
+                && start_j + j >= reference.len() {
+                if TRACE {
+                    trace.add_trace_idx((width - 1 - j) * (height / L));
+                }
+                break;
+            }
+        }
+
+        (D_max, D_argmax_i, D_argmax_j)
+    }
+
     /// Get the resulting score and ending location of the alignment.
     #[inline]
     pub fn res(&self) -> AlignResult {
@@ -2136,6 +2306,20 @@ struct PaddedBytesAA<'a> {
 }
 
 impl<'a> PaddedBytesAA<'a> {
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct PaddedBytes3di12st<'a> {
+    pub bytes: &'a PaddedBytes,
+    pub bytes_3di: &'a PaddedBytes,
+    pub bytes_12st: &'a PaddedBytes,
+    pub pos_bias: &'a PosBias
+}
+
+impl<'a> PaddedBytes3di12st<'a> {
     pub fn len(&self) -> usize {
         self.bytes.len()
     }

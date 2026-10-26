@@ -70,7 +70,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
         end -= 1;
 
         size_t id = reader.getId(name);
-        if(id == UINT_MAX) {
+        if(id == DB_ENTRY_NOT_FOUND) {
             Debug(Debug::ERROR) << "GFF entry not found in input database: " << name << "!\n";
             return EXIT_FAILURE;
         }
@@ -87,14 +87,14 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, reader.getDbtype());
     writer.open();
 
-    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
     headerReader.open(DBReader<std::string>::NOSORT);
 
     DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     for(size_t i = 0; i < reader.getSize(); ++i ) {
-        unsigned int id = par.identifierOffset + i;
+        DBKeyType id = static_cast<DBKeyType>(par.identifierOffset) + static_cast<DBKeyType>(i);
 
         // ignore nulls
         writer.writeData(reader.getData(i, 0), reader.getEntryLen(i) - 1, id);

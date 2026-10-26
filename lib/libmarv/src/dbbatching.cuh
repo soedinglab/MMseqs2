@@ -1,6 +1,8 @@
 #ifndef DBBATCHING_CUH
 #define DBBATCHING_CUH
 
+#include "cuda_hip_rename.h"
+
 #include "config.hpp"
 
 #include <vector>

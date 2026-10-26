@@ -4,12 +4,17 @@
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "FileUtil.h"
+#include "Sequence.h"
 
 #include "createindex.sh.h"
 
 #include <string>
 #include <cassert>
 #include <climits>
+
+#ifdef RIBOSEEK
+extern void setRnaSearchDefaults(Parameters *par);
+#endif
 
 int createindex(Parameters &par, const Command &command, const std::string &indexerModule, const std::string &flag) {
     bool sensitivity = false;
@@ -112,7 +117,11 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.orfMaxLength = 32734;
     par.kmerScore.values = 0; // extract all k-mers
     par.sensitivity = 7.5;
+#ifdef RIBOSEEK
+    setRnaSearchDefaults(&par);
+#else
     par.maskMode = 1;
+#endif
 
     par.PARAM_COV_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_C.addCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -136,6 +145,12 @@ int createindex(int argc, const char **argv, const Command& command) {
 
     int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
+
+#ifdef RIBOSEEK
+    if (isNucl && Sequence::getAuxInfo(dbType) != NULL) {
+        isNucl = false;
+    }
+#endif
 
     if (par.PARAM_STRAND.wasSet == false) {
         par.strand = 1;

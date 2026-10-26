@@ -24,12 +24,12 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     }
 
     const bool lookupMode = par.dbIdMode == Parameters::ID_MODE_LOOKUP;
-    int dbMode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    int dbMode = DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA;
     if (lookupMode) {
-        dbMode |= DBReader<unsigned int>::USE_LOOKUP_REV;
+        dbMode |= DBReader<DBKeyType>::USE_LOOKUP_REV;
     }
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, dbMode);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<DBKeyType> reader(par.db2.c_str(), par.db2Index.c_str(), 1, dbMode);
+    reader.open(DBReader<DBKeyType>::NOSORT);
     const bool isCompressed = reader.isCompressed();
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
@@ -38,11 +38,11 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     char *line = NULL;
     size_t len = 0;
     char dbKey[256];
-    unsigned int prevKey = 0;
+    DBKeyType prevKey = 0;
     bool isOrdered = true;
     while (getline(&line, &len, orderFile) != -1) {
         Util::parseKey(line, dbKey);
-        unsigned int key;
+        DBKeyType key;
         if (lookupMode) {
             size_t lookupId = reader.getLookupIdByAccession(dbKey);
             if (lookupId == SIZE_MAX) {
@@ -51,13 +51,13 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             }
             key = reader.getLookupKey(lookupId);
         } else {
-            key = Util::fast_atoi<unsigned int>(dbKey);
+            key = Util::fast_atoi<DBKeyType>(dbKey);
         }
 
         isOrdered &= (prevKey <= key);
         prevKey = key;
         const size_t id = reader.getId(key);
-        if (id >= UINT_MAX) {
+        if (id == SIZE_MAX) {
             Debug(Debug::WARNING) << "Key " << dbKey << " not found in database\n";
             continue;
         }
@@ -85,10 +85,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
                              || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
     writer.close(shouldMerge, !isOrdered);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
+        DBReader<DBKeyType>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
     }
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
-    DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<DBKeyType>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
 
     free(line);
     reader.close();

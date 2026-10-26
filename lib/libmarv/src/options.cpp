@@ -47,6 +47,7 @@ void printOptions(const ProgramOptions& options){
     std::cout << "File with subject Ids: " << (options.subjectIdsFilename.has_value() ? options.subjectIdsFilename.value() : " unspecified") << "\n";
     std::cout << "kernelConfigsFile_gapless: " << options.kernelConfigsFile_gapless.value_or("unspecified") << "\n";
     std::cout << "kernelConfigsFile_sw: " << options.kernelConfigsFile_sw.value_or("unspecified") << "\n";
+    std::cout << "allowInt8: " << options.allowInt8 << "\n";
 }
 
 bool parseArgs(int argc, char** argv, ProgramOptions& options){
@@ -111,6 +112,8 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.printLengthPartitions = true;
         }else if(arg == "--prefetchDBFile"){
             options.prefetchDBFile = true;
+        }else if(arg == "--allowInt8"){
+            options.allowInt8 = true;
         }else if(arg == "--top"){
             options.numTopOutputs = std::atoi(argv[++i]);
         }else if(arg == "--gop"){
@@ -262,6 +265,7 @@ void printHelp(int /*argc*/, char** argv){
                         "sameSeq can be 0 or 1. If `sameSeq`!=0, all sequences in DB will be identical\n";
     std::cout << "      --kernelconfigsGapless filename\n";
     std::cout << "      --kernelconfigsSW filename\n";
+    std::cout << "      --allowInt8\n";
     std::cout << "\n";
 
             

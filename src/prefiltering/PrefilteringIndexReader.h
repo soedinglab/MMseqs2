@@ -51,38 +51,38 @@ public:
     static unsigned int ALNINDEX;
     static unsigned int ALNDATA;
 
-    static bool checkIfIndexFile(DBReader<unsigned int> *reader);
+    static bool checkIfIndexFile(DBReader<DBKeyType> *reader);
     static std::string indexName(const std::string &outDB);
 
     static void createIndexFile(const std::string &outDb,
-                                DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
-                                DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
-                                DBReader<unsigned int> *alndbr,
+                                DBReader<DBKeyType> *dbr1, DBReader<DBKeyType> *dbr2,
+                                DBReader<DBKeyType> *hdbr1, DBReader<DBKeyType> *hdbr2,
+                                DBReader<DBKeyType> *alndbr,
                                 BaseMatrix *seedSubMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
                                 int maskLowerCase, float maskProb, int maskNrepeats, int kmerThr, int targetSearchMode, int splits, int indexSubset = 0);
 
-    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
+    static DBReader<DBKeyType> *openNewHeaderReader(DBReader<DBKeyType>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
+    static DBReader<DBKeyType> *openNewReader(DBReader<DBKeyType> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
 
-    static SequenceLookup *getSequenceLookup(unsigned int split, DBReader<unsigned int> *dbr, int preloadMode);
+    static SequenceLookup *getSequenceLookup(unsigned int split, DBReader<DBKeyType> *dbr, int preloadMode);
 
-    static IndexTable *getIndexTable(unsigned int split, DBReader<unsigned int> *dbr, int preloadMode);
+    static IndexTable *getIndexTable(unsigned int split, DBReader<DBKeyType> *dbr, int preloadMode);
 
-    static void printSummary(DBReader<unsigned int> *dbr);
+    static void printSummary(DBReader<DBKeyType> *dbr);
 
-    static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
+    static PrefilteringIndexData getMetadata(DBReader<DBKeyType> *dbr);
 
-    static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
+    static std::string getSubstitutionMatrixName(DBReader<DBKeyType> *dbr);
 
-    static std::string getSubstitutionMatrix(DBReader<unsigned int> *dbr);
+    static std::string getSubstitutionMatrix(DBReader<DBKeyType> *dbr);
 
-    static std::string getSpacedPattern(DBReader<unsigned int> *dbr);
+    static std::string getSpacedPattern(DBReader<DBKeyType> *dbr);
 
-    static ScoreMatrix get2MerScoreMatrix(DBReader<unsigned int> *dbr, int preloadMode);
+    static ScoreMatrix get2MerScoreMatrix(DBReader<DBKeyType> *dbr, int preloadMode);
 
-    static ScoreMatrix get3MerScoreMatrix(DBReader<unsigned int> *dbr, int preloadMode);
+    static ScoreMatrix get3MerScoreMatrix(DBReader<DBKeyType> *dbr, int preloadMode);
 
     static std::string searchForIndex(const std::string &pathToDB);
 

@@ -35,9 +35,30 @@ void readU32(const char **ptr, uint32_t &result) {
     result = array[0] | (array[1] << 8) | (array[2] << 16) | (array[3] << 24);
 }
 
+void readLocalId(const char **ptr, DBLocalId &result) {
+#ifdef MMSEQS_INT64_IDS
+    uint64_t value = 0;
+    for (size_t i = 0; i < sizeof(uint64_t); ++i) {
+        value |= static_cast<uint64_t>(static_cast<unsigned char>(**ptr)) << (8 * i);
+        (*ptr)++;
+    }
+    result = value;
+#else
+    uint32_t value = 0;
+    readU32(ptr, value);
+    result = value;
+#endif
+}
+
+void writeLocalId(std::string &buffer, DBLocalId value) {
+    for (size_t i = 0; i < sizeof(DBLocalId); ++i) {
+        buffer.append(1, static_cast<char>((static_cast<uint64_t>(value) >> (8 * i)) & 0xFF));
+    }
+}
+
 std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
-                                      DBReader<unsigned int>& sequenceReader,
-                                      DBReader<unsigned int>& headerReader, int thread_idx) {
+                                      DBReader<DBKeyType>& sequenceReader,
+                                      DBReader<DBKeyType>& headerReader, int thread_idx) {
     std::ostringstream output;
 
     //read stuff till compressed part
@@ -80,12 +101,12 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
     index++;
 
     while (index < data_size - 1) {
-        uint32_t entry_index;
+        DBLocalId entry_index;
         uint16_t nr_blocks;
         uint16_t start_pos;
 
-        readU32(&data, entry_index);
-        index += 4;
+        readLocalId(&data, entry_index);
+        index += sizeof(DBLocalId);
 
         std::string sequence = sequenceReader.getData(entry_index, thread_idx);
         std::string header = headerReader.getData(entry_index, thread_idx);
@@ -146,8 +167,8 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
     return output.str();
 }
 
-void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher::result_t> &results,
-        const char *data, size_t dataSize, DBReader<unsigned int> &sequenceReader, bool skipFirst) {
+void CompressedA3M::extractMatcherResults(DBKeyType &key, std::vector<Matcher::result_t> &results,
+        const char *data, size_t dataSize, DBReader<DBKeyType> &sequenceReader, bool skipFirst) {
     //read stuff till compressed part
     char lastChar = '\0';
     size_t index = 0;
@@ -194,9 +215,9 @@ void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher
         match.score      = 0;
         match.eval       = 0;
 
-        uint32_t entryIndex;
-        readU32(&data, entryIndex);
-        index += 4;
+        DBLocalId entryIndex;
+        readLocalId(&data, entryIndex);
+        index += sizeof(DBLocalId);
 
         match.dbKey = sequenceReader.getDbKey(entryIndex);
         if (isFirst) {
@@ -269,11 +290,12 @@ void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher
 
 
 //#define CA3M_DEBUG
-void CompressedA3M::hitToBuffer(unsigned int targetId, const Matcher::result_t& hit, std::string& buffer) {
+void CompressedA3M::hitToBuffer(size_t targetId, const Matcher::result_t& hit, std::string& buffer) {
 #ifndef CA3M_DEBUG
-    buffer.append(reinterpret_cast<const char *>(&targetId), sizeof(unsigned int));
+    DBLocalId entryIndex = static_cast<DBLocalId>(targetId);
+    writeLocalId(buffer, entryIndex);
 #else
-    buffer.append(SSTR((int)targetId));
+    buffer.append(SSTR(targetId));
     buffer.append(1, '\t');
 #endif
     // Starts at 1 in ca3m format

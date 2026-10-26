@@ -12,3 +12,7 @@ endif()
 if (${HAVE_MPI})
     target_compile_definitions(version PRIVATE -DHAVE_MPI=${HAVE_MPI})
 endif()
+
+if (MMSEQS_INT64_IDS)
+    target_compile_definitions(version PRIVATE -DMMSEQS_INT64_IDS=1)
+endif()

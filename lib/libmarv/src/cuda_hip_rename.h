@@ -1,0 +1,83 @@
+#if defined(__HIPCC__)
+
+#ifndef __grid_constant__
+#define __grid_constant__
+#endif
+
+#define cudaStream_t hipStream_t
+#define cudaEvent_t hipEvent_t
+#define cudaError_t hipError_t
+#define cudaMemcpyKind hipMemcpyKind
+#define cudaMemPool_t hipMemPool_t
+#define cudaIpcMemHandle_t hipIpcMemHandle_t
+#define cudaDeviceProp hipDeviceProp_t
+
+#define cudaSuccess hipSuccess
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyHostToHost hipMemcpyHostToHost
+#define cudaMemcpyDeviceToDevice hipMemcpyDeviceToDevice
+#define cudaMemcpyDefault hipMemcpyDefault
+#define cudaEventDisableTiming hipEventDisableTiming
+#define cudaStreamLegacy hipStreamLegacy
+#define cudaErrorPeerAccessAlreadyEnabled hipErrorPeerAccessAlreadyEnabled
+#define cudaErrorPeerAccessNotEnabled hipErrorPeerAccessNotEnabled
+#define cudaIpcMemLazyEnablePeerAccess hipIpcMemLazyEnablePeerAccess
+#define cudaDevAttrComputeCapabilityMajor hipDeviceAttributeComputeCapabilityMajor
+#define cudaDevAttrComputeCapabilityMinor hipDeviceAttributeComputeCapabilityMinor
+#define cudaDevAttrMultiProcessorCount hipDeviceAttributeMultiprocessorCount
+#define cudaDevAttrPageableMemoryAccessUsesHostPageTables hipDeviceAttributePageableMemoryAccessUsesHostPageTables
+#define cudaDeviceAttributeComputeCapabilityMajor hipDeviceAttributeComputeCapabilityMajor
+#define cudaDeviceAttributeComputeCapabilityMinor hipDeviceAttributeComputeCapabilityMinor
+#define cudaDeviceAttributeMultiprocessorCount hipDeviceAttributeMultiprocessorCount
+#define cudaFuncAttributeMaxDynamicSharedMemorySize hipFuncAttributeMaxDynamicSharedMemorySize
+#define cudaFuncCachePreferShared hipFuncCachePreferShared
+#define cudaMemPoolAttrReleaseThreshold hipMemPoolAttrReleaseThreshold
+
+#define cudaGetLastError hipGetLastError
+#define cudaGetErrorString hipGetErrorString
+#define cudaGetDevice hipGetDevice
+#define cudaSetDevice hipSetDevice
+#define cudaGetDeviceCount hipGetDeviceCount
+#define cudaDeviceGetAttribute hipDeviceGetAttribute
+#define cudaDeviceCanAccessPeer hipDeviceCanAccessPeer
+#define cudaDeviceEnablePeerAccess hipDeviceEnablePeerAccess
+#define cudaDeviceDisablePeerAccess hipDeviceDisablePeerAccess
+#define cudaDeviceSynchronize hipDeviceSynchronize
+#define cudaDeviceSetCacheConfig hipDeviceSetCacheConfig
+#define cudaDeviceGetDefaultMemPool hipDeviceGetDefaultMemPool
+#define cudaMemPoolSetAttribute hipMemPoolSetAttribute
+#define cudaMemGetInfo hipMemGetInfo
+#define cudaMalloc hipMalloc
+#define cudaMallocAsync hipMallocAsync
+#define cudaFree hipFree
+#define cudaFreeAsync hipFreeAsync
+#define cudaMallocHost hipHostMalloc
+#define cudaFreeHost hipHostFree
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyAsync hipMemcpyAsync
+#define cudaMemsetAsync hipMemsetAsync
+#define cudaLaunchHostFunc hipLaunchHostFunc
+#define cudaFuncSetAttribute hipFuncSetAttribute
+#define cudaEventCreate hipEventCreate
+#define cudaEventCreateWithFlags hipEventCreateWithFlags
+#define cudaEventDestroy hipEventDestroy
+#define cudaEventQuery hipEventQuery
+#define cudaEventRecord hipEventRecord
+#define cudaEventSynchronize hipEventSynchronize
+#define cudaEventElapsedTime hipEventElapsedTime
+#define cudaStreamCreate hipStreamCreate
+#define cudaStreamCreateWithFlags hipStreamCreateWithFlags
+#define cudaStreamDestroy hipStreamDestroy
+#define cudaStreamQuery hipStreamQuery
+#define cudaStreamSynchronize hipStreamSynchronize
+#define cudaStreamWaitEvent hipStreamWaitEvent
+#define cudaIpcGetMemHandle hipIpcGetMemHandle
+#define cudaIpcOpenMemHandle hipIpcOpenMemHandle
+
+#include <thrust/system/hip/execution_policy.h>
+namespace thrust {
+namespace cuda = hip;
+}
+
+#endif
