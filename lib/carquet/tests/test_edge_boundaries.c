@@ -507,6 +507,87 @@ static int test_zero_size_operations(void) {
 }
 
 /* ============================================================================
+ * Caller-supplied values that index or size library memory
+ * ============================================================================
+ */
+
+extern carquet_status_t carquet_encode_plain_byte_array(
+    const carquet_byte_array_t* input, int64_t count, carquet_buffer_t* output);
+
+/* carquet_byte_array_t.length is a signed int32. A negative one must be
+ * rejected before anything is reserved: summed as unsigned it contributes 3
+ * bytes to the reservation, then copies ~4GB. */
+static int test_negative_byte_array_length(void) {
+    carquet_buffer_t buf;
+    carquet_buffer_init(&buf);
+    uint8_t payload[4] = {1, 2, 3, 4};
+    carquet_byte_array_t in[2] = { { payload, 4 }, { payload, -1 } };
+    carquet_status_t status = carquet_encode_plain_byte_array(in, 2, &buf);
+    size_t size = buf.size;
+    carquet_buffer_destroy(&buf);
+    if (status != CARQUET_ERROR_INVALID_ARGUMENT)
+        TEST_FAIL("negative_byte_array_length", "negative length was accepted");
+    if (size != 0)
+        TEST_FAIL("negative_byte_array_length", "output modified before validation");
+    TEST_PASS("negative_byte_array_length");
+    return 0;
+}
+
+/* Projection indices from the batch reader config index the schema's leaf
+ * table directly, so an out-of-range one must fail creation. */
+static int test_projection_index_bounds(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_schema_t* schema = carquet_schema_create(&err);
+    if (!schema) TEST_FAIL("projection_index_bounds", "schema create failed");
+    if (carquet_schema_add_column(schema, "a", CARQUET_PHYSICAL_INT32, NULL,
+                                  CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "b", CARQUET_PHYSICAL_INT32, NULL,
+                                  CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK)
+        TEST_FAIL("projection_index_bounds", "add column failed");
+    carquet_writer_t* w = carquet_writer_create_buffer(schema, NULL, &err);
+    if (!w) TEST_FAIL("projection_index_bounds", "writer create failed");
+    int32_t v[4] = {1, 2, 3, 4};
+    if (carquet_writer_write_batch(w, 0, v, 4, NULL, NULL) != CARQUET_OK ||
+        carquet_writer_write_batch(w, 1, v, 4, NULL, NULL) != CARQUET_OK ||
+        carquet_writer_close(w) != CARQUET_OK)
+        TEST_FAIL("projection_index_bounds", "write failed");
+    void* data = NULL; size_t size = 0;
+    if (carquet_writer_get_buffer(w, &data, &size) != CARQUET_OK)
+        TEST_FAIL("projection_index_bounds", "get buffer failed");
+    carquet_schema_free(schema);
+
+    carquet_reader_t* r = carquet_reader_open_buffer(data, size, NULL, &err);
+    if (!r) { free(data); TEST_FAIL("projection_index_bounds", "open failed"); }
+    static const int32_t bad[3][2] = { {0, 2}, {-1, 1}, {INT32_MAX, 0} };
+    int rc = 0;
+    for (int k = 0; k < 3 && rc == 0; k++) {
+        carquet_batch_reader_config_t cfg;
+        carquet_batch_reader_config_init(&cfg);
+        cfg.column_indices = bad[k];
+        cfg.num_columns = 2;
+        carquet_error_t berr = CARQUET_ERROR_INIT;
+        carquet_batch_reader_t* br = carquet_batch_reader_create(r, &cfg, &berr);
+        if (br || berr.code != CARQUET_ERROR_INVALID_ARGUMENT) rc = 1;
+        if (br) carquet_batch_reader_free(br);
+    }
+    /* A valid projection still works. */
+    if (rc == 0) {
+        static const int32_t good[2] = {1, 0};
+        carquet_batch_reader_config_t cfg;
+        carquet_batch_reader_config_init(&cfg);
+        cfg.column_indices = good;
+        cfg.num_columns = 2;
+        carquet_batch_reader_t* br = carquet_batch_reader_create(r, &cfg, &err);
+        if (!br) rc = 1; else carquet_batch_reader_free(br);
+    }
+    carquet_reader_close(r);
+    free(data);
+    if (rc) TEST_FAIL("projection_index_bounds", "out-of-range index not rejected");
+    TEST_PASS("projection_index_bounds");
+    return 0;
+}
+
+/* ============================================================================
  * Main
  * ============================================================================
  */
@@ -542,6 +623,8 @@ int main(void) {
 
     printf("\n--- Zero Size Tests ---\n");
     failures += test_zero_size_operations();
+    failures += test_negative_byte_array_length();
+    failures += test_projection_index_bounds();
 
     printf("\n");
     if (failures == 0) {

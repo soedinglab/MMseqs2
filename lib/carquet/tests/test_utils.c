@@ -44,15 +44,14 @@ static int test_crc32_empty(void) {
 }
 
 static int test_crc32_known_values(void) {
-    /* Known CRC32C (Castagnoli) values from standard test vectors.
-     * Parquet uses CRC32C, not IEEE CRC32. */
-    /* CRC32C of "123456789" is 0xE3069283 */
+    /* Parquet page checksums use standard IEEE CRC32. */
+    /* CRC32 of "123456789" is 0xCBF43926. */
     const char* test_data = "123456789";
     uint32_t crc = carquet_crc32((const uint8_t*)test_data, 9);
 
-    if (crc != 0xE3069283) {
-        printf("  [DEBUG] CRC32C(\"123456789\") = 0x%08x, expected 0xE3069283\n", crc);
-        TEST_FAIL("crc32_known_values", "wrong CRC32C for test vector");
+    if (crc != 0xCBF43926) {
+        printf("  [DEBUG] CRC32(\"123456789\") = 0x%08x, expected 0xCBF43926\n", crc);
+        TEST_FAIL("crc32_known_values", "wrong CRC32 for test vector");
     }
 
     TEST_PASS("crc32_known_values");

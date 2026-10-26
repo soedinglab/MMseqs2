@@ -189,6 +189,99 @@ fail:
     return 1;
 }
 
+static int test_schema_logical_type_validation(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_schema_t* schema = carquet_schema_create(&err);
+    if (!schema) {
+        TEST_FAIL("schema_logical_type_validation", "Failed to create schema");
+    }
+
+    carquet_logical_type_t string_type = { .id = CARQUET_LOGICAL_STRING };
+    carquet_logical_type_t date_type = { .id = CARQUET_LOGICAL_DATE };
+    carquet_logical_type_t uuid_type = { .id = CARQUET_LOGICAL_UUID };
+    carquet_logical_type_t float16_type = { .id = CARQUET_LOGICAL_FLOAT16 };
+    carquet_logical_type_t geometry_type = { .id = CARQUET_LOGICAL_GEOMETRY };
+    carquet_logical_type_t geography_type = { .id = CARQUET_LOGICAL_GEOGRAPHY };
+    carquet_logical_type_t variant_type = { .id = CARQUET_LOGICAL_VARIANT };
+    carquet_logical_type_t decimal_bad_scale = {
+        .id = CARQUET_LOGICAL_DECIMAL,
+        .params.decimal = { .precision = 4, .scale = 5 }
+    };
+    carquet_logical_type_t decimal_i32_too_wide = {
+        .id = CARQUET_LOGICAL_DECIMAL,
+        .params.decimal = { .precision = 10, .scale = 0 }
+    };
+    carquet_logical_type_t int16_type = {
+        .id = CARQUET_LOGICAL_INTEGER,
+        .params.integer = { .bit_width = 16, .is_signed = true }
+    };
+    carquet_logical_type_t bad_int_width = {
+        .id = CARQUET_LOGICAL_INTEGER,
+        .params.integer = { .bit_width = 24, .is_signed = true }
+    };
+    carquet_logical_type_t time_millis = {
+        .id = CARQUET_LOGICAL_TIME,
+        .params.time = { .unit = CARQUET_TIME_UNIT_MILLIS, .is_adjusted_to_utc = true }
+    };
+    carquet_logical_type_t time_micros = {
+        .id = CARQUET_LOGICAL_TIME,
+        .params.time = { .unit = CARQUET_TIME_UNIT_MICROS, .is_adjusted_to_utc = true }
+    };
+
+    if (carquet_schema_add_column(schema, "string_ok", CARQUET_PHYSICAL_BYTE_ARRAY,
+            &string_type, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "date_ok", CARQUET_PHYSICAL_INT32,
+            &date_type, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "uuid_ok", CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY,
+            &uuid_type, CARQUET_REPETITION_REQUIRED, 16, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "float16_ok", CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY,
+            &float16_type, CARQUET_REPETITION_REQUIRED, 2, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "int16_ok", CARQUET_PHYSICAL_INT32,
+            &int16_type, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "time_millis_ok", CARQUET_PHYSICAL_INT32,
+            &time_millis, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "time_micros_ok", CARQUET_PHYSICAL_INT64,
+            &time_micros, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "geometry_ok", CARQUET_PHYSICAL_BYTE_ARRAY,
+            &geometry_type, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_column(schema, "geography_ok", CARQUET_PHYSICAL_BYTE_ARRAY,
+            &geography_type, CARQUET_REPETITION_REQUIRED, 0, 0) != CARQUET_OK ||
+        carquet_schema_add_variant(schema, "variant_ok", CARQUET_REPETITION_OPTIONAL, 0) < 0) {
+        carquet_schema_free(schema);
+        TEST_FAIL("schema_logical_type_validation", "valid logical type rejected");
+    }
+
+    if (carquet_schema_add_column(schema, "bad_string", CARQUET_PHYSICAL_INT32,
+            &string_type, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_uuid", CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY,
+            &uuid_type, CARQUET_REPETITION_REQUIRED, 15, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_float16", CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY,
+            &float16_type, CARQUET_REPETITION_REQUIRED, 4, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_decimal_scale", CARQUET_PHYSICAL_INT32,
+            &decimal_bad_scale, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_decimal_i32", CARQUET_PHYSICAL_INT32,
+            &decimal_i32_too_wide, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_int_width", CARQUET_PHYSICAL_INT32,
+            &bad_int_width, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_time_millis", CARQUET_PHYSICAL_INT64,
+            &time_millis, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_time_micros", CARQUET_PHYSICAL_INT32,
+            &time_micros, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_geometry", CARQUET_PHYSICAL_INT32,
+            &geometry_type, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_geography", CARQUET_PHYSICAL_INT32,
+            &geography_type, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK ||
+        carquet_schema_add_column(schema, "bad_variant", CARQUET_PHYSICAL_BYTE_ARRAY,
+            &variant_type, CARQUET_REPETITION_REQUIRED, 0, 0) == CARQUET_OK) {
+        carquet_schema_free(schema);
+        TEST_FAIL("schema_logical_type_validation", "invalid logical type accepted");
+    }
+
+    carquet_schema_free(schema);
+    TEST_PASS("schema_logical_type_validation");
+    return 0;
+}
+
 /* ============================================================================
  * Reader Edge Cases
  * ============================================================================
@@ -409,6 +502,7 @@ int main(void) {
     failures += test_schema_single_column();
     failures += test_schema_all_types();
     failures += test_schema_repetition_types();
+    failures += test_schema_logical_type_validation();
 
     printf("\n--- Reader Edge Cases ---\n");
     failures += test_reader_empty_path();

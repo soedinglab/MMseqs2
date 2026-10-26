@@ -1,0 +1,123 @@
+name: Python wheels
+
+# Builds the `carquet` Python wheels (python/) with cibuildwheel for CPython
+# 3.9-3.13 on Linux x86_64/aarch64, macOS arm64/x86_64 and Windows x64, runs the
+# pytest suite inside every wheel, builds the sdist, and publishes everything
+# to PyPI when a vX.Y.Z tag is pushed. A manual dispatch builds and tests but
+# does not publish.
+#
+# One-time PyPI setup (trusted publishing, no API token stored in GitHub):
+#   1. On https://pypi.org -> "Your projects" -> "Publishing" (or, before the
+#      first release, "Add a new pending publisher"), register a GitHub
+#      publisher with: PyPI project name `carquet`, owner `Vitruves`,
+#      repository `carquet`, workflow name `wheels.yml`, environment `pypi`.
+#   2. In this repository: Settings -> Environments -> create `pypi`
+#      (optionally require a reviewer so a tag push cannot publish unattended).
+#   3. Push a `v*` tag matching CARQUET_VERSION_STRING in include/carquet/carquet.h
+#      (the version in the wheel is read from that header).
+# Nothing else is needed: the `publish` job requests an OIDC token
+# (`id-token: write`) and pypa/gh-action-pypi-publish exchanges it with PyPI.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build_wheels:
+    name: wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Native runners only: the C library picks its SIMD sources from the
+        # host architecture and the tests need to run on the built wheel.
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-14, macos-15-intel, windows-2022]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.3.1
+        with:
+          package-dir: python
+          output-dir: wheelhouse
+        env:
+          # Identifier selection, skips and the test command live in
+          # python/pyproject.toml ([tool.cibuildwheel]); these mirror the
+          # essentials so the workflow is readable on its own.
+          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
+          CIBW_SKIP: "*-musllinux_* *_i686 *-win32 pp*"
+          CIBW_TEST_REQUIRES: pytest pyarrow
+          CIBW_TEST_COMMAND: pytest {project}/python/tests
+          # glibc 2.28 images (AlmaLinux 8): gcc toolset + git for FetchContent.
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          CIBW_BUILD_VERBOSITY: 1
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cibw-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  build_sdist:
+    name: sdist
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build --sdist python/ --outdir dist/
+          python -m twine check dist/*.tar.gz
+
+      # The sdist carries the C tree under native/; make sure it actually
+      # compiles and passes the tests on its own (the path the wheels do not
+      # exercise).
+      - name: Smoke-build a wheel from the sdist
+        run: |
+          python -m pip install pytest pyarrow
+          python -m pip install dist/*.tar.gz -v
+          python -m pytest python/tests -q
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cibw-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/carquet/
+    permissions:
+      id-token: write   # OIDC token for trusted publishing
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+
+      - name: List distributions
+        run: ls -l dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

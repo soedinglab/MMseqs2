@@ -9,6 +9,7 @@
  * Reference: https://parquet.apache.org/docs/file-format/
  */
 
+#include "core/allocator.h"
 #include <carquet/carquet.h>
 #include <carquet/error.h>
 #include "core/arena.h"
@@ -75,6 +76,7 @@ void carquet_offset_index_builder_destroy(carquet_offset_index_builder_t* builde
 
 struct carquet_column_index_builder {
     carquet_physical_type_t type;
+    carquet_logical_type_t logical_type;
     int32_t type_length;
 
     int32_t capacity;
@@ -88,6 +90,22 @@ struct carquet_column_index_builder {
     bool* null_pages;
 
     int32_t boundary_order;
+
+    /* Set once a non-null page without min/max was added (statistics
+     * disabled, undefined sort order, all-NaN page). The spec has no way to
+     * say "this page has no bounds", so the whole ColumnIndex is withheld,
+     * as parquet-cpp does; the OffsetIndex is unaffected. */
+    bool discarded;
+
+    /* Per-page level histograms (Parquet 2.9), flattened page-major:
+     * rep_level_histograms[page * rep_hist_len + level]. Allocated lazily on the
+     * first add_page that supplies histograms; lengths come from the max
+     * rep/def levels (max_level + 1). track_histograms gates emission. */
+    bool track_histograms;
+    int32_t rep_hist_len;
+    int32_t def_hist_len;
+    int64_t* rep_level_histograms;
+    int64_t* def_level_histograms;
 };
 
 /**
@@ -95,22 +113,26 @@ struct carquet_column_index_builder {
  */
 carquet_column_index_builder_t* carquet_column_index_builder_create(
     carquet_physical_type_t type,
+    const carquet_logical_type_t* logical_type,
     int32_t type_length) {
 
-    carquet_column_index_builder_t* builder = calloc(1, sizeof(*builder));
+    carquet_column_index_builder_t* builder = carquet_mem_calloc(1, sizeof(*builder));
     if (!builder) return NULL;
 
     builder->type = type;
+    if (logical_type) {
+        builder->logical_type = *logical_type;
+    }
     builder->type_length = type_length;
     builder->capacity = 16;
     builder->boundary_order = 0;  /* UNORDERED by default */
 
-    builder->null_counts = calloc(builder->capacity, sizeof(int64_t));
-    builder->min_values = calloc(builder->capacity, sizeof(uint8_t*));
-    builder->min_value_lens = calloc(builder->capacity, sizeof(int32_t));
-    builder->max_values = calloc(builder->capacity, sizeof(uint8_t*));
-    builder->max_value_lens = calloc(builder->capacity, sizeof(int32_t));
-    builder->null_pages = calloc(builder->capacity, sizeof(bool));
+    builder->null_counts = carquet_mem_calloc(builder->capacity, sizeof(int64_t));
+    builder->min_values = carquet_mem_calloc(builder->capacity, sizeof(uint8_t*));
+    builder->min_value_lens = carquet_mem_calloc(builder->capacity, sizeof(int32_t));
+    builder->max_values = carquet_mem_calloc(builder->capacity, sizeof(uint8_t*));
+    builder->max_value_lens = carquet_mem_calloc(builder->capacity, sizeof(int32_t));
+    builder->null_pages = carquet_mem_calloc(builder->capacity, sizeof(bool));
 
     if (!builder->null_counts || !builder->min_values || !builder->max_values ||
         !builder->min_value_lens || !builder->max_value_lens || !builder->null_pages) {
@@ -129,28 +151,39 @@ void carquet_column_index_builder_destroy(carquet_column_index_builder_t* builde
 
     if (builder->min_values) {
         for (int32_t i = 0; i < builder->num_pages; i++) {
-            free(builder->min_values[i]);
+            carquet_mem_free(builder->min_values[i]);
         }
-        free(builder->min_values);
+        carquet_mem_free(builder->min_values);
     }
 
     if (builder->max_values) {
         for (int32_t i = 0; i < builder->num_pages; i++) {
-            free(builder->max_values[i]);
+            carquet_mem_free(builder->max_values[i]);
         }
-        free(builder->max_values);
+        carquet_mem_free(builder->max_values);
     }
 
-    free(builder->null_counts);
-    free(builder->min_value_lens);
-    free(builder->max_value_lens);
-    free(builder->null_pages);
-    free(builder);
+    carquet_mem_free(builder->null_counts);
+    carquet_mem_free(builder->min_value_lens);
+    carquet_mem_free(builder->max_value_lens);
+    carquet_mem_free(builder->null_pages);
+    carquet_mem_free(builder->rep_level_histograms);
+    carquet_mem_free(builder->def_level_histograms);
+    carquet_mem_free(builder);
 }
 
 /**
  * Ensure capacity for more pages.
  */
+/* Grow one builder array to `n` elements in place, returning OOM from the
+ * enclosing function on failure with the array untouched. */
+#define PAGE_INDEX_GROW(arr, n)                                              \
+    do {                                                                     \
+        void* grown_ = carquet_mem_realloc((arr), (size_t)(n) * sizeof(*(arr))); \
+        if (!grown_) return CARQUET_ERROR_OUT_OF_MEMORY;                     \
+        (arr) = grown_;                                                      \
+    } while (0)
+
 static carquet_status_t ensure_capacity(carquet_column_index_builder_t* builder) {
     if (builder->num_pages < builder->capacity) {
         return CARQUET_OK;
@@ -158,24 +191,34 @@ static carquet_status_t ensure_capacity(carquet_column_index_builder_t* builder)
 
     int32_t new_cap = builder->capacity * 2;
 
-    int64_t* new_null_counts = realloc(builder->null_counts, new_cap * sizeof(int64_t));
-    uint8_t** new_min_values = realloc(builder->min_values, new_cap * sizeof(uint8_t*));
-    int32_t* new_min_lens = realloc(builder->min_value_lens, new_cap * sizeof(int32_t));
-    uint8_t** new_max_values = realloc(builder->max_values, new_cap * sizeof(uint8_t*));
-    int32_t* new_max_lens = realloc(builder->max_value_lens, new_cap * sizeof(int32_t));
-    bool* new_null_pages = realloc(builder->null_pages, new_cap * sizeof(bool));
+    /* Publish each array as soon as its realloc succeeds. If a later one
+     * fails, every pointer in the builder is still live (and at least as large
+     * as `capacity` says); holding the results back until all succeeded would
+     * leave the builder pointing at blocks realloc had already freed. */
+    PAGE_INDEX_GROW(builder->null_counts, new_cap);
+    PAGE_INDEX_GROW(builder->min_values, new_cap);
+    PAGE_INDEX_GROW(builder->min_value_lens, new_cap);
+    PAGE_INDEX_GROW(builder->max_values, new_cap);
+    PAGE_INDEX_GROW(builder->max_value_lens, new_cap);
+    PAGE_INDEX_GROW(builder->null_pages, new_cap);
 
-    if (!new_null_counts || !new_min_values || !new_max_values ||
-        !new_min_lens || !new_max_lens || !new_null_pages) {
-        return CARQUET_ERROR_OUT_OF_MEMORY;
+    /* Grow the flattened histogram arrays. The layout is page-major and
+     * contiguous, so the existing num_pages*len prefix survives the realloc. */
+    if (builder->track_histograms) {
+        if (builder->rep_hist_len > 0) {
+            int64_t* rh = carquet_mem_realloc(builder->rep_level_histograms,
+                (size_t)new_cap * builder->rep_hist_len * sizeof(int64_t));
+            if (!rh) return CARQUET_ERROR_OUT_OF_MEMORY;
+            builder->rep_level_histograms = rh;
+        }
+        if (builder->def_hist_len > 0) {
+            int64_t* dh = carquet_mem_realloc(builder->def_level_histograms,
+                (size_t)new_cap * builder->def_hist_len * sizeof(int64_t));
+            if (!dh) return CARQUET_ERROR_OUT_OF_MEMORY;
+            builder->def_level_histograms = dh;
+        }
     }
 
-    builder->null_counts = new_null_counts;
-    builder->min_values = new_min_values;
-    builder->min_value_lens = new_min_lens;
-    builder->max_values = new_max_values;
-    builder->max_value_lens = new_max_lens;
-    builder->null_pages = new_null_pages;
     builder->capacity = new_cap;
 
     /* Initialize new entries */
@@ -201,10 +244,44 @@ carquet_status_t carquet_column_index_add_page(
     int32_t min_value_len,
     const void* max_value,
     int32_t max_value_len,
-    bool is_null_page) {
+    bool is_null_page,
+    const int64_t* rep_level_hist,
+    int32_t rep_level_hist_len,
+    const int64_t* def_level_hist,
+    int32_t def_level_hist_len) {
 
     if (!builder) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+
+    /* Histogram lengths are max_rep/def_level + 1 (Parquet nesting is shallow).
+     * Guard against an out-of-range length so a caller bug can never drive a
+     * runaway allocation below. */
+    #define CARQUET_MAX_LEVEL_HIST_LEN 4096
+    if (rep_level_hist_len < 0 || rep_level_hist_len > CARQUET_MAX_LEVEL_HIST_LEN) {
+        rep_level_hist = NULL;
+    }
+    if (def_level_hist_len < 0 || def_level_hist_len > CARQUET_MAX_LEVEL_HIST_LEN) {
+        def_level_hist = NULL;
+    }
+    #undef CARQUET_MAX_LEVEL_HIST_LEN
+
+    /* Latch histogram tracking on the first page that supplies them. Lengths
+     * are fixed for the whole column (derived from max rep/def levels). */
+    if (!builder->track_histograms && (rep_level_hist || def_level_hist)) {
+        builder->track_histograms = true;
+        builder->rep_hist_len = rep_level_hist ? rep_level_hist_len : 0;
+        builder->def_hist_len = def_level_hist ? def_level_hist_len : 0;
+        if (builder->rep_hist_len > 0) {
+            builder->rep_level_histograms = carquet_mem_calloc(
+                (size_t)builder->capacity * builder->rep_hist_len, sizeof(int64_t));
+            if (!builder->rep_level_histograms) return CARQUET_ERROR_OUT_OF_MEMORY;
+        }
+        if (builder->def_hist_len > 0) {
+            builder->def_level_histograms = carquet_mem_calloc(
+                (size_t)builder->capacity * builder->def_hist_len, sizeof(int64_t));
+            if (!builder->def_level_histograms) return CARQUET_ERROR_OUT_OF_MEMORY;
+        }
     }
 
     carquet_status_t status = ensure_capacity(builder);
@@ -214,10 +291,39 @@ carquet_status_t carquet_column_index_add_page(
 
     builder->null_counts[idx] = null_count;
     builder->null_pages[idx] = is_null_page;
+    if (!is_null_page && (!min_value || !max_value)) {
+        /* No statistics for a page holding values: see `discarded`. (A
+         * zero-length bound with a non-NULL pointer is the empty string and
+         * counts as present.) */
+        builder->discarded = true;
+    }
+
+    if (builder->track_histograms) {
+        if (builder->rep_hist_len > 0) {
+            int64_t* dst = builder->rep_level_histograms +
+                           (size_t)idx * builder->rep_hist_len;
+            if (rep_level_hist && rep_level_hist_len == builder->rep_hist_len) {
+                memcpy(dst, rep_level_hist,
+                       (size_t)builder->rep_hist_len * sizeof(int64_t));
+            } else {
+                memset(dst, 0, (size_t)builder->rep_hist_len * sizeof(int64_t));
+            }
+        }
+        if (builder->def_hist_len > 0) {
+            int64_t* dst = builder->def_level_histograms +
+                           (size_t)idx * builder->def_hist_len;
+            if (def_level_hist && def_level_hist_len == builder->def_hist_len) {
+                memcpy(dst, def_level_hist,
+                       (size_t)builder->def_hist_len * sizeof(int64_t));
+            } else {
+                memset(dst, 0, (size_t)builder->def_hist_len * sizeof(int64_t));
+            }
+        }
+    }
 
     /* Copy min value */
     if (min_value && min_value_len > 0) {
-        builder->min_values[idx] = malloc(min_value_len);
+        builder->min_values[idx] = carquet_mem_malloc(min_value_len);
         if (!builder->min_values[idx]) {
             return CARQUET_ERROR_OUT_OF_MEMORY;
         }
@@ -227,9 +333,9 @@ carquet_status_t carquet_column_index_add_page(
 
     /* Copy max value */
     if (max_value && max_value_len > 0) {
-        builder->max_values[idx] = malloc(max_value_len);
+        builder->max_values[idx] = carquet_mem_malloc(max_value_len);
         if (!builder->max_values[idx]) {
-            free(builder->min_values[idx]);
+            carquet_mem_free(builder->min_values[idx]);
             builder->min_values[idx] = NULL;
             return CARQUET_ERROR_OUT_OF_MEMORY;
         }
@@ -241,6 +347,11 @@ carquet_status_t carquet_column_index_add_page(
     return CARQUET_OK;
 }
 
+/* Withhold this chunk's ColumnIndex (see `discarded`). */
+void carquet_column_index_builder_discard(carquet_column_index_builder_t* builder) {
+    if (builder) builder->discarded = true;
+}
+
 /**
  * Set boundary order for the column index.
  */
@@ -250,6 +361,66 @@ void carquet_column_index_set_boundary_order(
     if (builder) {
         builder->boundary_order = order;
     }
+}
+
+static bool index_logical_integer_is_unsigned(const carquet_logical_type_t* lt) {
+    return lt &&
+           lt->id == CARQUET_LOGICAL_INTEGER &&
+           !lt->params.integer.is_signed;
+}
+
+static int compare_index_values(const carquet_column_index_builder_t* builder,
+                                const uint8_t* a, int32_t alen,
+                                const uint8_t* b, int32_t blen) {
+    if (alen == blen) {
+        switch (builder->type) {
+            case CARQUET_PHYSICAL_FLOAT: {
+                float av, bv;
+                memcpy(&av, a, sizeof(av));
+                memcpy(&bv, b, sizeof(bv));
+                return (av < bv) ? -1 : (av > bv ? 1 : 0);
+            }
+            case CARQUET_PHYSICAL_DOUBLE: {
+                double av, bv;
+                memcpy(&av, a, sizeof(av));
+                memcpy(&bv, b, sizeof(bv));
+                return (av < bv) ? -1 : (av > bv ? 1 : 0);
+            }
+            case CARQUET_PHYSICAL_INT32:
+                if (index_logical_integer_is_unsigned(&builder->logical_type)) {
+                    uint32_t av, bv;
+                    memcpy(&av, a, sizeof(av));
+                    memcpy(&bv, b, sizeof(bv));
+                    return (av < bv) ? -1 : (av > bv ? 1 : 0);
+                } else {
+                    int32_t av, bv;
+                    memcpy(&av, a, sizeof(av));
+                    memcpy(&bv, b, sizeof(bv));
+                    return (av < bv) ? -1 : (av > bv ? 1 : 0);
+                }
+            case CARQUET_PHYSICAL_INT64:
+                if (index_logical_integer_is_unsigned(&builder->logical_type)) {
+                    uint64_t av, bv;
+                    memcpy(&av, a, sizeof(av));
+                    memcpy(&bv, b, sizeof(bv));
+                    return (av < bv) ? -1 : (av > bv ? 1 : 0);
+                } else {
+                    int64_t av, bv;
+                    memcpy(&av, a, sizeof(av));
+                    memcpy(&bv, b, sizeof(bv));
+                    return (av < bv) ? -1 : (av > bv ? 1 : 0);
+                }
+            default:
+                break;
+        }
+    }
+
+    int32_t n = alen < blen ? alen : blen;
+    int c = n > 0 ? memcmp(a, b, (size_t)n) : 0;
+    if (c != 0) return c;
+    if (alen < blen) return -1;
+    if (alen > blen) return 1;
+    return 0;
 }
 
 /* ============================================================================
@@ -264,32 +435,34 @@ struct carquet_offset_index_builder {
     int64_t* offsets;
     int32_t* compressed_sizes;
     int64_t* first_row_indices;
-    int32_t* uncompressed_sizes;  /* Optional */
-    bool track_uncompressed;
+    /* OffsetIndex field 2: unencoded_byte_array_data_bytes (Parquet 2.9),
+     * list<i64>, one per page. Tracked only for BYTE_ARRAY columns. */
+    int64_t* unencoded_bytes;
+    bool track_unencoded;
 };
 
 /**
  * Create an offset index builder.
  */
 carquet_offset_index_builder_t* carquet_offset_index_builder_create(
-    bool track_uncompressed) {
+    bool track_unencoded) {
 
-    carquet_offset_index_builder_t* builder = calloc(1, sizeof(*builder));
+    carquet_offset_index_builder_t* builder = carquet_mem_calloc(1, sizeof(*builder));
     if (!builder) return NULL;
 
     builder->capacity = 16;
-    builder->track_uncompressed = track_uncompressed;
+    builder->track_unencoded = track_unencoded;
 
-    builder->offsets = calloc(builder->capacity, sizeof(int64_t));
-    builder->compressed_sizes = calloc(builder->capacity, sizeof(int32_t));
-    builder->first_row_indices = calloc(builder->capacity, sizeof(int64_t));
+    builder->offsets = carquet_mem_calloc(builder->capacity, sizeof(int64_t));
+    builder->compressed_sizes = carquet_mem_calloc(builder->capacity, sizeof(int32_t));
+    builder->first_row_indices = carquet_mem_calloc(builder->capacity, sizeof(int64_t));
 
-    if (track_uncompressed) {
-        builder->uncompressed_sizes = calloc(builder->capacity, sizeof(int32_t));
+    if (track_unencoded) {
+        builder->unencoded_bytes = carquet_mem_calloc(builder->capacity, sizeof(int64_t));
     }
 
     if (!builder->offsets || !builder->compressed_sizes || !builder->first_row_indices ||
-        (track_uncompressed && !builder->uncompressed_sizes)) {
+        (track_unencoded && !builder->unencoded_bytes)) {
         carquet_offset_index_builder_destroy(builder);
         return NULL;
     }
@@ -303,11 +476,11 @@ carquet_offset_index_builder_t* carquet_offset_index_builder_create(
 void carquet_offset_index_builder_destroy(carquet_offset_index_builder_t* builder) {
     if (!builder) return;
 
-    free(builder->offsets);
-    free(builder->compressed_sizes);
-    free(builder->first_row_indices);
-    free(builder->uncompressed_sizes);
-    free(builder);
+    carquet_mem_free(builder->offsets);
+    carquet_mem_free(builder->compressed_sizes);
+    carquet_mem_free(builder->first_row_indices);
+    carquet_mem_free(builder->unencoded_bytes);
+    carquet_mem_free(builder);
 }
 
 /**
@@ -320,28 +493,34 @@ static carquet_status_t offset_ensure_capacity(carquet_offset_index_builder_t* b
 
     int32_t new_cap = builder->capacity * 2;
 
-    int64_t* new_offsets = realloc(builder->offsets, new_cap * sizeof(int64_t));
-    int32_t* new_compressed = realloc(builder->compressed_sizes, new_cap * sizeof(int32_t));
-    int64_t* new_first_rows = realloc(builder->first_row_indices, new_cap * sizeof(int64_t));
+    PAGE_INDEX_GROW(builder->offsets, new_cap);
+    PAGE_INDEX_GROW(builder->compressed_sizes, new_cap);
+    PAGE_INDEX_GROW(builder->first_row_indices, new_cap);
 
-    if (!new_offsets || !new_compressed || !new_first_rows) {
-        return CARQUET_ERROR_OUT_OF_MEMORY;
-    }
-
-    builder->offsets = new_offsets;
-    builder->compressed_sizes = new_compressed;
-    builder->first_row_indices = new_first_rows;
-
-    if (builder->track_uncompressed) {
-        int32_t* new_uncompressed = realloc(builder->uncompressed_sizes, new_cap * sizeof(int32_t));
-        if (!new_uncompressed) {
+    if (builder->track_unencoded) {
+        int64_t* new_unencoded = carquet_mem_realloc(builder->unencoded_bytes, new_cap * sizeof(int64_t));
+        if (!new_unencoded) {
             return CARQUET_ERROR_OUT_OF_MEMORY;
         }
-        builder->uncompressed_sizes = new_uncompressed;
+        builder->unencoded_bytes = new_unencoded;
     }
 
     builder->capacity = new_cap;
     return CARQUET_OK;
+}
+
+/**
+ * Shift every recorded page offset by `delta`. Used by the column writer
+ * to convert per-column relative offsets (accumulated while values were
+ * being flushed, before the column's absolute file offset was known) into
+ * absolute file offsets at finalize time.
+ */
+void carquet_offset_index_builder_shift_offsets(
+    carquet_offset_index_builder_t* builder, int64_t delta) {
+    if (!builder || delta == 0) return;
+    for (int32_t i = 0; i < builder->num_pages; i++) {
+        builder->offsets[i] += delta;
+    }
 }
 
 /**
@@ -352,7 +531,7 @@ carquet_status_t carquet_offset_index_add_page(
     int64_t offset,
     int32_t compressed_size,
     int64_t first_row_index,
-    int32_t uncompressed_size) {
+    int64_t unencoded_byte_array_bytes) {
 
     if (!builder) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
@@ -367,8 +546,8 @@ carquet_status_t carquet_offset_index_add_page(
     builder->compressed_sizes[idx] = compressed_size;
     builder->first_row_indices[idx] = first_row_index;
 
-    if (builder->track_uncompressed) {
-        builder->uncompressed_sizes[idx] = uncompressed_size;
+    if (builder->track_unencoded) {
+        builder->unencoded_bytes[idx] = unencoded_byte_array_bytes;
     }
 
     builder->num_pages++;
@@ -389,6 +568,9 @@ carquet_status_t carquet_column_index_serialize(
 
     if (!builder || !output) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+    if (builder->discarded) {
+        return CARQUET_OK;  /* nothing serialized: no ColumnIndex for this chunk */
     }
 
     thrift_encoder_t enc;
@@ -436,6 +618,33 @@ carquet_status_t carquet_column_index_serialize(
         thrift_write_i64(&enc, builder->null_counts[i]);
     }
 
+    /* Field 6: repetition_level_histograms (list<i64>) - optional, Parquet 2.9.
+     * Flattened page-major: for each page, (max_rep_level+1) buckets. Only
+     * emitted for repeated columns (rep_hist_len > 1) since a flat column's
+     * histogram is trivially [num_values] and carries no information. */
+    if (builder->track_histograms && builder->rep_hist_len > 1 &&
+        builder->rep_level_histograms) {
+        int32_t total = builder->num_pages * builder->rep_hist_len;
+        thrift_write_field_header(&enc, THRIFT_TYPE_LIST, 6);
+        thrift_write_list_begin(&enc, THRIFT_TYPE_I64, total);
+        for (int32_t i = 0; i < total; i++) {
+            thrift_write_i64(&enc, builder->rep_level_histograms[i]);
+        }
+    }
+
+    /* Field 7: definition_level_histograms (list<i64>) - optional, Parquet 2.9.
+     * Emitted when the column has definition levels (def_hist_len > 1), i.e.
+     * it is nullable or nested; the histogram then encodes the null structure. */
+    if (builder->track_histograms && builder->def_hist_len > 1 &&
+        builder->def_level_histograms) {
+        int32_t total = builder->num_pages * builder->def_hist_len;
+        thrift_write_field_header(&enc, THRIFT_TYPE_LIST, 7);
+        thrift_write_list_begin(&enc, THRIFT_TYPE_I64, total);
+        for (int32_t i = 0; i < total; i++) {
+            thrift_write_i64(&enc, builder->def_level_histograms[i]);
+        }
+    }
+
     thrift_write_struct_end(&enc);
     return CARQUET_OK;
 }
@@ -478,12 +687,14 @@ carquet_status_t carquet_offset_index_serialize(
         thrift_write_struct_end(&enc);
     }
 
-    /* Field 2: uncompressed_page_sizes (list<i32>) - optional */
-    if (builder->track_uncompressed && builder->uncompressed_sizes) {
+    /* Field 2: unencoded_byte_array_data_bytes (list<i64>) - optional,
+     * Parquet 2.9. Per-page total of BYTE_ARRAY value bytes assuming no
+     * encoding (length prefixes excluded). Emitted only for BYTE_ARRAY. */
+    if (builder->track_unencoded && builder->unencoded_bytes) {
         thrift_write_field_header(&enc, THRIFT_TYPE_LIST, 2);
-        thrift_write_list_begin(&enc, THRIFT_TYPE_I32, builder->num_pages);
+        thrift_write_list_begin(&enc, THRIFT_TYPE_I64, builder->num_pages);
         for (int32_t i = 0; i < builder->num_pages; i++) {
-            thrift_write_i32(&enc, builder->uncompressed_sizes[i]);
+            thrift_write_i64(&enc, builder->unencoded_bytes[i]);
         }
     }
 
@@ -529,10 +740,10 @@ carquet_status_t carquet_column_index_page_might_match(
 
     /* If query max < page min, no match */
     if (max_value && builder->min_values[page_idx]) {
-        int cmp = memcmp(max_value, builder->min_values[page_idx],
-                         value_len < builder->min_value_lens[page_idx] ?
-                         value_len : builder->min_value_lens[page_idx]);
-        if (cmp < 0 || (cmp == 0 && value_len < builder->min_value_lens[page_idx])) {
+        int cmp = compare_index_values(
+            builder, max_value, value_len,
+            builder->min_values[page_idx], builder->min_value_lens[page_idx]);
+        if (cmp < 0) {
             *might_match = false;
             return CARQUET_OK;
         }
@@ -540,10 +751,10 @@ carquet_status_t carquet_column_index_page_might_match(
 
     /* If query min > page max, no match */
     if (min_value && builder->max_values[page_idx]) {
-        int cmp = memcmp(min_value, builder->max_values[page_idx],
-                         value_len < builder->max_value_lens[page_idx] ?
-                         value_len : builder->max_value_lens[page_idx]);
-        if (cmp > 0 || (cmp == 0 && value_len > builder->max_value_lens[page_idx])) {
+        int cmp = compare_index_values(
+            builder, min_value, value_len,
+            builder->max_values[page_idx], builder->max_value_lens[page_idx]);
+        if (cmp > 0) {
             *might_match = false;
             return CARQUET_OK;
         }
@@ -563,18 +774,18 @@ carquet_status_t carquet_column_index_page_might_match(
 void carquet_column_index_free(carquet_column_index_t* index) {
     if (!index) return;
     if (index->min_values) {
-        for (int32_t i = 0; i < index->num_min_values; i++) free(index->min_values[i]);
-        free(index->min_values);
+        for (int32_t i = 0; i < index->num_min_values; i++) carquet_mem_free(index->min_values[i]);
+        carquet_mem_free(index->min_values);
     }
     if (index->max_values) {
-        for (int32_t i = 0; i < index->num_max_values; i++) free(index->max_values[i]);
-        free(index->max_values);
+        for (int32_t i = 0; i < index->num_max_values; i++) carquet_mem_free(index->max_values[i]);
+        carquet_mem_free(index->max_values);
     }
-    free(index->min_value_lens);
-    free(index->max_value_lens);
-    free(index->null_counts);
-    free(index->null_pages);
-    free(index);
+    carquet_mem_free(index->min_value_lens);
+    carquet_mem_free(index->max_value_lens);
+    carquet_mem_free(index->null_counts);
+    carquet_mem_free(index->null_pages);
+    carquet_mem_free(index);
 }
 
 /**
@@ -600,7 +811,7 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
     thrift_decoder_t dec;
     thrift_decoder_init(&dec, data, size);
 
-    struct carquet_column_index* ci = calloc(1, sizeof(*ci));
+    struct carquet_column_index* ci = carquet_mem_calloc(1, sizeof(*ci));
     if (!ci) return NULL;
 
     thrift_read_struct_begin(&dec);
@@ -611,12 +822,13 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
     while (thrift_read_field_begin(&dec, &type, &field_id)) {
         switch (field_id) {
             case 1: { /* null_pages: list<bool> */
+                if (ci->null_pages) { carquet_column_index_free(ci); return NULL; }
                 thrift_type_t elem_type;
                 int32_t count;
                 thrift_read_list_begin(&dec, &elem_type, &count);
                 if (count < 0 || count > 1000000) { carquet_column_index_free(ci); return NULL; }
                 ci->num_pages = count;
-                ci->null_pages = calloc(count, sizeof(bool));
+                ci->null_pages = carquet_mem_calloc(count, sizeof(bool));
                 if (!ci->null_pages) { carquet_column_index_free(ci); return NULL; }
                 ci->num_null_pages = count;
                 for (int32_t i = 0; i < count; i++) {
@@ -625,12 +837,13 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
                 break;
             }
             case 2: { /* min_values: list<binary> */
+                if (ci->min_values) { carquet_column_index_free(ci); return NULL; }
                 thrift_type_t elem_type;
                 int32_t count;
                 thrift_read_list_begin(&dec, &elem_type, &count);
                 if (count < 0 || count > 1000000) { carquet_column_index_free(ci); return NULL; }
-                ci->min_values = calloc(count, sizeof(uint8_t*));
-                ci->min_value_lens = calloc(count, sizeof(int32_t));
+                ci->min_values = carquet_mem_calloc(count, sizeof(uint8_t*));
+                ci->min_value_lens = carquet_mem_calloc(count, sizeof(int32_t));
                 if (!ci->min_values || !ci->min_value_lens) {
                     carquet_column_index_free(ci);
                     return NULL;
@@ -640,7 +853,7 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
                     int32_t len;
                     const uint8_t* bin = thrift_read_binary(&dec, &len);
                     if (bin && len > 0) {
-                        ci->min_values[i] = malloc(len);
+                        ci->min_values[i] = carquet_mem_malloc(len);
                         if (!ci->min_values[i]) {
                             carquet_column_index_free(ci);
                             return NULL;
@@ -652,12 +865,13 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
                 break;
             }
             case 3: { /* max_values: list<binary> */
+                if (ci->max_values) { carquet_column_index_free(ci); return NULL; }
                 thrift_type_t elem_type;
                 int32_t count;
                 thrift_read_list_begin(&dec, &elem_type, &count);
                 if (count < 0 || count > 1000000) { carquet_column_index_free(ci); return NULL; }
-                ci->max_values = calloc(count, sizeof(uint8_t*));
-                ci->max_value_lens = calloc(count, sizeof(int32_t));
+                ci->max_values = carquet_mem_calloc(count, sizeof(uint8_t*));
+                ci->max_value_lens = carquet_mem_calloc(count, sizeof(int32_t));
                 if (!ci->max_values || !ci->max_value_lens) {
                     carquet_column_index_free(ci);
                     return NULL;
@@ -667,7 +881,7 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
                     int32_t len;
                     const uint8_t* bin = thrift_read_binary(&dec, &len);
                     if (bin && len > 0) {
-                        ci->max_values[i] = malloc(len);
+                        ci->max_values[i] = carquet_mem_malloc(len);
                         if (!ci->max_values[i]) {
                             carquet_column_index_free(ci);
                             return NULL;
@@ -683,11 +897,12 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
                 break;
             }
             case 5: { /* null_counts: list<i64> */
+                if (ci->null_counts) { carquet_column_index_free(ci); return NULL; }
                 thrift_type_t elem_type;
                 int32_t count;
                 thrift_read_list_begin(&dec, &elem_type, &count);
                 if (count < 0 || count > 1000000) { carquet_column_index_free(ci); return NULL; }
-                ci->null_counts = calloc(count, sizeof(int64_t));
+                ci->null_counts = carquet_mem_calloc(count, sizeof(int64_t));
                 if (!ci->null_counts) { carquet_column_index_free(ci); return NULL; }
                 ci->num_null_counts = count;
                 for (int32_t i = 0; i < count; i++) {
@@ -747,7 +962,7 @@ carquet_offset_index_t* carquet_offset_index_parse(const uint8_t* data, size_t s
     thrift_decoder_t dec;
     thrift_decoder_init(&dec, data, size);
 
-    struct carquet_offset_index* oi = calloc(1, sizeof(*oi));
+    struct carquet_offset_index* oi = carquet_mem_calloc(1, sizeof(*oi));
     if (!oi) return NULL;
 
     thrift_read_struct_begin(&dec);
@@ -758,14 +973,15 @@ carquet_offset_index_t* carquet_offset_index_parse(const uint8_t* data, size_t s
     while (thrift_read_field_begin(&dec, &type, &field_id)) {
         switch (field_id) {
             case 1: { /* page_locations: list<PageLocation> */
+                if (oi->page_locations) { carquet_offset_index_free(oi); return NULL; }
                 thrift_type_t elem_type;
                 int32_t count;
                 thrift_read_list_begin(&dec, &elem_type, &count);
-                if (count < 0 || count > 1000000) { free(oi); return NULL; }
+                if (count < 0 || count > 1000000) { carquet_mem_free(oi); return NULL; }
                 oi->num_pages = count;
-                oi->page_locations = calloc(count, sizeof(carquet_page_location_t));
+                oi->page_locations = carquet_mem_calloc(count, sizeof(carquet_page_location_t));
                 if (!oi->page_locations) {
-                    free(oi);
+                    carquet_mem_free(oi);
                     return NULL;
                 }
                 for (int32_t i = 0; i < count; i++) {
@@ -836,8 +1052,8 @@ carquet_status_t carquet_column_index_get_page_stats(
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
 
-    stats->null_count = (index->null_counts && page_index < index->num_null_counts)
-        ? index->null_counts[page_index] : 0;
+    stats->has_null_count = (index->null_counts && page_index < index->num_null_counts);
+    stats->null_count = stats->has_null_count ? index->null_counts[page_index] : 0;
     stats->min_value = (index->min_values && page_index < index->num_min_values)
         ? index->min_values[page_index] : NULL;
     stats->min_value_size = (index->min_value_lens && page_index < index->num_min_values)
@@ -890,6 +1106,6 @@ carquet_status_t carquet_offset_index_get_page_location(
  */
 void carquet_offset_index_free(carquet_offset_index_t* index) {
     if (!index) return;
-    free(index->page_locations);
-    free(index);
+    carquet_mem_free(index->page_locations);
+    carquet_mem_free(index);
 }

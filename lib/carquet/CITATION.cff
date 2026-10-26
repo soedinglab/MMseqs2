@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "Carquet: a pure C library for reading and writing Apache Parquet files"
+abstract: >-
+  Carquet is a dependency-light, pure C library for reading and writing Apache
+  Parquet files, with SIMD-optimized encoders/decoders for x86 (SSE/AVX2/AVX-512)
+  and ARM (NEON/SVE), zstd/zlib/Snappy/LZ4/Brotli compression, nested data with an
+  Arrow C Data Interface bridge, and parallel column reading and writing.
+type: software
+authors:
+  - given-names: "Johan H. G."
+    family-names: "Natter"
+    email: johan.natter@gmail.com
+    orcid: "https://orcid.org/0000-0002-1479-3692"
+repository-code: "https://github.com/Vitruves/carquet"
+url: "https://github.com/Vitruves/carquet"
+license: MIT
+version: 0.7.2
+date-released: "2026-10-20"
+keywords:
+  - parquet
+  - apache-parquet
+  - columnar
+  - file-format
+  - c
+  - simd
+  - data-engineering

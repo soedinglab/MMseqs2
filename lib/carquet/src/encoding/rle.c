@@ -36,56 +36,61 @@ static int read_varint(const uint8_t* data, size_t size, size_t* pos, uint32_t* 
 }
 
 static bool start_new_run(carquet_rle_decoder_t* dec) {
-    if (dec->pos >= dec->size) {
-        return false;
-    }
-
-    /* Read header */
-    uint32_t header;
-    if (read_varint(dec->data, dec->size, &dec->pos, &header) < 0) {
-        dec->status = CARQUET_ERROR_INVALID_RLE;
-        return false;
-    }
-
-    if ((header & 1) == 0) {
-        /* RLE run */
-        dec->in_rle_run = true;
-        dec->run_remaining = (int64_t)(header >> 1);
-
-        if (dec->run_remaining == 0) {
-            /* Empty run, try next */
-            return start_new_run(dec);
+    /* Loop rather than tail-recurse over empty runs: a hostile page can be a
+     * long run of zero-length-run headers, which would otherwise recurse one
+     * C stack frame per header (only elided under optimization/TCO). */
+    for (;;) {
+        if (dec->pos >= dec->size) {
+            return false;
         }
 
-        /* Read the repeated value (ceil(bit_width/8) bytes) */
-        int value_bytes = (dec->bit_width + 7) / 8;
-        if (dec->pos + (size_t)value_bytes > dec->size) {
+        /* Read header */
+        uint32_t header;
+        if (read_varint(dec->data, dec->size, &dec->pos, &header) < 0) {
             dec->status = CARQUET_ERROR_INVALID_RLE;
             return false;
         }
 
-        dec->rle_value = 0;
-        for (int i = 0; i < value_bytes; i++) {
-            dec->rle_value |= (uint32_t)dec->data[dec->pos++] << (i * 8);
+        if ((header & 1) == 0) {
+            /* RLE run */
+            dec->in_rle_run = true;
+            dec->run_remaining = (int64_t)(header >> 1);
+
+            if (dec->run_remaining == 0) {
+                /* Empty run, try next */
+                continue;
+            }
+
+            /* Read the repeated value (ceil(bit_width/8) bytes) */
+            int value_bytes = (dec->bit_width + 7) / 8;
+            if (dec->pos + (size_t)value_bytes > dec->size) {
+                dec->status = CARQUET_ERROR_INVALID_RLE;
+                return false;
+            }
+
+            dec->rle_value = 0;
+            for (int i = 0; i < value_bytes; i++) {
+                dec->rle_value |= (uint32_t)dec->data[dec->pos++] << (i * 8);
+            }
+            dec->rle_value &= dec->value_mask;
+
+        } else {
+            /* Bit-packed run */
+            dec->in_rle_run = false;
+            int num_groups = (int)(header >> 1);  /* Number of 8-value groups */
+            dec->run_remaining = (int64_t)num_groups * 8;
+
+            if (dec->run_remaining == 0) {
+                continue;
+            }
+
+            /* We'll decode 8 values at a time into the buffer */
+            dec->bitpack_pos = 0;
+            dec->bitpack_count = 0;
         }
-        dec->rle_value &= dec->value_mask;
 
-    } else {
-        /* Bit-packed run */
-        dec->in_rle_run = false;
-        int num_groups = (int)(header >> 1);  /* Number of 8-value groups */
-        dec->run_remaining = (int64_t)num_groups * 8;
-
-        if (dec->run_remaining == 0) {
-            return start_new_run(dec);
-        }
-
-        /* We'll decode 8 values at a time into the buffer */
-        dec->bitpack_pos = 0;
-        dec->bitpack_count = 0;
+        return true;
     }
-
-    return true;
 }
 
 static bool fill_bitpack_buffer(carquet_rle_decoder_t* dec) {
@@ -298,33 +303,60 @@ static inline void write_value_bytes(uint8_t* dst, uint32_t value, int value_byt
 }
 
 static void flush_rle(carquet_rle_encoder_t* enc) {
-    if (enc->repeat_count == 0) return;
+    /* The run header is `count << 1` in a 32-bit varint, so one RLE run holds
+     * at most 2^31 - 1 values; a longer run (int64 repeat_count, reachable via
+     * put_repeat) is emitted as several back-to-back runs. */
+    while (enc->repeat_count > 0) {
+        int64_t run = enc->repeat_count;
+        if (run > 0x7FFFFFFF) run = 0x7FFFFFFF;
 
-    /* Write RLE header + value in a single buffer append where possible */
-    int vb = rle_value_bytes(enc->bit_width);
-    uint8_t buf[9]; /* max 5 (varint) + 4 (value) */
-    int len = 0;
+        /* Write RLE header + value in a single buffer append where possible */
+        int vb = rle_value_bytes(enc->bit_width);
+        uint8_t buf[9]; /* max 5 (varint) + 4 (value) */
+        int len = 0;
 
-    /* Inline varint encoding */
-    uint32_t header = (uint32_t)(enc->repeat_count << 1);
-    while (header >= 0x80) {
-        buf[len++] = (uint8_t)((header & 0x7F) | 0x80);
-        header >>= 7;
+        /* Inline varint encoding */
+        uint32_t header = (uint32_t)run << 1;
+        while (header >= 0x80) {
+            buf[len++] = (uint8_t)((header & 0x7F) | 0x80);
+            header >>= 7;
+        }
+        buf[len++] = (uint8_t)header;
+
+        /* Append value bytes */
+        write_value_bytes(buf + len, enc->prev_value, vb);
+        len += vb;
+
+        carquet_buffer_append(enc->buffer, buf, (size_t)len);
+        enc->repeat_count -= run;
     }
-    buf[len++] = (uint8_t)header;
+}
 
-    /* Append value bytes */
-    write_value_bytes(buf + len, enc->prev_value, vb);
-    len += vb;
+/* Emit the staged complete groups as one bit-packed run. */
+static void emit_staged_groups(carquet_rle_encoder_t* enc) {
+    if (enc->staged_groups == 0) return;
+    write_varint(enc->buffer, (uint32_t)((enc->staged_groups << 1) | 1));
+    carquet_buffer_append(enc->buffer, enc->staged,
+                          (size_t)enc->staged_groups * (size_t)enc->bit_width);
+    enc->staged_groups = 0;
+}
 
-    carquet_buffer_append(enc->buffer, buf, (size_t)len);
-    enc->repeat_count = 0;
+/* Pack the 8 buffered values into the staging area; emit when full. */
+static void stage_full_group(carquet_rle_encoder_t* enc) {
+    carquet_bitpack8_32(enc->bitpack_buffer, enc->bit_width,
+                        enc->staged + (size_t)enc->staged_groups * (size_t)enc->bit_width);
+    enc->staged_groups++;
+    enc->bitpack_count = 0;
+    if (enc->staged_groups == 63) {
+        emit_staged_groups(enc);
+    }
 }
 
 static void flush_bitpack_as_rle(carquet_rle_encoder_t* enc) {
     /* Emit remaining buffered values as individual RLE runs.
-     * Used when we have a partial group (< 8 values) that can't form
-     * a complete bit-packed group per the Parquet spec. */
+     * Used when we have a partial group (< 8 values) in the middle of the
+     * stream (an RLE run follows): a bit-packed group always decodes to 8
+     * values, so it cannot be padded there. */
     int vb = rle_value_bytes(enc->bit_width);
 
     int i = 0;
@@ -353,27 +385,19 @@ static void flush_bitpack_as_rle(carquet_rle_encoder_t* enc) {
     enc->bitpack_total = 0;
 }
 
+/* Flush the bit-packed state: staged complete groups as one run, then any
+ * partial group as RLE runs. The partial group is never zero-padded, even at
+ * the end of the stream: the page writer concatenates one encoded stream per
+ * add_values() call into a single levels block, so every stream must decode
+ * to exactly its own value count. */
 static void flush_bitpack(carquet_rle_encoder_t* enc) {
-    if (enc->bitpack_count == 0) return;
-
-    /* If we have a partial group, emit as RLE runs instead of
-     * padding with zeros (which corrupts the output). */
-    if (enc->bitpack_count < 8) {
+    if (enc->bitpack_count == 8) {
+        stage_full_group(enc);
+    }
+    emit_staged_groups(enc);
+    if (enc->bitpack_count > 0) {
         flush_bitpack_as_rle(enc);
-        return;
     }
-
-    /* Write bit-packed header: (num_groups << 1) | 1 */
-    int num_groups = (int)((enc->bitpack_total + 7) / 8);
-    write_varint(enc->buffer, (uint32_t)((num_groups << 1) | 1));
-
-    /* Write packed data for all groups */
-    uint8_t packed[32];  /* Max for 32-bit values, 8 values */
-    for (int g = 0; g < num_groups; g++) {
-        carquet_bitpack8_32(enc->bitpack_buffer, enc->bit_width, packed);
-        carquet_buffer_append(enc->buffer, packed, (size_t)enc->bit_width);
-    }
-
     enc->bitpack_count = 0;
     enc->bitpack_total = 0;
 }
@@ -421,7 +445,7 @@ carquet_status_t carquet_rle_encoder_put(
             enc->bitpack_total++;
 
             if (enc->bitpack_count == 8) {
-                flush_bitpack(enc);
+                stage_full_group(enc);
             }
         }
         enc->repeat_count = 0;
@@ -475,16 +499,13 @@ carquet_status_t carquet_rle_encoder_flush(carquet_rle_encoder_t* enc) {
             enc->bitpack_total++;
 
             if (enc->bitpack_count == 8) {
-                flush_bitpack(enc);
+                stage_full_group(enc);
             }
         }
         enc->repeat_count = 0;
-
-        /* Flush remaining bit-pack buffer */
-        if (enc->bitpack_count > 0) {
-            flush_bitpack(enc);
-        }
     }
+    /* End of stream: emit staged groups, then the partial tail as RLE runs. */
+    flush_bitpack(enc);
 
     return CARQUET_OK;
 }
@@ -567,6 +588,31 @@ int64_t carquet_rle_decode_levels(
 
             size_t bytes_per_group = (size_t)bit_width;
 
+            /* Fast path: the whole bit-packed run is present in the input
+             * and fits in the output. Bulk-decode through the wide-SIMD
+             * unpacker (carquet_bitunpack_32) instead of one group at a
+             * time. The division form of the bound avoids size_t overflow.
+             * Truncated input or an output cap mid-run (rare) falls through
+             * to the exact per-8 loop below, whose semantics are unchanged. */
+            if (bit_width >= 1 &&
+                (size_t)num_groups <= (input_size - pos) / bytes_per_group &&
+                count + run_length <= max_values) {
+                int64_t done = 0;
+                uint32_t tmp[256];  /* 256 is a multiple of 8 */
+                while (done < run_length) {
+                    int64_t chunk = run_length - done;
+                    if (chunk > 256) chunk = 256;
+                    size_t used = carquet_bitunpack_32(input + pos,
+                                        (size_t)chunk, bit_width, tmp);
+                    pos += used;
+                    for (int64_t k = 0; k < chunk; k++) {
+                        output[count++] = (int16_t)tmp[k];
+                    }
+                    done += chunk;
+                }
+                continue;
+            }
+
             for (int g = 0; g < num_groups && count < max_values; g++) {
                 if (pos + bytes_per_group > input_size) break;
 
@@ -639,15 +685,15 @@ int64_t carquet_rle_decode_to_bitmap(
                 to_fill = max_values - count;
             }
 
-            if (rle_value == 0) {
-                /* Null: set bits in bitmap (convention: bit set = null) */
+            if (rle_value == 1) {
+                /* Present: set bits in bitmap (convention: bit set = present) */
                 for (int64_t i = 0; i < to_fill; i++) {
                     int64_t idx = count + i;
                     bitmap[idx / 8] |= (uint8_t)(1 << (idx % 8));
                 }
-            } else {
-                /* Non-null: bits stay clear (already memset to 0) */
                 nn_count += to_fill;
+            } else {
+                /* Null: bits stay clear (already memset to 0) */
             }
 
             count += to_fill;
@@ -670,10 +716,9 @@ int64_t carquet_rle_decode_to_bitmap(
 
                 for (int64_t i = 0; i < to_store; i++) {
                     uint8_t bit = (packed_byte >> i) & 1;
-                    if (bit == 0) {
-                        /* Null: set bit (convention: bit set = null) */
+                    if (bit == 1) {
+                        /* Present: set bit (convention: bit set = present) */
                         bitmap[(count + i) / 8] |= (uint8_t)(1 << ((count + i) % 8));
-                    } else {
                         nn_count++;
                     }
                 }
@@ -733,9 +778,12 @@ int64_t carquet_rle_decode_levels_prefixed(
         return -1;
     }
 
-    /* Read 4-byte length prefix (little-endian) */
+    /* Read 4-byte length prefix (little-endian). Widen to 64-bit before adding
+     * the 4-byte prefix: `4 + rle_length` in 32-bit wraps when rle_length is
+     * near UINT32_MAX (e.g. 0xFFFFFFFF -> 3), which would pass this check and
+     * hand ~4 GB to the decoder over a tiny buffer. */
     uint32_t rle_length = carquet_read_u32_le(input);
-    if (4 + rle_length > input_size) {
+    if ((uint64_t)rle_length + 4 > (uint64_t)input_size) {
         if (bytes_consumed) *bytes_consumed = 0;
         return -1;
     }

@@ -98,10 +98,17 @@ static void parse_statistics(thrift_decoder_t* dec, carquet_arena_t* arena,
                 stats->distinct_count = thrift_read_i64(dec);
                 break;
             case 5:  /* max_value */
+                /* Presence is recorded from the field itself, independently of
+                 * its length: a zero-length BYTE_ARRAY max (the empty-string
+                 * extreme a foreign writer may emit) is present, not absent.
+                 * arena_bindup_thrift may return NULL for a zero-length value,
+                 * so has_max_value — not the pointer — is the presence signal. */
+                stats->has_max_value = true;
                 stats->max_value = arena_bindup_thrift(arena, dec,
                     &stats->max_value_len);
                 break;
             case 6:  /* min_value */
+                stats->has_min_value = true;
                 stats->min_value = arena_bindup_thrift(arena, dec,
                     &stats->min_value_len);
                 break;
@@ -239,6 +246,63 @@ static void parse_logical_type(thrift_decoder_t* dec, carquet_logical_type_t* lt
                 lt->id = CARQUET_LOGICAL_FLOAT16;
                 thrift_skip(dec, type);
                 break;
+            case 16:  /* VARIANT */
+                lt->id = CARQUET_LOGICAL_VARIANT;
+                lt->params.variant.specification_version = 1;
+                thrift_read_struct_begin(dec);
+                while (thrift_read_field_begin(dec, &type, &field_id)) {
+                    if (field_id == 1) {
+                        lt->params.variant.specification_version = (int8_t)thrift_read_byte(dec);
+                    } else {
+                        thrift_skip(dec, type);
+                    }
+                }
+                thrift_read_struct_end(dec);
+                break;
+            case 17: {  /* GEOMETRY */
+                lt->id = CARQUET_LOGICAL_GEOMETRY;
+                thrift_read_struct_begin(dec);
+                while (thrift_read_field_begin(dec, &type, &field_id)) {
+                    if (field_id == 1) {
+                        int32_t len = 0;
+                        const uint8_t* data = thrift_read_binary(dec, &len);
+                        if (data && len > 0) {
+                            size_t n = (size_t)len < CARQUET_GEOSPATIAL_CRS_MAX - 1
+                                ? (size_t)len : CARQUET_GEOSPATIAL_CRS_MAX - 1;
+                            memcpy(lt->params.geometry.crs, data, n);
+                            lt->params.geometry.crs[n] = '\0';
+                        }
+                    } else {
+                        thrift_skip(dec, type);
+                    }
+                }
+                thrift_read_struct_end(dec);
+                break;
+            }
+            case 18: {  /* GEOGRAPHY */
+                lt->id = CARQUET_LOGICAL_GEOGRAPHY;
+                thrift_read_struct_begin(dec);
+                while (thrift_read_field_begin(dec, &type, &field_id)) {
+                    if (field_id == 1) {
+                        int32_t len = 0;
+                        const uint8_t* data = thrift_read_binary(dec, &len);
+                        if (data && len > 0) {
+                            size_t n = (size_t)len < CARQUET_GEOSPATIAL_CRS_MAX - 1
+                                ? (size_t)len : CARQUET_GEOSPATIAL_CRS_MAX - 1;
+                            memcpy(lt->params.geography.crs, data, n);
+                            lt->params.geography.crs[n] = '\0';
+                        }
+                    } else if (field_id == 2) {
+                        lt->params.geography.algorithm =
+                            (carquet_geospatial_edge_algorithm_t)thrift_read_i32(dec);
+                        lt->params.geography.has_algorithm = true;
+                    } else {
+                        thrift_skip(dec, type);
+                    }
+                }
+                thrift_read_struct_end(dec);
+                break;
+            }
             default:
                 thrift_skip(dec, type);
                 break;
@@ -246,6 +310,93 @@ static void parse_logical_type(thrift_decoder_t* dec, carquet_logical_type_t* lt
     }
 
     thrift_read_struct_end(dec);
+}
+
+static bool logical_type_from_converted_type(
+    carquet_converted_type_t converted_type,
+    int32_t scale,
+    int32_t precision,
+    carquet_logical_type_t* lt) {
+
+    memset(lt, 0, sizeof(*lt));
+
+    switch (converted_type) {
+        case CARQUET_CONVERTED_UTF8:
+            lt->id = CARQUET_LOGICAL_STRING;
+            return true;
+        case CARQUET_CONVERTED_MAP:
+        case CARQUET_CONVERTED_MAP_KEY_VALUE:
+            lt->id = CARQUET_LOGICAL_MAP;
+            return true;
+        case CARQUET_CONVERTED_LIST:
+            lt->id = CARQUET_LOGICAL_LIST;
+            return true;
+        case CARQUET_CONVERTED_ENUM:
+            lt->id = CARQUET_LOGICAL_ENUM;
+            return true;
+        case CARQUET_CONVERTED_DECIMAL:
+            lt->id = CARQUET_LOGICAL_DECIMAL;
+            lt->params.decimal.scale = scale;
+            lt->params.decimal.precision = precision;
+            return true;
+        case CARQUET_CONVERTED_DATE:
+            lt->id = CARQUET_LOGICAL_DATE;
+            return true;
+        case CARQUET_CONVERTED_TIME_MILLIS:
+            lt->id = CARQUET_LOGICAL_TIME;
+            lt->params.time.is_adjusted_to_utc = true;
+            lt->params.time.unit = CARQUET_TIME_UNIT_MILLIS;
+            return true;
+        case CARQUET_CONVERTED_TIME_MICROS:
+            lt->id = CARQUET_LOGICAL_TIME;
+            lt->params.time.is_adjusted_to_utc = true;
+            lt->params.time.unit = CARQUET_TIME_UNIT_MICROS;
+            return true;
+        case CARQUET_CONVERTED_TIMESTAMP_MILLIS:
+            lt->id = CARQUET_LOGICAL_TIMESTAMP;
+            lt->params.timestamp.is_adjusted_to_utc = true;
+            lt->params.timestamp.unit = CARQUET_TIME_UNIT_MILLIS;
+            return true;
+        case CARQUET_CONVERTED_TIMESTAMP_MICROS:
+            lt->id = CARQUET_LOGICAL_TIMESTAMP;
+            lt->params.timestamp.is_adjusted_to_utc = true;
+            lt->params.timestamp.unit = CARQUET_TIME_UNIT_MICROS;
+            return true;
+        case CARQUET_CONVERTED_UINT_8:
+        case CARQUET_CONVERTED_UINT_16:
+        case CARQUET_CONVERTED_UINT_32:
+        case CARQUET_CONVERTED_UINT_64:
+            lt->id = CARQUET_LOGICAL_INTEGER;
+            lt->params.integer.is_signed = false;
+            lt->params.integer.bit_width =
+                (converted_type == CARQUET_CONVERTED_UINT_8) ? 8 :
+                (converted_type == CARQUET_CONVERTED_UINT_16) ? 16 :
+                (converted_type == CARQUET_CONVERTED_UINT_32) ? 32 : 64;
+            return true;
+        case CARQUET_CONVERTED_INT_8:
+        case CARQUET_CONVERTED_INT_16:
+        case CARQUET_CONVERTED_INT_32:
+        case CARQUET_CONVERTED_INT_64:
+            lt->id = CARQUET_LOGICAL_INTEGER;
+            lt->params.integer.is_signed = true;
+            lt->params.integer.bit_width =
+                (converted_type == CARQUET_CONVERTED_INT_8) ? 8 :
+                (converted_type == CARQUET_CONVERTED_INT_16) ? 16 :
+                (converted_type == CARQUET_CONVERTED_INT_32) ? 32 : 64;
+            return true;
+        case CARQUET_CONVERTED_JSON:
+            lt->id = CARQUET_LOGICAL_JSON;
+            return true;
+        case CARQUET_CONVERTED_BSON:
+            lt->id = CARQUET_LOGICAL_BSON;
+            return true;
+        case CARQUET_CONVERTED_INTERVAL:
+            /* INTERVAL is ConvertedType-only (no modern LogicalType). */
+            lt->id = CARQUET_LOGICAL_INTERVAL;
+            return true;
+        default:
+            return false;
+    }
 }
 
 /* ============================================================================
@@ -305,6 +456,11 @@ static void parse_schema_element(thrift_decoder_t* dec, carquet_arena_t* arena,
     }
 
     thrift_read_struct_end(dec);
+
+    if (!elem->has_logical_type && elem->has_converted_type) {
+        elem->has_logical_type = logical_type_from_converted_type(
+            elem->converted_type, elem->scale, elem->precision, &elem->logical_type);
+    }
 }
 
 /* ============================================================================
@@ -429,6 +585,89 @@ static void parse_column_metadata(thrift_decoder_t* dec, carquet_arena_t* arena,
                 meta->has_bloom_filter_length = true;
                 meta->bloom_filter_length = thrift_read_i32(dec);
                 break;
+            case 16: {  /* size_statistics (Parquet 2.9) */
+                meta->has_size_statistics = true;
+                parquet_size_statistics_t* ss = &meta->size_statistics;
+                memset(ss, 0, sizeof(*ss));
+                thrift_read_struct_begin(dec);
+                thrift_type_t st;
+                int16_t sfid;
+                while (thrift_read_field_begin(dec, &st, &sfid)) {
+                    if (sfid == 1) {  /* unencoded_byte_array_data_bytes */
+                        ss->has_unencoded_byte_array_data_bytes = true;
+                        ss->unencoded_byte_array_data_bytes = thrift_read_i64(dec);
+                    } else if (sfid == 2 || sfid == 3) {  /* level histograms */
+                        thrift_type_t et;
+                        int32_t count;
+                        thrift_read_list_begin(dec, &et, &count);
+                        /* Bounded to guard against malformed files; real level
+                         * histograms are tiny (max_level + 1). */
+                        VALIDATE_COUNT(count, CARQUET_MAX_SCHEMA_ELEMENTS, dec);
+                        int64_t* hist = count > 0
+                            ? carquet_arena_calloc(arena, count, sizeof(int64_t))
+                            : NULL;
+                        for (int32_t i = 0; i < count; i++) {
+                            int64_t v = thrift_read_i64(dec);
+                            if (hist) hist[i] = v;
+                        }
+                        if (sfid == 2) {
+                            ss->repetition_level_histogram = hist;
+                            ss->repetition_level_histogram_len = count;
+                        } else {
+                            ss->definition_level_histogram = hist;
+                            ss->definition_level_histogram_len = count;
+                        }
+                    } else {
+                        thrift_skip(dec, st);
+                    }
+                }
+                thrift_read_struct_end(dec);
+                break;
+            }
+            case 17: {  /* geospatial_statistics */
+                meta->has_geospatial_statistics = true;
+                parquet_geospatial_statistics_t* g = &meta->geospatial_statistics;
+                memset(g, 0, sizeof(*g));
+                thrift_read_struct_begin(dec);
+                thrift_type_t gt;
+                int16_t gfid;
+                while (thrift_read_field_begin(dec, &gt, &gfid)) {
+                    if (gfid == 1) {  /* BoundingBox */
+                        thrift_read_struct_begin(dec);
+                        thrift_type_t bt;
+                        int16_t bfid;
+                        while (thrift_read_field_begin(dec, &bt, &bfid)) {
+                            double dv = thrift_read_double(dec);
+                            switch (bfid) {
+                                case 1: g->xmin = dv; g->valid = true; break;
+                                case 2: g->xmax = dv; g->valid = true; break;
+                                case 3: g->ymin = dv; g->valid = true; break;
+                                case 4: g->ymax = dv; g->valid = true; break;
+                                case 5: g->zmin = dv; g->has_z = true; break;
+                                case 6: g->zmax = dv; g->has_z = true; break;
+                                case 7: g->mmin = dv; g->has_m = true; break;
+                                case 8: g->mmax = dv; g->has_m = true; break;
+                                default: break;
+                            }
+                        }
+                        thrift_read_struct_end(dec);
+                    } else if (gfid == 2) {  /* geospatial_types */
+                        thrift_type_t et;
+                        int32_t cnt;
+                        thrift_read_list_begin(dec, &et, &cnt);
+                        for (int32_t i = 0; i < cnt; i++) {
+                            int32_t code = thrift_read_i32(dec);
+                            if (i < CARQUET_GEO_MAX_TYPES) {
+                                g->types[g->num_types++] = code;
+                            }
+                        }
+                    } else {
+                        thrift_skip(dec, gt);
+                    }
+                }
+                thrift_read_struct_end(dec);
+                break;
+            }
             default:
                 thrift_skip(dec, type);
                 break;
@@ -522,9 +761,39 @@ static void parse_row_group(thrift_decoder_t* dec, carquet_arena_t* arena,
             case 3:  /* num_rows */
                 rg->num_rows = thrift_read_i64(dec);
                 break;
-            case 4:  /* sorting_columns */
-                thrift_skip(dec, type);
+            case 4: {  /* sorting_columns */
+                thrift_type_t elem_type;
+                int32_t count;
+                thrift_read_list_begin(dec, &elem_type, &count);
+                VALIDATE_COUNT(count, CARQUET_MAX_COLUMNS_PER_RG, dec);
+                rg->num_sorting_columns = count;
+                rg->sorting_columns = carquet_arena_calloc(arena, count,
+                    sizeof(parquet_sorting_column_t));
+                for (int32_t i = 0; i < count; i++) {
+                    parquet_sorting_column_t* sc = &rg->sorting_columns[i];
+                    thrift_read_struct_begin(dec);
+                    thrift_type_t sc_type;
+                    int16_t sc_field;
+                    while (thrift_read_field_begin(dec, &sc_type, &sc_field)) {
+                        switch (sc_field) {
+                            case 1:
+                                sc->column_idx = thrift_read_i32(dec);
+                                break;
+                            case 2:
+                                sc->descending = thrift_read_bool(dec);
+                                break;
+                            case 3:
+                                sc->nulls_first = thrift_read_bool(dec);
+                                break;
+                            default:
+                                thrift_skip(dec, sc_type);
+                                break;
+                        }
+                    }
+                    thrift_read_struct_end(dec);
+                }
                 break;
+            }
             case 5:  /* file_offset */
                 rg->has_file_offset = true;
                 rg->file_offset = thrift_read_i64(dec);
@@ -638,7 +907,36 @@ carquet_status_t parquet_parse_file_metadata(
             case 6:  /* created_by */
                 metadata->created_by = arena_strdup_thrift(arena, &dec);
                 break;
-            case 7:  /* column_orders */
+            case 7: {  /* column_orders: list<ColumnOrder> (union) */
+                thrift_type_t elem_type;
+                int32_t count;
+                thrift_read_list_begin(&dec, &elem_type, &count);
+                VALIDATE_COUNT_STATUS(count, CARQUET_MAX_COLUMNS_PER_RG, error);
+                metadata->num_column_orders = count;
+                if (count > 0) {
+                    metadata->column_order_types = carquet_arena_alloc(
+                        arena, (size_t)count * sizeof(int16_t));
+                }
+                for (int32_t i = 0; i < count; i++) {
+                    /* Each element is a ColumnOrder union struct: a single
+                     * field header names the set member, then STOP. Record the
+                     * member's field id (1 = TypeDefinedOrder) so the content
+                     * round-trips instead of only the count. */
+                    thrift_read_struct_begin(&dec);
+                    thrift_type_t ft;
+                    int16_t fid;
+                    int16_t tag = 0;
+                    while (thrift_read_field_begin(&dec, &ft, &fid)) {
+                        if (tag == 0) tag = fid;
+                        thrift_skip(&dec, ft);
+                    }
+                    thrift_read_struct_end(&dec);
+                    if (metadata->column_order_types) {
+                        metadata->column_order_types[i] = tag;
+                    }
+                }
+                break;
+            }
             case 8:  /* encryption_algorithm */
             case 9:  /* footer_signing_key_metadata */
                 thrift_skip(&dec, type);
@@ -846,14 +1144,17 @@ void parquet_file_metadata_free(parquet_file_metadata_t* metadata) {
 static void write_statistics(thrift_encoder_t* enc, const parquet_statistics_t* stats) {
     thrift_write_struct_begin(enc);
 
+    /* A zero-length min/max is the empty BYTE_ARRAY, a real bound: the field
+     * is written whenever the caller supplied a value (non-NULL pointer).
+     * Readers take presence from the field, not from its length. */
     /* Field 1: max (deprecated) */
-    if (stats->max_deprecated && stats->max_deprecated_len > 0) {
+    if (stats->max_deprecated && stats->max_deprecated_len >= 0) {
         thrift_write_field_header(enc, THRIFT_TYPE_BINARY, 1);
         thrift_write_binary(enc, stats->max_deprecated, stats->max_deprecated_len);
     }
 
     /* Field 2: min (deprecated) */
-    if (stats->min_deprecated && stats->min_deprecated_len > 0) {
+    if (stats->min_deprecated && stats->min_deprecated_len >= 0) {
         thrift_write_field_header(enc, THRIFT_TYPE_BINARY, 2);
         thrift_write_binary(enc, stats->min_deprecated, stats->min_deprecated_len);
     }
@@ -871,15 +1172,25 @@ static void write_statistics(thrift_encoder_t* enc, const parquet_statistics_t* 
     }
 
     /* Field 5: max_value */
-    if (stats->max_value && stats->max_value_len > 0) {
+    if (stats->max_value && stats->max_value_len >= 0) {
         thrift_write_field_header(enc, THRIFT_TYPE_BINARY, 5);
         thrift_write_binary(enc, stats->max_value, stats->max_value_len);
     }
 
     /* Field 6: min_value */
-    if (stats->min_value && stats->min_value_len > 0) {
+    if (stats->min_value && stats->min_value_len >= 0) {
         thrift_write_field_header(enc, THRIFT_TYPE_BINARY, 6);
         thrift_write_binary(enc, stats->min_value, stats->min_value_len);
+    }
+
+    /* Field 7: is_max_value_exact */
+    if (stats->has_is_max_value_exact) {
+        thrift_write_field_header(enc, stats->is_max_value_exact ? 1 : 2, 7);
+    }
+
+    /* Field 8: is_min_value_exact */
+    if (stats->has_is_min_value_exact) {
+        thrift_write_field_header(enc, stats->is_min_value_exact ? 1 : 2, 8);
     }
 
     thrift_write_struct_end(enc);
@@ -1013,6 +1324,39 @@ static void write_logical_type(thrift_encoder_t* enc, const carquet_logical_type
             thrift_write_struct_end(enc);
             break;
 
+        case CARQUET_LOGICAL_VARIANT:
+            thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 16);
+            thrift_write_struct_begin(enc);
+            thrift_write_field_header(enc, THRIFT_TYPE_BYTE, 1);
+            thrift_write_byte(enc, lt->params.variant.specification_version > 0
+                ? lt->params.variant.specification_version : 1);
+            thrift_write_struct_end(enc);
+            break;
+
+        case CARQUET_LOGICAL_GEOMETRY:
+            thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 17);
+            thrift_write_struct_begin(enc);
+            if (lt->params.geometry.crs[0] != '\0') {
+                thrift_write_field_header(enc, THRIFT_TYPE_BINARY, 1);
+                thrift_write_string(enc, lt->params.geometry.crs);
+            }
+            thrift_write_struct_end(enc);
+            break;
+
+        case CARQUET_LOGICAL_GEOGRAPHY:
+            thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 18);
+            thrift_write_struct_begin(enc);
+            if (lt->params.geography.crs[0] != '\0') {
+                thrift_write_field_header(enc, THRIFT_TYPE_BINARY, 1);
+                thrift_write_string(enc, lt->params.geography.crs);
+            }
+            if (lt->params.geography.has_algorithm) {
+                thrift_write_field_header(enc, THRIFT_TYPE_I32, 2);
+                thrift_write_i32(enc, (int32_t)lt->params.geography.algorithm);
+            }
+            thrift_write_struct_end(enc);
+            break;
+
         default:
             break;
     }
@@ -1020,10 +1364,116 @@ static void write_logical_type(thrift_encoder_t* enc, const carquet_logical_type
     thrift_write_struct_end(enc);
 }
 
+static bool converted_type_from_logical_type(
+    const carquet_logical_type_t* lt,
+    carquet_converted_type_t* converted_type) {
+
+    switch (lt->id) {
+        case CARQUET_LOGICAL_STRING:
+            *converted_type = CARQUET_CONVERTED_UTF8;
+            return true;
+        case CARQUET_LOGICAL_MAP:
+            *converted_type = CARQUET_CONVERTED_MAP;
+            return true;
+        case CARQUET_LOGICAL_LIST:
+            *converted_type = CARQUET_CONVERTED_LIST;
+            return true;
+        case CARQUET_LOGICAL_ENUM:
+            *converted_type = CARQUET_CONVERTED_ENUM;
+            return true;
+        case CARQUET_LOGICAL_DECIMAL:
+            *converted_type = CARQUET_CONVERTED_DECIMAL;
+            return true;
+        case CARQUET_LOGICAL_DATE:
+            *converted_type = CARQUET_CONVERTED_DATE;
+            return true;
+        case CARQUET_LOGICAL_TIME:
+            if (lt->params.time.unit == CARQUET_TIME_UNIT_MILLIS) {
+                *converted_type = CARQUET_CONVERTED_TIME_MILLIS;
+                return true;
+            }
+            if (lt->params.time.unit == CARQUET_TIME_UNIT_MICROS) {
+                *converted_type = CARQUET_CONVERTED_TIME_MICROS;
+                return true;
+            }
+            return false;
+        case CARQUET_LOGICAL_TIMESTAMP:
+            if (lt->params.timestamp.unit == CARQUET_TIME_UNIT_MILLIS) {
+                *converted_type = CARQUET_CONVERTED_TIMESTAMP_MILLIS;
+                return true;
+            }
+            if (lt->params.timestamp.unit == CARQUET_TIME_UNIT_MICROS) {
+                *converted_type = CARQUET_CONVERTED_TIMESTAMP_MICROS;
+                return true;
+            }
+            return false;
+        case CARQUET_LOGICAL_INTEGER:
+            if (lt->params.integer.is_signed) {
+                switch (lt->params.integer.bit_width) {
+                    case 8:  *converted_type = CARQUET_CONVERTED_INT_8; return true;
+                    case 16: *converted_type = CARQUET_CONVERTED_INT_16; return true;
+                    case 32: *converted_type = CARQUET_CONVERTED_INT_32; return true;
+                    case 64: *converted_type = CARQUET_CONVERTED_INT_64; return true;
+                    default: return false;
+                }
+            }
+            switch (lt->params.integer.bit_width) {
+                case 8:  *converted_type = CARQUET_CONVERTED_UINT_8; return true;
+                case 16: *converted_type = CARQUET_CONVERTED_UINT_16; return true;
+                case 32: *converted_type = CARQUET_CONVERTED_UINT_32; return true;
+                case 64: *converted_type = CARQUET_CONVERTED_UINT_64; return true;
+                default: return false;
+            }
+        case CARQUET_LOGICAL_JSON:
+            *converted_type = CARQUET_CONVERTED_JSON;
+            return true;
+        case CARQUET_LOGICAL_BSON:
+            *converted_type = CARQUET_CONVERTED_BSON;
+            return true;
+        case CARQUET_LOGICAL_INTERVAL:
+            /* INTERVAL has no modern LogicalType; emit legacy ConvertedType. */
+            *converted_type = CARQUET_CONVERTED_INTERVAL;
+            return true;
+        default:
+            return false;
+    }
+}
+
+static parquet_schema_element_t schema_element_with_logical_compat(
+    const parquet_schema_element_t* elem) {
+
+    parquet_schema_element_t normalized = *elem;
+
+    if (normalized.has_logical_type) {
+        carquet_converted_type_t converted_type;
+        if (converted_type_from_logical_type(&normalized.logical_type, &converted_type)) {
+            normalized.has_converted_type = true;
+            normalized.converted_type = converted_type;
+        }
+
+        if (normalized.logical_type.id == CARQUET_LOGICAL_DECIMAL) {
+            normalized.scale = normalized.logical_type.params.decimal.scale;
+            normalized.precision = normalized.logical_type.params.decimal.precision;
+        }
+
+        /* INTERVAL is ConvertedType-only: keep ConvertedType=INTERVAL(21) but
+         * suppress the modern LogicalType (no Thrift INTERVAL LogicalType
+         * exists). converted_type was set above. */
+        if (normalized.logical_type.id == CARQUET_LOGICAL_INTERVAL) {
+            normalized.has_logical_type = false;
+        }
+    }
+
+    return normalized;
+}
+
 /**
  * Write schema element to Thrift buffer.
  */
 static void write_schema_element(thrift_encoder_t* enc, const parquet_schema_element_t* elem) {
+    parquet_schema_element_t normalized = schema_element_with_logical_compat(elem);
+    elem = &normalized;
+
     thrift_write_struct_begin(enc);
 
     /* Field 1: type (optional for groups) */
@@ -1163,6 +1613,79 @@ static void write_column_metadata(thrift_encoder_t* enc, const parquet_column_me
         thrift_write_i32(enc, meta->bloom_filter_length);
     }
 
+    /* Field 16: size_statistics (optional, Parquet 2.9) */
+    if (meta->has_size_statistics) {
+        const parquet_size_statistics_t* ss = &meta->size_statistics;
+        thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 16);
+        thrift_write_struct_begin(enc);
+        /* Field 1: unencoded_byte_array_data_bytes (i64) */
+        if (ss->has_unencoded_byte_array_data_bytes) {
+            thrift_write_field_header(enc, THRIFT_TYPE_I64, 1);
+            thrift_write_i64(enc, ss->unencoded_byte_array_data_bytes);
+        }
+        /* Field 2: repetition_level_histogram (list<i64>) */
+        if (ss->repetition_level_histogram &&
+            ss->repetition_level_histogram_len > 0) {
+            thrift_write_field_header(enc, THRIFT_TYPE_LIST, 2);
+            thrift_write_list_begin(enc, THRIFT_TYPE_I64,
+                                    ss->repetition_level_histogram_len);
+            for (int32_t i = 0; i < ss->repetition_level_histogram_len; i++) {
+                thrift_write_i64(enc, ss->repetition_level_histogram[i]);
+            }
+        }
+        /* Field 3: definition_level_histogram (list<i64>) */
+        if (ss->definition_level_histogram &&
+            ss->definition_level_histogram_len > 0) {
+            thrift_write_field_header(enc, THRIFT_TYPE_LIST, 3);
+            thrift_write_list_begin(enc, THRIFT_TYPE_I64,
+                                    ss->definition_level_histogram_len);
+            for (int32_t i = 0; i < ss->definition_level_histogram_len; i++) {
+                thrift_write_i64(enc, ss->definition_level_histogram[i]);
+            }
+        }
+        thrift_write_struct_end(enc);
+    }
+
+    /* Field 17: geospatial_statistics (optional) */
+    if (meta->has_geospatial_statistics) {
+        const parquet_geospatial_statistics_t* g = &meta->geospatial_statistics;
+        thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 17);
+        thrift_write_struct_begin(enc);
+        if (g->valid) {
+            /* Field 1: BoundingBox */
+            thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 1);
+            thrift_write_struct_begin(enc);
+            thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 1);
+            thrift_write_double(enc, g->xmin);
+            thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 2);
+            thrift_write_double(enc, g->xmax);
+            thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 3);
+            thrift_write_double(enc, g->ymin);
+            thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 4);
+            thrift_write_double(enc, g->ymax);
+            if (g->has_z) {
+                thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 5);
+                thrift_write_double(enc, g->zmin);
+                thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 6);
+                thrift_write_double(enc, g->zmax);
+            }
+            if (g->has_m) {
+                thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 7);
+                thrift_write_double(enc, g->mmin);
+                thrift_write_field_header(enc, THRIFT_TYPE_DOUBLE, 8);
+                thrift_write_double(enc, g->mmax);
+            }
+            thrift_write_struct_end(enc);
+        }
+        /* Field 2: geospatial_types (list<i32>) */
+        thrift_write_field_header(enc, THRIFT_TYPE_LIST, 2);
+        thrift_write_list_begin(enc, THRIFT_TYPE_I32, g->num_types);
+        for (int32_t i = 0; i < g->num_types; i++) {
+            thrift_write_i32(enc, g->types[i]);
+        }
+        thrift_write_struct_end(enc);
+    }
+
     thrift_write_struct_end(enc);
 }
 
@@ -1236,6 +1759,24 @@ static void write_row_group(thrift_encoder_t* enc, const parquet_row_group_t* rg
     thrift_write_field_header(enc, THRIFT_TYPE_I64, 3);
     thrift_write_i64(enc, rg->num_rows);
 
+    /* Field 4: sorting_columns (optional) */
+    if (rg->num_sorting_columns > 0 && rg->sorting_columns) {
+        thrift_write_field_header(enc, THRIFT_TYPE_LIST, 4);
+        thrift_write_list_begin(enc, THRIFT_TYPE_STRUCT, rg->num_sorting_columns);
+        for (int32_t i = 0; i < rg->num_sorting_columns; i++) {
+            const parquet_sorting_column_t* sc = &rg->sorting_columns[i];
+            thrift_write_struct_begin(enc);
+            /* Field 1: column_idx (required) */
+            thrift_write_field_header(enc, THRIFT_TYPE_I32, 1);
+            thrift_write_i32(enc, sc->column_idx);
+            /* Field 2: descending (required bool) */
+            thrift_write_field_header(enc, sc->descending ? 1 : 2, 2);
+            /* Field 3: nulls_first (required bool) */
+            thrift_write_field_header(enc, sc->nulls_first ? 1 : 2, 3);
+            thrift_write_struct_end(enc);
+        }
+    }
+
     /* Field 5: file_offset (optional) */
     if (rg->has_file_offset) {
         thrift_write_field_header(enc, THRIFT_TYPE_I64, 5);
@@ -1254,6 +1795,14 @@ static void write_row_group(thrift_encoder_t* enc, const parquet_row_group_t* rg
         thrift_write_i16(enc, rg->ordinal);
     }
 
+    thrift_write_struct_end(enc);
+}
+
+static void write_column_order_type_defined(thrift_encoder_t* enc) {
+    thrift_write_struct_begin(enc);
+    thrift_write_field_header(enc, THRIFT_TYPE_STRUCT, 1);
+    thrift_write_struct_begin(enc);
+    thrift_write_struct_end(enc);
     thrift_write_struct_end(enc);
 }
 
@@ -1314,6 +1863,15 @@ carquet_status_t parquet_write_file_metadata(
     if (metadata->created_by) {
         thrift_write_field_header(&enc, THRIFT_TYPE_BINARY, 6);
         thrift_write_string(&enc, metadata->created_by);
+    }
+
+    /* Field 7: column_orders */
+    if (metadata->num_column_orders > 0) {
+        thrift_write_field_header(&enc, THRIFT_TYPE_LIST, 7);
+        thrift_write_list_begin(&enc, THRIFT_TYPE_STRUCT, metadata->num_column_orders);
+        for (int32_t i = 0; i < metadata->num_column_orders; i++) {
+            write_column_order_type_defined(&enc);
+        }
     }
 
     thrift_write_struct_end(&enc);

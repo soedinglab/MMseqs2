@@ -1,0 +1,154 @@
+name: Release artifacts
+
+# Builds ready-to-use, self-contained static libraries and attaches them to the
+# GitHub Release when a vX.Y.Z tag is pushed. Runs on push/PR CI (cpp.yml) stay
+# the source-build test gate; this workflow only fires on tags (plus a manual
+# dispatch for dry-runs).
+#
+# Each artifact is a single tarball/zip containing:
+#   include/carquet/...        public headers
+#   lib/libcarquet.a           (carquet.lib on Windows) with zstd/zlib/lz4 bundled in
+#   lib/cmake/carquet/...       find_package(carquet) config
+#   README.txt                 how to consume it
+#
+# Design notes:
+#   * CARQUET_BUNDLE_DEPS=ON forces fetch + static-bundle of zstd/zlib/lz4, so the
+#     archive is self-contained (no system deps required on the user's machine).
+#   * Built as RelWithDebInfo, NOT Release: Release hardcodes -flto=auto for
+#     GCC/Clang, which produces LTO-bitcode archives a consumer's linker can't
+#     use. RelWithDebInfo is -O2 with no LTO -> portable, normally-linkable .a/.lib.
+#   * Linux artifacts build on the OLDEST supported runner (ubuntu-22.04) to keep
+#     the glibc floor low; a binary built on a newer glibc won't run on older ones.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:      # manual dry-run: builds + uploads workflow artifacts, no release
+
+permissions:
+  contents: write         # needed to attach files to the GitHub Release
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.plat }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash       # git-bash on Windows -> one script for all platforms
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,          plat: macos-arm64,   ext: tar.gz }
+          - { os: ubuntu-22.04,      plat: linux-x86_64,  ext: tar.gz }
+          - { os: ubuntu-22.04-arm,  plat: linux-arm64,   ext: tar.gz }
+          - { os: windows-latest,    plat: windows-x64,   ext: zip }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version + package name
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="$(grep -m1 -oE 'project\(carquet VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')-dev"
+          fi
+          echo "version=$V"                    >> "$GITHUB_OUTPUT"
+          echo "pkg=carquet-$V-${{ matrix.plat }}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure
+        run: |
+          EXTRA=""
+          if [[ "${{ matrix.plat }}" == macos-* ]]; then
+            EXTRA="-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0"
+          fi
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCARQUET_BUNDLE_DEPS=ON \
+            -DCARQUET_BUILD_SHARED=OFF \
+            -DCARQUET_BUILD_TESTS=ON \
+            -DCARQUET_BUILD_EXAMPLES=OFF \
+            -DCARQUET_BUILD_BENCHMARKS=OFF \
+            -DCARQUET_BUILD_CLI=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/dist/${{ steps.ver.outputs.pkg }}" \
+            $EXTRA
+
+      - name: Build
+        run: cmake --build build --config RelWithDebInfo --parallel
+
+      - name: Test (gate the artifact)
+        run: ctest --test-dir build --build-config RelWithDebInfo --output-on-failure
+
+      - name: Install
+        run: cmake --install build --config RelWithDebInfo
+
+      - name: Prune bundled-dep install noise
+        # FetchContent brings the deps' own install rules along, which dump their
+        # headers, CMake configs, a stray shared zlib, and man/pkgconfig files into
+        # the prefix. carquet exports the bundled static archives itself via
+        # carquetTargets.cmake, so keep only the promised layout.
+        run: |
+          cd "dist/${{ steps.ver.outputs.pkg }}"
+          # headers: keep only include/carquet/
+          find include -maxdepth 1 -type f -delete
+          # cmake configs: keep only carquet's
+          find lib/cmake -mindepth 1 -maxdepth 1 -type d ! -name carquet -exec rm -rf {} +
+          # drop shared libs (this is a static bundle) and misc dep noise
+          find lib -maxdepth 1 -type f \( -name '*.dylib' -o -name '*.so' -o -name '*.so.*' -o -name '*.dll' \) -delete
+          rm -rf lib/pkgconfig share bin
+          echo "final layout:" && find . -type f | sort
+
+      - name: Add consumer README
+        run: |
+          cat > "dist/${{ steps.ver.outputs.pkg }}/README.txt" <<EOF
+          carquet ${{ steps.ver.outputs.version }} — prebuilt static library (${{ matrix.plat }})
+          Self-contained: zstd, zlib and lz4 are statically bundled into the archive.
+          Built without OpenMP for portability (parallel column reading disabled);
+          build from source with OpenMP available if you need it.
+
+          Layout:
+            include/carquet/   public headers
+            lib/               libcarquet.a (carquet.lib on Windows) + bundled deps
+            lib/cmake/carquet/ CMake package config
+
+          Use with CMake:
+            list(APPEND CMAKE_PREFIX_PATH "/path/to/this/dir")
+            find_package(carquet REQUIRED)
+            target_link_libraries(your_app PRIVATE carquet::carquet)
+
+          Use without CMake:
+            cc your.c -I/path/to/this/dir/include -L/path/to/this/dir/lib -lcarquet
+          EOF
+
+      - name: Package
+        id: pkg
+        run: |
+          NAME="${{ steps.ver.outputs.pkg }}"
+          cd dist
+          if [[ "${{ matrix.ext }}" == "zip" ]]; then
+            cmake -E tar cf "../$NAME.zip" --format=zip "$NAME"
+          else
+            cmake -E tar czf "../$NAME.tar.gz" "$NAME"
+          fi
+          echo "file=$NAME.${{ matrix.ext }}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.ver.outputs.pkg }}
+          path: ${{ steps.pkg.outputs.file }}
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pkg.outputs.file }}
+          fail_on_unmatched_files: true

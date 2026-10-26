@@ -14,6 +14,8 @@
 #include <string.h>
 
 extern carquet_bitunpack8_fn carquet_dispatch_get_bitunpack8_fn(int bit_width);
+extern int carquet_dispatch_get_bitunpack_wide(int bit_width,
+                                               carquet_bitunpack8_fn* fn);
 
 /* Read bytes as little-endian integers for bit unpacking */
 static inline uint16_t read_le16(const uint8_t* p) {
@@ -154,6 +156,36 @@ void carquet_bitunpack8_8bit(const uint8_t* input, uint32_t* values) {
  * ============================================================================
  */
 
+/* General unpack of 8 values for bit widths 9-32 (no specialized/SIMD kernel).
+ *
+ * Each of the 8 values starts at bit offset i*bit_width and spans at most
+ * ceil((7 + 32)/8) = 5 bytes, so it can be extracted with a single
+ * little-endian load, a shift and a mask — no per-byte inner loop. For a group
+ * of 8 values the highest byte touched is (8*bit_width - 1)/8 = bit_width - 1,
+ * i.e. strictly inside the bit_width bytes the group occupies, so this reads no
+ * further than the original loop. The 64-bit mask keeps bit_width == 32
+ * well-defined. This branchless form is markedly faster than the old
+ * bit-at-a-time assembly (matters most for dictionary index decode, whose index
+ * width is 9-32 bits for >256-entry dictionaries) and auto-vectorizes cleanly. */
+static void carquet_bitunpack8_general(const uint8_t* input, int bit_width,
+                                       uint32_t* values) {
+    uint64_t mask = (1ULL << bit_width) - 1;
+
+    for (int i = 0; i < 8; i++) {
+        int bit_off = i * bit_width;
+        int byte_off = bit_off >> 3;
+        int shift = bit_off & 7;
+        int nbytes = (shift + bit_width + 7) >> 3;   /* 1..5 */
+
+        uint64_t bits = 0;
+        for (int b = 0; b < nbytes; b++) {
+            bits |= (uint64_t)input[byte_off + b] << (b * 8);
+        }
+
+        values[i] = (uint32_t)((bits >> shift) & mask);
+    }
+}
+
 void carquet_bitunpack8_32(const uint8_t* input, int bit_width, uint32_t* values) {
     if (bit_width == 0) {
         memset(values, 0, 8 * sizeof(uint32_t));
@@ -178,40 +210,7 @@ void carquet_bitunpack8_32(const uint8_t* input, int bit_width, uint32_t* values
         case 8: carquet_bitunpack8_8bit(input, values); return;
     }
 
-    /* General case for 9-32 bits */
-    /* Use 64-bit shift to avoid UB when bit_width=32 */
-    uint32_t mask = (uint32_t)((1ULL << bit_width) - 1);
-    int bit_pos = 0;
-    int byte_pos = 0;
-
-    for (int i = 0; i < 8; i++) {
-        /* Read enough bytes to cover the value */
-        uint64_t bits = 0;
-        int bits_needed = bit_width;
-        int bits_in_buffer = 0;
-
-        while (bits_needed > 0) {
-            int bits_from_byte = 8 - (bit_pos % 8);
-            if (bits_from_byte > bits_needed) {
-                bits_from_byte = bits_needed;
-            }
-
-            uint8_t byte_val = input[byte_pos];
-            int shift_down = bit_pos % 8;
-            uint64_t extracted = (byte_val >> shift_down) & ((1U << bits_from_byte) - 1);
-            bits |= extracted << bits_in_buffer;
-
-            bit_pos += bits_from_byte;
-            bits_in_buffer += bits_from_byte;
-            bits_needed -= bits_from_byte;
-
-            if (bit_pos % 8 == 0) {
-                byte_pos++;
-            }
-        }
-
-        values[i] = (uint32_t)(bits & mask);
-    }
+    carquet_bitunpack8_general(input, bit_width, values);
 }
 
 size_t carquet_bitunpack_32(const uint8_t* input, size_t count,
@@ -224,10 +223,37 @@ size_t carquet_bitunpack_32(const uint8_t* input, size_t count,
     size_t bytes_consumed = 0;
     size_t i = 0;
 
-    /* Process groups of 8 */
-    for (; i + 8 <= count; i += 8) {
-        carquet_bitunpack8_32(input + bytes_consumed, bit_width, values + i);
-        bytes_consumed += bit_width;  /* 8 values * bit_width bits = bit_width bytes */
+    /* Wide SIMD fast path: process wvals (16/32) values per call where a
+     * verified wide kernel exists for this width. wvals is a multiple of 8
+     * and the kernel is identical to wvals/8 scalar group unpacks, so byte
+     * accounting (bit_width bytes per 8 values) is preserved for the loops
+     * below. carquet_packed_size(wvals,bit_width) is exact here because
+     * wvals*bit_width is a multiple of 8. */
+    carquet_bitunpack8_fn wide_fn = NULL;
+    int wvals = carquet_dispatch_get_bitunpack_wide(bit_width, &wide_fn);
+    if (wvals > 0) {
+        size_t wbytes = carquet_packed_size((size_t)wvals, bit_width);
+        for (; i + (size_t)wvals <= count; i += (size_t)wvals) {
+            wide_fn(input + bytes_consumed, values + i);
+            bytes_consumed += wbytes;
+        }
+    }
+
+    /* Process groups of 8. Resolve the per-group kernel ONCE outside the loop
+     * instead of re-running SIMD dispatch on every group: for widths 1-8 that
+     * is the specialized/SIMD function; for 9-32 there is no kernel, so call the
+     * general unpack directly and skip the dispatch entirely. */
+    carquet_bitunpack8_fn fn8 = carquet_get_bitunpack8_fn(bit_width);  /* 1-8 only */
+    if (fn8 != NULL) {
+        for (; i + 8 <= count; i += 8) {
+            fn8(input + bytes_consumed, values + i);
+            bytes_consumed += bit_width;
+        }
+    } else {
+        for (; i + 8 <= count; i += 8) {
+            carquet_bitunpack8_general(input + bytes_consumed, bit_width, values + i);
+            bytes_consumed += bit_width;  /* 8 values * bit_width bits = bit_width bytes */
+        }
     }
 
     /* Handle remaining values (< 8) with a zero-padded buffer to avoid
@@ -265,36 +291,31 @@ void carquet_bitpack8_32(const uint32_t* values, int bit_width, uint8_t* output)
         return;
     }
 
-    /* General packing */
-    memset(output, 0, bit_width);
-
-    /* Use 64-bit shift to avoid UB when bit_width=32 */
-    uint32_t mask = (uint32_t)((1ULL << bit_width) - 1);
-    int bit_pos = 0;
+    /* General packing (1-32 bits, excluding the 8-bit fast path above).
+     *
+     * A group of 8 values spans exactly 8*bit_width bits == bit_width bytes,
+     * always a whole number of bytes. Stream the values through a 64-bit
+     * accumulator, flushing whole bytes as they fill. This is a single pass
+     * with no per-value inner byte loop and no separate output zeroing memset
+     * (each output byte is written exactly once, fully), which the old
+     * bit-at-a-time form required. The 64-bit mask keeps bit_width == 32
+     * well-defined; the accumulator holds at most 7 carried bits + 32 new bits
+     * = 39 bits before each flush, so no overflow. */
+    uint64_t mask = (1ULL << bit_width) - 1;
+    uint64_t acc = 0;
+    int acc_bits = 0;
+    int out_pos = 0;
 
     for (int i = 0; i < 8; i++) {
-        uint32_t val = values[i] & mask;
-        int byte_pos = bit_pos / 8;
-        int bit_offset = bit_pos % 8;
-
-        /* Write value across bytes */
-        output[byte_pos] |= (uint8_t)(val << bit_offset);
-
-        int bits_written = 8 - bit_offset;
-        if (bits_written < bit_width) {
-            val >>= bits_written;
-            byte_pos++;
-
-            while (bits_written < bit_width) {
-                output[byte_pos] |= (uint8_t)val;
-                val >>= 8;
-                bits_written += 8;
-                byte_pos++;
-            }
+        acc |= (uint64_t)(values[i] & mask) << acc_bits;
+        acc_bits += bit_width;
+        while (acc_bits >= 8) {
+            output[out_pos++] = (uint8_t)acc;
+            acc >>= 8;
+            acc_bits -= 8;
         }
-
-        bit_pos += bit_width;
     }
+    /* 8*bit_width is a multiple of 8, so acc_bits == 0 here — nothing left. */
 }
 
 size_t carquet_bitpack_32(const uint32_t* values, size_t count,
@@ -319,7 +340,11 @@ size_t carquet_bitpack_32(const uint32_t* values, size_t count,
             temp[j] = values[i + j];
         }
         size_t remaining_bytes = carquet_packed_size(count - i, bit_width);
-        carquet_bitpack8_32(temp, bit_width, output + bytes_written);
+        /* bitpack8 always emits a full group (bit_width bytes); the caller's
+         * buffer only has room for the bytes the remaining values need. */
+        uint8_t packed_tail[32];
+        carquet_bitpack8_32(temp, bit_width, packed_tail);
+        memcpy(output + bytes_written, packed_tail, remaining_bytes);
         bytes_written += remaining_bytes;
     }
 
@@ -401,6 +426,13 @@ uint32_t carquet_bit_reader_read_bits(carquet_bit_reader_t* reader, int num_bits
     if (reader->buffer_bits < num_bits) {
         refill_buffer(reader);
     }
+    /* Past the end of the data: hand back whatever bits remain (zero-padded)
+     * instead of driving buffer_bits negative, which would make the next
+     * refill shift by a negative count. */
+    if (reader->buffer_bits < num_bits) {
+        num_bits = reader->buffer_bits;
+        if (num_bits == 0) return 0;
+    }
 
     uint32_t result = (uint32_t)(reader->buffer & ((1ULL << num_bits) - 1));
     reader->buffer >>= num_bits;
@@ -468,6 +500,13 @@ void carquet_bit_writer_write_bits(carquet_bit_writer_t* writer,
     if (num_bits == 0) return;
     if (num_bits > 32) num_bits = 32;
 
+    /* Make room first: appending to an accumulator that already holds more
+     * than 32 bits would shift the top of `value` out of the 64-bit word. */
+    if (writer->buffer_bits + num_bits > 64) {
+        flush_buffer(writer);
+        if (writer->buffer_bits + num_bits > 64) return;   /* output full */
+    }
+
     uint32_t mask = num_bits == 32 ? ~0U : (1U << num_bits) - 1;
     writer->buffer |= (uint64_t)(value & mask) << writer->buffer_bits;
     writer->buffer_bits += num_bits;
@@ -506,4 +545,33 @@ void carquet_bit_writer_flush(carquet_bit_writer_t* writer) {
 
 size_t carquet_bit_writer_bytes_written(const carquet_bit_writer_t* writer) {
     return writer->byte_pos;
+}
+
+int carquet_decode_bitpacked_levels(const uint8_t* data, size_t data_size,
+                                    int bit_width, int32_t count,
+                                    int16_t* out, size_t* consumed) {
+    if (!out || count < 0) return -1;
+    if (bit_width == 0) {
+        memset(out, 0, (size_t)count * sizeof(int16_t));
+        if (consumed) *consumed = 0;
+        return 0;
+    }
+    if (bit_width < 0 || bit_width > 16 || !data) return -1;
+
+    size_t needed = ((size_t)count * (size_t)bit_width + 7) / 8;
+    if (needed > data_size) return -1;
+
+    uint64_t bitpos = 0;
+    for (int32_t i = 0; i < count; i++) {
+        uint32_t v = 0;
+        for (int b = 0; b < bit_width; b++) {
+            size_t byte = (size_t)(bitpos >> 3);
+            int shift = 7 - (int)(bitpos & 7);
+            v = (v << 1) | (uint32_t)((data[byte] >> shift) & 1);
+            bitpos++;
+        }
+        out[i] = (int16_t)v;
+    }
+    if (consumed) *consumed = needed;
+    return 0;
 }

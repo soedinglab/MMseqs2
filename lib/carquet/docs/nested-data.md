@@ -97,15 +97,24 @@ Helpers:
 
 ## Writing Repeated Data
 
-There is no high-level "append one list" writer. You write the leaf values plus matching `def_levels` and `rep_levels`.
+For single-level `LIST<T>` and `MAP<K,V>` (schemas built with `add_list()` / `add_map()`), use the high-level helper `carquet_writer_write_list_column()` — it takes Arrow-style `int32` offsets plus optional list/element validity bitmaps and computes the levels for you:
 
-That means:
+```c
+/* [[10, 20], [], NULL, [30]] on the leaf element column. */
+int32_t offsets[]     = {0, 2, 2, 2, 3};
+int32_t values[]      = {10, 20, 30};
+uint8_t list_validity = 0x0B;            /* row 2 (bit 2) is a null list */
+carquet_writer_write_list_column(writer, elem_col, 4, offsets, &list_validity,
+                                 values, /*value_validity=*/NULL, &err);
+```
+
+For a `MAP<K,V>`, call it twice with the same `offsets` and `list_validity` — once for the key leaf and once for the value leaf. It is the write-side inverse of `carquet_row_batch_column_list()`; see [`writing.md`](./writing.md#write-nested-columns-without-computing-levels).
+
+If you need full control (deeper nesting, or a non-standard encoding), write the leaf values plus matching `def_levels` and `rep_levels` yourself:
 
 1. Build the schema with `add_list()` / `add_map()` or explicit groups.
 2. Query max def/rep levels from the schema.
-3. Emit one leaf stream per column with Parquet-correct levels.
-
-If your application already has Arrow-style offsets, convert them to repetition levels first, then call `carquet_writer_write_batch()`.
+3. Emit one leaf stream per column with Parquet-correct levels via `carquet_writer_write_batch()`.
 
 ## Schema Introspection
 
@@ -123,3 +132,28 @@ Use schema introspection when you need to validate generated level streams or ma
 - `carquet_schema_node_type_length()`
 
 This is especially useful for generic readers and schema-driven code generation.
+
+## Arbitrary-Depth Nesting via the Arrow C Data Interface
+
+For deeply nested data — `LIST<LIST<T>>`, `LIST<STRUCT<...>>`, `MAP<K, LIST<V>>`, structs of lists, and any composition — the simplest path is the Arrow C Data Interface bridge, which shreds and reassembles the full tree for you:
+
+- **Write**: `carquet_writer_write_arrow(writer, array, schema, &err)` takes a top-level Arrow struct array (`format = "+s"`) and runs a generic Dremel record-shredder, computing each leaf column's repetition/definition levels and dense values internally. It handles `struct` (`+s`), `list` (`+l`), `large_list` (`+L`) and `map` (`+m`) composed to any depth. Both structs are consumed (Arrow move semantics).
+- **Read**: `carquet_reader_read_arrow(reader, row_group_index, &out_schema, &out_array, &err)` reassembles one row group into the matching nested Arrow struct array. Every buffer is an owned copy released via the standard `release` callback, so the result outlives the reader.
+- **Schema mapping** (`carquet_arrow_import_schema()` / `carquet_arrow_export_schema()`) is recursive: a Parquet 3-level `LIST` ↔ Arrow `List<element>`, a Parquet `MAP` ↔ Arrow `Map<entries: struct<key, value>>`, and a plain group ↔ `Struct`.
+
+To build a nested schema by hand (without going through Arrow), use the composable builders, which return the inner `REPEATED` group so you can attach an arbitrary element/key/value subtree:
+
+- `carquet_schema_add_list_group()` — returns the inner `list` group; add exactly one child (the element), which may itself be a leaf, a struct (`add_group()`), or another list/map.
+- `carquet_schema_add_map_group()` — returns the inner `key_value` group; add a required `key` and a `value`, each of which may be nested.
+
+```c
+/* list<list<int32>> */
+int32_t inner = carquet_schema_add_list_group(schema, "matrix",
+    CARQUET_REPETITION_OPTIONAL, 0);
+int32_t inner2 = carquet_schema_add_list_group(schema, "element",
+    CARQUET_REPETITION_OPTIONAL, inner);
+carquet_schema_add_column(schema, "element", CARQUET_PHYSICAL_INT32, NULL,
+    CARQUET_REPETITION_OPTIONAL, 0, inner2);
+```
+
+The single-level `carquet_writer_write_list_column()` / `carquet_row_batch_column_list()` helpers remain the lightweight path when your data is exactly one level of `LIST`/`MAP`.

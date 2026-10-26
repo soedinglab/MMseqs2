@@ -59,6 +59,32 @@ add_fuzz_target(fuzz_roundtrip fuzz_roundtrip.c)
 # Writer fuzzer tests schema creation and data writing
 add_fuzz_target(fuzz_writer fuzz_writer.c)
 
+# Page-filter fuzzer (v0.6.0): exercises the page-level predicate evaluator,
+# which compares attacker-controlled column-index/offset-index stats against
+# caller predicate values.
+add_fuzz_target(fuzz_page_filter fuzz_page_filter.c)
+
+# Append fuzzer (v0.6.0): exercises carquet_writer_open_append parsing the
+# trailing footer of an untrusted existing file, schema-match validation, and
+# the close-time footer rewrite over restored row-group metadata.
+add_fuzz_target(fuzz_append fuzz_append.c)
+
+# Arrow-schema fuzzer: exercises the FlatBuffer reader that recovers per-field
+# custom_metadata (variable labels) from an untrusted "ARROW:schema" blob.
+add_fuzz_target(fuzz_arrow_schema fuzz_arrow_schema.c)
+
+# Arrow C Data Interface fuzzer: exercises the format-string parser reached via
+# carquet_arrow_import_schema with attacker-controlled Arrow `format` strings.
+add_fuzz_target(fuzz_arrow_c_data fuzz_arrow_c_data.c)
+
+# Nested write fuzzer: drives carquet_writer_write_list_column (auto-shredding)
+# with arbitrary offsets/validity/child values over LIST and MAP schemas.
+add_fuzz_target(fuzz_nested_write fuzz_nested_write.c)
+
+# Nested Arrow reassembler fuzzer: reads arbitrary bytes as a Parquet file and
+# reassembles each row group into a nested ArrowArray via carquet_reader_read_arrow.
+add_fuzz_target(fuzz_arrow_read fuzz_arrow_read.c)
+
 # Create corpus directories
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_reader)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_compression)
@@ -66,3 +92,6 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_encodings)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_thrift)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_roundtrip)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_writer)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_page_filter)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_append)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_arrow_c_data)

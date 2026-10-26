@@ -7,6 +7,7 @@
  * caching efficiently.
  */
 
+#include "core/allocator.h"
 #include <carquet/carquet.h>
 #include "reader_internal.h"
 #include "../core/endian.h"
@@ -30,7 +31,7 @@
 #ifdef _WIN32
 
 carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error) {
-    carquet_mmap_info_t* mmap_info = calloc(1, sizeof(carquet_mmap_info_t));
+    carquet_mmap_info_t* mmap_info = carquet_mem_calloc(1, sizeof(carquet_mmap_info_t));
     if (!mmap_info) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY, "Failed to allocate mmap info");
         return NULL;
@@ -47,7 +48,7 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
         NULL);
 
     if (mmap_info->file_handle == INVALID_HANDLE_VALUE) {
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_OPEN, "Failed to open file for mmap");
         return NULL;
     }
@@ -56,7 +57,7 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
     LARGE_INTEGER file_size;
     if (!GetFileSizeEx(mmap_info->file_handle, &file_size)) {
         CloseHandle(mmap_info->file_handle);
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to get file size");
         return NULL;
     }
@@ -72,7 +73,7 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
 
     if (!mmap_info->mapping_handle) {
         CloseHandle(mmap_info->file_handle);
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to create file mapping");
         return NULL;
     }
@@ -86,7 +87,7 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
     if (!mmap_info->data) {
         CloseHandle(mmap_info->mapping_handle);
         CloseHandle(mmap_info->file_handle);
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to map file view");
         return NULL;
     }
@@ -108,13 +109,13 @@ void carquet_mmap_close(carquet_mmap_info_t* mmap_info) {
         CloseHandle(mmap_info->file_handle);
     }
     mmap_info->is_valid = false;
-    free(mmap_info);
+    carquet_mem_free(mmap_info);
 }
 
 #else /* POSIX */
 
 carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error) {
-    carquet_mmap_info_t* mmap_info = calloc(1, sizeof(carquet_mmap_info_t));
+    carquet_mmap_info_t* mmap_info = carquet_mem_calloc(1, sizeof(carquet_mmap_info_t));
     if (!mmap_info) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY, "Failed to allocate mmap info");
         return NULL;
@@ -123,7 +124,7 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
     /* Open file */
     mmap_info->fd = open(path, O_RDONLY);
     if (mmap_info->fd < 0) {
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_OPEN, "Failed to open file for mmap: %s", path);
         return NULL;
     }
@@ -132,17 +133,20 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
     struct stat st;
     if (fstat(mmap_info->fd, &st) < 0) {
         close(mmap_info->fd);
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to stat file");
         return NULL;
     }
     mmap_info->size = (size_t)st.st_size;
 
     /* Memory map the file */
-    mmap_info->data = mmap(NULL, mmap_info->size, PROT_READ, MAP_PRIVATE, mmap_info->fd, 0);
+    /* Read-only, so MAP_SHARED and MAP_PRIVATE see the same bytes; a private
+     * mapping additionally sets up copy-on-write shadow state that costs
+     * noticeable time at mmap/munmap for a large file. */
+    mmap_info->data = mmap(NULL, mmap_info->size, PROT_READ, MAP_SHARED, mmap_info->fd, 0);
     if (mmap_info->data == MAP_FAILED) {
         close(mmap_info->fd);
-        free(mmap_info);
+        carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to mmap file");
         return NULL;
     }
@@ -165,7 +169,7 @@ void carquet_mmap_close(carquet_mmap_info_t* mmap_info) {
         close(mmap_info->fd);
     }
     mmap_info->is_valid = false;
-    free(mmap_info);
+    carquet_mem_free(mmap_info);
 }
 
 #endif
@@ -271,7 +275,7 @@ carquet_reader_t* carquet_reader_open_buffer(
         return NULL;
     }
 
-    carquet_reader_t* reader = calloc(1, sizeof(carquet_reader_t));
+    carquet_reader_t* reader = carquet_mem_calloc(1, sizeof(carquet_reader_t));
     if (!reader) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY, "Failed to allocate reader");
         return NULL;
@@ -289,7 +293,7 @@ carquet_reader_t* carquet_reader_open_buffer(
 
     /* Initialize arena */
     if (carquet_arena_init(&reader->arena) != CARQUET_OK) {
-        free(reader);
+        carquet_mem_free(reader);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY, "Failed to initialize arena");
         return NULL;
     }
@@ -298,7 +302,7 @@ carquet_reader_t* carquet_reader_open_buffer(
     /* Minimum size check */
     if (size < 12) {  /* 4 (magic) + 4 (footer size) + 4 (magic) */
         carquet_arena_destroy(&reader->arena);
-        free(reader);
+        carquet_mem_free(reader);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_FOOTER, "Buffer too small");
         return NULL;
     }
@@ -306,15 +310,23 @@ carquet_reader_t* carquet_reader_open_buffer(
     /* Check magic bytes */
     if (memcmp(buffer, "PAR1", 4) != 0) {
         carquet_arena_destroy(&reader->arena);
-        free(reader);
+        carquet_mem_free(reader);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_MAGIC, "Invalid header magic");
         return NULL;
     }
 
     const uint8_t* end = (const uint8_t*)buffer + size;
     if (memcmp(end - 4, "PAR1", 4) != 0) {
+        bool encrypted = memcmp(end - 4, "PARE", 4) == 0;
         carquet_arena_destroy(&reader->arena);
-        free(reader);
+        carquet_mem_free(reader);
+        if (encrypted) {
+            /* Parquet modular encryption: say so instead of "corrupt". */
+            CARQUET_SET_ERROR(error, CARQUET_ERROR_NOT_IMPLEMENTED,
+                "File uses Parquet modular encryption (encrypted footer, magic "
+                "\"PARE\"), which carquet does not support");
+            return NULL;
+        }
         CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_MAGIC, "Invalid footer magic");
         return NULL;
     }
@@ -323,7 +335,7 @@ carquet_reader_t* carquet_reader_open_buffer(
     uint32_t footer_size = carquet_read_u32_le(end - 8);
     if (footer_size > size - 8) {
         carquet_arena_destroy(&reader->arena);
-        free(reader);
+        carquet_mem_free(reader);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_FOOTER, "Footer size too large");
         return NULL;
     }
@@ -335,7 +347,7 @@ carquet_reader_t* carquet_reader_open_buffer(
 
     if (status != CARQUET_OK) {
         carquet_arena_destroy(&reader->arena);
-        free(reader);
+        carquet_mem_free(reader);
         return NULL;
     }
 
@@ -343,7 +355,7 @@ carquet_reader_t* carquet_reader_open_buffer(
     reader->schema = build_schema(&reader->arena, &reader->metadata, error);
     if (!reader->schema) {
         carquet_arena_destroy(&reader->arena);
-        free(reader);
+        carquet_mem_free(reader);
         return NULL;
     }
 

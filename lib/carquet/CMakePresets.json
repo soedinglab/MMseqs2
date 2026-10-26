@@ -1,0 +1,56 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "dev",
+            "displayName": "Dev (Debug, all targets, compile_commands.json)",
+            "description": "Debug build with tests, fuzz, and benchmarks enabled. Emits a complete build/compile_commands.json for clangd/IDE IntelliSense.",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CARQUET_BUILD_TESTS": "ON",
+                "CARQUET_BUILD_FUZZ": "ON",
+                "CARQUET_BUILD_BENCHMARKS": "ON",
+                "CARQUET_BUILD_EXAMPLES": "ON"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release (optimized library)",
+            "description": "Optimized Release build of the library and examples.",
+            "binaryDir": "${sourceDir}/build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CARQUET_BUILD_TESTS": "OFF",
+                "CARQUET_BUILD_FUZZ": "OFF",
+                "CARQUET_BUILD_BENCHMARKS": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

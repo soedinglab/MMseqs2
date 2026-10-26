@@ -11,6 +11,16 @@
 #include "encoding/plain.h"
 #include "encoding/rle.h"
 #include "core/buffer.h"
+#include <carquet/error.h>
+#include <stdint.h>
+
+/* Generic (FIXED_LEN_BYTE_ARRAY) BYTE_STREAM_SPLIT — no public header. */
+extern carquet_status_t carquet_byte_stream_split_encode(
+    const uint8_t* values, int64_t count, int32_t type_length,
+    uint8_t* output, size_t output_capacity, size_t* bytes_written);
+extern carquet_status_t carquet_byte_stream_split_decode(
+    const uint8_t* data, size_t data_size, int32_t type_length,
+    uint8_t* values, int64_t count);
 
 #define TEST_PASS(name) printf("[PASS] %s\n", name)
 #define TEST_FAIL(name, msg) do { printf("[FAIL] %s: %s\n", name, msg); return 1; } while(0)
@@ -125,6 +135,60 @@ static int test_plain_boolean_large(void) {
 
     carquet_buffer_destroy(&buf);
     TEST_PASS("plain_boolean_large");
+    return 0;
+}
+
+static int test_plain_boolean_append(void) {
+    /* A bit stream built in several appends must be byte-identical to the same
+     * values packed in one go, wherever the cuts fall -- including cuts that
+     * leave the stream mid-byte and appends that add nothing. The reference is
+     * packed by hand here: value i is bit (i % 8) of byte (i / 8). */
+    uint8_t input[73];
+    for (int i = 0; i < 73; i++) {
+        input[i] = (uint8_t)((((i * 5) + 3) % 3) == 0);
+    }
+
+    for (int n = 0; n <= 73; n++) {
+        uint8_t expect[10] = {0};
+        size_t expect_size = ((size_t)n + 7) / 8;
+        for (int i = 0; i < n; i++) {
+            if (input[i]) expect[i / 8] |= (uint8_t)(1u << (i % 8));
+        }
+
+        /* Two appends, cut at every position. */
+        for (int k = 0; k <= n; k++) {
+            carquet_buffer_t buf;
+            carquet_buffer_init(&buf);
+            assert(carquet_encode_plain_boolean_append(input, k, 0, &buf) == CARQUET_OK);
+            assert(carquet_encode_plain_boolean_append(input + k, n - k, k, &buf) == CARQUET_OK);
+            assert(carquet_buffer_size(&buf) == expect_size);
+            assert(n == 0 || memcmp(carquet_buffer_data_const(&buf), expect, expect_size) == 0);
+            carquet_buffer_destroy(&buf);
+        }
+
+        /* One value per append. */
+        carquet_buffer_t buf;
+        carquet_buffer_init(&buf);
+        for (int i = 0; i < n; i++) {
+            assert(carquet_encode_plain_boolean_append(input + i, 1, i, &buf) == CARQUET_OK);
+        }
+        assert(carquet_buffer_size(&buf) == expect_size);
+        assert(n == 0 || memcmp(carquet_buffer_data_const(&buf), expect, expect_size) == 0);
+        carquet_buffer_destroy(&buf);
+    }
+
+    /* A stream that claims to be mid-byte must have that byte. */
+    carquet_buffer_t empty;
+    carquet_buffer_init(&empty);
+    assert(carquet_encode_plain_boolean_append(input, 4, 3, &empty) == CARQUET_ERROR_INVALID_ARGUMENT);
+    assert(carquet_buffer_size(&empty) == 0);
+
+    /* Encoding no values is not an error: an all-null batch does exactly that. */
+    assert(carquet_encode_plain_boolean(input, 0, &empty) == CARQUET_OK);
+    assert(carquet_buffer_size(&empty) == 0);
+    carquet_buffer_destroy(&empty);
+
+    TEST_PASS("plain_boolean_append");
     return 0;
 }
 
@@ -290,6 +354,74 @@ static int test_rle_levels(void) {
  * ============================================================================
  */
 
+/* ============================================================================
+ * BYTE_STREAM_SPLIT FLBA alignment regression
+ * ============================================================================
+ * The type_length 4/8 fast paths reinterpret the value buffer as a float or
+ * double pointer. For FIXED_LEN_BYTE_ARRAY the buffer carries no such alignment
+ * guarantee, so the generic transpose must be used when the pointer is
+ * unaligned. This test drives both an aligned and a deliberately misaligned
+ * buffer and asserts they produce byte-identical, correct results (and do not
+ * fault under UBSan).
+ */
+static int test_bss_flba_misaligned(void) {
+    for (int32_t type_length = 4; type_length <= 8; type_length += 4) {
+        const int64_t count = 17;  /* odd count, not a SIMD multiple */
+        const size_t nbytes = (size_t)count * (size_t)type_length;
+
+        /* Separate backing arrays so the aligned and misaligned inputs never
+         * alias. Each holds the same logical bytes, one at a naturally aligned
+         * base and one at a guaranteed-misaligned (+1) base. */
+        uint8_t in_a_backing[8 * 17 + 16];
+        uint8_t in_m_backing[8 * 17 + 16];
+        uint8_t out_a_backing[8 * 17 + 16];
+        uint8_t out_m_backing[8 * 17 + 16];
+
+        uint8_t* in_aligned = in_a_backing;
+        while (((uintptr_t)in_aligned & 7u) != 0) in_aligned++;
+        uint8_t* in_mis = in_m_backing;
+        while (((uintptr_t)in_mis & 7u) != 0) in_mis++;
+        in_mis += 1;  /* now not 4/8-aligned */
+
+        for (size_t i = 0; i < nbytes; i++) {
+            uint8_t v = (uint8_t)(i * 31u + 7u);
+            in_aligned[i] = v;
+            in_mis[i] = v;
+        }
+
+        uint8_t enc_aligned[8 * 17];
+        uint8_t enc_mis[8 * 17];
+        size_t w1 = 0, w2 = 0;
+
+        assert(carquet_byte_stream_split_encode(
+            in_aligned, count, type_length, enc_aligned, sizeof(enc_aligned), &w1) == CARQUET_OK);
+        assert(carquet_byte_stream_split_encode(
+            in_mis, count, type_length, enc_mis, sizeof(enc_mis), &w2) == CARQUET_OK);
+        /* The aligned fast path and the misaligned generic transpose must
+         * produce identical, canonical BYTE_STREAM_SPLIT output. */
+        assert(w1 == nbytes && w2 == nbytes);
+        assert(memcmp(enc_aligned, enc_mis, nbytes) == 0);
+
+        /* Decode back into an aligned and a misaligned buffer; both must
+         * reconstruct the original exactly. */
+        uint8_t* dec_aligned = out_a_backing;
+        while (((uintptr_t)dec_aligned & 7u) != 0) dec_aligned++;
+        uint8_t* dec_mis = out_m_backing;
+        while (((uintptr_t)dec_mis & 7u) != 0) dec_mis++;
+        dec_mis += 1;
+
+        assert(carquet_byte_stream_split_decode(
+            enc_aligned, nbytes, type_length, dec_aligned, count) == CARQUET_OK);
+        assert(carquet_byte_stream_split_decode(
+            enc_mis, nbytes, type_length, dec_mis, count) == CARQUET_OK);
+        assert(memcmp(dec_aligned, in_aligned, nbytes) == 0);
+        assert(memcmp(dec_mis, in_mis, nbytes) == 0);
+    }
+
+    TEST_PASS("bss_flba_misaligned");
+    return 0;
+}
+
 int main(void) {
     int failures = 0;
 
@@ -300,6 +432,7 @@ int main(void) {
     failures += test_plain_int64();
     failures += test_plain_boolean();
     failures += test_plain_boolean_large();
+    failures += test_plain_boolean_append();
     failures += test_plain_double();
 
     /* RLE encoding tests */
@@ -307,6 +440,9 @@ int main(void) {
     failures += test_rle_alternating();
     failures += test_rle_decoder_skip();
     failures += test_rle_levels();
+
+    /* BYTE_STREAM_SPLIT FLBA alignment regression */
+    failures += test_bss_flba_misaligned();
 
     printf("\n");
     if (failures == 0) {

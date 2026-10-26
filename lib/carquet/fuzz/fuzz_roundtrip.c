@@ -6,8 +6,10 @@
  *   - Delta INT32/INT64
  *   - LZ4, Snappy, GZIP, ZSTD compression
  *   - Byte stream split FLOAT/DOUBLE
+ *   - Generic byte stream split INT32/INT64/FIXED_LEN_BYTE_ARRAY payloads
  *   - RLE encode/decode
  *   - Dictionary encode/decode (INT32)
+ *   - Delta Length Byte Array / Delta Byte Array
  *   - Plain encode/decode (INT32)
  */
 
@@ -78,6 +80,12 @@ carquet_status_t carquet_byte_stream_split_encode_double(
     uint8_t* output, size_t output_capacity, size_t* bytes_written);
 carquet_status_t carquet_byte_stream_split_decode_double(
     const uint8_t* data, size_t data_size, double* values, int64_t count);
+carquet_status_t carquet_byte_stream_split_encode(
+    const uint8_t* values, int64_t count, int32_t type_length,
+    uint8_t* output, size_t output_capacity, size_t* bytes_written);
+carquet_status_t carquet_byte_stream_split_decode(
+    const uint8_t* data, size_t data_size, int32_t type_length,
+    uint8_t* values, int64_t count);
 
 /* Dictionary encoding */
 carquet_status_t carquet_dictionary_encode_int32(
@@ -87,6 +95,21 @@ carquet_status_t carquet_dictionary_decode_int32(
     const uint8_t* dict_data, size_t dict_size, int32_t dict_count,
     const uint8_t* indices_data, size_t indices_size,
     int32_t* output, int64_t output_count);
+
+/* Byte array encodings */
+carquet_status_t carquet_delta_length_encode(
+    const carquet_byte_array_t* values, int32_t num_values,
+    carquet_buffer_t* output);
+carquet_status_t carquet_delta_length_decode(
+    const uint8_t* data, size_t data_size,
+    carquet_byte_array_t* values, int32_t num_values, size_t* bytes_consumed);
+carquet_status_t carquet_delta_strings_encode(
+    const carquet_byte_array_t* values, int32_t num_values,
+    carquet_buffer_t* output);
+carquet_status_t carquet_delta_strings_decode(
+    const uint8_t* data, size_t data_size,
+    carquet_byte_array_t* values, int32_t num_values,
+    uint8_t* work_buffer, size_t work_buffer_size, size_t* bytes_consumed);
 
 /* ── Roundtrip helpers ────────────────────────────────────────────────── */
 
@@ -222,6 +245,34 @@ static void fuzz_bss_double_roundtrip(const uint8_t* data, size_t size) {
     free(input);
 }
 
+static void fuzz_bss_generic_roundtrip(const uint8_t* data, size_t size, int32_t type_len) {
+    if (type_len <= 0 || size < (size_t)type_len || size > 80000) return;
+    int64_t count = (int64_t)(size / (size_t)type_len);
+    if (count < 1 || count > 10000) return;
+    size_t bytes = (size_t)count * (size_t)type_len;
+
+    uint8_t* encoded = malloc(bytes);
+    uint8_t* decoded = malloc(bytes);
+    if (!encoded || !decoded) {
+        free(encoded);
+        free(decoded);
+        return;
+    }
+
+    size_t written = 0;
+    if (carquet_byte_stream_split_encode(
+            data, count, type_len, encoded, bytes, &written) == CARQUET_OK &&
+        written == bytes &&
+        carquet_byte_stream_split_decode(
+            encoded, bytes, type_len, decoded, count) == CARQUET_OK &&
+        memcmp(data, decoded, bytes) != 0) {
+        __builtin_trap();
+    }
+
+    free(encoded);
+    free(decoded);
+}
+
 static void fuzz_rle_roundtrip(const uint8_t* data, size_t size) {
     if (size < 4 || size > 4000) return;
     int64_t count = (int64_t)(size / 4);
@@ -339,6 +390,113 @@ static void fuzz_plain_int32_roundtrip(const uint8_t* data, size_t size) {
     free(input);
 }
 
+static int32_t build_byte_arrays(
+    const uint8_t* data,
+    size_t size,
+    carquet_byte_array_t** arrays_out,
+    uint8_t** storage_out,
+    bool shared_prefixes) {
+
+    if (size < 2) return 0;
+    int32_t count = (int32_t)((data[0] % 32) + 1);
+    uint8_t* storage = malloc((size_t)count * 40);
+    carquet_byte_array_t* arrays = calloc((size_t)count, sizeof(carquet_byte_array_t));
+    if (!storage || !arrays) {
+        free(storage);
+        free(arrays);
+        return 0;
+    }
+
+    size_t pos = 1;
+    for (int32_t i = 0; i < count; i++) {
+        uint8_t* dst = storage + (size_t)i * 40;
+        int32_t len = (int32_t)((pos < size ? data[pos++] : (uint8_t)i) % 24);
+        if (shared_prefixes) {
+            static const char prefix[] = "shared/prefix/";
+            size_t prefix_len = sizeof(prefix) - 1;
+            memcpy(dst, prefix, prefix_len);
+            int32_t suffix_len = len > 8 ? 8 : len;
+            for (int32_t j = 0; j < suffix_len; j++) {
+                dst[prefix_len + j] = (uint8_t)((pos < size ? data[pos++] : (uint8_t)(i + j)) % 26 + 'a');
+            }
+            arrays[i].length = (int32_t)prefix_len + suffix_len;
+        } else {
+            for (int32_t j = 0; j < len; j++) {
+                dst[j] = (uint8_t)(pos < size ? data[pos++] : (uint8_t)(i + j));
+            }
+            arrays[i].length = len;
+        }
+        arrays[i].data = dst;
+    }
+
+    *arrays_out = arrays;
+    *storage_out = storage;
+    return count;
+}
+
+static void fuzz_delta_length_ba_roundtrip(const uint8_t* data, size_t size) {
+    carquet_byte_array_t* input = NULL;
+    uint8_t* storage = NULL;
+    int32_t count = build_byte_arrays(data, size, &input, &storage, false);
+    if (count <= 0) return;
+
+    carquet_buffer_t buf;
+    carquet_buffer_init(&buf);
+    if (carquet_delta_length_encode(input, count, &buf) == CARQUET_OK && buf.size > 0) {
+        carquet_byte_array_t* decoded = calloc((size_t)count, sizeof(carquet_byte_array_t));
+        if (decoded) {
+            size_t consumed = 0;
+            if (carquet_delta_length_decode(
+                    buf.data, buf.size, decoded, count, &consumed) == CARQUET_OK) {
+                for (int32_t i = 0; i < count; i++) {
+                    if (decoded[i].length != input[i].length ||
+                        memcmp(decoded[i].data, input[i].data, (size_t)input[i].length) != 0) {
+                        __builtin_trap();
+                    }
+                }
+            }
+            free(decoded);
+        }
+    }
+    carquet_buffer_destroy(&buf);
+    free(input);
+    free(storage);
+}
+
+static void fuzz_delta_byte_array_roundtrip(const uint8_t* data, size_t size) {
+    carquet_byte_array_t* input = NULL;
+    uint8_t* storage = NULL;
+    int32_t count = build_byte_arrays(data, size, &input, &storage, true);
+    if (count <= 0) return;
+
+    carquet_buffer_t buf;
+    carquet_buffer_init(&buf);
+    if (carquet_delta_strings_encode(input, count, &buf) == CARQUET_OK && buf.size > 0) {
+        carquet_byte_array_t* decoded = calloc((size_t)count, sizeof(carquet_byte_array_t));
+        size_t work_size = 0;
+        for (int32_t i = 0; i < count; i++) work_size += (size_t)input[i].length;
+        uint8_t* work = malloc(work_size ? work_size : 1);
+        if (decoded && work) {
+            size_t consumed = 0;
+            if (carquet_delta_strings_decode(
+                    buf.data, buf.size, decoded, count,
+                    work, work_size ? work_size : 1, &consumed) == CARQUET_OK) {
+                for (int32_t i = 0; i < count; i++) {
+                    if (decoded[i].length != input[i].length ||
+                        memcmp(decoded[i].data, input[i].data, (size_t)input[i].length) != 0) {
+                        __builtin_trap();
+                    }
+                }
+            }
+        }
+        free(decoded);
+        free(work);
+    }
+    carquet_buffer_destroy(&buf);
+    free(input);
+    free(storage);
+}
+
 static void fuzz_gzip_roundtrip(const uint8_t* data, size_t size) {
     if (size < 1 || size > 100000) return;
     size_t comp_cap = carquet_gzip_compress_bound(size);
@@ -383,7 +541,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 2) return 0;
     (void)carquet_init();
 
-    uint8_t mode = data[0] % 11;
+    uint8_t mode = data[0] % 16;
     const uint8_t* payload = data + 1;
     size_t payload_size = size - 1;
 
@@ -399,6 +557,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         case 8:  fuzz_plain_int32_roundtrip(payload, payload_size); break;
         case 9:  fuzz_gzip_roundtrip(payload, payload_size); break;
         case 10: fuzz_zstd_roundtrip(payload, payload_size); break;
+        case 11: fuzz_bss_generic_roundtrip(payload, payload_size, 4); break;
+        case 12: fuzz_bss_generic_roundtrip(payload, payload_size, 8); break;
+        case 13: fuzz_bss_generic_roundtrip(payload, payload_size, 6); break;
+        case 14: fuzz_delta_length_ba_roundtrip(payload, payload_size); break;
+        case 15: fuzz_delta_byte_array_roundtrip(payload, payload_size); break;
     }
     return 0;
 }

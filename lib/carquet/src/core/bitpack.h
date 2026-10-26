@@ -328,6 +328,24 @@ void carquet_bit_writer_flush(carquet_bit_writer_t* writer);
  */
 size_t carquet_bit_writer_bytes_written(const carquet_bit_writer_t* writer);
 
+/**
+ * Decode the deprecated BIT_PACKED encoding (Parquet Encoding=4) used for
+ * definition/repetition levels in legacy Data Page V1. Values are packed
+ * MSB-first with no run headers and no length prefix; the byte length is
+ * implied by ceil(count * bit_width / 8).
+ *
+ * @param data        Packed input.
+ * @param data_size   Bytes available in @p data.
+ * @param bit_width   Bits per value (0..16); 0 emits all-zero levels.
+ * @param count       Number of level values to decode.
+ * @param out         Output buffer for @p count int16 levels.
+ * @param consumed    Set to the number of input bytes consumed.
+ * @return 0 on success, -1 on bad arguments / truncated input.
+ */
+int carquet_decode_bitpacked_levels(const uint8_t* data, size_t data_size,
+                                    int bit_width, int32_t count,
+                                    int16_t* out, size_t* consumed);
+
 #ifdef __cplusplus
 }
 #endif

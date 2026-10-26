@@ -108,6 +108,242 @@ def detect_libraries():
     return libs
 
 
+# ── Value comparison (shared by PyArrow and DuckDB verifiers) ─────────────────
+
+_EPOCH_DATE = datetime.date(1970, 1, 1)
+_EPOCH_DT = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
+
+def _to_days(v):
+    """Normalize a date/datetime to days since the Unix epoch."""
+    if isinstance(v, datetime.datetime):
+        v = v.date()
+    if isinstance(v, datetime.date):
+        return (v - _EPOCH_DATE).days
+    return v
+
+
+def _to_micros(v):
+    """Normalize a datetime to microseconds since the Unix epoch (UTC)."""
+    if isinstance(v, datetime.datetime):
+        dt = v if v.tzinfo is not None else v.replace(tzinfo=datetime.timezone.utc)
+        return round((dt - _EPOCH_DT).total_seconds() * 1_000_000)
+    return v
+
+
+def _to_uuid_hex(v):
+    """Normalize bytes / uuid.UUID / str to lowercase dashless hex."""
+    if isinstance(v, bytes):
+        return v.hex()
+    return str(v).replace("-", "").lower()
+
+
+def compare_first_values(col_name, actual, exp, col_type, errors):
+    """Compare the first values of a column against expected, by logical type."""
+    if col_type == "float":
+        for i, (a, b) in enumerate(zip(actual, exp)):
+            if a is None and b is None:
+                continue
+            if a is None or b is None or abs(a - b) > 1e-4:
+                errors.append(f"{col_name}[{i}]: {a} != {b}")
+                break
+    elif col_type == "double":
+        for i, (a, b) in enumerate(zip(actual, exp)):
+            if a is None and b is None:
+                continue
+            if a is None or b is None or abs(a - b) > 1e-10:
+                errors.append(f"{col_name}[{i}]: {a} != {b}")
+                break
+    elif col_type == "string":
+        decoded = [
+            s.decode("utf-8") if isinstance(s, bytes) else s for s in actual
+        ]
+        if decoded != exp:
+            errors.append(f"{col_name}: {decoded} != {exp}")
+    elif col_type == "date":
+        norm = [None if a is None else _to_days(a) for a in actual]
+        if norm != exp:
+            errors.append(f"{col_name}: {norm} != {exp}")
+    elif col_type == "timestamp_us":
+        norm = [None if a is None else _to_micros(a) for a in actual]
+        if norm != exp:
+            errors.append(f"{col_name}: {norm} != {exp}")
+    elif col_type == "decimal":
+        norm = [None if a is None else str(a) for a in actual]
+        if norm != exp:
+            errors.append(f"{col_name}: {norm} != {exp}")
+    elif col_type == "uuid":
+        norm = [None if a is None else _to_uuid_hex(a) for a in actual]
+        if norm != exp:
+            errors.append(f"{col_name}: {norm} != {exp}")
+    else:
+        if actual != exp:
+            errors.append(f"{col_name}: {actual} != {exp}")
+
+
+# ── Decode oracle: carquet vs PyArrow on the same file ───────────────────────
+#
+# carquet decodes a file (via `test_interop --json`) and PyArrow decodes the
+# same file; we cross-check row counts and the first values of each column.
+# PyArrow values are normalized to carquet's *physical* representation; column
+# types we can't map unambiguously are skipped rather than failed, so the check
+# never produces false positives on features outside the comparable set.
+
+CORPUS_REL = Path("fuzz") / "external" / "parquet-testing"
+_SKIP = object()  # sentinel: this column/value is not oracle-comparable
+
+
+def find_corpus(project_dir):
+    """Return the parquet-testing corpus dir if it has been fetched, else None."""
+    d = project_dir / CORPUS_REL
+    return d if (d / "data").is_dir() else None
+
+
+def carquet_json(test_interop_bin, path):
+    """Decode a file with carquet. Returns (summary_dict_or_None, crashed)."""
+    try:
+        proc = subprocess.run(
+            [str(test_interop_bin), "--json", str(path)],
+            capture_output=True, text=True, timeout=60
+        )
+    except subprocess.TimeoutExpired:
+        return None, True
+    if proc.returncode < 0:          # killed by a signal == crash
+        return None, True
+    try:
+        obj = json.loads(proc.stdout.strip().splitlines()[-1])
+    except (json.JSONDecodeError, IndexError):
+        return None, False
+    return (obj if obj.get("ok") else None), False
+
+
+def _pa_normalize(col_type, value):
+    """Map a PyArrow value to carquet's physical representation, or _SKIP."""
+    import pyarrow as pa
+    if value is None:
+        return None
+    if pa.types.is_boolean(col_type):
+        return bool(value)
+    if pa.types.is_integer(col_type):
+        return int(value)
+    if pa.types.is_floating(col_type):
+        f = float(value)
+        # carquet emits null for NaN/Inf; not meaningfully comparable.
+        return _SKIP if (f != f or f in (float("inf"), float("-inf"))) else f
+    if pa.types.is_string(col_type) or pa.types.is_large_string(col_type):
+        return value.encode("utf-8").hex()
+    if pa.types.is_binary(col_type) or pa.types.is_large_binary(col_type):
+        return value.hex()
+    if pa.types.is_date32(col_type):
+        return (value - _EPOCH_DATE).days
+    return _SKIP
+
+
+def pyarrow_summary(path, first_n=5):
+    """Decode with PyArrow. Returns dict {num_rows, columns, nested} or None.
+
+    `nested` flags a schema with list/struct/map columns: carquet exposes leaf
+    columns while PyArrow exposes top-level fields, so the two column models
+    don't line up and the file is not oracle-comparable (it's skipped, not
+    failed) — flat-file value comparison is where decode bugs actually surface.
+    """
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        table = pq.read_table(path)
+    except Exception:
+        return None
+    nested = any(pa.types.is_nested(f.type) for f in table.schema)
+    cols = []
+    for field in table.schema:
+        try:
+            raw = table.column(field.name).to_pylist()[:first_n]
+            first = [_pa_normalize(field.type, v) for v in raw]
+        except Exception:
+            first = [_SKIP]
+        cols.append({"name": field.name, "first": first})
+    return {"num_rows": table.num_rows, "columns": cols, "nested": nested}
+
+
+def compare_decode(cq, pa_sum):
+    """Compare a carquet summary against a PyArrow summary. Returns error list."""
+    errors = []
+    if cq["num_rows"] != pa_sum["num_rows"]:
+        errors.append(f"rows {cq['num_rows']} != {pa_sum['num_rows']}")
+    cq_cols = cq.get("columns", [])
+    pa_cols = pa_sum["columns"]
+    if len(cq_cols) != len(pa_cols):
+        errors.append(f"columns {len(cq_cols)} != {len(pa_cols)}")
+        return errors
+    for cc, pc in zip(cq_cols, pa_cols):
+        for i, (a, b) in enumerate(zip(cc.get("first", []), pc["first"])):
+            if b is _SKIP or a == "<bin>":
+                continue
+            if a is None and b is None:
+                continue
+            if a is None or b is None:
+                errors.append(f"{cc['name']}[{i}]: {a} != {b}")
+                break
+            if isinstance(b, float):
+                if not isinstance(a, (int, float)) or abs(a - b) > 1e-6 * (1 + abs(b)):
+                    errors.append(f"{cc['name']}[{i}]: {a} != {b}")
+                    break
+            elif a != b:
+                errors.append(f"{cc['name']}[{i}]: {a} != {b}")
+                break
+    return errors
+
+
+def run_corpus_tests(test_interop_bin, corpus_dir, verbose):
+    """Read the Apache parquet-testing corpus. data/ files are oracle-checked
+    against PyArrow; bad_data/ files must be rejected without crashing."""
+    results = {"data": {"checked": 0, "passed": 0, "skipped": 0, "failed": 0},
+               "bad": {"checked": 0, "passed": 0, "failed": 0}}
+
+    data_dir = corpus_dir / "data"
+    files = sorted(p for p in data_dir.rglob("*.parquet"))
+    for p in files:
+        results["data"]["checked"] += 1
+        cq, crashed = carquet_json(test_interop_bin, p)
+        if crashed:
+            results["data"]["failed"] += 1
+            print(f"  {RED}CRASH{RST} {p.name}")
+            continue
+        pa_sum = pyarrow_summary(p)
+        if cq is None or pa_sum is None:
+            # One side can't read it (unsupported feature / encrypted / nested).
+            results["data"]["skipped"] += 1
+            if verbose:
+                who = "carquet" if cq is None else "pyarrow"
+                print(f"    {DIM}skip {p.name} ({who} cannot read){RST}")
+            continue
+        if pa_sum["nested"] or len(cq.get("columns", [])) != len(pa_sum["columns"]):
+            # Nested / non-aligned column models: not oracle-comparable.
+            results["data"]["skipped"] += 1
+            if verbose:
+                print(f"    {DIM}skip {p.name} (nested / column model differs){RST}")
+            continue
+        errs = compare_decode(cq, pa_sum)
+        if errs:
+            results["data"]["failed"] += 1
+            print(f"  {RED}FAIL{RST} {p.name}: {errs[0]}")
+        else:
+            results["data"]["passed"] += 1
+
+    bad_dir = corpus_dir / "bad_data"
+    if bad_dir.is_dir():
+        for p in sorted(bad_dir.rglob("*.parquet")):
+            results["bad"]["checked"] += 1
+            _, crashed = carquet_json(test_interop_bin, p)
+            if crashed:
+                results["bad"]["failed"] += 1
+                print(f"  {RED}CRASH on malformed{RST} {p.name}")
+            else:
+                results["bad"]["passed"] += 1
+
+    return results
+
+
 # ── Read tests: Carquet reads files from other libraries ─────────────────────
 
 def run_generate(script_dir, output_dir, verbose):
@@ -205,8 +441,11 @@ def verify_pyarrow(path, expected, file_info):
     except Exception as e:
         return [f"Failed to read: {e}"]
 
-    if table.num_rows != expected["num_rows"]:
-        errors.append(f"Row count: {table.num_rows} != {expected['num_rows']}")
+    # Per-file num_rows / verification override the global manifest values
+    # (the append file carries doubled totals, for example).
+    exp_rows = file_info.get("num_rows", expected["num_rows"])
+    if table.num_rows != exp_rows:
+        errors.append(f"Row count: {table.num_rows} != {exp_rows}")
 
     cols = file_info["columns"]
 
@@ -216,36 +455,12 @@ def verify_pyarrow(path, expected, file_info):
             actual = table.column(col_name).to_pylist()[:5]
             exp = col_info["first"]
             col_type = col_info.get("type", "")
-
-            if col_type == "float":
-                for i, (a, b) in enumerate(zip(actual, exp)):
-                    if a is None and b is None:
-                        continue
-                    if a is None or b is None or abs(a - b) > 1e-4:
-                        errors.append(f"{col_name}[{i}]: {a} != {b}")
-                        break
-            elif col_type == "double":
-                for i, (a, b) in enumerate(zip(actual, exp)):
-                    if a is None and b is None:
-                        continue
-                    if a is None or b is None or abs(a - b) > 1e-10:
-                        errors.append(f"{col_name}[{i}]: {a} != {b}")
-                        break
-            elif col_type == "string":
-                decoded = [
-                    s.decode("utf-8") if isinstance(s, bytes) else s
-                    for s in actual
-                ]
-                if decoded != exp:
-                    errors.append(f"{col_name}: {decoded} != {exp}")
-            else:
-                if actual != exp:
-                    errors.append(f"{col_name}: {actual} != {exp}")
+            compare_first_values(col_name, actual, exp, col_type, errors)
         except Exception as e:
             errors.append(f"{col_name}: {e}")
 
     # Verify null counts
-    verification = expected.get("verification", {})
+    verification = file_info.get("verification", expected.get("verification", {}))
     for key in ["null_count_string_col", "null_count_nullable_int"]:
         if key not in verification:
             continue
@@ -267,6 +482,20 @@ def verify_pyarrow(path, expected, file_info):
                 errors.append(f"int32 sum: {actual_sum} != {verification['int32_sum']}")
         except Exception:
             pass
+
+    # Verify Arrow per-field custom_metadata (variable labels) recovered from
+    # the ARROW:schema footer blob.
+    for fname, want in file_info.get("field_metadata", {}).items():
+        try:
+            field = table.schema.field(fname)
+        except Exception as e:
+            errors.append(f"field_metadata {fname}: field missing ({e})")
+            continue
+        md = {k.decode(): v.decode() for k, v in (field.metadata or {}).items()}
+        for k, v in want.items():
+            if md.get(k) != v:
+                errors.append(
+                    f"field_metadata {fname}[{k}]: {md.get(k)!r} != {v!r}")
 
     return errors
 
@@ -291,8 +520,9 @@ def verify_duckdb(path, expected, file_info):
         if conn is not None:
             conn.close()
 
-    if len(rows) != expected["num_rows"]:
-        errors.append(f"Row count: {len(rows)} != {expected['num_rows']}")
+    exp_rows = file_info.get("num_rows", expected["num_rows"])
+    if len(rows) != exp_rows:
+        errors.append(f"Row count: {len(rows)} != {exp_rows}")
 
     cols = file_info["columns"]
 
@@ -303,35 +533,11 @@ def verify_duckdb(path, expected, file_info):
             actual = [row[idx] for row in rows[:5]]
             exp = col_info["first"]
             col_type = col_info.get("type", "")
-
-            if col_type == "float":
-                for i, (a, b) in enumerate(zip(actual, exp)):
-                    if a is None and b is None:
-                        continue
-                    if a is None or b is None or abs(a - b) > 1e-4:
-                        errors.append(f"{col_name}[{i}]: {a} != {b}")
-                        break
-            elif col_type == "double":
-                for i, (a, b) in enumerate(zip(actual, exp)):
-                    if a is None and b is None:
-                        continue
-                    if a is None or b is None or abs(a - b) > 1e-10:
-                        errors.append(f"{col_name}[{i}]: {a} != {b}")
-                        break
-            elif col_type == "string":
-                decoded = [
-                    s.decode("utf-8") if isinstance(s, bytes) else s
-                    for s in actual
-                ]
-                if decoded != exp:
-                    errors.append(f"{col_name}: {decoded} != {exp}")
-            else:
-                if actual != exp:
-                    errors.append(f"{col_name}: {actual} != {exp}")
+            compare_first_values(col_name, actual, exp, col_type, errors)
         except Exception as e:
             errors.append(f"{col_name}: {e}")
 
-    verification = expected.get("verification", {})
+    verification = file_info.get("verification", expected.get("verification", {}))
     for key in ["null_count_string_col", "null_count_nullable_int"]:
         if key not in verification:
             continue
@@ -365,6 +571,113 @@ def verify_duckdb(path, expected, file_info):
     return errors
 
 
+# ── Nested write verification (carquet → other libs read nested) ─────────────
+#
+# The nested fixture (LIST + STRUCT) has a fixed expected structure; the column
+# model is nested rather than flat, so it gets a dedicated verifier instead of
+# the column-by-column "first values" path.
+
+_NESTED_ID = [1, 2, 3, 4]
+_NESTED_TAGS = [[100, 200], None, [300], [400, 500, 600]]
+_NESTED_INFO = [{"name": "a", "age": 10}, {"name": "b", "age": 20},
+                {"name": "c", "age": 30}, {"name": "d", "age": 40}]
+
+
+def _norm_struct(v):
+    """Normalize a struct value (dict / pyarrow scalar) for comparison."""
+    if isinstance(v, dict):
+        name = v.get("name")
+        if isinstance(name, bytes):
+            name = name.decode("utf-8")
+        return {"name": name, "age": v.get("age")}
+    return v
+
+
+_NESTED_DEEP_MATRIX = [[[1, 2], [3]], [], [[4]]]  # list<list<int32>>
+
+
+def verify_nested_pyarrow(path):
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        t = pq.read_table(path)
+    except ImportError:
+        return ["pyarrow not available"]
+    except Exception as e:
+        return [f"Failed to read: {e}"]
+    errors = []
+    # Deep-nested file (list<list<int32>>) written via carquet_writer_write_arrow.
+    if "matrix" in t.schema.names:
+        try:
+            got = t.column("matrix").to_pylist()
+            if got != _NESTED_DEEP_MATRIX:
+                errors.append(f"matrix {got} != {_NESTED_DEEP_MATRIX}")
+            mt = t.schema.field("matrix").type
+            if not (pa.types.is_list(mt) and pa.types.is_list(mt.value_type)):
+                errors.append(f"matrix not list<list>: {mt}")
+        except Exception as e:
+            errors.append(str(e))
+        return errors
+    try:
+        if t.column("id").to_pylist() != _NESTED_ID:
+            errors.append("id mismatch")
+        if t.column("tags").to_pylist() != _NESTED_TAGS:
+            errors.append(f"tags {t.column('tags').to_pylist()} != {_NESTED_TAGS}")
+        info = [_norm_struct(v) for v in t.column("info").to_pylist()]
+        if info != _NESTED_INFO:
+            errors.append(f"info {info} != {_NESTED_INFO}")
+        # carquet now emits ARROW:schema for nested schemas: the raw footer must
+        # carry the blob (PyArrow consumes it into schema types, so check the
+        # raw file metadata) and PyArrow must read the correct nested types.
+        raw_meta = pq.read_metadata(path).metadata or {}
+        if b"ARROW:schema" not in raw_meta:
+            errors.append("ARROW:schema blob missing for nested file")
+        import pyarrow as pa
+        if not pa.types.is_list(t.schema.field("tags").type):
+            errors.append(f"tags not list: {t.schema.field('tags').type}")
+        if not pa.types.is_struct(t.schema.field("info").type):
+            errors.append(f"info not struct: {t.schema.field('info').type}")
+    except Exception as e:
+        errors.append(str(e))
+    return errors
+
+
+def verify_nested_duckdb(path):
+    try:
+        import duckdb
+    except ImportError:
+        return ["duckdb not available"]
+    conn = None
+    try:
+        conn = duckdb.connect()
+        cols = [d[0] for d in conn.execute(
+            "SELECT * FROM read_parquet(?) LIMIT 0", [path]).description]
+        if "matrix" in cols:
+            rows = conn.execute(
+                "SELECT matrix FROM read_parquet(?)", [path]).fetchall()
+            got = [r[0] for r in rows]
+            if got != _NESTED_DEEP_MATRIX:
+                return [f"matrix {got} != {_NESTED_DEEP_MATRIX}"]
+            return []
+        rows = conn.execute(
+            "SELECT id, tags, info FROM read_parquet(?) ORDER BY id", [path]
+        ).fetchall()
+    except Exception as e:
+        return [f"Failed to read: {e}"]
+    finally:
+        if conn is not None:
+            conn.close()
+    errors = []
+    if [r[0] for r in rows] != _NESTED_ID:
+        errors.append("id mismatch")
+    if [r[1] for r in rows] != _NESTED_TAGS:
+        errors.append(f"tags {[r[1] for r in rows]} != {_NESTED_TAGS}")
+    info = [_norm_struct(r[2]) for r in rows]
+    if info != _NESTED_INFO:
+        errors.append(f"info {info} != {_NESTED_INFO}")
+    return errors
+
+
 def run_write_tests(roundtrip_bin, verbose):
     """Run roundtrip tests: carquet writes, other libraries verify."""
     results = []
@@ -390,8 +703,11 @@ def run_write_tests(roundtrip_bin, verbose):
                 "duckdb": None,
             }
 
+            is_nested = file_info.get("nested", False)
+
             # PyArrow verification
-            pa_errors = verify_pyarrow(path, expected, file_info)
+            pa_errors = (verify_nested_pyarrow(path) if is_nested
+                         else verify_pyarrow(path, expected, file_info))
             if pa_errors and pa_errors != ["pyarrow not available"]:
                 entry["pyarrow"] = "FAIL"
                 pa_status = f"{RED}FAIL{RST}"
@@ -405,8 +721,14 @@ def run_write_tests(roundtrip_bin, verbose):
                 entry["pyarrow"] = "PASS"
                 pa_status = f"{GRN}OK{RST}"
 
-            # DuckDB verification
-            db_errors = verify_duckdb(path, expected, file_info)
+            # DuckDB verification. DuckDB does not support the deprecated
+            # Hadoop-framed LZ4 (Parquet codec 5); PyArrow does, which is the
+            # interop proof for that wire format.
+            if compression == "lz4":
+                db_errors = ["duckdb not available"]  # treated as SKIP below
+            else:
+                db_errors = (verify_nested_duckdb(path) if is_nested
+                             else verify_duckdb(path, expected, file_info))
             if db_errors and db_errors != ["duckdb not available"]:
                 entry["duckdb"] = "FAIL"
                 db_status = f"{RED}FAIL{RST}"
@@ -539,6 +861,11 @@ def main():
     sys_info = get_system_info()
     carquet_ver = get_carquet_version(str(build_dir))
 
+    # The full read suite cross-checks against the Apache parquet-testing
+    # corpus; without it we run a degraded suite over the synthetic files only.
+    corpus_dir = find_corpus(project_dir)
+    have_pa = "pyarrow" in libs
+
     # ── Header ──
     print()
     print(f"  {BOLD}Carquet {carquet_ver} Interoperability Tests{RST}")
@@ -549,11 +876,23 @@ def main():
                 if k in ("pyarrow", "duckdb", "fastparquet")]
     if lib_strs:
         print(f"  {DIM}Libs:{RST} {', '.join(lib_strs)}")
+    if need_read:
+        if corpus_dir and have_pa:
+            n = sum(1 for _ in (corpus_dir / "data").rglob("*.parquet"))
+            print(f"  {DIM}Mode:{RST} {GRN}full{RST} "
+                  f"{DIM}(Apache parquet-testing corpus: {n} files){RST}")
+        else:
+            reason = "corpus not fetched" if not corpus_dir else "pyarrow missing"
+            print(f"  {DIM}Mode:{RST} {YLW}degraded{RST} {DIM}({reason}){RST}")
+            if not corpus_dir:
+                print(f"  {YLW}Run {BOLD}fuzz/fetch_corpus.sh{RST}{YLW} for the "
+                      f"full interop suite (real-world Parquet files).{RST}")
     print(f"  {_bar()}")
     print()
 
     read_results = None
     write_results = None
+    corpus_results = None
     has_failures = False
 
     # ── Read phase ──
@@ -585,6 +924,27 @@ def main():
 
         print()
 
+        # ── Corpus phase (full mode only) ──
+        if corpus_dir and have_pa:
+            print(f"  {BOLD}Phase 1b: Corpus{RST} "
+                  f"{DIM}(Apache parquet-testing, oracle = PyArrow){RST}")
+            print(f"  {_bar(width=42)}")
+            corpus_results = run_corpus_tests(test_interop_bin, corpus_dir,
+                                              args.verbose)
+            if (corpus_results["data"]["failed"] > 0 or
+                    corpus_results["bad"]["failed"] > 0):
+                has_failures = True
+            d = corpus_results["data"]
+            b = corpus_results["bad"]
+            print(f"  data: {GRN}{d['passed']} ok{RST}, "
+                  f"{DIM}{d['skipped']} skipped{RST}"
+                  + (f", {RED}{d['failed']} failed{RST}" if d['failed'] else "")
+                  + f"  ({d['checked']} files)")
+            print(f"  bad_data: {GRN}{b['passed']} rejected cleanly{RST}"
+                  + (f", {RED}{b['failed']} crashed{RST}" if b['failed'] else "")
+                  + f"  ({b['checked']} files)")
+            print()
+
     # ── Write phase ──
     if need_write:
         phase_num = "2" if need_read else "1"
@@ -611,6 +971,14 @@ def main():
     if read_results:
         print_read_summary(read_results)
 
+    if corpus_results is not None:
+        d = corpus_results["data"]
+        b = corpus_results["bad"]
+        color = RED if (d["failed"] or b["failed"]) else GRN
+        print(f"  {BOLD}Corpus:{RST} {color}{d['passed']} verified{RST}, "
+              f"{d['skipped']} skipped, {d['failed']} failed; "
+              f"{b['passed']}/{b['checked']} malformed handled")
+
     if write_results is not None:
         print_write_summary(write_results)
     elif need_write:
@@ -636,6 +1004,8 @@ def main():
             "passed": read_results["passed"],
             "failed": read_results["failed"],
         }
+    if corpus_results is not None:
+        report["corpus"] = corpus_results
     if write_results is not None:
         report["write"] = [
             {

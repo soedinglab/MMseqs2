@@ -7,10 +7,10 @@
  * - Byte stream split/merge (for BYTE_STREAM_SPLIT encoding)
  * - Delta decoding (prefix sums)
  * - Dictionary gather operations
- * - CRC32C computation
  */
 
 #include <carquet/error.h>
+#include "simd/simd_unaligned.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -576,28 +576,28 @@ void carquet_sse_gather_i32(const int32_t* dict, const uint32_t* indices,
         __builtin_prefetch(dict + indices[i + 6], 0, 0);
 
         /* First 4 values */
-        int32_t v0 = dict[indices[i + 0]];
-        int32_t v1 = dict[indices[i + 1]];
-        int32_t v2 = dict[indices[i + 2]];
-        int32_t v3 = dict[indices[i + 3]];
+        int32_t v0 = cq_loadu(dict + (indices[i + 0]));
+        int32_t v1 = cq_loadu(dict + (indices[i + 1]));
+        int32_t v2 = cq_loadu(dict + (indices[i + 2]));
+        int32_t v3 = cq_loadu(dict + (indices[i + 3]));
         __m128i result0 = _mm_set_epi32(v3, v2, v1, v0);
         _mm_storeu_si128((__m128i*)(output + i), result0);
 
         /* Second 4 values */
-        int32_t v4 = dict[indices[i + 4]];
-        int32_t v5 = dict[indices[i + 5]];
-        int32_t v6 = dict[indices[i + 6]];
-        int32_t v7 = dict[indices[i + 7]];
+        int32_t v4 = cq_loadu(dict + (indices[i + 4]));
+        int32_t v5 = cq_loadu(dict + (indices[i + 5]));
+        int32_t v6 = cq_loadu(dict + (indices[i + 6]));
+        int32_t v7 = cq_loadu(dict + (indices[i + 7]));
         __m128i result1 = _mm_set_epi32(v7, v6, v5, v4);
         _mm_storeu_si128((__m128i*)(output + i + 4), result1);
     }
 
     /* Process remaining 4 at a time */
     for (; i + 4 <= count; i += 4) {
-        int32_t v0 = dict[indices[i + 0]];
-        int32_t v1 = dict[indices[i + 1]];
-        int32_t v2 = dict[indices[i + 2]];
-        int32_t v3 = dict[indices[i + 3]];
+        int32_t v0 = cq_loadu(dict + (indices[i + 0]));
+        int32_t v1 = cq_loadu(dict + (indices[i + 1]));
+        int32_t v2 = cq_loadu(dict + (indices[i + 2]));
+        int32_t v3 = cq_loadu(dict + (indices[i + 3]));
 
         __m128i result = _mm_set_epi32(v3, v2, v1, v0);
         _mm_storeu_si128((__m128i*)(output + i), result);
@@ -605,7 +605,7 @@ void carquet_sse_gather_i32(const int32_t* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -629,35 +629,35 @@ void carquet_sse_gather_float(const float* dict, const uint32_t* indices,
         __builtin_prefetch(dict + indices[i + 6], 0, 0);
 
         /* First 4 values */
-        float v0 = dict[indices[i + 0]];
-        float v1 = dict[indices[i + 1]];
-        float v2 = dict[indices[i + 2]];
-        float v3 = dict[indices[i + 3]];
+        float v0 = cq_loadu(dict + (indices[i + 0]));
+        float v1 = cq_loadu(dict + (indices[i + 1]));
+        float v2 = cq_loadu(dict + (indices[i + 2]));
+        float v3 = cq_loadu(dict + (indices[i + 3]));
         __m128 result0 = _mm_set_ps(v3, v2, v1, v0);
         _mm_storeu_ps(output + i, result0);
 
         /* Second 4 values */
-        float v4 = dict[indices[i + 4]];
-        float v5 = dict[indices[i + 5]];
-        float v6 = dict[indices[i + 6]];
-        float v7 = dict[indices[i + 7]];
+        float v4 = cq_loadu(dict + (indices[i + 4]));
+        float v5 = cq_loadu(dict + (indices[i + 5]));
+        float v6 = cq_loadu(dict + (indices[i + 6]));
+        float v7 = cq_loadu(dict + (indices[i + 7]));
         __m128 result1 = _mm_set_ps(v7, v6, v5, v4);
         _mm_storeu_ps(output + i + 4, result1);
     }
 
     /* Process remaining 4 at a time */
     for (; i + 4 <= count; i += 4) {
-        float v0 = dict[indices[i + 0]];
-        float v1 = dict[indices[i + 1]];
-        float v2 = dict[indices[i + 2]];
-        float v3 = dict[indices[i + 3]];
+        float v0 = cq_loadu(dict + (indices[i + 0]));
+        float v1 = cq_loadu(dict + (indices[i + 1]));
+        float v2 = cq_loadu(dict + (indices[i + 2]));
+        float v3 = cq_loadu(dict + (indices[i + 3]));
 
         __m128 result = _mm_set_ps(v3, v2, v1, v0);
         _mm_storeu_ps(output + i, result);
     }
 
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -678,10 +678,10 @@ void carquet_sse_gather_i64(const int64_t* dict, const uint32_t* indices,
         __builtin_prefetch(dict + indices[i], 0, 0);
         __builtin_prefetch(dict + indices[i + 2], 0, 0);
 
-        int64_t v0 = dict[indices[i + 0]];
-        int64_t v1 = dict[indices[i + 1]];
-        int64_t v2 = dict[indices[i + 2]];
-        int64_t v3 = dict[indices[i + 3]];
+        int64_t v0 = cq_loadu(dict + (indices[i + 0]));
+        int64_t v1 = cq_loadu(dict + (indices[i + 1]));
+        int64_t v2 = cq_loadu(dict + (indices[i + 2]));
+        int64_t v3 = cq_loadu(dict + (indices[i + 3]));
 
         __m128i result0 = _mm_set_epi64x(v1, v0);
         __m128i result1 = _mm_set_epi64x(v3, v2);
@@ -691,7 +691,7 @@ void carquet_sse_gather_i64(const int64_t* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -712,10 +712,10 @@ void carquet_sse_gather_double(const double* dict, const uint32_t* indices,
         __builtin_prefetch(dict + indices[i], 0, 0);
         __builtin_prefetch(dict + indices[i + 2], 0, 0);
 
-        double v0 = dict[indices[i + 0]];
-        double v1 = dict[indices[i + 1]];
-        double v2 = dict[indices[i + 2]];
-        double v3 = dict[indices[i + 3]];
+        double v0 = cq_loadu(dict + (indices[i + 0]));
+        double v1 = cq_loadu(dict + (indices[i + 1]));
+        double v2 = cq_loadu(dict + (indices[i + 2]));
+        double v3 = cq_loadu(dict + (indices[i + 3]));
 
         __m128d result0 = _mm_set_pd(v1, v0);
         __m128d result1 = _mm_set_pd(v3, v2);
@@ -725,7 +725,7 @@ void carquet_sse_gather_double(const double* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -754,10 +754,10 @@ bool carquet_sse_checked_gather_i32(const int32_t* dict, int32_t dict_count,
         __builtin_prefetch(dict + indices[i + 2], 0, 0);
 
         __m128i result = _mm_set_epi32(
-            dict[indices[i + 3]],
-            dict[indices[i + 2]],
-            dict[indices[i + 1]],
-            dict[indices[i + 0]]);
+            cq_loadu(dict + (indices[i + 3])),
+            cq_loadu(dict + (indices[i + 2])),
+            cq_loadu(dict + (indices[i + 1])),
+            cq_loadu(dict + (indices[i + 0])));
         _mm_storeu_si128((__m128i*)(output + i), result);
     }
 
@@ -766,7 +766,7 @@ bool carquet_sse_checked_gather_i32(const int32_t* dict, int32_t dict_count,
         if (idx >= limit) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_loadu(dict + (idx));
     }
 
     return true;
@@ -787,8 +787,8 @@ bool carquet_sse_checked_gather_i64(const int64_t* dict, int32_t dict_count,
         __builtin_prefetch(dict + indices[i], 0, 0);
         __builtin_prefetch(dict + indices[i + 2], 0, 0);
 
-        __m128i result0 = _mm_set_epi64x(dict[indices[i + 1]], dict[indices[i + 0]]);
-        __m128i result1 = _mm_set_epi64x(dict[indices[i + 3]], dict[indices[i + 2]]);
+        __m128i result0 = _mm_set_epi64x(cq_loadu(dict + (indices[i + 1])), cq_loadu(dict + (indices[i + 0])));
+        __m128i result1 = _mm_set_epi64x(cq_loadu(dict + (indices[i + 3])), cq_loadu(dict + (indices[i + 2])));
         _mm_storeu_si128((__m128i*)(output + i), result0);
         _mm_storeu_si128((__m128i*)(output + i + 2), result1);
     }
@@ -798,7 +798,7 @@ bool carquet_sse_checked_gather_i64(const int64_t* dict, int32_t dict_count,
         if (idx >= limit) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_loadu(dict + (idx));
     }
 
     return true;
@@ -816,53 +816,6 @@ bool carquet_sse_checked_gather_double(const double* dict, int32_t dict_count,
                                         double* output) {
     return carquet_sse_checked_gather_i64(
         (const int64_t*)dict, dict_count, indices, count, (int64_t*)output);
-}
-
-/* ============================================================================
- * CRC32C - SSE4.2 Hardware Acceleration
- * ============================================================================
- */
-
-/**
- * Compute CRC32C using SSE4.2 hardware instructions.
- */
-uint32_t carquet_sse_crc32c(uint32_t crc, const uint8_t* data, size_t len) {
-    size_t i = 0;
-
-    /* Standard CRC32C convention: pre-invert, process, post-invert.
-     * The _mm_crc32_* intrinsics operate on the raw (inverted) CRC state. */
-    crc = ~crc;
-
-#ifdef __x86_64__
-    /* Process 8 bytes at a time on 64-bit */
-    for (; i + 8 <= len; i += 8) {
-        uint64_t val;
-        memcpy(&val, data + i, 8);
-        crc = (uint32_t)_mm_crc32_u64(crc, val);
-    }
-#endif
-
-    /* Process 4 bytes at a time */
-    for (; i + 4 <= len; i += 4) {
-        uint32_t val;
-        memcpy(&val, data + i, 4);
-        crc = _mm_crc32_u32(crc, val);
-    }
-
-    /* Process 2 bytes */
-    if (i + 2 <= len) {
-        uint16_t val;
-        memcpy(&val, data + i, 2);
-        crc = _mm_crc32_u16(crc, val);
-        i += 2;
-    }
-
-    /* Process remaining byte */
-    if (i < len) {
-        crc = _mm_crc32_u8(crc, data[i]);
-    }
-
-    return ~crc;
 }
 
 /* ============================================================================
@@ -985,15 +938,20 @@ void carquet_sse_unpack_bools(const uint8_t* input, uint8_t* output, int64_t cou
 void carquet_sse_pack_bools(const uint8_t* input, uint8_t* output, int64_t count) {
     int64_t i = 0;
 
-    /* Process 8 bools (1 output byte) at a time using movemask trick:
-     * 1. Load 8 bytes (each 0 or 1)
-     * 2. Shift left by 7 within 32-bit lanes: moves bit 0 of each byte to bit 7
-     * 3. movemask extracts bit 7 from each byte position
-     */
+    /* Process 8 bools (1 output byte) at a time using the compare + movemask
+     * trick: cmpeq(v, 0) is 0xFF for zero bytes, movemask gathers bit 7 of
+     * each byte (byte k -> mask bit k), so ~mask has bit k set iff byte k is
+     * non-zero — the scalar reference rule, for any non-zero byte. The earlier
+     * `_mm_slli_epi32(bools, 7)` form was only correct for 0/1 inputs: a byte
+     * such as 0x02 shifted its set bit into the neighbouring lane's bit 7 and
+     * corrupted the *next* bool's bit (verified against the scalar reference
+     * under Rosetta). loadl_epi64 zero-fills the upper 8 lanes; their mask
+     * bits land above bit 7 and are dropped by the uint8_t cast. */
+    const __m128i zero = _mm_setzero_si128();
     for (; i + 8 <= count; i += 8) {
         __m128i bools = _mm_loadl_epi64((const __m128i*)(input + i));
-        __m128i shifted = _mm_slli_epi32(bools, 7);
-        output[i / 8] = (uint8_t)_mm_movemask_epi8(shifted);
+        int eq = _mm_movemask_epi8(_mm_cmpeq_epi8(bools, zero));
+        output[i / 8] = (uint8_t)~eq;
     }
 
     /* Handle remaining */
@@ -1099,26 +1057,13 @@ void carquet_sse_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t
             len--;
         }
     } else {
-        /* Offset 3, 5, 6, 7: expand pattern then use SSE fill */
-        uint8_t pattern[16];
-        /* Copy base pattern bytes */
-        for (size_t i = 0; i < offset && i < 16; i++) {
-            pattern[i] = src[i];
-        }
-        /* Tile pattern to fill 16 bytes; offset is 3..7 here */
-        for (size_t i = offset; i < 16; i++) {
-            pattern[i] = pattern[i % offset];
-        }
-        __m128i v = _mm_loadu_si128((const __m128i*)pattern);
-
-        while (len >= 16) {
-            _mm_storeu_si128((__m128i*)dst, v);
-            dst += 16;
-            len -= 16;
-        }
-        /* Remaining bytes from pattern */
-        for (size_t i = 0; i < len; i++) {
-            dst[i] = pattern[i % offset];
+        /* Offset 3, 5, 6, 7: the period does not divide 16, so a tiled
+         * 16-byte vector restarts the pattern at the wrong phase on every
+         * store after the first. Copy byte by byte (src trails dst by
+         * `offset`, so the overlap reproduces the pattern exactly). */
+        while (len > 0) {
+            *dst++ = *src++;
+            len--;
         }
     }
 }
@@ -1192,7 +1137,7 @@ int64_t carquet_sse_count_non_nulls(const int16_t* def_levels, int64_t count, in
 
 /**
  * Build null bitmap from definition levels using SIMD.
- * Sets bit to 1 if def_levels[i] < max_def_level (null).
+ * Sets bit to 1 if def_levels[i] == max_def_level (present).
  */
 void carquet_sse_build_null_bitmap(const int16_t* def_levels, int64_t count,
                                     int16_t max_def_level, uint8_t* null_bitmap) {
@@ -1205,8 +1150,8 @@ void carquet_sse_build_null_bitmap(const int16_t* def_levels, int64_t count,
     int64_t full_bytes = count / 8;
     for (int64_t b = 0; b < full_bytes; b++) {
         __m128i levels = _mm_loadu_si128((const __m128i*)(def_levels + b * 8));
-        /* levels < max_def means null: result is 0x0000 or 0xFFFF per lane */
-        __m128i cmp = _mm_cmplt_epi16(levels, max_vec);
+        /* levels == max_def means present: result is 0x0000 or 0xFFFF per lane */
+        __m128i cmp = _mm_cmpeq_epi16(levels, max_vec);
         /* Pack 8 int16 results (0x0000 or 0xFFFF) to 8 int8 (0x00 or 0xFF) */
         __m128i packed = _mm_packs_epi16(cmp, zero);
         /* movemask extracts bit 7 from each byte -> 8-bit result in low byte */
@@ -1216,13 +1161,13 @@ void carquet_sse_build_null_bitmap(const int16_t* def_levels, int64_t count,
 
     /* Handle remaining bits */
     if (i < count) {
-        uint8_t null_bits = 0;
+        uint8_t present_bits = 0;
         for (int64_t j = 0; i + j < count && j < 8; j++) {
-            if (def_levels[i + j] < max_def_level) {
-                null_bits |= (1 << j);
+            if (def_levels[i + j] == max_def_level) {
+                present_bits |= (1 << j);
             }
         }
-        null_bitmap[full_bytes] = null_bits;
+        null_bitmap[full_bytes] = present_bits;
     }
 }
 

@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
+#include <math.h>
 
 #include "core/arena.h"
 #include "core/buffer.h"
@@ -24,6 +26,10 @@ extern void carquet_dispatch_minmax_double(const double* values, int64_t count,
                                             double* min_value, double* max_value);
 extern void carquet_dispatch_copy_minmax_i32(const int32_t* values, int64_t count, int32_t* output,
                                              int32_t* min_value, int32_t* max_value);
+extern void carquet_dispatch_copy_minmax_float(const float* values, int64_t count, float* output,
+                                               float* min_value, float* max_value);
+extern void carquet_dispatch_copy_minmax_double(const double* values, int64_t count, double* output,
+                                                double* min_value, double* max_value);
 extern int64_t carquet_dispatch_count_non_nulls(const int16_t* def_levels, int64_t count,
                                                 int16_t max_def_level);
 extern void carquet_dispatch_build_null_bitmap(const int16_t* def_levels, int64_t count,
@@ -135,6 +141,23 @@ static int test_arena_save_restore(void) {
     return 0;
 }
 
+static int test_arena_overflow_rejected(void) {
+    carquet_arena_t arena;
+    if (carquet_arena_init(&arena) != CARQUET_OK) {
+        TEST_FAIL("arena_overflow_rejected", "init failed");
+    }
+
+    void* p = carquet_arena_alloc(&arena, SIZE_MAX);
+    if (p != NULL) {
+        carquet_arena_destroy(&arena);
+        TEST_FAIL("arena_overflow_rejected", "oversized allocation succeeded");
+    }
+
+    carquet_arena_destroy(&arena);
+    TEST_PASS("arena_overflow_rejected");
+    return 0;
+}
+
 /* ============================================================================
  * Buffer Tests
  * ============================================================================
@@ -212,6 +235,23 @@ static int test_buffer_reader(void) {
     assert(carquet_buffer_reader_remaining(&reader) == 0);
 
     TEST_PASS("buffer_reader");
+    return 0;
+}
+
+static int test_buffer_append_overflow_rejected(void) {
+    carquet_buffer_t buf;
+    uint8_t storage[8] = {0};
+    uint8_t byte = 1;
+
+    carquet_buffer_init_wrap(&buf, storage, sizeof(storage));
+    if (carquet_buffer_append(&buf, &byte, SIZE_MAX) != CARQUET_ERROR_OUT_OF_MEMORY) {
+        TEST_FAIL("buffer_append_overflow_rejected", "overflow append was not rejected");
+    }
+    if (carquet_buffer_size(&buf) != sizeof(storage)) {
+        TEST_FAIL("buffer_append_overflow_rejected", "buffer size changed after failed append");
+    }
+
+    TEST_PASS("buffer_append_overflow_rejected");
     return 0;
 }
 
@@ -450,6 +490,81 @@ static int test_dispatch_copy_minmax(void) {
     return 0;
 }
 
+/* The page writer relies on this contract for float/double statistics: the
+ * dispatched min/max either returns NaN (it then rescans NaN-skipping) or the
+ * exact min/max of the non-NaN values. A backend that lets a NaN lane swallow
+ * the real extreme and then drops the NaN in its horizontal reduction writes
+ * wrong statistics (#35: {1,9,2,NaN,4,3,2,1} gave max 4 on NEON). */
+#define MINMAX_NAN_OK(mn, mx, rmn, rmx, found) \
+    (isnan(mn) || isnan(mx) || ((found) && (mn) == (rmn) && (mx) == (rmx)))
+
+static int test_dispatch_minmax_nan(void) {
+    const double pr_example[8] = {1, 9, 2, NAN, 4, 3, 2, 1};
+    double d[64], dcopy[64];
+    float f[64], fcopy[64];
+    double dmin, dmax;
+    float fmin, fmax;
+    uint32_t seed = 12345;
+
+    carquet_dispatch_minmax_double(pr_example, 8, &dmin, &dmax);
+    if (!MINMAX_NAN_OK(dmin, dmax, 1.0, 9.0, 1)) {
+        TEST_FAIL("dispatch_minmax_nan", "minmax_double dropped a value next to a NaN");
+    }
+    carquet_dispatch_copy_minmax_double(pr_example, 8, dcopy, &dmin, &dmax);
+    if (!MINMAX_NAN_OK(dmin, dmax, 1.0, 9.0, 1)) {
+        TEST_FAIL("dispatch_minmax_nan", "copy_minmax_double dropped a value next to a NaN");
+    }
+
+    /* Every length up to 64 (covers each backend's vector body and tail),
+     * NaN in roughly one value in six, including values[0]. */
+    for (int iter = 0; iter < 20000; iter++) {
+        int64_t n = 1 + (int64_t)(iter % 64);
+        double rmin = 0, rmax = 0;
+        float rfmin = 0, rfmax = 0;
+        int found = 0;
+        for (int64_t i = 0; i < n; i++) {
+            seed = seed * 1103515245u + 12345u;
+            double v = (double)((int32_t)((seed >> 8) % 2001u) - 1000) / 7.0;
+            if (((seed >> 4) % 6u) == 0) v = NAN;
+            d[i] = v;
+            f[i] = (float)v;
+            if (isnan(v)) continue;
+            if (!found) {
+                rmin = rmax = v;
+                rfmin = rfmax = (float)v;
+                found = 1;
+            } else {
+                if (v < rmin) rmin = v;
+                if (v > rmax) rmax = v;
+                if ((float)v < rfmin) rfmin = (float)v;
+                if ((float)v > rfmax) rfmax = (float)v;
+            }
+        }
+
+        carquet_dispatch_minmax_double(d, n, &dmin, &dmax);
+        if (!MINMAX_NAN_OK(dmin, dmax, rmin, rmax, found)) {
+            TEST_FAIL("dispatch_minmax_nan", "minmax_double violates NaN contract");
+        }
+        carquet_dispatch_copy_minmax_double(d, n, dcopy, &dmin, &dmax);
+        if (!MINMAX_NAN_OK(dmin, dmax, rmin, rmax, found) ||
+            memcmp(d, dcopy, (size_t)n * sizeof(double)) != 0) {
+            TEST_FAIL("dispatch_minmax_nan", "copy_minmax_double violates NaN contract");
+        }
+        carquet_dispatch_minmax_float(f, n, &fmin, &fmax);
+        if (!MINMAX_NAN_OK(fmin, fmax, rfmin, rfmax, found)) {
+            TEST_FAIL("dispatch_minmax_nan", "minmax_float violates NaN contract");
+        }
+        carquet_dispatch_copy_minmax_float(f, n, fcopy, &fmin, &fmax);
+        if (!MINMAX_NAN_OK(fmin, fmax, rfmin, rfmax, found) ||
+            memcmp(f, fcopy, (size_t)n * sizeof(float)) != 0) {
+            TEST_FAIL("dispatch_minmax_nan", "copy_minmax_float violates NaN contract");
+        }
+    }
+
+    TEST_PASS("dispatch_minmax_nan");
+    return 0;
+}
+
 static int test_dispatch_null_helpers(void) {
     int16_t levels[] = {1, 0, 1, 1, 0, 0, 1, 0, 1, 1};
     int16_t filled[10];
@@ -458,8 +573,8 @@ static int test_dispatch_null_helpers(void) {
     assert(carquet_dispatch_count_non_nulls(levels, 10, 1) == 6);
 
     carquet_dispatch_build_null_bitmap(levels, 10, 1, bitmap);
-    assert(bitmap[0] == 0xB2);
-    assert(bitmap[1] == 0x00);
+    assert(bitmap[0] == 0x4D);
+    assert(bitmap[1] == 0x03);
 
     carquet_dispatch_fill_def_levels(filled, 10, 3);
     for (int i = 0; i < 10; i++) {
@@ -504,11 +619,13 @@ int main(void) {
     failures += test_arena_basic();
     failures += test_arena_large_allocation();
     failures += test_arena_save_restore();
+    failures += test_arena_overflow_rejected();
 
     /* Buffer tests */
     failures += test_buffer_basic();
     failures += test_buffer_integers();
     failures += test_buffer_reader();
+    failures += test_buffer_append_overflow_rejected();
 
     /* Endian tests */
     failures += test_endian_read_write();
@@ -523,6 +640,7 @@ int main(void) {
     failures += test_run_detection();
     failures += test_dispatch_minmax();
     failures += test_dispatch_copy_minmax();
+    failures += test_dispatch_minmax_nan();
     failures += test_dispatch_null_helpers();
     failures += test_bit_reader();
 

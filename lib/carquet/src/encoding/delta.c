@@ -8,9 +8,11 @@
 #include <carquet/error.h>
 #include <carquet/types.h>
 #include "core/bitpack.h"
+#include "core/allocator.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 /* SIMD-dispatched prefix sum functions for delta decoding */
@@ -26,6 +28,12 @@ extern void carquet_dispatch_prefix_sum_i64(int64_t* values, int64_t count, int6
 #define DELTA_MINI_BLOCKS     4
 #define DELTA_MINI_BLOCK_SIZE (DELTA_BLOCK_SIZE / DELTA_MINI_BLOCKS)
 
+/* Upper bound on a header-declared block size, to cap decode-time scratch
+ * allocation from an untrusted page. Real writers use 128; the spec permits any
+ * multiple of 128. 1<<20 gives at most an 8MB mini-block buffer while still
+ * accepting every block size any conformant writer emits in practice. */
+#define DELTA_MAX_BLOCK_SIZE  (1 << 20)
+
 /* ============================================================================
  * Delta Decoder State
  * ============================================================================
@@ -38,21 +46,29 @@ typedef struct {
 
     int32_t block_size;
     int32_t mini_blocks_per_block;
+    int32_t mini_block_size;   /* block_size / mini_blocks_per_block */
     int32_t total_values;
     int32_t values_decoded;
 
     int64_t first_value;
     int64_t last_value;
 
-    /* Current block state */
+    /* Current block state. bit_widths, mini_block_values and unpacked point at
+     * the inline buffers below for the common 128/4 layout, or at heap
+     * allocations sized from the page header for larger spec-valid blocks. */
     int64_t min_delta;
-    uint8_t bit_widths[DELTA_MINI_BLOCKS];
+    uint8_t* bit_widths;
     int32_t current_mini_block;
     int32_t values_in_mini_block;
 
-    /* Mini-block buffer */
-    int64_t mini_block_values[DELTA_MINI_BLOCK_SIZE];
+    int64_t* mini_block_values;
+    uint32_t* unpacked;
     int32_t mini_block_pos;
+
+    bool heap_allocated;
+    uint8_t  bit_widths_inline[DELTA_MINI_BLOCKS];
+    int64_t  mini_block_values_inline[DELTA_MINI_BLOCK_SIZE];
+    uint32_t unpacked_inline[DELTA_MINI_BLOCK_SIZE];
 } delta_decoder_t;
 
 /* ============================================================================
@@ -81,9 +97,60 @@ static int64_t zigzag_decode64(uint64_t n) {
 }
 
 /* ============================================================================
+ * 64-bit bit packing (mini-blocks wider than 32 bits)
+ * ============================================================================
+ *
+ * The spec bit-packs every mini-block LSB-first whatever its width, so a
+ * 33..64-bit mini-block is `count * bit_width / 8` bytes, not `count` whole
+ * little-endian values. `count * bit_width` is always a multiple of 8 here
+ * (mini-block sizes are multiples of 32).
+ */
+
+static void delta_bitpack_64(const uint64_t* values, int count, int bit_width,
+                             uint8_t* out) {
+    memset(out, 0, ((size_t)count * (size_t)bit_width) / 8);
+    size_t bit_pos = 0;
+    for (int i = 0; i < count; i++, bit_pos += (size_t)bit_width) {
+        uint8_t* p = out + (bit_pos >> 3);
+        int shift = (int)(bit_pos & 7);
+        int nbytes = (shift + bit_width + 7) / 8;   /* 5..9 */
+        uint64_t lo = values[i] << shift;
+        for (int b = 0; b < nbytes && b < 8; b++) {
+            p[b] |= (uint8_t)(lo >> (b * 8));
+        }
+        if (nbytes == 9) {
+            p[8] |= (uint8_t)(values[i] >> (64 - shift));
+        }
+    }
+}
+
+static void delta_bitunpack_64(const uint8_t* in, int count, int bit_width,
+                               uint64_t* values) {
+    uint64_t mask = bit_width == 64 ? ~(uint64_t)0
+                                    : (((uint64_t)1 << bit_width) - 1);
+    size_t bit_pos = 0;
+    for (int i = 0; i < count; i++, bit_pos += (size_t)bit_width) {
+        const uint8_t* p = in + (bit_pos >> 3);
+        int shift = (int)(bit_pos & 7);
+        int nbytes = (shift + bit_width + 7) / 8;   /* 5..9 */
+        uint64_t lo = 0;
+        for (int b = 0; b < nbytes && b < 8; b++) {
+            lo |= (uint64_t)p[b] << (b * 8);
+        }
+        uint64_t v = lo >> shift;
+        if (nbytes == 9) {
+            v |= (uint64_t)p[8] << (64 - shift);
+        }
+        values[i] = v & mask;
+    }
+}
+
+/* ============================================================================
  * Delta Decoder Implementation
  * ============================================================================
  */
+
+static void delta_decoder_destroy(delta_decoder_t* dec);
 
 static carquet_status_t delta_decoder_init(delta_decoder_t* dec,
                                             const uint8_t* data, size_t size) {
@@ -108,27 +175,55 @@ static carquet_status_t delta_decoder_init(delta_decoder_t* dec,
     dec->mini_blocks_per_block = (int32_t)val;
     dec->pos += bytes;
 
-    /* Validate header values to prevent buffer overflows */
-    if (dec->mini_blocks_per_block <= 0 || dec->mini_blocks_per_block > DELTA_MINI_BLOCKS) {
+    /* Validate header against the Parquet spec: block_size is a positive
+     * multiple of 128, evenly divided into mini_blocks_per_block mini-blocks,
+     * and the resulting mini-block size is a positive multiple of 32. This
+     * accepts every conformant layout (not just the 128/4 that carquet writes)
+     * while the DELTA_MAX_BLOCK_SIZE cap bounds scratch allocation. */
+    if (dec->block_size <= 0 || dec->block_size > DELTA_MAX_BLOCK_SIZE ||
+        dec->block_size % 128 != 0) {
         return CARQUET_ERROR_DECODE;
     }
-    if (dec->block_size <= 0 || dec->block_size > DELTA_BLOCK_SIZE) {
+    if (dec->mini_blocks_per_block <= 0 ||
+        dec->block_size % dec->mini_blocks_per_block != 0) {
         return CARQUET_ERROR_DECODE;
     }
-    /* mini_block_size = block_size / mini_blocks_per_block must fit in buffer */
-    if (dec->block_size / dec->mini_blocks_per_block > DELTA_MINI_BLOCK_SIZE) {
+    dec->mini_block_size = dec->block_size / dec->mini_blocks_per_block;
+    if (dec->mini_block_size <= 0 || dec->mini_block_size % 32 != 0) {
         return CARQUET_ERROR_DECODE;
     }
 
-    /* Total value count */
+    /* Point scratch at the inline buffers for the common 128/4 layout, else
+     * allocate from the header-declared sizes. */
+    if (dec->mini_blocks_per_block <= DELTA_MINI_BLOCKS &&
+        dec->mini_block_size <= DELTA_MINI_BLOCK_SIZE) {
+        dec->bit_widths = dec->bit_widths_inline;
+        dec->mini_block_values = dec->mini_block_values_inline;
+        dec->unpacked = dec->unpacked_inline;
+    } else {
+        dec->bit_widths = carquet_mem_malloc((size_t)dec->mini_blocks_per_block);
+        dec->mini_block_values = carquet_mem_malloc((size_t)dec->mini_block_size * sizeof(int64_t));
+        dec->unpacked = carquet_mem_malloc((size_t)dec->mini_block_size * sizeof(uint32_t));
+        if (!dec->bit_widths || !dec->mini_block_values || !dec->unpacked) {
+            carquet_mem_free(dec->bit_widths);
+            carquet_mem_free(dec->mini_block_values);
+            carquet_mem_free(dec->unpacked);
+            return CARQUET_ERROR_OUT_OF_MEMORY;
+        }
+        dec->heap_allocated = true;
+    }
+
+    /* Total value count. Past this point the scratch buffers may be heap
+     * allocated, so header-decode failures must free them (delta_decoder_destroy
+     * is a no-op for the inline-buffer case) rather than leak. */
     bytes = read_uleb128(data + dec->pos, size - dec->pos, &val);
-    if (bytes == 0) return CARQUET_ERROR_DECODE;
+    if (bytes == 0) { delta_decoder_destroy(dec); return CARQUET_ERROR_DECODE; }
     dec->total_values = (int32_t)val;
     dec->pos += bytes;
 
     /* First value (zigzag encoded) */
     bytes = read_uleb128(data + dec->pos, size - dec->pos, &val);
-    if (bytes == 0) return CARQUET_ERROR_DECODE;
+    if (bytes == 0) { delta_decoder_destroy(dec); return CARQUET_ERROR_DECODE; }
     dec->first_value = zigzag_decode64(val);
     dec->pos += bytes;
 
@@ -137,6 +232,18 @@ static carquet_status_t delta_decoder_init(delta_decoder_t* dec,
     dec->mini_block_pos = DELTA_MINI_BLOCK_SIZE; /* Force mini-block read */
 
     return CARQUET_OK;
+}
+
+static void delta_decoder_destroy(delta_decoder_t* dec) {
+    if (dec->heap_allocated) {
+        carquet_mem_free(dec->bit_widths);
+        carquet_mem_free(dec->mini_block_values);
+        carquet_mem_free(dec->unpacked);
+        dec->heap_allocated = false;
+    }
+    dec->bit_widths = NULL;
+    dec->mini_block_values = NULL;
+    dec->unpacked = NULL;
 }
 
 static carquet_status_t delta_decoder_read_block(delta_decoder_t* dec) {
@@ -169,7 +276,7 @@ static carquet_status_t delta_decoder_read_mini_block(delta_decoder_t* dec) {
     }
 
     int bit_width = dec->bit_widths[dec->current_mini_block];
-    int mini_block_size = dec->block_size / dec->mini_blocks_per_block;
+    int mini_block_size = dec->mini_block_size;
 
     if (bit_width == 0) {
         /* All deltas are min_delta */
@@ -183,31 +290,32 @@ static carquet_status_t delta_decoder_read_mini_block(delta_decoder_t* dec) {
             return CARQUET_ERROR_DECODE;
         }
 
-        uint32_t unpacked[DELTA_MINI_BLOCK_SIZE];
-        carquet_bitunpack_32(dec->data + dec->pos, mini_block_size, bit_width, unpacked);
+        carquet_bitunpack_32(dec->data + dec->pos, mini_block_size, bit_width, dec->unpacked);
 
         for (int i = 0; i < mini_block_size; i++) {
             /* Use unsigned addition to avoid overflow UB */
-            dec->mini_block_values[i] = (int64_t)((uint64_t)dec->min_delta + (uint64_t)unpacked[i]);
+            dec->mini_block_values[i] = (int64_t)((uint64_t)dec->min_delta + (uint64_t)dec->unpacked[i]);
         }
 
         dec->pos += packed_size;
     } else if (bit_width <= 64) {
-        /* Unpack 64-bit values (stored as little-endian bytes) */
-        int bytes_per_value = (bit_width + 7) / 8;
-        size_t packed_size = mini_block_size * bytes_per_value;
-        if (dec->pos + packed_size > dec->size) {
+        /* Wide mini-block: same LSB-first bit packing, 64-bit values. The
+         * unpacked deltas land in mini_block_values and are rebased in place. */
+        size_t packed_size = ((size_t)mini_block_size * (size_t)bit_width) / 8;
+        if (packed_size > dec->size - dec->pos) {
             return CARQUET_ERROR_DECODE;
         }
 
+        delta_bitunpack_64(dec->data + dec->pos, mini_block_size, bit_width,
+                           (uint64_t*)dec->mini_block_values);
+
         for (int i = 0; i < mini_block_size; i++) {
-            uint64_t val = 0;
-            for (int b = 0; b < bytes_per_value; b++) {
-                val |= (uint64_t)dec->data[dec->pos++] << (b * 8);
-            }
             /* Use unsigned addition to avoid overflow UB */
-            dec->mini_block_values[i] = (int64_t)((uint64_t)dec->min_delta + val);
+            dec->mini_block_values[i] = (int64_t)((uint64_t)dec->min_delta +
+                                                  (uint64_t)dec->mini_block_values[i]);
         }
+
+        dec->pos += packed_size;
     } else {
         return CARQUET_ERROR_DECODE;  /* bit_width > 64 is invalid */
     }
@@ -239,6 +347,7 @@ carquet_status_t carquet_delta_decode_int32(
 
     if (num_values == 0) {
         if (bytes_consumed) *bytes_consumed = dec.pos;
+        delta_decoder_destroy(&dec);
         return CARQUET_OK;
     }
 
@@ -250,7 +359,10 @@ carquet_status_t carquet_delta_decode_int32(
     for (int32_t i = 1; i < num_values; i++) {
         if (dec.mini_block_pos >= dec.values_in_mini_block) {
             status = delta_decoder_read_mini_block(&dec);
-            if (status != CARQUET_OK) return status;
+            if (status != CARQUET_OK) {
+                delta_decoder_destroy(&dec);
+                return status;
+            }
         }
         values[i] = (int32_t)dec.mini_block_values[dec.mini_block_pos++];
         dec.values_decoded++;
@@ -263,6 +375,7 @@ carquet_status_t carquet_delta_decode_int32(
         *bytes_consumed = dec.pos;
     }
 
+    delta_decoder_destroy(&dec);
     return CARQUET_OK;
 }
 
@@ -281,6 +394,7 @@ carquet_status_t carquet_delta_decode_int64(
 
     if (num_values == 0) {
         if (bytes_consumed) *bytes_consumed = dec.pos;
+        delta_decoder_destroy(&dec);
         return CARQUET_OK;
     }
 
@@ -292,7 +406,10 @@ carquet_status_t carquet_delta_decode_int64(
     for (int32_t i = 1; i < num_values; i++) {
         if (dec.mini_block_pos >= dec.values_in_mini_block) {
             status = delta_decoder_read_mini_block(&dec);
-            if (status != CARQUET_OK) return status;
+            if (status != CARQUET_OK) {
+                delta_decoder_destroy(&dec);
+                return status;
+            }
         }
         values[i] = dec.mini_block_values[dec.mini_block_pos++];
         dec.values_decoded++;
@@ -305,6 +422,7 @@ carquet_status_t carquet_delta_decode_int64(
         *bytes_consumed = dec.pos;
     }
 
+    delta_decoder_destroy(&dec);
     return CARQUET_OK;
 }
 
@@ -394,14 +512,8 @@ static carquet_status_t delta_encoder_flush_block(delta_encoder_t* enc) {
 
         bit_widths[mb] = (uint8_t)bit_width_required(max_val);
         if (bit_widths[mb] > 0) {
-            /* Calculate bytes needed for this mini-block */
-            if (bit_widths[mb] <= 32) {
-                /* Bitpacked: mini_block_size values * bit_width / 8 */
-                packed_bytes_needed += (size_t)mini_block_size * bit_widths[mb] / 8;
-            } else {
-                /* Byte-by-byte: mini_block_size values * bytes_per_value */
-                packed_bytes_needed += (size_t)mini_block_size * ((bit_widths[mb] + 7) / 8);
-            }
+            /* Every width is bit-packed: mini_block_size * bit_width / 8 */
+            packed_bytes_needed += (size_t)mini_block_size * bit_widths[mb] / 8;
         }
     }
 
@@ -440,21 +552,19 @@ static carquet_status_t delta_encoder_flush_block(delta_encoder_t* enc) {
             enc->pos += carquet_bitpack_32(to_pack, mini_block_size,
                                             bit_widths[mb], enc->data + enc->pos);
         } else {
-            /* For bit widths > 32, pack directly as bytes (little-endian) */
-            int bytes_per_value = (bit_widths[mb] + 7) / 8;
+            /* Wider than 32 bits: same bit packing over 64-bit values */
+            uint64_t to_pack[DELTA_MINI_BLOCK_SIZE];
             for (int i = start; i < end; i++) {
                 /* Use unsigned subtraction to avoid overflow UB */
-                uint64_t adjusted = (uint64_t)enc->deltas[i] - (uint64_t)min_delta;
-                for (int b = 0; b < bytes_per_value; b++) {
-                    enc->data[enc->pos++] = (uint8_t)(adjusted >> (b * 8));
-                }
+                to_pack[i - start] = (uint64_t)enc->deltas[i] - (uint64_t)min_delta;
             }
             /* Pad with zeros */
             for (int i = end - start; i < mini_block_size; i++) {
-                for (int b = 0; b < bytes_per_value; b++) {
-                    enc->data[enc->pos++] = 0;
-                }
+                to_pack[i] = 0;
             }
+            delta_bitpack_64(to_pack, mini_block_size, bit_widths[mb],
+                             enc->data + enc->pos);
+            enc->pos += (size_t)mini_block_size * bit_widths[mb] / 8;
         }
     }
 
@@ -469,17 +579,25 @@ carquet_status_t carquet_delta_encode_int32(
     size_t data_capacity,
     size_t* bytes_written) {
 
-    if (num_values == 0) {
-        *bytes_written = 0;
-        return CARQUET_OK;
-    }
-
     delta_encoder_t enc;
     delta_encoder_init(&enc, data, data_capacity);
 
     /* Check capacity for header (max 40 bytes for 4 varints) */
     if (data_capacity < 40) {
         return CARQUET_ERROR_ENCODE;
+    }
+
+    /* A DELTA_BINARY_PACKED page must always carry the 4-varint header
+     * (block size, miniblocks, total count, first value) even when it holds
+     * zero values; otherwise the decoder hits EOF parsing the header. For an
+     * empty page emit the header with count=0 and first value=0. */
+    if (num_values == 0) {
+        enc.pos += write_uleb128(data + enc.pos, DELTA_BLOCK_SIZE);
+        enc.pos += write_uleb128(data + enc.pos, DELTA_MINI_BLOCKS);
+        enc.pos += write_uleb128(data + enc.pos, 0);
+        enc.pos += write_uleb128(data + enc.pos, zigzag_encode64(0));
+        *bytes_written = enc.pos;
+        return CARQUET_OK;
     }
 
     /* Write header */
@@ -494,8 +612,10 @@ carquet_status_t carquet_delta_encode_int32(
 
     /* Encode remaining values */
     for (int32_t i = 1; i < num_values; i++) {
-        /* Use unsigned subtraction to avoid overflow UB, then reinterpret as signed */
-        int64_t delta = (int64_t)((uint64_t)(int64_t)values[i] - (uint64_t)enc.last_value);
+        /* INT32 deltas wrap modulo 2^32 (as parquet-mr and Arrow compute
+         * them), which keeps every mini-block within 32 bits; readers reject
+         * wider widths for an INT32 column. */
+        int64_t delta = (int64_t)(int32_t)((uint32_t)values[i] - (uint32_t)enc.last_value);
         enc.deltas[enc.delta_count++] = delta;
         enc.last_value = values[i];
 
@@ -520,17 +640,25 @@ carquet_status_t carquet_delta_encode_int64(
     size_t data_capacity,
     size_t* bytes_written) {
 
-    if (num_values == 0) {
-        *bytes_written = 0;
-        return CARQUET_OK;
-    }
-
     delta_encoder_t enc;
     delta_encoder_init(&enc, data, data_capacity);
 
     /* Check capacity for header (max 40 bytes for 4 varints) */
     if (data_capacity < 40) {
         return CARQUET_ERROR_ENCODE;
+    }
+
+    /* A DELTA_BINARY_PACKED page must always carry the 4-varint header
+     * (block size, miniblocks, total count, first value) even when it holds
+     * zero values; otherwise the decoder hits EOF parsing the header. For an
+     * empty page emit the header with count=0 and first value=0. */
+    if (num_values == 0) {
+        enc.pos += write_uleb128(data + enc.pos, DELTA_BLOCK_SIZE);
+        enc.pos += write_uleb128(data + enc.pos, DELTA_MINI_BLOCKS);
+        enc.pos += write_uleb128(data + enc.pos, 0);
+        enc.pos += write_uleb128(data + enc.pos, zigzag_encode64(0));
+        *bytes_written = enc.pos;
+        return CARQUET_OK;
     }
 
     /* Write header */

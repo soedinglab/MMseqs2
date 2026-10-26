@@ -1,0 +1,130 @@
+[build-system]
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "carquet"
+dynamic = ["version"]
+description = "Fast Apache Parquet reader/writer in pure C, exposed to Python through the Arrow C Data Interface"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Johan H. G. Natter" }]
+keywords = ["parquet", "arrow", "columnar", "pyarrow", "zstd", "snappy"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
+# pyarrow is only needed by read_table / write_table / schema / open_reader;
+# info(), validate() and the version helpers work without it.
+dependencies = []
+
+[project.optional-dependencies]
+arrow = ["pyarrow>=14"]
+test = ["pytest", "pyarrow>=14"]
+
+[project.urls]
+Homepage = "https://github.com/Vitruves/carquet"
+Documentation = "https://github.com/Vitruves/carquet/blob/main/python/README.md"
+Repository = "https://github.com/Vitruves/carquet"
+Changelog = "https://github.com/Vitruves/carquet/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Vitruves/carquet/issues"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+# python/CMakeLists.txt builds the C library from the repository root (git
+# checkout) or from native/ (sdist) and installs only libcarquet.
+cmake.source-dir = "."
+cmake.version = ">=3.16"
+cmake.build-type = "Release"
+# Everything lands inside the `carquet` package: the shared library becomes
+# carquet/libcarquet.{so,dylib} or carquet/carquet.dll next to __init__.py.
+wheel.install-dir = "carquet"
+wheel.packages = ["src/carquet"]
+# Only the component declared in python/CMakeLists.txt is installed, so the
+# install rules of the FetchContent'ed codec subprojects (zstd/zlib/lz4/brotli
+# headers and archives) never reach the wheel.
+install.components = ["carquet_python"]
+install.strip = true
+
+[tool.scikit-build.metadata.version]
+# Single source of truth: CARQUET_VERSION_STRING in include/carquet/carquet.h.
+provider = "scikit_build_core.metadata.regex"
+input = "../include/carquet/carquet.h"
+regex = '#define\s+CARQUET_VERSION_STRING\s+"(?P<value>[^"]+)"'
+
+[tool.scikit-build.cmake.define]
+CARQUET_BUILD_SHARED = "ON"
+CARQUET_BUILD_CLI = "OFF"
+CARQUET_BUILD_DEV = "OFF"
+CARQUET_BUNDLE_DEPS = "ON"
+# Deterministic install layout on every platform (GNUInstallDirs would pick
+# lib64 on RHEL-style manylinux images); the loader also checks lib/, lib64/
+# and bin/ in case a distro build relocates the library.
+CMAKE_INSTALL_LIBDIR = "lib"
+CMAKE_INSTALL_BINDIR = "bin"
+# No OpenMP in the macOS / Windows wheels: it would add a libomp / vcomp
+# runtime dependency that delocate/delvewheel would have to vendor. Linux
+# re-enables it below (auditwheel grafts libgomp into the wheel).
+CMAKE_DISABLE_FIND_PACKAGE_OpenMP = "ON"
+
+# --- sdist -----------------------------------------------------------------
+# The sdist root is python/ (where this file lives), so the C tree one level
+# up cannot be referenced with "..": it is copied into native/ instead, and
+# python/CMakeLists.txt picks it up from there. Everything scikit-build-core
+# includes by default from python/ (sources, tests, README) stays included.
+[tool.scikit-build.sdist]
+include = ["src/carquet/py.typed"]
+exclude = ["build/", "dist/", "wheelhouse/", "*.egg-info/", ".pytest_cache/", "__pycache__/"]
+reproducible = true
+
+[tool.scikit-build.sdist.force-include]
+"../CMakeLists.txt" = "native/CMakeLists.txt"
+"../LICENSE" = "native/LICENSE"
+"../include" = "native/include"
+"../src" = "native/src"
+"../cmake" = "native/cmake"
+
+# --- overrides -------------------------------------------------------------
+[[tool.scikit-build.overrides]]
+# Building from an unpacked sdist: the header lives under native/. (An override
+# replaces the whole `metadata.version` table, so provider/regex are repeated.)
+if.from-sdist = true
+metadata.version = { provider = "scikit_build_core.metadata.regex", input = "native/include/carquet/carquet.h", regex = '#define\s+CARQUET_VERSION_STRING\s+"(?P<value>[^"]+)"' }
+
+[[tool.scikit-build.overrides]]
+# Linux wheels keep OpenMP (parallel column reads / page-parallel encode);
+# auditwheel vendors libgomp.so.1 into carquet.libs/.
+if.platform-system = "linux"
+inherit.cmake.define = "append"
+cmake.define.CMAKE_DISABLE_FIND_PACKAGE_OpenMP = "OFF"
+
+# --- cibuildwheel (see .github/workflows/wheels.yml) ------------------------
+[tool.cibuildwheel]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+# No pyarrow wheels exist for musl or 32-bit targets, so the test step could
+# not run there; PyPy is untested.
+skip = ["*-musllinux_*", "*_i686", "*-win32", "pp*"]
+build-verbosity = 1
+test-requires = ["pytest", "pyarrow"]
+test-command = "pytest {project}/python/tests"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

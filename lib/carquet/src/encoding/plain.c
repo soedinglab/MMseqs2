@@ -229,19 +229,55 @@ carquet_status_t carquet_encode_plain_boolean(
     int64_t count,
     carquet_buffer_t* output) {
 
-    if (!input || !output || count < 0) {
+    /* A new stream is an append at bit 0. */
+    return carquet_encode_plain_boolean_append(input, count, 0, output);
+}
+
+carquet_status_t carquet_encode_plain_boolean_append(
+    const uint8_t* input,
+    int64_t count,
+    int64_t bit_count,
+    carquet_buffer_t* output) {
+
+    if (!input || !output || count < 0 || bit_count < 0) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
 
-    size_t bytes_needed = ((size_t)count + 7) / 8;
-    uint8_t* dest = carquet_buffer_advance(output, bytes_needed);
-    if (!dest) {
-        return CARQUET_ERROR_OUT_OF_MEMORY;
+    /* The stream's last byte has `used` bits taken when it does not end on a
+     * byte boundary; the first `head` values go into the rest of it. */
+    int used = (int)(bit_count & 7);
+    int64_t head = 0;
+    if (used != 0) {
+        if (output->size == 0) {
+            return CARQUET_ERROR_INVALID_ARGUMENT;
+        }
+        head = 8 - used;
+        if (head > count) head = count;
     }
 
-    if (bytes_needed > 0) {
-        memset(dest, 0, bytes_needed);
-        carquet_dispatch_pack_bools(input, dest, count);
+    /* Whatever is left starts on a byte boundary. Reserve its bytes before
+     * touching the partial byte, so a failed allocation leaves the stream
+     * exactly as it was. */
+    int64_t tail = count - head;
+    size_t tail_bytes = ((size_t)tail + 7) / 8;
+    size_t partial = (used != 0) ? output->size - 1 : 0;
+    uint8_t* dest = NULL;
+    if (tail_bytes > 0) {
+        dest = carquet_buffer_advance(output, tail_bytes);
+        if (!dest) {
+            return CARQUET_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    for (int64_t i = 0; i < head; i++) {
+        if (input[i]) {
+            output->data[partial] |= (uint8_t)(1u << (used + (int)i));
+        }
+    }
+
+    if (tail_bytes > 0) {
+        memset(dest, 0, tail_bytes);
+        carquet_dispatch_pack_bools(input + head, dest, tail);
     }
 
     return CARQUET_OK;
@@ -359,15 +395,44 @@ carquet_status_t carquet_encode_plain_byte_array(
     if (!input || !output || count < 0) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
+    if (count == 0) return CARQUET_OK;
+
+    /* Sum the total encoded size (4-byte length prefix + payload per value) so
+     * the output can be grown once instead of two capacity checks per value.
+     * Lengths are validated here, before anything is reserved: a negative
+     * int32 length would otherwise wrap to a tiny reservation and a ~4GB
+     * copy. `total` is 64-bit and each term is < 2^32, so the sum cannot
+     * realistically overflow, but guard the reservation cast. */
+    uint64_t total = 0;
+    for (int64_t i = 0; i < count; i++) {
+        if (input[i].length < 0) return CARQUET_ERROR_INVALID_ARGUMENT;
+        total += 4u + (uint64_t)input[i].length;
+    }
+    if (total > SIZE_MAX - output->size) return CARQUET_ERROR_OUT_OF_MEMORY;
+
+    uint8_t* p = carquet_buffer_advance(output, (size_t)total);
+    if (!p) return CARQUET_ERROR_OUT_OF_MEMORY;
 
     for (int64_t i = 0; i < count; i++) {
-        carquet_status_t status = carquet_buffer_append_u32_le(output, (uint32_t)input[i].length);
-        if (status != CARQUET_OK) return status;
-
-        if (input[i].length > 0 && input[i].data) {
-            status = carquet_buffer_append(output, input[i].data, (size_t)input[i].length);
-            if (status != CARQUET_OK) return status;
+        uint32_t len = (uint32_t)input[i].length;
+        p[0] = (uint8_t)(len);
+        p[1] = (uint8_t)(len >> 8);
+        p[2] = (uint8_t)(len >> 16);
+        p[3] = (uint8_t)(len >> 24);
+        p += 4;
+        if (len > 0) {
+            if (input[i].data) {
+                memcpy(p, input[i].data, len);
+            } else {
+                /* Malformed input (length > 0, NULL data): zero-fill rather than
+                 * leak the reserved-but-unwritten bytes into the output. The
+                 * writer API rejects such entries upstream with
+                 * CARQUET_ERROR_INVALID_ARGUMENT (carquet_column_writer_write_batch),
+                 * so this only guards direct callers of the encoder. */
+                memset(p, 0, len);
+            }
         }
+        p += len;
     }
 
     return CARQUET_OK;

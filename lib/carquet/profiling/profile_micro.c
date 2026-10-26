@@ -66,6 +66,10 @@ extern void carquet_dispatch_copy_minmax_i32(const int32_t* values, int64_t coun
                                               int32_t* output, int32_t* min_value, int32_t* max_value);
 extern void carquet_dispatch_copy_minmax_i64(const int64_t* values, int64_t count,
                                               int64_t* output, int64_t* min_value, int64_t* max_value);
+extern void carquet_dispatch_copy_minmax_float(const float* values, int64_t count,
+                                                float* output, float* min_value, float* max_value);
+extern void carquet_dispatch_copy_minmax_double(const double* values, int64_t count,
+                                                 double* output, double* min_value, double* max_value);
 
 /* Byte-stream-split dispatch */
 extern void carquet_dispatch_byte_split_encode_float(const float* values, int64_t count, uint8_t* output);
@@ -76,9 +80,6 @@ extern void carquet_dispatch_byte_split_decode_double(const uint8_t* data, int64
 /* Prefix sum dispatch */
 extern void carquet_dispatch_prefix_sum_i32(int32_t* values, int64_t count, int32_t initial);
 extern void carquet_dispatch_prefix_sum_i64(int64_t* values, int64_t count, int64_t initial);
-
-/* CRC32 dispatch */
-extern uint32_t carquet_dispatch_crc32c(uint32_t crc, const uint8_t* data, size_t len);
 
 /* LZ4 internal functions */
 extern carquet_status_t carquet_lz4_compress(const uint8_t* src, size_t src_len,
@@ -923,6 +924,23 @@ NOINLINE static void bench_minmax_float_dispatch(const float* values, int64_t co
     printf("%.2f ns/value, %.2f M values/sec\n", ns_per_value, 1e9 / ns_per_value / 1e6);
 }
 
+NOINLINE static void bench_minmax_double_dispatch(const double* values, int64_t count,
+                                                   int64_t iterations) {
+    printf("  MinMax double (dispatch): ");
+    fflush(stdout);
+
+    BENCH_START();
+    for (int64_t iter = 0; iter < iterations; iter++) {
+        double mn, mx;
+        carquet_dispatch_minmax_double(values, count, &mn, &mx);
+        g_sink = (int64_t)(mn + mx);
+    }
+    double elapsed = BENCH_END();
+
+    double ns_per_value = elapsed / (iterations * count);
+    printf("%.2f ns/value, %.2f M values/sec\n", ns_per_value, 1e9 / ns_per_value / 1e6);
+}
+
 NOINLINE static void bench_copy_minmax_i32(const int32_t* values, int64_t count,
                                             int32_t* output, int64_t iterations) {
     printf("  CopyMinMax i32 (dispatch): ");
@@ -940,6 +958,57 @@ NOINLINE static void bench_copy_minmax_i32(const int32_t* values, int64_t count,
     printf("%.2f ns/value, %.2f M values/sec\n", ns_per_value, 1e9 / ns_per_value / 1e6);
 }
 
+NOINLINE static void bench_copy_minmax_i64(const int64_t* values, int64_t count,
+                                            int64_t* output, int64_t iterations) {
+    printf("  CopyMinMax i64 (dispatch): ");
+    fflush(stdout);
+
+    BENCH_START();
+    for (int64_t iter = 0; iter < iterations; iter++) {
+        int64_t mn, mx;
+        carquet_dispatch_copy_minmax_i64(values, count, output, &mn, &mx);
+        g_sink = mn + mx;
+    }
+    double elapsed = BENCH_END();
+
+    double ns_per_value = elapsed / (iterations * count);
+    printf("%.2f ns/value, %.2f M values/sec\n", ns_per_value, 1e9 / ns_per_value / 1e6);
+}
+
+NOINLINE static void bench_copy_minmax_float(const float* values, int64_t count,
+                                              float* output, int64_t iterations) {
+    printf("  CopyMinMax float (dispatch): ");
+    fflush(stdout);
+
+    BENCH_START();
+    for (int64_t iter = 0; iter < iterations; iter++) {
+        float mn, mx;
+        carquet_dispatch_copy_minmax_float(values, count, output, &mn, &mx);
+        g_sink = (int64_t)(mn + mx);
+    }
+    double elapsed = BENCH_END();
+
+    double ns_per_value = elapsed / (iterations * count);
+    printf("%.2f ns/value, %.2f M values/sec\n", ns_per_value, 1e9 / ns_per_value / 1e6);
+}
+
+NOINLINE static void bench_copy_minmax_double(const double* values, int64_t count,
+                                               double* output, int64_t iterations) {
+    printf("  CopyMinMax double (dispatch): ");
+    fflush(stdout);
+
+    BENCH_START();
+    for (int64_t iter = 0; iter < iterations; iter++) {
+        double mn, mx;
+        carquet_dispatch_copy_minmax_double(values, count, output, &mn, &mx);
+        g_sink = (int64_t)(mn + mx);
+    }
+    double elapsed = BENCH_END();
+
+    double ns_per_value = elapsed / (iterations * count);
+    printf("%.2f ns/value, %.2f M values/sec\n", ns_per_value, 1e9 / ns_per_value / 1e6);
+}
+
 static void run_minmax_benchmarks(int64_t count, int64_t iterations) {
     printf("\n=== MinMax Benchmarks (Statistics) ===\n");
     printf("Values: %ld, Iterations: %ld\n\n", (long)count, (long)iterations);
@@ -947,25 +1016,38 @@ static void run_minmax_benchmarks(int64_t count, int64_t iterations) {
     int32_t* i32_data = malloc(count * sizeof(int32_t));
     int64_t* i64_data = malloc(count * sizeof(int64_t));
     float* float_data = malloc(count * sizeof(float));
-    int32_t* output = malloc(count * sizeof(int32_t));
+    double* double_data = malloc(count * sizeof(double));
+    int32_t* i32_output = malloc(count * sizeof(int32_t));
+    int64_t* i64_output = malloc(count * sizeof(int64_t));
+    float* float_output = malloc(count * sizeof(float));
+    double* double_output = malloc(count * sizeof(double));
     uint32_t seed = 42;
     for (int64_t i = 0; i < count; i++) {
         seed = seed * 1103515245 + 12345;
         i32_data[i] = (int32_t)(seed % 1000000) - 500000;
         i64_data[i] = (int64_t)i32_data[i] * 1000;
         float_data[i] = (float)i32_data[i] * 0.1f;
+        double_data[i] = (double)i32_data[i] * 0.01;
     }
 
     bench_minmax_i32_scalar(i32_data, count, iterations);
     bench_minmax_i32_dispatch(i32_data, count, iterations);
     bench_minmax_i64_dispatch(i64_data, count, iterations);
     bench_minmax_float_dispatch(float_data, count, iterations);
-    bench_copy_minmax_i32(i32_data, count, output, iterations);
+    bench_minmax_double_dispatch(double_data, count, iterations);
+    bench_copy_minmax_i32(i32_data, count, i32_output, iterations);
+    bench_copy_minmax_i64(i64_data, count, i64_output, iterations);
+    bench_copy_minmax_float(float_data, count, float_output, iterations);
+    bench_copy_minmax_double(double_data, count, double_output, iterations);
 
     free(i32_data);
     free(i64_data);
     free(float_data);
-    free(output);
+    free(double_data);
+    free(i32_output);
+    free(i64_output);
+    free(float_output);
+    free(double_output);
 }
 
 /* ============================================================================
@@ -1147,30 +1229,14 @@ static void run_prefix_sum_benchmarks(int64_t count, int64_t iterations) {
  * CRC32 Micro-benchmark
  * ============================================================================ */
 
-NOINLINE static void bench_crc32_software(const uint8_t* data, size_t size,
-                                           int64_t iterations) {
-    printf("  CRC32 (software):        ");
+NOINLINE static void bench_crc32(const uint8_t* data, size_t size,
+                                  int64_t iterations) {
+    printf("  CRC32 (IEEE, zlib):      ");
     fflush(stdout);
 
     BENCH_START();
     for (int64_t iter = 0; iter < iterations; iter++) {
         uint32_t crc = carquet_crc32(data, size);
-        g_sink = crc;
-    }
-    double elapsed = BENCH_END();
-
-    double mb_per_sec = (double)size * iterations / elapsed * 1e3;
-    printf("%.2f MB/sec\n", mb_per_sec);
-}
-
-NOINLINE static void bench_crc32c_dispatch(const uint8_t* data, size_t size,
-                                            int64_t iterations) {
-    printf("  CRC32C (dispatch):       ");
-    fflush(stdout);
-
-    BENCH_START();
-    for (int64_t iter = 0; iter < iterations; iter++) {
-        uint32_t crc = carquet_dispatch_crc32c(0, data, size);
         g_sink = crc;
     }
     double elapsed = BENCH_END();
@@ -1206,8 +1272,7 @@ static void run_hash_benchmarks(size_t size, int64_t iterations) {
         data[i] = (uint8_t)(seed >> 16);
     }
 
-    bench_crc32_software(data, size, iterations);
-    bench_crc32c_dispatch(data, size, iterations);
+    bench_crc32(data, size, iterations);
     bench_xxhash64(data, size, iterations);
 
     free(data);

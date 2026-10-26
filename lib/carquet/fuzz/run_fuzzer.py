@@ -56,8 +56,18 @@ TARGETS = [
     ("encodings",    "Encoding decoders: RLE, Delta, Plain, Dictionary, BSS, DeltaLen"),
     ("thrift",       "Thrift compact protocol: primitives, structs, file/page metadata"),
     ("roundtrip",    "Encode-decode consistency for delta, LZ4, BSS, RLE, Snappy, dict"),
+    ("page_filter",  "Page-level predicate filter over column-index/offset-index stats"),
+    ("append",       "open_append footer parse, schema-match, restore + footer rewrite"),
+    ("arrow_schema", "ARROW:schema FlatBuffer reader recovering per-field custom_metadata"),
+    ("arrow_c_data", "Arrow C Data Interface format-string parser (import_schema)"),
+    ("nested_write", "Nested write helper: auto-shredding LIST/MAP offsets+validity"),
+    ("arrow_read",   "Nested Arrow reassembler (carquet_reader_read_arrow) over file bytes"),
 ]
 TARGET_NAMES = [t[0] for t in TARGETS]
+
+# Targets that consume whole Parquet files and therefore benefit from the
+# real-world apache/parquet-testing seeds fetched by fuzz/fetch_corpus.sh.
+EXTERNAL_SEED_TARGETS = {"reader", "page_filter", "arrow_read"}
 
 
 # ── Seed corpus ──────────────────────────────────────────────────────────────
@@ -137,6 +147,19 @@ SEEDS = {
         "seed_plain32": b"\x08\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00",
         "seed_gzip": b"\x09abcdefghijklmnopqrstuvwxyz",
         "seed_zstd": b"\x0arepeat repeat repeat repeat",
+    },
+    "arrow_schema": {
+        "seed_pyarrow": (
+            b'\xff\xff\xff\xff\x88\x01\x00\x00\x10\x00\x00\x00\x00\x00\n\x00\x0c\x00\n\x00\t\x00\x04\x00\n\x00\x00\x00\x10\x00\x00\x00\x00\x01\x04\x00\x08\x00\x08\x00\x00\x00\x04\x00\x08\x00\x00\x00'
+            b'\x04\x00\x00\x00\x03\x00\x00\x00\xd4\x00\x00\x00L\x00\x00\x00\x10\x00\x00\x00\x0c\x00\x10\x00\x0c\x00\x0b\x00\n\x00\x04\x00\x0c\x00\x00\x00\x1c\x00\x00\x00\x00\x00\x04\x01\x04\x00\x00\x00'
+            b'\x04\x00\x00\x00Name\x00\x00\x00\x00\x04\x00\x06\x00\x04\x00\x00\x00\x00\x00\x12\x00\x14\x00\x10\x00\x00\x00\x0f\x00\x08\x00\x00\x00\x00\x00\x04\x00\x12\x00\x00\x00\x10\x00\x00\x00'
+            b'\\\x00\x00\x00\x00\x00\x00\x02D\x00\x00\x00\x01\x00\x00\x00\x0c\x00\x00\x00\x08\x00\x0c\x00\x08\x00\x04\x00\x08\x00\x00\x00\x08\x00\x00\x00\x1c\x00\x00\x00\x11\x00\x00\x00Sex '
+            b'of Respondent\x00\x00\x00\x05\x00\x00\x00Label\x00\x00\x00\x03\x00\x00\x00Sex\x00\x08\x00\x0e\x00\x08\x00\x07\x00\x08\x00\x00\x00'
+            b'\x00\x00\x00\x01 \x00\x00\x00\x00\x00\x12\x00\x14\x00\x10\x00\x0f\x00\x0e\x00\x08\x00\x00\x00\x00\x00\x04\x00\x12\x00\x00\x00\x10\x00\x00\x00p\x00\x00\x00\x00\x00\x02\x01P\x00\x00\x00'
+            b'\x01\x00\x00\x00\x0c\x00\x00\x00\x08\x00\x0c\x00\x08\x00\x04\x00\x08\x00\x00\x00\x08\x00\x00\x00(\x00\x00\x00\x1f\x00\x00\x00Numeric With Lab'
+            b'els and Missing\x00\x05\x00\x00\x00Label\x00\x00\x00\t\x00\x00\x00SurveyVar\x00\x00\x00\x08\x00\x0c\x00'
+            b'\x08\x00\x07\x00\x08\x00\x00\x00\x00\x00\x00\x01 \x00\x00\x00'
+        ),
     },
 }
 
@@ -282,10 +305,35 @@ def ensure_corpus(build_dir, target, script_dir):
     corpus_dir = os.path.join(build_dir, "fuzz", f"corpus_{target}")
     os.makedirs(corpus_dir, exist_ok=True)
 
-    if not os.listdir(corpus_dir) and target in SEEDS:
-        for name, data in SEEDS[target].items():
-            with open(os.path.join(corpus_dir, name), "wb") as f:
-                f.write(data)
+    if not os.listdir(corpus_dir):
+        if target in SEEDS:
+            for name, data in SEEDS[target].items():
+                with open(os.path.join(corpus_dir, name), "wb") as f:
+                    f.write(data)
+        # Some targets (e.g. page_filter) need real binary seeds too large to
+        # inline as byte literals. Copy any checked-in seeds from
+        # fuzz/corpus/<target>/ if present.
+        checked_in = os.path.join(script_dir, "corpus", target)
+        if os.path.isdir(checked_in):
+            for entry in os.scandir(checked_in):
+                if entry.is_file():
+                    shutil.copy2(entry.path, corpus_dir)
+
+        # Real-world seeds from apache/parquet-testing (fetched on demand by
+        # fuzz/fetch_corpus.sh into fuzz/external/). These full Parquet files
+        # massively widen "valid file" coverage for the targets that consume
+        # whole files. Names are prefixed to avoid collisions.
+        if target in EXTERNAL_SEED_TARGETS:
+            ext_root = os.path.join(script_dir, "external", "parquet-testing")
+            for sub in ("data", os.path.join("data", "geospatial"), "bad_data"):
+                src_dir = os.path.join(ext_root, sub)
+                if not os.path.isdir(src_dir):
+                    continue
+                tag = sub.replace(os.sep, "_")
+                for entry in os.scandir(src_dir):
+                    if entry.is_file() and entry.name.endswith(".parquet"):
+                        dst = os.path.join(corpus_dir, f"pt_{tag}_{entry.name}")
+                        shutil.copy2(entry.path, dst)
 
     return corpus_dir
 

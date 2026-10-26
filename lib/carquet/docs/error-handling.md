@@ -81,16 +81,59 @@ CARQUET_SUCCEEDED(status);                /* status == CARQUET_OK */
 CARQUET_FAILED(status);                   /* status != CARQUET_OK */
 ```
 
+## Per-Read Error Reporting on the Column Reader
+
+`carquet_column_read_batch()` returns the number of values read, or `-1` on any error — it cannot say *which* error, and it reports a mid-batch read failure that already produced some values by returning that partial count (indistinguishable from a clean end-of-column short read). `carquet_column_read_batch_ex()` takes the same arguments plus a trailing `carquet_error_t*` and follows the out-parameter convention used everywhere else in the API:
+
+| Return | `error` | Meaning |
+|---|---|---|
+| `>= 0` | unset (`CARQUET_OK`) | Clean read; a value below the requested count means end-of-column. |
+| `> 0` | set | Partial read — values are valid but a read error truncated the batch; the rest was not read. |
+| `-1` | set | Hard failure, nothing read (`INVALID_ARGUMENT`, `TYPE_MISMATCH`, `OUT_OF_MEMORY`, or the propagated page/decode/I-O code). |
+
+The error is cleared on entry, so `error->code == CARQUET_OK` is a reliable "no failure" signal regardless of the returned count. Passing `NULL` for `error` reproduces `carquet_column_read_batch()` exactly.
+
+## Per-Read Error Reporting on the Batch Reader
+
+`carquet_batch_reader_next()` has no error out-parameter — it can only return a status code, and on a decode failure that status is the coarse `CARQUET_ERROR_DECODE`. `carquet_batch_reader_last_error()` recovers the detail that was built deeper in the reader:
+
+```c
+carquet_row_batch_t* batch = NULL;
+carquet_status_t st;
+while ((st = carquet_batch_reader_next(br, &batch)) == CARQUET_OK && batch) {
+    /* ... */
+    carquet_row_batch_free(batch);
+    batch = NULL;
+}
+if (st != CARQUET_OK && st != CARQUET_ERROR_END_OF_DATA) {
+    const carquet_error_t* e = carquet_batch_reader_last_error(br);
+    fprintf(stderr, "read failed: %s\n", e ? e->message : carquet_status_string(st));
+}
+```
+
+- Returns `NULL` when the last `carquet_batch_reader_next()` did not fail. `CARQUET_ERROR_END_OF_DATA` is the normal terminator and leaves the error unset.
+- When the failure came from a column read, the returned error is that column's verbatim error and its `code` is the *underlying, more specific* status. A corrupt Snappy page makes `next()` return `CARQUET_ERROR_DECODE` while `e->code` is `CARQUET_ERROR_INVALID_COMPRESSED_DATA` and `e->message` names the page's absolute file offset and the exact codec check that fired:
+
+  ```
+  Failed to decompress data page at file offset 2214592512: snappy[10]: copy offset
+  points before start of output [src=25 dst=20 declared=9242833 tag=30 op=100]
+  (codec=1, compressed=1599289, uncompressed=9242833)
+  ```
+
+- For failures outside a column read the message falls back to the status name and `code` equals what `next()` returned.
+- With several projected columns, the reported error is the first failing column in projection order.
+- The pointer is owned by the batch reader and is invalidated by the next `carquet_batch_reader_next()` call or by `carquet_batch_reader_free()`; copy the message out if you need to keep it.
+
 ## Physical Type ↔ C Type Mapping
 
-When calling `carquet_writer_write_batch()` or reading from `carquet_column_read_batch()` / `carquet_row_batch_column()`, the `values` buffer must match the column's physical type:
+When calling `carquet_writer_write_batch()` or reading from `carquet_column_read_batch()` / `carquet_column_read_batch_ex()` / `carquet_row_batch_column()`, the `values` buffer must match the column's physical type:
 
 | Physical Type | C Type | Size | Notes |
 |---|---|---|---|
 | `CARQUET_PHYSICAL_BOOLEAN` | `uint8_t` | 1 | One byte per value (not bit-packed in the API) |
 | `CARQUET_PHYSICAL_INT32` | `int32_t` | 4 | |
 | `CARQUET_PHYSICAL_INT64` | `int64_t` | 8 | |
-| `CARQUET_PHYSICAL_INT96` | `carquet_int96_t` | 12 | Deprecated; legacy timestamps only |
+| `CARQUET_PHYSICAL_INT96` | `carquet_int96_t` | 12 | Deprecated legacy timestamps; readable and writable (PLAIN only, no statistics) |
 | `CARQUET_PHYSICAL_FLOAT` | `float` | 4 | IEEE 754 |
 | `CARQUET_PHYSICAL_DOUBLE` | `double` | 8 | IEEE 754 |
 | `CARQUET_PHYSICAL_BYTE_ARRAY` | `carquet_byte_array_t` | ptr+len | Variable-length; data pointer valid until batch/reader freed |

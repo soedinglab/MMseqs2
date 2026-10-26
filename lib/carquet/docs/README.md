@@ -16,7 +16,9 @@ For runnable code, start with:
 | Scan rows for analytics, project a few columns, or parallelize reads | [`reading.md`](./reading.md) and `carquet_batch_reader_t` |
 | Read one column from one row group, or work with raw definition/repetition levels | [`reading.md`](./reading.md) and `carquet_column_reader_t` |
 | Write flat data to a file | [`writing.md`](./writing.md) and `carquet_writer_t` |
+| Add row groups to an existing file | [`writing.md`](./writing.md#append-to-an-existing-file) and `carquet_writer_open_append()` |
 | Write nested schemas or nullable/repeated data | [`nested-data.md`](./nested-data.md) |
+| Exchange data with Arrow (PyArrow/DuckDB/nanoarrow) via the C Data Interface | [`reading.md`](./reading.md#export-to-arrow-c-data-interface) / [`writing.md`](./writing.md#import-from-arrow-c-data-interface) and `carquet_arrow_*` |
 | Push performance on local files or string-heavy datasets | [`performance.md`](./performance.md) |
 | Inspect footer metadata only | `carquet_get_file_info()` and `carquet_validate_file()` |
 | Understand error codes, type mappings, or level conventions | [`error-handling.md`](./error-handling.md) |

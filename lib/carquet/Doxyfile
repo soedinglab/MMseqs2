@@ -1,0 +1,73 @@
+# Doxyfile for Carquet — pure C11 Apache Parquet library
+# Generate docs:  doxygen Doxyfile   (output in build/docs/html/index.html)
+
+#---------------------------------------------------------------------------
+# Project
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "Carquet"
+PROJECT_BRIEF          = "High-performance pure C11 Apache Parquet library"
+PROJECT_NUMBER         = 0.7.2
+PROJECT_LOGO           = res/img/carquet_logo.png
+OUTPUT_DIRECTORY       = build/docs
+CREATE_SUBDIRS         = NO
+
+#---------------------------------------------------------------------------
+# Input
+#---------------------------------------------------------------------------
+INPUT                  = include README.md
+FILE_PATTERNS          = *.h *.c
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+# Where to find images referenced by README/headers (so they get copied out)
+IMAGE_PATH             = res/img
+EXCLUDE_PATTERNS       = */build/* */tests/* */fuzz/*
+
+#---------------------------------------------------------------------------
+# Build / extraction
+#---------------------------------------------------------------------------
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+JAVADOC_AUTOBRIEF      = YES
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+MARKDOWN_SUPPORT       = YES
+SORT_MEMBER_DOCS       = NO
+
+# Treat carquet public macros sanely
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+# Strip attribute macros so Doxygen sees the real function signatures
+PREDEFINED             = CARQUET_NONNULL(...)= \
+                         CARQUET_WARN_UNUSED_RESULT= \
+                         CARQUET_DEPRECATED(msg)= \
+                         CARQUET_API= \
+                         __attribute__(x)=
+
+#---------------------------------------------------------------------------
+# Output formats
+#---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HTML_DYNAMIC_SECTIONS  = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_EXTRA_STYLESHEET  = docs/doxygen-custom.css
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+
+#---------------------------------------------------------------------------
+# Diagrams (graphviz)
+#---------------------------------------------------------------------------
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = NO
+COLLABORATION_GRAPH    = YES

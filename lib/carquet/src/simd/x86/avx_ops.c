@@ -20,6 +20,12 @@
 #endif
 #include <immintrin.h>
 
+/* min/max accumulators below put the loaded vector FIRST: MINPS/MAXPS return
+ * the second operand when either is NaN, so a NaN value leaves the
+ * accumulator untouched (NaN-skipping, like the AVX2 compare+blend path).
+ * With (acc, v) a NaN would replace the accumulator and silently discard
+ * every value seen so far in that lane. */
+
 void carquet_avx_minmax_float(const float* values, int64_t count,
                                float* min_value, float* max_value) {
     float min_v = values[0];
@@ -30,8 +36,8 @@ void carquet_avx_minmax_float(const float* values, int64_t count,
 
     for (; i + 8 <= count; i += 8) {
         __m256 v = _mm256_loadu_ps(values + i);
-        min_vec = _mm256_min_ps(min_vec, v);
-        max_vec = _mm256_max_ps(max_vec, v);
+        min_vec = _mm256_min_ps(v, min_vec);
+        max_vec = _mm256_max_ps(v, max_vec);
     }
 
     float tmp_min[8];
@@ -61,8 +67,8 @@ void carquet_avx_minmax_double(const double* values, int64_t count,
 
     for (; i + 4 <= count; i += 4) {
         __m256d v = _mm256_loadu_pd(values + i);
-        min_vec = _mm256_min_pd(min_vec, v);
-        max_vec = _mm256_max_pd(max_vec, v);
+        min_vec = _mm256_min_pd(v, min_vec);
+        max_vec = _mm256_max_pd(v, max_vec);
     }
 
     double tmp_min[4];
@@ -93,8 +99,8 @@ void carquet_avx_copy_minmax_float(const float* values, int64_t count, float* ou
     for (; i + 8 <= count; i += 8) {
         __m256 v = _mm256_loadu_ps(values + i);
         _mm256_storeu_ps(output + i, v);
-        min_vec = _mm256_min_ps(min_vec, v);
-        max_vec = _mm256_max_ps(max_vec, v);
+        min_vec = _mm256_min_ps(v, min_vec);
+        max_vec = _mm256_max_ps(v, max_vec);
     }
 
     float tmp_min[8];
@@ -127,8 +133,8 @@ void carquet_avx_copy_minmax_double(const double* values, int64_t count, double*
     for (; i + 4 <= count; i += 4) {
         __m256d v = _mm256_loadu_pd(values + i);
         _mm256_storeu_pd(output + i, v);
-        min_vec = _mm256_min_pd(min_vec, v);
-        max_vec = _mm256_max_pd(max_vec, v);
+        min_vec = _mm256_min_pd(v, min_vec);
+        max_vec = _mm256_max_pd(v, max_vec);
     }
 
     double tmp_min[4];

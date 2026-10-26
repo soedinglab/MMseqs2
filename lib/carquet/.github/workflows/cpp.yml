@@ -1,4 +1,3 @@
-
 name: Test
 on: [push, pull_request]
 
@@ -11,63 +10,67 @@ jobs:
     name: OS ${{ matrix.os }} with BUILD_SHARED_LIBS=${{matrix.shared}}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest,  ubuntu-24.04-arm ]
+        os: [macos-latest, windows-latest, ubuntu-latest, ubuntu-24.04-arm]
         shared: [ON, OFF]
 
     steps:
-     - uses: actions/checkout@v4
-     - uses: ilammy/msvc-dev-cmd@v1
-       if: matrix.os == 'windows-latest'
-     - name: Support longpaths
-       run: git config --system core.longpaths true
-       if: matrix.os == 'windows-latest'
-     - uses: mamba-org/setup-micromamba@v2
-       with:
-           init-shell: bash
-           environment-file: ci/environment.yml
-           environment-name: "build"
-           cache-environment: true
-           cache-downloads: true
+      - uses: actions/checkout@v4
 
-     - name: Setup
-       shell: bash -l {0}
-       run: |
-           mkdir build
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Support longpaths
+        if: runner.os == 'Windows'
+        run: git config --system core.longpaths true
 
-     - name: CMake
-       shell: bash -l {0}
-       env:
-        BUILD_SHARED_LIBS: ${{ matrix.shared }}
+      # cmake + a C/C++ compiler are preinstalled on the Linux/macOS runner images;
+      # we only install ninja, ccache, and the three codec libs. zlib is provided by
+      # the macOS SDK. Windows self-supplies zstd/zlib/lz4 via CMake FetchContent.
+      - name: Install deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ccache pkg-config \
+            zlib1g-dev libzstd-dev liblz4-dev libbrotli-dev
 
-       run: |
+      - name: Install deps (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja ccache pkg-config zstd lz4 brotli
 
-        if [ "$RUNNER_OS" == "Windows" ]; then
-        export CC=cl.exe
-        export CXX=cl.exe
-        fi
+      # ccache on Linux/macOS, sccache on Windows (ccache doesn't support MSVC).
+      # sccache caches both the FetchContent codec builds and carquet's objects.
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          variant: ${{ runner.os == 'Windows' && 'sccache' || 'ccache' }}
+          key: ${{ matrix.os }}-${{ matrix.shared }}
 
-        cmake   -G "Ninja"  \
-              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-              -DCARQUET_BUILD_SHARED=$BUILD_SHARED_LIBS \
-              -DCARQUET_BUILD_TESTS=ON \
-              -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
-              ..
+      - name: Configure
+        shell: bash
+        env:
+          BUILD_SHARED_LIBS: ${{ matrix.shared }}
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            export CC=cl.exe CXX=cl.exe
+            # sccache can't cache MSVC /Zi PDBs, so build Release (no /Zi) here.
+            LAUNCHER="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+            BUILD_TYPE=Release
+          else
+            LAUNCHER="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+            BUILD_TYPE=RelWithDebInfo
+          fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCARQUET_BUILD_SHARED=$BUILD_SHARED_LIBS \
+            -DCARQUET_BUILD_TESTS=ON \
+            $LAUNCHER
 
+      - name: Compile
+        run: cmake --build build --parallel
 
-       working-directory: ./build
-
-     - name: Compile
-       shell: bash -l {0}
-       run: |
-          ninja
-       working-directory: ./build
-
-     - name: Test
-       shell: bash -l {0}
-       run: |
-          ctest -VV --rerun-failed --output-on-failure
-       working-directory: ./build
+      - name: Test
+        run: ctest --test-dir build -VV --rerun-failed --output-on-failure
 
   redhat-build:
     name: Rocky Linux 9
@@ -99,6 +102,3 @@ jobs:
      - name: Test
        run: |
           ctest --test-dir build -VV --rerun-failed --output-on-failure
-
-
-

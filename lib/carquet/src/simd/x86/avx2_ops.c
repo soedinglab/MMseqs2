@@ -11,6 +11,7 @@
  */
 
 #include <carquet/error.h>
+#include "simd/simd_unaligned.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -98,19 +99,6 @@ void carquet_avx2_bitunpack8_3bit(const uint8_t* input, uint32_t* values) {
     _mm256_storeu_si256((__m256i*)values, result);
 }
 
-/**
- * Unpack 64 1-bit values using AVX2.
- * Input: 8 bytes, Output: 64 x uint32_t
- */
-void carquet_avx2_bitunpack64_1bit(const uint8_t* input, uint32_t* values) {
-    /* For each byte, extract bits */
-    for (int b = 0; b < 8; b++) {
-        uint8_t byte_val = input[b];
-        for (int i = 0; i < 8; i++) {
-            values[b * 8 + i] = (byte_val >> i) & 1;
-        }
-    }
-}
 
 /**
  * Unpack 8 4-bit values using AVX2.
@@ -682,7 +670,7 @@ void carquet_avx2_gather_i32(const int32_t* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -702,7 +690,7 @@ void carquet_avx2_gather_i64(const int64_t* dict, const uint32_t* indices,
 
     /* Handle remaining */
     for (; i < count; i++) {
-        output[i] = dict[indices[i]];
+        output[i] = cq_loadu(dict + (indices[i]));
     }
 }
 
@@ -759,7 +747,7 @@ bool carquet_avx2_checked_gather_i32(const int32_t* dict, int32_t dict_count,
         if (a >= limit || b >= limit || c >= limit || d >= limit) {
             return false;
         }
-        __m128i result = _mm_set_epi32(dict[d], dict[c], dict[b], dict[a]);
+        __m128i result = _mm_set_epi32(cq_loadu(dict + (d)), cq_loadu(dict + (c)), cq_loadu(dict + (b)), cq_loadu(dict + (a)));
         _mm_storeu_si128((__m128i*)(output + i), result);
     }
 
@@ -768,7 +756,7 @@ bool carquet_avx2_checked_gather_i32(const int32_t* dict, int32_t dict_count,
         if (idx >= limit) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_loadu(dict + (idx));
     }
 
     return true;
@@ -801,7 +789,7 @@ bool carquet_avx2_checked_gather_i64(const int64_t* dict, int32_t dict_count,
         if (a >= limit || b >= limit || c >= limit || d >= limit) {
             return false;
         }
-        __m256i result = _mm256_set_epi64x(dict[d], dict[c], dict[b], dict[a]);
+        __m256i result = _mm256_set_epi64x(cq_loadu(dict + (d)), cq_loadu(dict + (c)), cq_loadu(dict + (b)), cq_loadu(dict + (a)));
         _mm256_storeu_si256((__m256i*)(output + i), result);
     }
 
@@ -810,7 +798,7 @@ bool carquet_avx2_checked_gather_i64(const int64_t* dict, int32_t dict_count,
         if (idx >= limit) {
             return false;
         }
-        output[i] = dict[idx];
+        output[i] = cq_loadu(dict + (idx));
     }
 
     return true;
@@ -828,42 +816,6 @@ bool carquet_avx2_checked_gather_double(const double* dict, int32_t dict_count,
                                          double* output) {
     return carquet_avx2_checked_gather_i64(
         (const int64_t*)dict, dict_count, indices, count, (int64_t*)output);
-}
-
-uint32_t carquet_avx2_crc32c(uint32_t crc, const uint8_t* data, size_t len) {
-    size_t i = 0;
-
-    /* Standard CRC32C convention: pre/post XOR with 0xFFFFFFFF.
-     * The _mm_crc32_* intrinsics compute the raw polynomial remainder
-     * without any inversion, so we must handle it. */
-    crc = ~crc;
-
-#ifdef __x86_64__
-    for (; i + 8 <= len; i += 8) {
-        uint64_t val;
-        memcpy(&val, data + i, 8);
-        crc = (uint32_t)_mm_crc32_u64(crc, val);
-    }
-#endif
-
-    for (; i + 4 <= len; i += 4) {
-        uint32_t val;
-        memcpy(&val, data + i, 4);
-        crc = _mm_crc32_u32(crc, val);
-    }
-
-    if (i + 2 <= len) {
-        uint16_t val;
-        memcpy(&val, data + i, 2);
-        crc = _mm_crc32_u16(crc, val);
-        i += 2;
-    }
-
-    if (i < len) {
-        crc = _mm_crc32_u8(crc, data[i]);
-    }
-
-    return ~crc;
 }
 
 void carquet_avx2_match_copy(uint8_t* dst, const uint8_t* src, size_t len, size_t offset) {
@@ -1089,23 +1041,33 @@ void carquet_avx2_unpack_bools(const uint8_t* input, uint8_t* output, int64_t co
 void carquet_avx2_pack_bools(const uint8_t* input, uint8_t* output, int64_t count) {
     int64_t i = 0;
 
-    /* Process 8 bools at a time using movemask */
+    /* 32 bools -> 4 output bytes per iteration via compare + movemask.
+     * cmpeq(v, 0) yields 0xFF for every zero byte; movemask gathers the top
+     * bit of each byte (byte k -> mask bit k), so the inverted mask has bit k
+     * set iff byte k is non-zero. That is exactly the scalar reference rule
+     * (any non-zero byte is true, not just 0x01) and movemask's byte order is
+     * the LSB-first layout the PLAIN BOOLEAN encoding needs. This replaces a
+     * 128-bit mullo/horizontal-add reduction that handled only 8 bools per
+     * iteration. */
+    const __m256i zero256 = _mm256_setzero_si256();
+    for (; i + 32 <= count; i += 32) {
+        __m256i v = _mm256_loadu_si256((const __m256i*)(input + i));
+        uint32_t nz = ~(uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(v, zero256));
+        uint8_t* o = output + i / 8;
+        o[0] = (uint8_t)nz;
+        o[1] = (uint8_t)(nz >> 8);
+        o[2] = (uint8_t)(nz >> 16);
+        o[3] = (uint8_t)(nz >> 24);
+    }
+
+    /* 8 bools -> 1 byte with the 128-bit half of the same trick. loadl_epi64
+     * zero-fills the upper 8 lanes; their mask bits land above bit 7 and are
+     * dropped by the uint8_t cast. */
+    const __m128i zero128 = _mm_setzero_si128();
     for (; i + 8 <= count; i += 8) {
-        __m128i bools = _mm_loadl_epi64((const __m128i*)(input + i));
-
-        /* Actually simpler: multiply by bit positions */
-        __m128i mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0,
-                                     (char)128, 64, 32, 16, 8, 4, 2, 1);
-        __m128i zero = _mm_setzero_si128();
-        __m128i words = _mm_unpacklo_epi8(bools, zero);
-        __m128i mwords = _mm_unpacklo_epi8(mult, zero);
-
-        __m128i prod = _mm_mullo_epi16(words, mwords);
-        prod = _mm_add_epi16(prod, _mm_srli_si128(prod, 2));
-        prod = _mm_add_epi16(prod, _mm_srli_si128(prod, 4));
-        prod = _mm_add_epi16(prod, _mm_srli_si128(prod, 8));
-
-        output[i / 8] = (uint8_t)_mm_extract_epi16(prod, 0);
+        __m128i v = _mm_loadl_epi64((const __m128i*)(input + i));
+        int eq = _mm_movemask_epi8(_mm_cmpeq_epi8(v, zero128));
+        output[i / 8] = (uint8_t)~eq;
     }
 
     /* Handle remaining */
@@ -1187,7 +1149,7 @@ void carquet_avx2_build_null_bitmap(const int16_t* def_levels, int64_t count,
 
     for (int64_t b = 0; b + 1 < full_bytes; b += 2) {
         __m256i levels = _mm256_loadu_si256((const __m256i*)(def_levels + i));
-        __m256i cmp = _mm256_cmpgt_epi16(max_vec, levels);
+        __m256i cmp = _mm256_cmpeq_epi16(levels, max_vec);
         __m128i lo = _mm256_castsi256_si128(cmp);
         __m128i hi = _mm256_extracti128_si256(cmp, 1);
         __m128i packed = _mm_packs_epi16(lo, hi);
@@ -1200,20 +1162,20 @@ void carquet_avx2_build_null_bitmap(const int16_t* def_levels, int64_t count,
     for (int64_t b = (full_bytes & ~1LL); b < full_bytes; b++) {
         __m128i levels = _mm_loadu_si128((const __m128i*)(def_levels + i));
         __m128i max128 = _mm256_castsi256_si128(max_vec);
-        __m128i cmp = _mm_cmplt_epi16(levels, max128);
+        __m128i cmp = _mm_cmpeq_epi16(levels, max128);
         __m128i packed = _mm_packs_epi16(cmp, zero);
         null_bitmap[b] = (uint8_t)_mm_movemask_epi8(packed);
         i += 8;
     }
 
     if (i < count) {
-        uint8_t null_bits = 0;
+        uint8_t present_bits = 0;
         for (int64_t j = 0; i + j < count && j < 8; j++) {
-            if (def_levels[i + j] < max_def_level) {
-                null_bits |= (uint8_t)(1u << j);
+            if (def_levels[i + j] == max_def_level) {
+                present_bits |= (uint8_t)(1u << j);
             }
         }
-        null_bitmap[full_bytes] = null_bits;
+        null_bitmap[full_bytes] = present_bits;
     }
 }
 

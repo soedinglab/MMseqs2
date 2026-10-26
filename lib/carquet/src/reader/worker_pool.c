@@ -8,6 +8,7 @@
  * per-batch OpenMP fork/join overhead (~10-50us per batch × 400 batches).
  */
 
+#include "core/allocator.h"
 #include "worker_pool.h"
 #include <stdlib.h>
 
@@ -102,7 +103,7 @@ static void* worker_thread_func(void* arg) {
 carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
     if (num_threads < 1) return NULL;
 
-    carquet_worker_pool_t* pool = calloc(1, sizeof(carquet_worker_pool_t));
+    carquet_worker_pool_t* pool = carquet_mem_calloc(1, sizeof(carquet_worker_pool_t));
     if (!pool) return NULL;
 
     pool->num_threads = num_threads;
@@ -118,10 +119,10 @@ carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
     InitializeConditionVariable(&pool->work_done);
     InitializeConditionVariable(&pool->queue_not_full);
 
-    pool->threads = calloc(num_threads, sizeof(HANDLE));
+    pool->threads = carquet_mem_calloc(num_threads, sizeof(HANDLE));
     if (!pool->threads) {
         DeleteCriticalSection(&pool->mutex);
-        free(pool);
+        carquet_mem_free(pool);
         return NULL;
     }
     for (int32_t i = 0; i < num_threads; i++) {
@@ -134,8 +135,8 @@ carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
                 CloseHandle(pool->threads[j]);
             }
             DeleteCriticalSection(&pool->mutex);
-            free(pool->threads);
-            free(pool);
+            carquet_mem_free(pool->threads);
+            carquet_mem_free(pool);
             return NULL;
         }
     }
@@ -145,13 +146,13 @@ carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
     pthread_cond_init(&pool->work_done, NULL);
     pthread_cond_init(&pool->queue_not_full, NULL);
 
-    pool->threads = calloc(num_threads, sizeof(pthread_t));
+    pool->threads = carquet_mem_calloc(num_threads, sizeof(pthread_t));
     if (!pool->threads) {
         pthread_mutex_destroy(&pool->mutex);
         pthread_cond_destroy(&pool->work_available);
         pthread_cond_destroy(&pool->work_done);
         pthread_cond_destroy(&pool->queue_not_full);
-        free(pool);
+        carquet_mem_free(pool);
         return NULL;
     }
     for (int32_t i = 0; i < num_threads; i++) {
@@ -165,8 +166,8 @@ carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
             pthread_cond_destroy(&pool->work_available);
             pthread_cond_destroy(&pool->work_done);
             pthread_cond_destroy(&pool->queue_not_full);
-            free(pool->threads);
-            free(pool);
+            carquet_mem_free(pool->threads);
+            carquet_mem_free(pool);
             return NULL;
         }
     }
@@ -252,6 +253,6 @@ void carquet_worker_pool_destroy(carquet_worker_pool_t* pool) {
     pthread_cond_destroy(&pool->queue_not_full);
 #endif
 
-    free(pool->threads);
-    free(pool);
+    carquet_mem_free(pool->threads);
+    carquet_mem_free(pool);
 }

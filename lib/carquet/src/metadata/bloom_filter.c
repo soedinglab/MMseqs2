@@ -10,6 +10,7 @@
  * Reference: https://parquet.apache.org/docs/file-format/bloomfilter/
  */
 
+#include "core/allocator.h"
 #include <carquet/carquet.h>
 #include <carquet/error.h>
 #include <stdint.h>
@@ -56,7 +57,8 @@ struct carquet_bloom_filter {
  * Generate block index from hash.
  */
 static inline size_t bloom_filter_block_index(uint64_t hash, size_t num_blocks) {
-    return (size_t)((hash >> 32) % num_blocks);
+    uint64_t top_bits = hash >> 32;
+    return (size_t)((top_bits * (uint64_t)num_blocks) >> 32);
 }
 
 /**
@@ -105,14 +107,14 @@ carquet_bloom_filter_t* carquet_bloom_filter_create(size_t num_bytes) {
     num_bytes = (num_bytes + BLOOM_FILTER_BLOCK_SIZE - 1) /
                 BLOOM_FILTER_BLOCK_SIZE * BLOOM_FILTER_BLOCK_SIZE;
 
-    carquet_bloom_filter_t* filter = malloc(sizeof(carquet_bloom_filter_t));
+    carquet_bloom_filter_t* filter = carquet_mem_malloc(sizeof(carquet_bloom_filter_t));
     if (!filter) {
         return NULL;
     }
 
-    filter->data = calloc(num_bytes, 1);
+    filter->data = carquet_mem_calloc(num_bytes, 1);
     if (!filter->data) {
-        free(filter);
+        carquet_mem_free(filter);
         return NULL;
     }
 
@@ -157,14 +159,14 @@ carquet_bloom_filter_t* carquet_bloom_filter_from_data(
         return NULL;
     }
 
-    carquet_bloom_filter_t* filter = malloc(sizeof(carquet_bloom_filter_t));
+    carquet_bloom_filter_t* filter = carquet_mem_malloc(sizeof(carquet_bloom_filter_t));
     if (!filter) {
         return NULL;
     }
 
-    filter->data = malloc(size);
+    filter->data = carquet_mem_malloc(size);
     if (!filter->data) {
-        free(filter);
+        carquet_mem_free(filter);
         return NULL;
     }
 
@@ -179,9 +181,9 @@ carquet_bloom_filter_t* carquet_bloom_filter_from_data(
 void carquet_bloom_filter_destroy(carquet_bloom_filter_t* filter) {
     if (filter) {
         if (filter->owns_data && filter->data) {
-            free(filter->data);
+            carquet_mem_free(filter->data);
         }
-        free(filter);
+        carquet_mem_free(filter);
     }
 }
 
@@ -335,7 +337,10 @@ carquet_status_t carquet_bloom_filter_read(
 
     carquet_bloom_filter_t* filter = carquet_bloom_filter_from_data(data, data_size);
     if (!filter) {
-        return CARQUET_ERROR_OUT_OF_MEMORY;
+        /* A size that is below one block or not a multiple of 32 bytes is a
+         * malformed filter, not an allocation failure. */
+        return (data_size < 32 || data_size % 32 != 0)
+            ? CARQUET_ERROR_INVALID_METADATA : CARQUET_ERROR_OUT_OF_MEMORY;
     }
 
     *filter_out = filter;

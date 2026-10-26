@@ -90,6 +90,12 @@ typedef enum carquet_logical_type_id {
     CARQUET_LOGICAL_BSON = 12,
     CARQUET_LOGICAL_UUID = 13,
     CARQUET_LOGICAL_FLOAT16 = 14,
+    CARQUET_LOGICAL_VARIANT = 15,
+    CARQUET_LOGICAL_GEOMETRY = 16,
+    CARQUET_LOGICAL_GEOGRAPHY = 17,
+    /* INTERVAL has no modern LogicalType; it is ConvertedType-only and
+       requires FIXED_LEN_BYTE_ARRAY with type_length == 12. */
+    CARQUET_LOGICAL_INTERVAL = 18,
 } carquet_logical_type_id_t;
 
 /* Time unit for temporal types */
@@ -98,6 +104,16 @@ typedef enum carquet_time_unit {
     CARQUET_TIME_UNIT_MICROS = 1,
     CARQUET_TIME_UNIT_NANOS = 2,
 } carquet_time_unit_t;
+
+#define CARQUET_GEOSPATIAL_CRS_MAX 128
+
+typedef enum carquet_geospatial_edge_algorithm {
+    CARQUET_GEOSPATIAL_EDGE_SPHERICAL = 0,
+    CARQUET_GEOSPATIAL_EDGE_VINCENTY = 1,
+    CARQUET_GEOSPATIAL_EDGE_THOMAS = 2,
+    CARQUET_GEOSPATIAL_EDGE_ANDOYER = 3,
+    CARQUET_GEOSPATIAL_EDGE_KARNEY = 4,
+} carquet_geospatial_edge_algorithm_t;
 
 /* Logical type with parameters */
 typedef struct carquet_logical_type {
@@ -127,6 +143,23 @@ typedef struct carquet_logical_type {
             carquet_time_unit_t unit;
             bool is_adjusted_to_utc;
         } timestamp;
+
+        /* For VARIANT */
+        struct {
+            int8_t specification_version;  /* 1 when unset/zero */
+        } variant;
+
+        /* For GEOMETRY */
+        struct {
+            char crs[CARQUET_GEOSPATIAL_CRS_MAX];  /* Optional, empty => OGC:CRS84 */
+        } geometry;
+
+        /* For GEOGRAPHY */
+        struct {
+            char crs[CARQUET_GEOSPATIAL_CRS_MAX];  /* Optional, empty => OGC:CRS84 */
+            carquet_geospatial_edge_algorithm_t algorithm;
+            bool has_algorithm;                    /* false => SPHERICAL */
+        } geography;
     } params;
 } carquet_logical_type_t;
 
