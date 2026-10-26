@@ -1525,8 +1525,12 @@ static void alignRepTargets(Parameters &par, DBReader<DBKeyType> &seqDbr, size_t
         }
         const size_t begin = windowKeys.front();
         const size_t end = seqDbr.getSplitKeyOffsets(begin, dbSize, memoryLimit / 8 * MMseqsNode::count, 0)[1];
+        // the reads of own blocks closer than READ_MERGE_GAP merge, each with at most that much more: a band fits if none merge, as its last and
+        // shortest entry shows, or if the merged gaps of all its blocks take at most another eighth of the memory (a few short entries end Logan)
+        const size_t bandBlocks = ((end - begin) / blockKeys + 1) / MMseqsNode::count + 1;
         const bool fitsBand = windowKeys.back() < end
-                              && (MMseqsNode::count == 1 || (MMseqsNode::count - 1) * blockKeys * seqDbr.getEntryLen(end - 1) > DBReader<DBKeyType>::READ_MERGE_GAP);
+                              && (MMseqsNode::count == 1 || (MMseqsNode::count - 1) * blockKeys * seqDbr.getEntryLen(end - 1) > DBReader<DBKeyType>::READ_MERGE_GAP
+                                  || bandBlocks * DBReader<DBKeyType>::READ_MERGE_GAP <= memoryLimit / 8);
         const bool readsRange = fitsBand && MMseqsNode::count == 1;
         const std::vector<DBKeyType> *keysToRead = &windowKeys;
         if (fitsBand && MMseqsNode::count > 1) {
