@@ -372,12 +372,21 @@ public:
 
 
     template <typename T>
-    static size_t hash(T * x, size_t length){
-        const size_t INITIAL_VALUE = 0;
+    static size_t hash(const T *x, size_t length) {
         const size_t A = 31;
-        size_t h = INITIAL_VALUE;
-        for (size_t i = 0; i < length; ++i){
-            h = ((h*A) + x[i]);
+        const size_t A2 = A * A;
+        const size_t A3 = A2 * A;
+        const size_t A4 = A3 * A;
+
+        const size_t unrolledLength = length - length % 4;
+        size_t h = 0;
+        for (size_t i = 0; i < unrolledLength; i += 4) {
+            h = h * A4 + x[i] * A3 + x[i + 1] * A2
+                    + x[i + 2] * A + x[i + 3];
+        }
+
+        for (size_t i = unrolledLength; i < length; ++i) {
+            h = h * A + x[i];
         }
         return h;
     }

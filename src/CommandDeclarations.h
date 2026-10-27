@@ -15,6 +15,7 @@ extern int clust(int argc, const char **argv, const Command& command);
 extern int clusteringworkflow(int argc, const char **argv, const Command& command);
 extern int clusterupdate(int argc, const char **argv, const Command& command);
 extern int clusthash(int argc, const char **argv, const Command& command);
+extern int clusthashfast(int argc, const char **argv, const Command& command);
 extern int combinepvalperset(int argc, const char **argv, const Command &command);
 extern int compress(int argc, const char **argv, const Command &command);
 extern int concatdbs(int argc, const char **argv, const Command& command);

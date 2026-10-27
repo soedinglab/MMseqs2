@@ -33,12 +33,17 @@ struct ClusterResult {
 
 struct PrefInfo {
     DBLocalId id;
+    DBLocalId len;
     size_t size;
 
     static bool compareBySizeAndId(const PrefInfo &first, const PrefInfo &second){
         if(first.size > second.size)
             return true;
         if(second.size > first.size)
+            return false;
+        if(first.len > second.len)
+            return true;
+        if(second.len > first.len)
             return false;
         if(first.id < second.id)
             return true;
@@ -48,9 +53,6 @@ struct PrefInfo {
     }
 };
 
-// Lightweight entry stored in the set-cover ready queue. Instead of carrying the
-// member id vector (as ClusterResult does) it only references the members, which
-// are kept in a single shared pool (setCoverMemberPool), by offset and count.
 struct SetCoverCandidate {
     DBLocalId representativeId;
     size_t memberCount;
@@ -78,9 +80,6 @@ struct SetCoverComparator {
 static std::mutex clusterMutex;
 static std::condition_variable clusterCondition;
 static std::condition_variable reorderSpaceCondition;
-// Reorders out-of-order worker results back to sequenceIdx order for the consumer,
-// indexed by sequenceIdx % reorderCapacity. The next-in-order slot is always free,
-// so producers never deadlock.
 static std::vector<ClusterResult> reorderSlots;    // slot storage, size == reorderCapacity
 static std::vector<unsigned char> reorderFilled;   // 1 == slot holds an unconsumed result
 static size_t reorderCapacity = 0;                 // max out-of-order window
@@ -151,9 +150,6 @@ static size_t getReorderBufferLimitFromEnv() {
     return static_cast<size_t>(parsedValue);
 }
 
-// Size the reorder buffer from free memory: subtract the resident per-sequence arrays,
-// keep 10% headroom, divide by the worst-case result size. Capped by
-// MMSEQS_ALIGN2CLUST_REORDER_LIMIT and by the number of results produced.
 static size_t computeReorderCapacity(const Parameters &par, size_t dbSize, int mode, size_t resultCount) {
     const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
 
@@ -337,9 +333,6 @@ void clusterThreadFuncSetcover(ClusterAssignment* assignedCluster) {
             }
         }
 
-        // Compaction only touches consumer-private structures (setCoverCandidates,
-        // setCoverMemberPool, setCoverLiveMemberCount), never shared state, so release
-        // the mutex during the copy so worker threads can keep pushing results.
         lock.unlock();
         compactSetCoverMemberPool();
         lock.lock();
@@ -401,7 +394,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         par.db1.c_str(), par.db1Index.c_str(), par.threads, 
         DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX
     );
-    seqDbr->open(DBReader<DBKeyType>::SORT_BY_LENGTH);
+    seqDbr->open(DBReader<DBKeyType>::NOSORT);
  
     DBReader<DBKeyType> *cluDbr = nullptr;
     DBReader<DBKeyType> *cluSeqDbr = nullptr;
@@ -437,7 +430,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                     ? getCovSeqidQscPercMinDiag()
                                     : getCovSeqidQscPercMinDiagTargetCov();
                                     
-    float scorePerColThreshold = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
+    float scorePerColThreshold = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.98);
     Debug(Debug::INFO) << "Score per column threshold for filtering: " << scorePerColThreshold << "\n";
     
     EvalueComputation evaluer(seqDbr->getAminoAcidDBSize(), subMat);
@@ -468,9 +461,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         return EXIT_FAILURE;
     }
 
-    // Ring size = out-of-order window, sized from the memory budget (OOM-aware) and
-    // capped by the result count. sequenceIdx runs over [0, endRange); every index
-    // publishes exactly one result.
     const size_t align2clustResultCount = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
     const size_t reorderCapacityChosen = computeReorderCapacity(par, dbSize, mode, align2clustResultCount);
     {
@@ -495,6 +485,36 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     Timer timer;
     timer.reset();
     PrefInfo *prefRepSizePair = nullptr;
+    DBLocalId *lengthOrder = nullptr;
+    if (mode != Parameters::SET_COVER) {
+        bool alreadyDescending = true;
+        for (size_t i = 1; i < dbSize; i++) {
+            if (seqDbr->getSeqLen(i) > seqDbr->getSeqLen(i - 1)) {
+                alreadyDescending = false;
+                break;
+            }
+        }
+        if (alreadyDescending == false) {
+            lengthOrder = new(std::nothrow) DBLocalId[dbSize];
+            Util::checkAllocation(lengthOrder, "Can not allocate lengthOrder memory in align2clust");
+#pragma omp parallel for schedule(static)
+            for (size_t i = 0; i < dbSize; i++) {
+                lengthOrder[i] = static_cast<DBLocalId>(i);
+            }
+            DBReader<DBKeyType> *order = seqDbr;
+            SORT_PARALLEL(lengthOrder, lengthOrder + dbSize,
+                          [order](DBLocalId first, DBLocalId second) {
+                              const size_t firstLen = order->getSeqLen(first);
+                              const size_t secondLen = order->getSeqLen(second);
+                              if (firstLen != secondLen) {
+                                  return firstLen > secondLen;
+                              }
+                              return first < second;
+                          });
+        }
+        Debug(Debug::INFO) << "Length order: " << (lengthOrder == nullptr ? "db is already descending" : "built")
+                           << " (" << timer.lap() << ")\n";
+    }
     
     if (mode == Parameters::SET_COVER) {
         prefRepSizePair = new(std::nothrow) PrefInfo[dbSize];
@@ -513,6 +533,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 const char *data = alnDbr.getData(alnId, thread_idx);
                 const size_t dataSize = alnDbr.getEntryLen(alnId);
                 prefRepSizePair[i].id = seqDbr->getId(clusterId);
+                prefRepSizePair[i].len = static_cast<DBLocalId>(seqDbr->getSeqLen(prefRepSizePair[i].id));
                 prefRepSizePair[i].size = (*data == '\0') ? 1 : Util::countLines(data, dataSize);
             }
         }
@@ -545,6 +566,8 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                  -par.gapOpen.values.aminoacid(), -par.gapExtend.values.aminoacid());
         std::vector<std::pair<DBKeyType, unsigned short>> targetsWithDiagonal;
         targetsWithDiagonal.reserve(1000);
+        std::string querySeqBuffer;
+        querySeqBuffer.reserve(db_maxseqlen + 1);
 
         const bool includeAlignFiles = (alnWriter != nullptr);
         std::string alnResultBuffer;
@@ -573,16 +596,12 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 queryKey = seqDbr->getDbKey(representativeId);
                 clusterResult.prefSize = prefRepSizePair[i].size;   // precomputed in the prefix pass
             } else { // GREEDY || GREEDY_MEM
-                queryKey = seqDbr->getDbKey(i);
-                representativeId = seqDbr->getId(queryKey);
+                representativeId = (lengthOrder != nullptr) ? lengthOrder[i] : static_cast<DBLocalId>(i);
+                queryKey = seqDbr->getDbKey(representativeId);
                 clusterResult.prefSize = 0;                         // greedy has no currentPrefSize gate
             }
             clusterResult.representativeId = representativeId;
 
-            // Representative already assigned to another cluster: this cluster is discarded
-            // by the cluster thread anyway, so skip parsing and aligning it entirely. prefSize
-            // is already set (precomputed for set-cover), so the currentPrefSize gate stays
-            // correct.
             if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
                 pushClusterResult(std::move(clusterResult));
                 continue;
@@ -591,11 +610,14 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             const size_t alignmentId = alnDbr.getId(queryKey);
             char *alignmentData = alnDbr.getData(alignmentId, threadIdx);
             size_t queryId = representativeId;
-            char *querySequence = seqDbr->getData(queryId, threadIdx);
             size_t queryLength = seqDbr->getSeqLen(queryId);
+            querySeqBuffer.assign(seqDbr->getData(queryId, threadIdx), queryLength);
+            const char *querySequence = querySeqBuffer.c_str();
             query.mapSequence(queryId, queryKey, querySequence, queryLength);
-            blockAligner.initQuery(&query);
-            matcher.initQuery(&query);
+            blockAligner.setQuery(&query);
+            // the gapped aligners are only set up once an ungapped check fails
+            bool blockAlignerInitialized = false;
+            bool matcherInitialized = false;
 
             size_t prefSize = 0;
             while (*alignmentData != '\0') {
@@ -614,11 +636,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
             clusterResult.prefSize = prefSize;   // exact parsed count for the aligned path
 
             for (size_t targetIdx = 0; targetIdx < targetsWithDiagonal.size(); targetIdx++) {
-                // Representative assigned meanwhile: the cluster thread discards clusters
-                // whose representative is assigned, so this result (partial or empty) is
-                // never used; stop aligning the rest. Safe in set-cover too: prefSize is
-                // already fully counted, so this is just the k-th-target form of the
-                // (k=0) rep-skip above.
                 if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
                     break;
                 }
@@ -631,9 +648,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 if (isIdentity) {
                     clusterResult.memberIds.push_back(queryId);
                     if (includeAlignFiles) {
-                        // Identity hit: no alignment needed. mmseqs forces coverage/seqId to
-                        // 1.0 for identity (see Alignment.cpp), so emit a full-length self
-                        // record directly instead of running Smith-Waterman.
                         std::string backtrace = par.addBacktrace ? std::string(query.L, 'M') : std::string();
                         Matcher::result_t selfResult(queryKey, query.L, 1.0f, 1.0f, 1.0f, 0.0,
                             query.L, 0, query.L - 1, query.L, 0, query.L - 1, query.L, backtrace);
@@ -642,9 +656,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     continue;
                 }
 
-                // Skip the (expensive) alignment if the target was assigned meanwhile.
-                // Safe in set-cover too: an assigned target is monotonic, so it would be
-                // dropped by the cluster thread's re-evaluation anyway.
                 if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) {
                     continue;
                 }
@@ -727,6 +738,10 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                 
                                 if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
                                     // 3. gapped alignment
+                                    if (matcherInitialized == false) {
+                                        matcher.initQuery(&query);
+                                        matcherInitialized = true;
+                                    }
                                     Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(elementDiagonal), false, par.covMode, par.covThr, par.evalThr,
                                                                         swMode, par.seqIdMode, false);
                                     if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
@@ -801,7 +816,10 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                 
                 if (foundConsecutiveMatchSeed) {
                     std::string gappedBacktrace;
-
+                    if (blockAlignerInitialized == false) {
+                        blockAligner.initQuery(&query);
+                        blockAlignerInitialized = true;
+                    }
                     s_align gappedAlignment = blockAligner.bandedalign(&target, newQueryStartPos, newTargetStartPos,
                                                                        gappedBacktrace, xDrop, par.covThr, par.covMode);
                     // bandedalign reports failure as evalue < 0 with an empty backtrace, and the
@@ -868,6 +886,10 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                     
                                     if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
                                         // 3. gapped alignment
+                                        if (matcherInitialized == false) {
+                                            matcher.initQuery(&query);
+                                            matcherInitialized = true;
+                                        }
                                         Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(elementDiagonal), false, par.covMode, par.covThr, par.evalThr,
                                                                             swMode, par.seqIdMode, false);
                                         if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
@@ -962,6 +984,9 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     delete[] assignment;
     if (prefRepSizePair != nullptr) {
         delete[] prefRepSizePair;
+    }
+    if (lengthOrder != nullptr) {
+        delete[] lengthOrder;
     }
     delete[] fastMatrix.matrix;
     delete[] fastMatrix.matrixData;

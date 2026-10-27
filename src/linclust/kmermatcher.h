@@ -28,9 +28,9 @@ inline bool hasFeature(AssignGroupMask mask, AssignGroupMask feature) {
 }
 
 struct SequencePosition{
-    unsigned short score;
     size_t kmer;
     unsigned int pos;
+    unsigned short score;
     static bool compareByScore(const SequencePosition &first, const SequencePosition &second){
         if(first.score < second.score)
             return true;
@@ -66,50 +66,25 @@ struct SequencePosition{
     }
 };
 
-template <bool Include>
+template <int Flank>
 struct AdjacentData {
-    unsigned char data[6];
+    unsigned char data[2 * Flank];
     void set(int i, unsigned char v) { data[i] = v; }
     unsigned char get(int i) { return data[i]; }
 };
 
 template <>
-struct __attribute__((__packed__)) AdjacentData<false> {
+struct __attribute__((__packed__)) AdjacentData<0> {
     void set(int, unsigned char) { }
     unsigned char get(int) { return '\0'; }
 };
-template <typename T, bool IncludeSeqLen>
-struct SeqLenData {};
-
-template <typename T>
-struct SeqLenData<T, true> {
-    T seqlen;
-
-    T getSeqLen(unsigned int) const { return seqlen; }
-    void setSeqLen(T len) { seqlen = len; }
-};
-
-template <typename T>
-struct SeqLenData<T, false> {
-    static T* seqkey_to_len;
-
-    T getSeqLen(size_t id) const { return seqkey_to_len[id]; }
-    void setSeqLen(T) {}
-};
-
-template <typename T>
-T* SeqLenData<T, false>::seqkey_to_len = NULL;
-template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
+template <typename T, int Flank = 0, typename L = T>
 struct __attribute__((__packed__)) KmerPosition {
     size_t kmer;
     DBKeyType id;
     T pos;
-    SeqLenData<T, IncludeSeqLen> sl;
-    AdjacentData<includeAdjacency> adj;
-
-    T getSeqLen() const {
-        return sl.getSeqLen(id);
-    }
+    L seqLen;
+    AdjacentData<Flank> adj;
 
     void setAdjacentSeq(int index, unsigned char val) {
         adj.set(index, val);
@@ -123,8 +98,8 @@ struct __attribute__((__packed__)) KmerPosition {
         if(first.kmer < second.kmer) return true;
         if(second.kmer < first.kmer) return false;
         if(first.id != DB_KEY_INVALID && second.id != DB_KEY_INVALID) {
-            T len1 = first.getSeqLen();
-            T len2 = second.getSeqLen();
+            L len1 = first.seqLen;
+            L len2 = second.seqLen;
             if(len1 > len2) return true;
             if(len2 > len1) return false;
         }
@@ -142,8 +117,8 @@ struct __attribute__((__packed__)) KmerPosition {
         if(firstKmer < secondKmer) return true;
         if(secondKmer < firstKmer) return false;
         if(first.id != DB_KEY_INVALID && second.id != DB_KEY_INVALID) {
-            T len1 = first.getSeqLen();
-            T len2 = second.getSeqLen(); 
+            L len1 = first.seqLen;
+            L len2 = second.seqLen;
             if(len1 > len2) return true;
             if(len2 > len1) return false;
         }
@@ -240,7 +215,7 @@ public:
     }
 };
 
-template <int TYPE, typename T, bool includeAdjacency = false>
+template <int TYPE, typename T, int Flank = 0>
 void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int numThreads = 1, int maxIter = 1);
 
 typedef std::priority_queue<FileKmerPosition, std::vector<FileKmerPosition>, CompareResultBySeqId> KmerPositionQueue;
@@ -250,24 +225,24 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, T *e
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqType);
 
-template <int TYPE, typename T, typename seqLenType, bool includeAdjacency = false, bool IncludeSeqLen = false>
-void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, includeAdjacency, IncludeSeqLen> *kmers, size_t totalKmers, int numThreads = 1, std::vector<size_t> *threadQueryOffsets = NULL, int iteration = 0);
+template <int TYPE, typename T, typename posType, int Flank, typename L>
+void writeKmersToDisk(std::string tmpFile, KmerPosition<posType, Flank, L> *kmers, size_t totalKmers, int numThreads = 1, std::vector<size_t> *threadQueryOffsets = NULL, int iteration = 0);
 
-template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
-void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T, includeAdjacency, IncludeSeqLen> *hashSeqPair, size_t totalKmers,
+template <int TYPE, typename T, int Flank = 0, typename L = T>
+void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T, Flank, L> *hashSeqPair, size_t totalKmers,
                             std::vector<char> &repSequence, size_t threads);
 
 
-template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
-KmerPosition<T, includeAdjacency, IncludeSeqLen> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
+template <typename T, int Flank = 0, typename L = T>
+KmerPosition<T, Flank, L> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
                                 DBReader<DBKeyType> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                                 size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 
-template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
-KmerPosition<T, includeAdjacency, IncludeSeqLen> *initKmerPositionMemory(size_t size);
+template <typename T, int Flank = 0, typename L = T>
+KmerPosition<T, Flank, L> *initKmerPositionMemory(size_t size);
 
-template <int TYPE, typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
-std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency, IncludeSeqLen> * kmerArray, size_t kmerArraySize, DBReader<DBKeyType> &seqDbr,
+template <int TYPE, typename T, int Flank = 0, typename L = T>
+std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, Flank, L> * kmerArray, size_t kmerArraySize, DBReader<DBKeyType> &seqDbr,
                                                  Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
                                                  size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
 
@@ -275,10 +250,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
 void maskSequence(int maskMode, int maskLowerCase,
                   Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix);
 
-template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
+template <typename T, int Flank = 0, typename L = T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
-template <typename T, bool includeAdjacency = false, bool IncludeSeqLen = false>
+template <typename T, int Flank = 0, typename L = T>
 std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<DBKeyType> &seqDbr, size_t totalKmers, size_t splits);
 size_t computeKmerCount(DBReader<DBKeyType> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
                         float chooseTopKmerScale = 0.0);

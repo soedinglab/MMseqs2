@@ -59,7 +59,7 @@ public:
     struct Index {
         T id;
         size_t offset;
-        unsigned int length;
+        size_t length;
 
         // we need a non-strict-weak ordering function here
         // so our upper_bound call works correctly
@@ -190,7 +190,7 @@ public:
     DBReader(const char* dataFileName, const char* indexFileName, int threads, int mode);
 
     DBReader(Index* index, size_t size, size_t aaDbSize, T lastKey,
-             int dbType, unsigned int maxSeqLen, int threads);
+             int dbType, size_t maxSeqLen, int threads);
 
     void setDataFile(const char* dataFileName);
 
@@ -225,10 +225,10 @@ public:
 
     size_t getSize() const;
 
-    unsigned int getMaxSeqLen(){ 
+    size_t getMaxSeqLen(){
             return (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ) ?
-                    (std::max(maxSeqLen, 1u)) / Sequence::PROFILE_READIN_SIZE :
-                    (std::max(maxSeqLen, 2u));
+                    (std::max<size_t>(maxSeqLen, 1)) / Sequence::PROFILE_READIN_SIZE :
+                    (std::max<size_t>(maxSeqLen, 2));
     }
 
     T getDbKey(size_t id);
@@ -240,7 +240,7 @@ public:
             Debug(Debug::ERROR) << "getSeqLen: local id (" << id << ") >= db size (" << size << ")\n";
             EXIT(EXIT_FAILURE);
         }
-        unsigned int length;
+        size_t length;
         if (local2id != NULL) {
             length=index[local2id[id]].length;
         }else{
@@ -249,10 +249,10 @@ public:
 
         if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ){
             // -1 null byte
-            return (std::max(length, 1u) - 1u) / Sequence::PROFILE_READIN_SIZE;
+            return (std::max<size_t>(length, 1) - 1) / Sequence::PROFILE_READIN_SIZE;
         }else{
             // -2 newline and null byte
-            return (std::max(length, 2u) - 2u);
+            return (std::max<size_t>(length, 2) - 2);
         }
     }
 
@@ -434,7 +434,7 @@ public:
     };
 
     struct comparePairBySeqLength {
-        bool operator() (const std::pair<size_t, unsigned int>& lhs, const std::pair<size_t, unsigned int>& rhs) const{
+        bool operator() (const std::pair<size_t, size_t>& lhs, const std::pair<size_t, size_t>& rhs) const{
             if(lhs.second > rhs.second)
                 return true;
             if(rhs.second > lhs.second)
@@ -498,6 +498,7 @@ public:
 
     void setSequentialAdvice();
 
+    void releaseDataPages();
     void decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize, size_t *startEntry, size_t *numEntries);
 
 private:
@@ -526,7 +527,7 @@ private:
     // Last Key in Index
     T lastKey;
     // max seqLen
-    unsigned int maxSeqLen;
+    size_t maxSeqLen;
     // flag to check if db was closed
     int closed;
     // stores the dbtype (if dbtype file exists)

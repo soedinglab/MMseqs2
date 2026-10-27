@@ -32,6 +32,9 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.PARAM_INCLUDE_ONLY_EXTENDABLE.addCategory(MMseqsParameter::COMMAND_EXPERT);
 
     par.parseParameters(argc, argv, command, true, 0, 0);
+    if (par.PARAM_CLUST_HASH.wasSet == false) {
+        par.clustHash = (par.linclustVersion == Parameters::LINCLUST_VERSION2);
+    }
     std::string tmpDir = par.db3;
     std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.linclustworkflow));
     if (par.reuseLatest) {
@@ -68,6 +71,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     bool alphabetSizeWasSet = false;
     bool clusterModeSet = false;
     bool includeCountTableSet = false;
+    bool includeAdjacencySet = false;
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
         if (par.linclustworkflow[i]->uniqid == par.PARAM_K.uniqid && par.linclustworkflow[i]->wasSet) {
             kmerSizeWasSet = true;
@@ -83,6 +87,12 @@ int linclust(int argc, const char **argv, const Command& command) {
         }
         if (par.linclustworkflow[i]->uniqid == par.PARAM_NUM_COUNTS.uniqid && par.linclustworkflow[i]->wasSet) {
             includeCountTableSet = true;
+        }
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_INCLUDE_ADJACENCY.uniqid && par.linclustworkflow[i]->wasSet) {
+            includeAdjacencySet = true;
+        }
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_NUM_ADJACENCY.uniqid && par.linclustworkflow[i]->wasSet) {
+            includeAdjacencySet = true;
         }
         
     }
@@ -107,6 +117,11 @@ int linclust(int argc, const char **argv, const Command& command) {
         }
     }
 
+    if (includeAdjacencySet == false) {
+        par.adjIteration = nonSymetric ? Parameters::CLUST_LINEAR_DEFAULT_NUM_ADJACENCY
+                                       : Parameters::CLUST_LINEAR_SYMMETRIC_NUM_ADJACENCY;
+    }
+
     if (kmerSizeWasSet == false) {
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
     }
@@ -122,6 +137,13 @@ int linclust(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
     
+    if (par.linclustVersion == 2
+        && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_AMINO_ACIDS) == false) {
+        Debug(Debug::ERROR) << "linclust version 2 clusters amino acid databases only. "
+                            << "Use --linclust-version 1 for nucleotide or profile input.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     if (par.linclustVersion == 1) {
         cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
         // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
@@ -169,20 +191,29 @@ int linclust(int argc, const char **argv, const Command& command) {
         par.kmerSize = kmerSize;
         bool prevspacedKmer = par.spacedKmer;
         bool prevmaskMode = par.maskMode;
-        par.spacedKmer = false;
-        par.maskMode = false;
+        MultiParam<NuclAA<float> > prevKmersPerSequenceScale = par.kmersPerSequenceScale;
+        if (par.PARAM_SPACED_KMER_MODE.wasSet == false) {
+            par.spacedKmer = false;
+        }
+        if (par.PARAM_MASK_RESIDUES.wasSet == false) {
+            par.maskMode = false;
+        }
         cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
         
         cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
         cmd.addVariable("ALIGN2CLUST_PAR", par.createParameterString(par.align2clust).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
-        
-        par.spacedKmer = true;
-        par.kmersPerSequenceScale = 0.1;
-        cmd.addVariable("KMERMATCHER_PAR2", par.createParameterString(par.kmermatcher).c_str());
-        
+        cmd.addVariable("LINCLUST_ITERATIONS", SSTR(par.linclustIterations).c_str());
+
+        if (par.linclustIterations > 1) {
+            par.spacedKmer = true;
+            par.kmersPerSequenceScale = 0.1;
+            cmd.addVariable("KMERMATCHER_PAR2", par.createParameterString(par.kmermatcher).c_str());
+        }
+
         par.spacedKmer = prevspacedKmer;
         par.maskMode = prevmaskMode;
+        par.kmersPerSequenceScale = prevKmersPerSequenceScale;
     }
     float prevSeqId = par.seqIdThr;
     // # 0. clust hash
@@ -190,6 +221,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5));
     cmd.addVariable("CLUSTHASH", par.clustHash ? "TRUE" : NULL);
     cmd.addVariable("CLUSTHASH_PAR", par.createParameterString(par.clusthash).c_str());
+    cmd.addVariable("CLUSTHASHFAST_PAR", par.createParameterString(par.clusthashfast).c_str());
     par.seqIdThr = prevSeqId;
     par.alphabetSize = alphabetSize;
     cmd.addVariable("CLUSTHASH_CLUST_PAR", par.createParameterString(par.clust).c_str());
