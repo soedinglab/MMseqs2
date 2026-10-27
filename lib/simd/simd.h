@@ -123,7 +123,8 @@ inline uint8_t simdi8_hmax_avx512(const __m512i buffer) {
     // https://github.com/EddyRivasLab/easel/blob/07ca83ba9ef0414dba9ce0a9331d465b5eb58f2b/esl_avx512.h#L35-L63
     // Use AVX instructions for this because AVX-512 can't extract 8-bit quantities
     // Intel has stated that there will be no performance penalty for switching between AVX-512 and AVX
-    __m256i b = _mm256_max_epu8(_mm512_extracti64x4_epi64(buffer, 0), _mm512_extracti64x4_epi64(buffer, 1)); //changed from extract i32x8
+    // maskz extract avoids _mm256_undefined_si256, which GCC 12 flags with -Wuninitialized
+    __m256i b = _mm256_max_epu8(_mm512_maskz_extracti64x4_epi64(0xFF, buffer, 0), _mm512_maskz_extracti64x4_epi64(0xFF, buffer, 1));
     b = _mm256_max_epu8(b, _mm256_permute2x128_si256(b, b, 0x01));
     b = _mm256_max_epu8(b, _mm256_shuffle_epi32     (b,    0x4e));
     b = _mm256_max_epu8(b, _mm256_shuffle_epi32     (b,    0xb1));
