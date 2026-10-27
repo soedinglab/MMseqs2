@@ -79,12 +79,19 @@ public:
         // end of the records that the buffer holds in full and start of the last of them
         size_t recordEnd;
         size_t lastRecord;
+        // the parts read after [pos, end) as one block, the next of them and the bytes of those not started yet
+        std::vector<std::pair<size_t, size_t> > parts;
+        size_t nextPart;
+        size_t partsBytes;
     };
     // nodeOffsets: where the bytes of every node start in the flush, then the flush size
     static void addExchangeFlush(std::string &indexData, size_t &writtenBytes, const std::vector<size_t> &nodeOffsets);
     // closes the file of this node and returns the index lines of all nodes once every node has closed its file
     static std::string closeExchange(FILE *file, const std::string &fileName, const std::string &indexFile, const std::string &indexData);
-    static void openExchange(const std::string &index, const std::string &prefix, std::vector<ExchangeBlock> &blocks, std::vector<FILE *> &files);
+    // sendersInOrder: the flushes of every node follow each other in record order, so a node's parts of them are read as one block,
+    // whose buffer is not cut into one for every flush
+    static void openExchange(const std::string &index, const std::string &prefix, std::vector<ExchangeBlock> &blocks, std::vector<FILE *> &files,
+                             bool sendersInOrder = false);
     // moves the buffered records up to last of every block to records, recordOffsets their starts then the end; returns their count, 0 once none is left
     static size_t readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t bufferMemory, size_t (*recordSize)(const char *, size_t),
                                     bool (*compare)(const ClusterPair &, const ClusterPair &), const ClusterPair &last,
