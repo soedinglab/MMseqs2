@@ -217,7 +217,8 @@ std::string MMseqsNode::closeExchange(FILE *file, const std::string &fileName, c
     return barrier(indexFile, indexData);
 }
 
-void MMseqsNode::openExchange(const std::string &index, const std::string &prefix, std::vector<ExchangeBlock> &blocks, std::vector<FILE *> &files) {
+void MMseqsNode::openExchange(const std::string &index, const std::string &prefix, std::vector<ExchangeBlock> &blocks, std::vector<FILE *> &files,
+                              bool sendersInOrder) {
     files.assign(count, NULL);
     std::vector<const char *> columns(count + 2);
     for (char *line = (char *) index.c_str(); *line != '\0'; line = Util::skipLine(line)) {
@@ -231,9 +232,19 @@ void MMseqsNode::openExchange(const std::string &index, const std::string &prefi
         if (files[node] == NULL) {
             files[node] = FileUtil::openFileOrDie((prefix + "." + SSTR(node)).c_str(), "r", true);
         }
-        const ExchangeBlock block = { files[node], pos, end, std::vector<char>(), 0, 0, 0, 0 };
+        // the index lists the flushes of every node one after the other
+        if (sendersInOrder && blocks.empty() == false && blocks.back().file == files[node]) {
+            blocks.back().parts.push_back(std::make_pair(pos, end));
+            blocks.back().partsBytes += end - pos;
+            continue;
+        }
+        const ExchangeBlock block = { files[node], pos, end, std::vector<char>(), 0, 0, 0, 0, std::vector<std::pair<size_t, size_t> >(), 0, 0 };
         blocks.push_back(block);
     }
+}
+
+static size_t getUnreadBytes(const MMseqsNode::ExchangeBlock &block) {
+    return block.end - block.pos + block.partsBytes;
 }
 
 size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t bufferMemory, size_t (*recordSize)(const char *, size_t),
@@ -245,7 +256,7 @@ size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t 
 #pragma omp parallel for schedule(dynamic, 1)
     for (size_t i = 0; i < blocks.size(); i++) {
         ExchangeBlock &block = blocks[i];
-        if (block.pos == block.end || (block.bufferEnd - block.bufferPos >= bufferSize / 2 && block.recordEnd > block.bufferPos)) {
+        if (getUnreadBytes(block) == 0 || (block.bufferEnd - block.bufferPos >= bufferSize / 2 && block.recordEnd > block.bufferPos)) {
             continue;
         }
         memmove(block.buffer.data(), block.buffer.data() + block.bufferPos, block.bufferEnd - block.bufferPos);
@@ -256,17 +267,26 @@ size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t 
         // a record larger than the buffer doubles it
         do {
             if (block.bufferEnd == block.buffer.size()) {
-                block.buffer.resize(std::min(std::max(bufferSize, 2 * block.buffer.size()), block.bufferEnd + block.end - block.pos));
+                block.buffer.resize(std::min(std::max(bufferSize, 2 * block.buffer.size()), block.bufferEnd + getUnreadBytes(block)));
             }
-            const size_t readBytes = std::min(block.buffer.size() - block.bufferEnd, block.end - block.pos);
-            FileUtil::preadAll(fileno(block.file), prefix.c_str(), block.buffer.data() + block.bufferEnd, readBytes, block.pos);
-            block.pos += readBytes;
-            block.bufferEnd += readBytes;
+            // the parts of a block follow each other in its buffer, and a flush holds whole records
+            while (block.bufferEnd < block.buffer.size() && getUnreadBytes(block) > 0) {
+                if (block.pos == block.end) {
+                    block.pos = block.parts[block.nextPart].first;
+                    block.end = block.parts[block.nextPart].second;
+                    block.partsBytes -= block.end - block.pos;
+                    block.nextPart++;
+                }
+                const size_t readBytes = std::min(block.buffer.size() - block.bufferEnd, block.end - block.pos);
+                FileUtil::preadAll(fileno(block.file), prefix.c_str(), block.buffer.data() + block.bufferEnd, readBytes, block.pos);
+                block.pos += readBytes;
+                block.bufferEnd += readBytes;
+            }
             for (size_t size; (size = recordSize(block.buffer.data() + block.recordEnd, block.bufferEnd - block.recordEnd)) > 0; block.recordEnd += size) {
                 block.lastRecord = block.recordEnd;
             }
-        } while (block.recordEnd == 0 && block.pos < block.end);
-        if (block.pos == block.end && block.recordEnd != block.bufferEnd) {
+        } while (block.recordEnd == 0 && getUnreadBytes(block) > 0);
+        if (getUnreadBytes(block) == 0 && block.recordEnd != block.bufferEnd) {
             Debug(Debug::ERROR) << "Cannot read " << prefix << ": a record ends after its block\n";
             EXIT(EXIT_FAILURE);
         }
@@ -274,7 +294,7 @@ size_t MMseqsNode::readExchangeRange(std::vector<ExchangeBlock> &blocks, size_t 
     // the records up to the last buffered record of every block that is not read to its end are all buffered
     ClusterPair rangeLast = last;
     for (size_t i = 0; i < blocks.size(); i++) {
-        if (blocks[i].pos < blocks[i].end) {
+        if (getUnreadBytes(blocks[i]) > 0) {
             ClusterPair blockLast;
             memcpy(&blockLast, blocks[i].buffer.data() + blocks[i].lastRecord, sizeof(ClusterPair));
             if (compare(blockLast, rangeLast)) {
