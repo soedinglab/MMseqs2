@@ -9,6 +9,7 @@
 #ifndef SIMD_H
 #define SIMD_H
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <algorithm>
 #include <iostream>
@@ -325,6 +326,9 @@ typedef __m512  simd_float;
 // the mask comes from the sign bits of z, which is what _mm_blendv_ps uses
 #define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(simdf32_mask_from_ps_avx512(z), x, y)
 #define simdf32_reverse(x)  _mm512_permutexvar_ps(_mm512_setr_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), x) 
+#define simdf32_movemask_ps(x) ((int)simdf32_mask_from_ps_avx512(x))
+#define simdf32_first(x)    _mm512_cvtss_f32(x)    // lane 0 as a float
+#define simdf32_broadcast_last(x) _mm512_permutexvar_ps(_mm512_set1_epi32(15), x) // last lane in every lane
 #define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
 #define simdf32_hmax(x)     simdf32_hmax_avx512(x)
 #define simdf32_f2i(x) 	    _mm512_cvtps_epi32(x)  // convert s.p. float to integer
@@ -507,12 +511,8 @@ static inline float simdf32_hmax_avx(const __m256 buffer) {
 }
 __m128 simdf32_reverse_sse(const __m128 buffer);
 
-inline __m256 simdf32_reverse_avx256(const __m256 buffer) {
-    const __m128 lower = _mm256_castps256_ps128(buffer); // Lower 128 bits
-    const __m128 upper = _mm256_extractf128_ps(buffer, 1); // Upper 128 bits
-    const __m128 lower_rev = simdf32_reverse_sse(lower);
-    const __m128 upper_rev = simdf32_reverse_sse(upper);
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(upper_rev), lower_rev, 0x1);
+static inline __m256 simdf32_reverse_avx256(const __m256 buffer) {
+    return _mm256_permutevar8x32_ps(buffer, _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 }
 
 
@@ -714,6 +714,8 @@ typedef __m256 simd_float;
 #define simdf32_movemask_ps(x) _mm256_movemask_ps(x)
 #define simdf32_hmax(x)     simdf32_hmax_avx(x)
 #define simdf32_reverse(x)  simdf32_reverse_avx256(x)
+#define simdf32_first(x)    _mm256_cvtss_f32(x)    // lane 0 as a float
+#define simdf32_broadcast_last(x) _mm256_permutevar8x32_ps(x, _mm256_set1_epi32(7)) // last lane in every lane
 #define simdf32_fmadd(x,y,z) _mm256_fmadd_ps(x,y,z)
 #endif
 #endif
@@ -857,6 +859,8 @@ typedef __m128  simd_float;
 #define simdf32_movemask_ps(x) _mm_movemask_ps(x)
 #define simdf32_hmax(x)    simdf32_hmax_sse(x)
 #define simdf32_reverse(x) simdf32_reverse_sse(x) //_mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 1, 2, 3))
+#define simdf32_first(x)    _mm_cvtss_f32(x)       // lane 0 as a float
+#define simdf32_broadcast_last(x) _mm_shuffle_ps(x, x, 0xFF) // last lane in every lane
 #define simdf32_fmadd(x,y,z) _mm_add_ps(_mm_mul_ps(x,y),z)
 #endif //SIMD_FLOAT
 
@@ -987,6 +991,77 @@ static inline bool simdi32_eq_all(const simd_int a, const simd_int b) {
     return (movemask_max_t) simdi8_movemask(simdi32_eq(a, b)) == SIMD_MOVEMASK_MAX;
 #endif
 }
+
+// ---------------------------------------------------------------------------
+// Float lane helpers (scaled forward-backward kernel).
+// ---------------------------------------------------------------------------
+
+// the lanes moved up by N, zeros into the lowest N lanes (0 < N < VECSIZE_FLOAT); one valignd with
+// AVX512 or AVX512VL, like _mm512_shift_left4 and simdi8_shiftl_4
+template <int N>
+static inline simd_float simdf32_shiftl_lanes(const simd_float a) {
+#if defined(AVX512)
+    return _mm512_castsi512_ps(_mm512_alignr_epi32(_mm512_castps_si512(a), _mm512_setzero_si512(), 16 - N));
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    return _mm256_castsi256_ps(_mm256_alignr_epi32(_mm256_castps_si256(a), _mm256_setzero_si256(), 8 - N));
+#else
+    return simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 4 * N));
+#endif
+}
+
+// the lanes (whole numbers in [0, 127]) as VECSIZE_FLOAT bytes to dst
+static inline void simdf32_storeu_u8(uint8_t *dst, const simd_float a) {
+#if defined(AVX512)
+    _mm_storeu_si128((__m128i *)dst, _mm512_cvtepi32_epi8(_mm512_cvttps_epi32(a)));
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    _mm_storel_epi64((__m128i *)dst, _mm256_cvtepi32_epi8(_mm256_cvttps_epi32(a)));
+#elif defined(AVX2)
+    const __m256i w = _mm256_cvttps_epi32(a);
+    const __m128i h = _mm_packs_epi32(_mm256_castsi256_si128(w), _mm256_extracti128_si256(w, 1));
+    _mm_storel_epi64((__m128i *)dst, _mm_packus_epi16(h, h));
+#else
+    const __m128i w = _mm_cvttps_epi32(a);
+    const __m128i h = _mm_packs_epi32(w, w);
+    const int32_t b = _mm_cvtsi128_si32(_mm_packus_epi16(h, h));
+    memcpy(dst, &b, sizeof(b));
+#endif
+}
+
+// all-ones in the NaN lanes
+static inline simd_float simdf32_isnan(const simd_float a) {
+    return simdf32_cmp(a, a, _CMP_UNORD_Q);
+}
+
+// the sum of the lanes in double precision and in lane order (simdf32_hadd adds pairwise in float)
+static inline double simdf32_hsum_double(const simd_float a) {
+    float t[VECSIZE_FLOAT];
+    simdf32_storeu(t, a);
+    double s = 0;
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        s += t[k];
+    }
+    return s;
+}
+
+// a, but opaque to the compiler (x86 GCC/clang; elsewhere a no-op): a product passed through it is not
+// fused with a following addition (-ffp-contract), so the sum rounds as with the product stored in between
+static inline simd_float simdf32_no_contract(simd_float a) {
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    __asm__("" : "+v"(a));
+#endif
+    return a;
+}
+
+// flush-to-zero and denormals-are-zero while the object lives (x86 only)
+struct SimdFlushDenormals {
+#if defined(SIMDE_X86_SSE_NATIVE)
+    unsigned int csr;
+    SimdFlushDenormals() : csr(_mm_getcsr()) { _mm_setcsr(csr | 0x8040u); }
+    ~SimdFlushDenormals() { _mm_setcsr(csr); }
+#else
+    SimdFlushDenormals() {}
+#endif
+};
 
 inline void *mem_align(size_t boundary, size_t size) {
     void *pointer;

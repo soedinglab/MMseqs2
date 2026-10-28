@@ -34,6 +34,19 @@ public:
         int word;
     } s_align;
 
+    // Forward-backward kernel of runFwBw (all modes; the backtrace runs on its posteriors).
+    enum ScaledMode {
+        SCALED_OFF = 0,  // log-space blocks
+        SCALED = 1,      // scaled mantissas; a call whose backward Z disagrees with the forward Z is run again
+                         // with double mantissas, and in log-space double if that is flagged as well
+        SCALED_FAST = 2  // scaled mantissas without that check, a few percent faster. WARNING: a path that
+                         // starts next to a much stronger one can then be lost without any flag, and the
+                         // posteriors around it are wrong by up to 1, not just slightly off. Seen on score
+                         // matrices whose per-cell scores (divided by T) have a standard deviation of about
+                         // 4-5 nats or more, earlier with cheap gap extension. Use SCALED unless the scores
+                         // are known to be flat.
+    };
+
     class Impl {
     public:
         virtual ~Impl() {}
@@ -41,6 +54,7 @@ public:
         virtual void resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, size_t newColsCapacity) = 0;
         virtual void resetParams(float newGapOpen, float newGapExtend, float newTemperature) = 0;
         virtual void setTemperature(float newTemperature) = 0;
+        virtual void setScaledMode(ScaledMode mode) = 0;
         virtual void initProfile(unsigned char* colAANum, size_t colAALen) = 0;
         virtual void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen) = 0;
         virtual void initScoreMatrix(float** inputScoreMatrix, int* gaps) = 0;
@@ -83,6 +97,8 @@ public:
     }
     void initScoreMatrix(float** inputScoreMatrix, int* gaps) { impl->initScoreMatrix(inputScoreMatrix, gaps); }
     void setTemperature(float newTemperature) { impl->setTemperature(newTemperature); }
+    // forward-backward kernel of runFwBw, see ScaledMode
+    void setScaledMode(ScaledMode mode) { impl->setScaledMode(mode); }
 
     // profile: score from the query profile (true) or from a user-supplied score matrix (false).
     // backtraceMode: 0 no backtrace, 1 local, 2 semi-global, 3 global.
