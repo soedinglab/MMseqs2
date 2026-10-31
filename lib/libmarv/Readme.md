@@ -3,31 +3,52 @@
 
 
 
-# CUDASW++4.0-GapLessFilter
+# LIBMARV
 
+GPU-accelerated protein database scan.
 
 ## Software requirements
-* Linux operating system with compatible CUDA Toolkit 12 or newer
+* (NVIDIA) Linux operating system with compatible CUDA Toolkit 13.2 or newer
+* (AMD) Linux operating system with compatible ROCm 7.2.4 or newer
 * C++17 compiler
 * zlib
 * make
+* cmake 3.24
 
 ## Hardware requirements
-*   A modern CUDA-capable GPU of generation Ampère or newer. We have tested CUDASW4 on Ampère (sm_80), Ada Lovelace (sm_89), and Hopper (sm_90). Older generations lack hardware-support for specific instructions and may run at reduced speeds or may not run at all.
+* (NVIDIA) A modern CUDA-capable GPU of Turing generation or newer. We provide tunings up to the Blackwell architecture. By PTX forward compatibility, libmarv should run on newer GPUs although performance will be less than expected without dedicated tuning.
+* (AMD) A modern ROCm-capable GPU. Currently, we only provide tunings for gfx900, gfx942, gfx1100, and gfx1150, and do not offer a compatibility fallback for other architectures.
 
 
 
 
 ## Build
-Our software has two components, **makedb** and **align** . **makedb** is used to construct a database which can be queried by **align**.
 
-The build step compiles the GPU code for all GPU archictectures of GPUs detected in the system. The CUDA environment variable `CUDA_VISIBLE_DEVICES` can be used to control the detected GPUs. If `CUDA_VISIBLE_DEVICES` is not set, it will default to all GPUs in the system.
+Libmarv is built using CMake.
 
-* Build makedb: `make makedb`
+```
+mkdir build
+cd build
+cmake ../src/CMakeLists.txt -DCMAKE_BUILD_TYPE=Release -DENABLE_HIP=0 -DBUILD_TUNING=0 -DONLY_BUILD_TUNING=0 -DLIBRARY_ONLY=0 -DCMAKE_CUDA_ARCHITECTURES="120"
+cmake ../src/CMakeLists.txt -DCMAKE_BUILD_TYPE=Release -DENABLE_HIP=0 -DBUILD_TUNING=0 -DONLY_BUILD_TUNING=0 -DCMAKE_CUDA_ARCHITECTURES="120"
+```
 
-* Build align: `make align`
+Use `ENABLE_HIP=0` to target NVIDIA GPUs and `ENABLE_HIP=1` to target AMD GPUs. The cmake variables CMAKE_CUDA_ARCHITECTURES and CMAKE_HIP_ARCHITECTURES specify the GPU architectures to compile for NVIDIA or AMD, respectively. All architectures on which libmarv is intended to be used should be specified for best performance.
 
-* Build align for the GPU architecture of GPUs 0 and 1: `CUDA_VISIBLE_DEVICES=0,1 make align`
+With `LIBRARY_ONLY=1` only the library part used by MMseqs2 will be built. `LIBRARY_ONLY=0` will additionally build a standalone program which can serve as an example on how to use the different database searches.
+
+When `BUILD_TUNING=1` our tuning program for alignment kernels will be built together with the library part and standalone program. 
+To only build the tuning program, pass `ONLY_BUILD_TUNING=1`
+
+Example for building library and standalone program targetting NVIDIA H100 and NVIDIA RTX Pro 6000 Blackwell
+```
+cmake ../src/CMakeLists.txt -DCMAKE_BUILD_TYPE=Release -DENABLE_HIP=0 -DBUILD_TUNING=0 -DONLY_BUILD_TUNING=0 -DLIBRARY_ONLY=0 -DCMAKE_CUDA_ARCHITECTURES="90;120"
+```
+
+
+## Standalone program
+
+The standalone program has two components, **makedb** and **align** . **makedb** is used to construct a database which can be queried by **align**.
 
 ## Database construction
 Use **makedb** to create a database from a fasta file. The file can be gzip'ed.
@@ -41,78 +62,29 @@ mkdir -p dbfolder
 Options:
 * --mem val : Memory limit. Can use suffix K,M,G. If makedb requires more memory, temp files in temp directory will be used. Default all available memory.
 * --tempdir val : Temp directory for temporary files. Must exist. Default is db output directory.
+* --allowLowerCase : Convert lower-case letters to distinct numbers. Without this option, lower-case letters are treated as upper-case.\n";
 
 
 
 ## Querying the database
-Use **align** to query the database. **align** has two mandatory arguments. 
+Use **align** to query the database. The environment variables CUDA_VISIBLE_DEVICES / HIP_VISIBLE_DEVICES control which NVIDIA / AMD GPUs in the system should be used. If the corresponding environment variable is not set, all GPUs will be used.
+
+**align** has two mandatory arguments. 
 1. `--query` The query file which contains all queries
 2. `--db` The path to the reference database constructed with makedb. 
 
 Run `./align --help` to get a complete list of options.
 
-By default, the results will be output to stdout in plain text. Results can be output to file instead (`--of filename`), and can be output as tab-separated values (`--tsv`). Example tsv output is given below.
-
-| Query number | Query length | Query header | Result number | Result score | Reference length | Reference header | Reference ID in DB | Alignment_end_query | Alignment_end_ref |
-|------------|------------|------------|------------|------------|------------| ------------|------------|------------|------------|
-| 0 | 144 | gi\|122087146 | 0 | 541 | 148 | UniRef50_P02233 | 23128215 | 100 | 100 |
-| 0 | 144 | gi\|122087146 | 1 | 444 | 144 | UniRef50_P02238  | 22381647 | 100 | 100 |
-
-
-## Selecting GPUs
-Similar to the build process, **align** will use all GPUs that are set with `CUDA_VISIBLE_DEVICES`, or all GPUs if `CUDA_VISIBLE_DEVICES` is not set. 
-
+Example call:
 ```
-# use the gpus that are currently set in CUDA_VISIBLE_DEVICES
-./align --query queries.fa(.gz) --db dbfolder/dbname
-
-# use gpus 0 and 1 for only this command
-CUDA_VISIBLE_DEVICES=0,1 ./align --query queries.fa(.gz) --db dbfolder/dbname
-```
-
-## Scoring options
-
-```
-    --top val : Output the val best scores. Default val = 10.
-    --gop val : Gap open score. Overwrites blosum-dependent default score.
-    --gex val : Gap extend score. Overwrites blosum-dependent default score.
-    --mat val : Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80. Default val = blosum62.
-    --scanType val : Set scan type. Supported values = {Gapless, SW_Endpos, Gapless+SW_Endpos}.
-            Gapless: Scan whole DB with gapless alignment. 
-            SW_Endpos: Scan whole DB with Smith Waterman Alignment, output score and end position.
-            Gapless+SW_Endpos: Scan whole DB with gapless alignment, then re-scan top results with Smith Waterman. Default val = Gapless
-    --subjectIdsFile val : Only consider database sequences with index specified in file. Must be a text file, one index per line.
-            Do not use together with scanType Gapless+SW_Endpos. When --subjectIdsFile is set, option --top is ignored.
+./align --query queries.fa(.gz) --db dbfolder/dbname -prefetchDBFile --scanType Gapless --top 10 --maxGpuMem 27G --uploadFull --queryBatchsize 5
 ```
 
 
-## Memory options
+## Metal and SIMD backends
 
-```
-    --maxGpuMem val : Try not to use more than val bytes of gpu memory per gpu. This is not a hard limit. Can use suffix K,M,G. All available gpu memory by default.
-    --maxTempBytes val : Size of temp storage in GPU memory. Can use suffix K,M,G. Default val = 4G
-    --maxBatchBytes val : Process DB in batches of at most val bytes. Can use suffix K,M,G. Default val = 128M
-    --maxBatchSequences val : Process DB in batches of at most val sequences. Default val = 10000000
-```
-
-Depending on the database size and available total GPU memory, the database is transferred to the GPU once for all queries, or it is processed in batches which requires a transfer for each query. Above options give some control over memory usage. For best performance, the complete database must fit into `maxGpuMem` times the number of used GPUs.
-
-## Other options
-```
-    --verbose : More console output. Shows timings.
-    --printLengthPartitions : Print number of sequences per length partition in db.
-    --interactive : Loads DB, then waits for sequence input by user
-    --help : Print all options
-```
-
-## Peak performance test:
-
-Align all queries to a simulated database of 2000000 sequences of length 512. All sequences are identical.
-```
-./align --query allqueries.fasta --top 0 --verbose --uploadFull --pseudodb 2000000 512 1
-```
-
-Align all queries to a simulated database of 2000000 sequences of length 512. All sequences are random.
-```
-./align --query allqueries.fasta --top 0 --verbose --uploadFull --pseudodb 2000000 512 0
-```
+`-DENABLE_METAL=ON` builds the Apple GPU backend (macOS, Xcode Metal compiler), `-DENABLE_SIMD=ON` the CPU backend
+(NEON, SSE2, AVX2, AVX-512BW). Both need a C++20 compiler and OpenMP, e.g.
+`cmake -S src -B build -DENABLE_SIMD=ON -DCMAKE_BUILD_TYPE=Release -DOpenMP_ROOT=/opt/homebrew/opt/libomp`.
+`Marv::MemoryConfig` bounds the database buffers per device (`maxGpuMem`) and the score-only workspace kept between
+searches (`maxCachedQueryBytes`, 0 disables reuse); `releaseSearchWorkspace()` frees it explicitly.

@@ -9,7 +9,8 @@
 struct ProgramOptions{
     enum class OutputMode{
         Plain,
-        TSV
+        TSV,
+        NoOutput
     };
 
     bool help = false;
@@ -21,15 +22,20 @@ struct ProgramOptions{
     bool prefetchDBFile = false;
     bool pseudoDBSameSequence = true;
     bool allowInt8 = false;
+    bool checkResults = false;
+    bool handleOverflows = false;
     int numTopOutputs = 10;
+    int queryBatchsize = 1;
     int gop = -11;
     int gex = -1;
     int pseudoDBLength = 0;
     int pseudoDBSize = 0;
-    cudasw4::BlosumType blosumType = cudasw4::BlosumType::BLOSUM62_20;
+    int maskingThreshold = 6;
+    int maskingLetter = 20;
+    libmarv::BlosumType blosumType = libmarv::BlosumType::BLOSUM62_20;
     OutputMode outputMode = OutputMode::Plain;
 
-    cudasw4::ScanType scanType = cudasw4::ScanType::Gapless;
+    libmarv::ScanType scanType = libmarv::ScanType::Gapless;
 
     size_t maxBatchBytes = 128ull * 1024ull * 1024ull;
     size_t maxBatchSequences = 10'000'000;
@@ -42,13 +48,11 @@ struct ProgramOptions{
     std::string dbPrefix;
     std::vector<std::string> queryFiles;
 
-    std::optional<std::string> kernelConfigsFile_gapless;
-    std::optional<std::string> kernelConfigsFile_sw;
-
     std::string outputModeString() const{
         switch(outputMode){
             case OutputMode::Plain: return "Plain";
             case OutputMode::TSV: return "TSV";
+            case OutputMode::NoOutput: return "NoOutput";
             default: return "Unnamed output mode";
         }
     }

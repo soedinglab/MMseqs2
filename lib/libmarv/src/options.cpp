@@ -22,11 +22,11 @@ void printOptions(const ProgramOptions& options){
     for(size_t i = 0; i < options.queryFiles.size(); i++){
         std::cout << "queryFile " << i  << " : " << options.queryFiles[i] << "\n";
     }
-    #ifdef CAN_USE_FULL_BLOSUM
-    std::cout << "blosum: " << to_string(options.blosumType) << "\n";
-    #else
-    std::cout << "blosum: " << to_string_nodim(options.blosumType) << "\n";
-    #endif
+    // #ifdef CAN_USE_FULL_BLOSUM
+    // std::cout << "blosum: " << to_string(options.blosumType) << "\n";
+    // #else
+    // std::cout << "blosum: " << to_string_nodim(options.blosumType) << "\n";
+    // #endif
     if(options.usePseudoDB){
         std::cout << "Using built-in pseudo db with " << options.pseudoDBSize 
             << " sequences of length " << options.pseudoDBLength << ". ";
@@ -45,9 +45,11 @@ void printOptions(const ProgramOptions& options){
     std::cout << "Output file: " << options.outputfile << "\n";
     std::cout << "Scan type: " << to_string(options.scanType) << "\n";
     std::cout << "File with subject Ids: " << (options.subjectIdsFilename.has_value() ? options.subjectIdsFilename.value() : " unspecified") << "\n";
-    std::cout << "kernelConfigsFile_gapless: " << options.kernelConfigsFile_gapless.value_or("unspecified") << "\n";
-    std::cout << "kernelConfigsFile_sw: " << options.kernelConfigsFile_sw.value_or("unspecified") << "\n";
     std::cout << "allowInt8: " << options.allowInt8 << "\n";
+    std::cout << "handleOverflows: " << options.handleOverflows << "\n";    
+    std::cout << "queryBatchsize: " << options.queryBatchsize << "\n";
+    std::cout << "maskingThreshold: " << options.maskingThreshold << "\n";
+    std::cout << "maskingLetter: " << options.maskingLetter << "\n";
 }
 
 bool parseArgs(int argc, char** argv, ProgramOptions& options){
@@ -84,11 +86,14 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
     };
 
     auto stringToScanType = [&](const std::string& string){
-        if(string == "Gapless") return cudasw4::ScanType::Gapless;
-        if(string == "SW_Endpos") return cudasw4::ScanType::SW_Endpos;
-        if(string == "Gapless+SW_Endpos") return cudasw4::ScanType::GaplessPlusSW_Endpos;
+        if(string == "Gapless") return libmarv::ScanType::Gapless;
+        if(string == "SW") return libmarv::ScanType::SW;
+        if(string == "Gapless_Endpos") return libmarv::ScanType::Gapless_Endpos;
+        if(string == "SW_Endpos") return libmarv::ScanType::SW_Endpos;
+        if(string == "Gapless+SW_Endpos") return libmarv::ScanType::GaplessPlusSW_Endpos;
+        if(string == "Foldseek") return libmarv::ScanType::Foldseek;
         std::cout << "Unknown scan type " << string << ". Using Gapless.\n";
-        return cudasw4::ScanType::Gapless;
+        return libmarv::ScanType::Gapless;
     };
 
     bool gotQuery = false;
@@ -114,8 +119,18 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.prefetchDBFile = true;
         }else if(arg == "--allowInt8"){
             options.allowInt8 = true;
+        }else if(arg == "--handleOverflows"){
+            options.handleOverflows = true;
+        }else if(arg == "--checkResults"){
+            options.checkResults = true;
         }else if(arg == "--top"){
             options.numTopOutputs = std::atoi(argv[++i]);
+        }else if(arg == "--queryBatchsize"){
+            options.queryBatchsize = std::atoi(argv[++i]);
+        }else if(arg == "--maskingThreshold"){
+            options.maskingThreshold = std::atoi(argv[++i]);
+        }else if(arg == "--maskingLetter"){
+            options.maskingLetter = std::atoi(argv[++i]);
         }else if(arg == "--gop"){
             options.gop = std::atoi(argv[++i]);
             gotGop = true;
@@ -137,26 +152,26 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.dbPrefix = argv[++i];
             gotDB = true;
         }else if(arg == "--mat"){
-            const std::string val = argv[++i];
-            #ifdef CAN_USE_FULL_BLOSUM
-            if(val == "blosum45") options.blosumType = cudasw4::BlosumType::BLOSUM45;
-            if(val == "blosum50") options.blosumType = cudasw4::BlosumType::BLOSUM50;
-            if(val == "blosum62") options.blosumType = cudasw4::BlosumType::BLOSUM62;
-            if(val == "blosum80") options.blosumType = cudasw4::BlosumType::BLOSUM80;
-            if(val == "blosum45_20") options.blosumType = cudasw4::BlosumType::BLOSUM45_20;
-            if(val == "blosum50_20") options.blosumType = cudasw4::BlosumType::BLOSUM50_20;
-            if(val == "blosum62_20") options.blosumType = cudasw4::BlosumType::BLOSUM62_20;
-            if(val == "blosum80_20") options.blosumType = cudasw4::BlosumType::BLOSUM80_20;
-            #else
-            if(val == "blosum45") options.blosumType = cudasw4::BlosumType::BLOSUM45_20;
-            if(val == "blosum50") options.blosumType = cudasw4::BlosumType::BLOSUM50_20;
-            if(val == "blosum62") options.blosumType = cudasw4::BlosumType::BLOSUM62_20;
-            if(val == "blosum80") options.blosumType = cudasw4::BlosumType::BLOSUM80_20;
-            if(val == "blosum45_20") options.blosumType = cudasw4::BlosumType::BLOSUM45_20;
-            if(val == "blosum50_20") options.blosumType = cudasw4::BlosumType::BLOSUM50_20;
-            if(val == "blosum62_20") options.blosumType = cudasw4::BlosumType::BLOSUM62_20;
-            if(val == "blosum80_20") options.blosumType = cudasw4::BlosumType::BLOSUM80_20;
-            #endif
+            // const std::string val = argv[++i];
+            // #ifdef CAN_USE_FULL_BLOSUM
+            // if(val == "blosum45") options.blosumType = libmarv::BlosumType::BLOSUM45;
+            // if(val == "blosum50") options.blosumType = libmarv::BlosumType::BLOSUM50;
+            // if(val == "blosum62") options.blosumType = libmarv::BlosumType::BLOSUM62;
+            // if(val == "blosum80") options.blosumType = libmarv::BlosumType::BLOSUM80;
+            // if(val == "blosum45_20") options.blosumType = libmarv::BlosumType::BLOSUM45_20;
+            // if(val == "blosum50_20") options.blosumType = libmarv::BlosumType::BLOSUM50_20;
+            // if(val == "blosum62_20") options.blosumType = libmarv::BlosumType::BLOSUM62_20;
+            // if(val == "blosum80_20") options.blosumType = libmarv::BlosumType::BLOSUM80_20;
+            // #else
+            // if(val == "blosum45") options.blosumType = libmarv::BlosumType::BLOSUM45_20;
+            // if(val == "blosum50") options.blosumType = libmarv::BlosumType::BLOSUM50_20;
+            // if(val == "blosum62") options.blosumType = libmarv::BlosumType::BLOSUM62_20;
+            // if(val == "blosum80") options.blosumType = libmarv::BlosumType::BLOSUM80_20;
+            // if(val == "blosum45_20") options.blosumType = libmarv::BlosumType::BLOSUM45_20;
+            // if(val == "blosum50_20") options.blosumType = libmarv::BlosumType::BLOSUM50_20;
+            // if(val == "blosum62_20") options.blosumType = libmarv::BlosumType::BLOSUM62_20;
+            // if(val == "blosum80_20") options.blosumType = libmarv::BlosumType::BLOSUM80_20;
+            // #endif
         }else if(arg == "--pseudodb"){
             options.usePseudoDB = true;
             options.pseudoDBSize = std::atoi(argv[++i]);
@@ -166,35 +181,33 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             gotDB = true;
         }else if(arg == "--tsv"){
             options.outputMode = ProgramOptions::OutputMode::TSV;
+        }else if(arg == "--noResults"){
+            options.outputMode = ProgramOptions::OutputMode::NoOutput;            
         }else if(arg == "--of"){
             options.outputfile = argv[++i];
         }else if(arg == "--scanType"){
             options.scanType = stringToScanType(argv[++i]);
         }else if(arg == "--subjectIdsFile"){
             options.subjectIdsFilename = argv[++i];
-        }else if(arg == "--kernelconfigsGapless"){
-            options.kernelConfigsFile_gapless = argv[++i];
-        }else if(arg == "--kernelconfigsSW"){
-            options.kernelConfigsFile_sw = argv[++i];
         }else{
             std::cout << "Unexpected arg " << arg << "\n";
         }
     }
 
     //set specific gop gex for blosum if no gop gex was set
-    if(options.blosumType == cudasw4::BlosumType::BLOSUM45 || options.blosumType == cudasw4::BlosumType::BLOSUM45_20){
+    if(options.blosumType == libmarv::BlosumType::BLOSUM45 || options.blosumType == libmarv::BlosumType::BLOSUM45_20){
         if(!gotGop) options.gop = -13;
         if(!gotGex) options.gex = -2;
     }
-    if(options.blosumType == cudasw4::BlosumType::BLOSUM50 || options.blosumType == cudasw4::BlosumType::BLOSUM50_20){
+    if(options.blosumType == libmarv::BlosumType::BLOSUM50 || options.blosumType == libmarv::BlosumType::BLOSUM50_20){
         if(!gotGop) options.gop = -13;
         if(!gotGex) options.gex = -2;
     }
-    if(options.blosumType == cudasw4::BlosumType::BLOSUM62 || options.blosumType == cudasw4::BlosumType::BLOSUM62_20){
+    if(options.blosumType == libmarv::BlosumType::BLOSUM62 || options.blosumType == libmarv::BlosumType::BLOSUM62_20){
         if(!gotGop) options.gop = -11;
         if(!gotGex) options.gex = -1;
     }
-    if(options.blosumType == cudasw4::BlosumType::BLOSUM80 || options.blosumType == cudasw4::BlosumType::BLOSUM80_20){
+    if(options.blosumType == libmarv::BlosumType::BLOSUM80 || options.blosumType == libmarv::BlosumType::BLOSUM80_20){
         if(!gotGop) options.gop = -10;
         if(!gotGex) options.gex = -1;
     }
@@ -225,16 +238,15 @@ void printHelp(int /*argc*/, char** argv){
 
     std::cout << "   Scoring\n";
     std::cout << "      --top val : Output the val best scores. Default val = " << defaultoptions.numTopOutputs << "\n";
-    std::cout << "      --gop val : Gap open score. Overwrites our blosum-dependent default score.\n";
-    std::cout << "      --gex val : Gap extend score. Overwrites our blosum-dependent default score.\n";
-    #ifdef CAN_USE_FULL_BLOSUM
-    std::cout << "      --mat val: Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80, blosum45_20, blosum50_20, blosum62_20, blosum80_20. "
-                        "Default: " << "blosum62_20" << "\n";
-    #else 
-    std::cout << "      --mat val: Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80. "
-                        "Default: " << "blosum62" << "\n";
-    #endif
-    std::cout << "      --scanType val : Set scan type. Supported values = {Gapless, SW_Endpos, Gapless+SW_Endpos}.\n";
+    std::cout << "      --gop val : Gap open score for SW\n";
+    std::cout << "      --gex val : Gap extend score for SW\n";
+    // #ifdef CAN_USE_FULL_BLOSUM
+    // std::cout << "      --mat val: Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80, blosum45_20, blosum50_20, blosum62_20, blosum80_20. "
+    //                     "Default: " << "blosum62_20" << "\n";
+    // #else 
+    // std::cout << "      --mat val: Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80. "
+    //                     "Default: " << "blosum62" << "\n";
+    std::cout << "      --scanType val : Set scan type. Supported values = {Gapless, SW, Gapless_Endpos, SW_Endpos, Gapless+SW_Endpos, Foldseek}.\n";
     std::cout << "            Gapless: Scan whole DB with gapless alignment. \n";
     std::cout << "            SW_Endpos: Scan whole DB with Smith Waterman Alignment, output score and end position.\n";
     std::cout << "            Gapless+SW_Endpos: Scan whole DB with gapless alignment, then re-scan top results with Smith Waterman. Default val = " << to_string(defaultoptions.scanType) << "\n";
@@ -263,9 +275,10 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "      --uploadFull : If enough GPU memory is available to store full db, copy full DB to GPU before processing queries.\n";
     std::cout << "      --pseudodb num length sameSeq: Use a generated DB which contains `num` equal sequences of length `length`."
                         "sameSeq can be 0 or 1. If `sameSeq`!=0, all sequences in DB will be identical\n";
-    std::cout << "      --kernelconfigsGapless filename\n";
-    std::cout << "      --kernelconfigsSW filename\n";
-    std::cout << "      --allowInt8\n";
+    std::cout << "      --allowInt8 : Compute alignments in 8-bit precision, if available\n";
+    std::cout << "      --handleOverflows : Re-compute overflowing alignment scores in higher precision\n";
+    std::cout << "      --queryBatchsize val\n";
+    
     std::cout << "\n";
 
             

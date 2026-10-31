@@ -13,7 +13,8 @@
 #include <iostream>
 #include <cassert>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 class MappedFileException : public std::exception{
     std::string message;
@@ -116,6 +117,6 @@ private:
 };
 
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END
 
 #endif

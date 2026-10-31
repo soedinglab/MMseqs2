@@ -8,7 +8,8 @@
 #include <fstream>
 #include <vector>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 struct TargetSubjectIds{
     std::vector<ReferenceIdT> subjectIds;
@@ -60,7 +61,7 @@ struct TargetSubjectIds{
     }
 };
 
-}
+LIBMARV_NAMESPACE_END
 
 
 
