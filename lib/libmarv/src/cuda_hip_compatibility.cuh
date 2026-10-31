@@ -33,7 +33,7 @@ __device__
 half2 hmax2(half2 a, half2 b){
     half2 res;
 
-    asm volatile ("v_pk_max_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
+    asm ("v_pk_max_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
 
     return res;
 }
@@ -42,7 +42,7 @@ __device__
 half2 hmin2(half2 a, half2 b){
     half2 res;
 
-    asm volatile ("v_pk_min_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
+    asm ("v_pk_min_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
 
     return res;
 }
