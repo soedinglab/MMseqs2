@@ -283,6 +283,12 @@ if (HAVE_GPROF)
     endif ()
 endif ()
 
+if (ENABLE_METAL)
+    # Metal reuses the HAVE_CUDA GPU prefilter path; HAVE_METAL marks what Metal cannot do
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_CUDA=1 -DHAVE_METAL=1)
+    target_link_libraries(mmseqs-framework marv)
+endif ()
+
 if (ENABLE_CUDA)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_CUDA=1)
     if (ENABLE_HIP)
