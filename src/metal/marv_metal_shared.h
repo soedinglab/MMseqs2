@@ -1,5 +1,5 @@
 // Kernel parameters. Buffers: 0 chars, 1 offsets, 2 lengths, 3 pssm, 4 scores, 5 params, 6 id list,
-// 7 letter translation table (256 bytes, used with MARV_METAL_FLAG_TRANSLATE).
+// 7 letter translation table (256 bytes, used with MARV_METAL_FLAG_TRANSLATE), 8 tile carry (multi-tile kernel only).
 #ifndef MARV_METAL_SHARED_H
 #define MARV_METAL_SHARED_H
 
@@ -20,6 +20,11 @@ struct MarvMetalGaplessParams {
     uint64_t pssmBase;
     uint64_t outBase;
     uint64_t idsBase;
+    // multi-tile kernel: query tiles, persistent SIMD-groups and their carry slices (int32 elements)
+    uint32_t numTiles;
+    uint32_t numSimdgroups;
+    uint64_t carryBase;
+    uint64_t carryStride;
 };
 
 #define MARV_METAL_FLAG_ID_LIST      2u

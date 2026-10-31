@@ -210,6 +210,15 @@ static void runAll() {
         // streamed database (small budget, partial cache) with a subset that is gathered from host memory
         const Case streamed{2048, 100, 300, 21, true, true, {48, 79, 161}, true, 50, true, 11, 384 * 1024};
         for (bool int8 : {false, true}) runCase(4242, streamed, int8, false, int8 ? "streamed int8" : "streamed int16");
+        // queries longer than one 8192-column pass take the multi-tile scan; planted full-length hits cross every tile
+        const Case multiTile{100, 1, 1000, 21, true, true, {8193, 12000, 20000}, true, 0, false};
+        for (bool int8 : {false, true}) runCase(5150, multiTile, int8, false, int8 ? "multi-tile int8" : "multi-tile int16");
+        const Case multiTileSubset{300, 1, 1500, 25, false, false, {9000}, false, 40, true};
+        runCase(5151, multiTileSubset, false, false, "multi-tile subset");
+        if (translationSupported) runCase(5151, multiTileSubset, false, true, "multi-tile subset ascii");
+        // a 16385-column hit far above 16 bits forces the 32-bit multi-tile retry
+        const Case multiTileWide{0, 1, 1, 21, true, true, {16385}, true, 0, false, 127};
+        for (bool int8 : {false, true}) runCase(5152, multiTileWide, int8, false, int8 ? "multi-tile wide int8" : "multi-tile wide int16");
     }
 }
 
