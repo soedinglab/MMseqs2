@@ -45,7 +45,29 @@ unsigned untiledRegisters(uint32_t length) {
     const unsigned needed = (length + 127u) / 128u;
     for (unsigned n : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 11u, 12u, 13u, 14u, 15u, 16u, 20u, 24u, 32u, 40u, 48u, 64u})
         if (needed <= n) return n;
-    throw std::runtime_error("libmarv/Metal: query exceeds the supported maximum of 8192");
+    throw std::runtime_error("libmarv/Metal: an untiled pass covers at most 8192 columns");
+}
+
+// Longer queries are split into equal tiles of 128 * registers columns. Untiled kernels above 32 registers and
+// multi-tile kernels above 16 lose throughput to register spilling (M4 Pro: 365 GCUPS at 4096 single pass,
+// 76 at 8192 single pass vs. 349 at 8192 and 431 at 32768 in 2048-column tiles).
+constexpr uint32_t kMaxSinglePassColumns = 4096;
+constexpr uint32_t kMaxTileColumns = 2048;
+
+struct MultiTileLayout { uint32_t numTiles; unsigned regs; };
+
+MultiTileLayout multiTileLayout(uint32_t length) {
+    const uint32_t numTiles = (length + kMaxTileColumns - 1) / kMaxTileColumns;
+    return {numTiles, untiledRegisters((length + numTiles - 1) / numTiles)};
+}
+
+bool isSinglePass(uint32_t length) { return length <= kMaxSinglePassColumns; }
+
+// PSSM columns including the zero padding of the last pass or tile
+uint32_t paddedPssmColumns(uint32_t length) {
+    if (isSinglePass(length)) return 128u * untiledRegisters(length);
+    const MultiTileLayout layout = multiTileLayout(length);
+    return layout.numTiles * 128u * layout.regs;
 }
 
 std::string untiledKernel(uint32_t length, bool int32Mode) {
@@ -54,8 +76,9 @@ std::string untiledKernel(uint32_t length, bool int32Mode) {
 
 KernelChoice chooseKernel(uint32_t queryLength, uint32_t alphabetSize, bool int32Mode) {
     KernelChoice kc;
-    if (queryLength > 32u * 4u * 64u) {
-        throw std::runtime_error("libmarv/Metal: query length " + std::to_string(queryLength) + " exceeds the supported maximum of 8192 for the gapless scan");
+    if (!isSinglePass(queryLength)) {
+        kc.primary = std::string(int32Mode ? "gl_multitile_i_r" : "gl_multitile_s_r") + std::to_string(multiTileLayout(queryLength).regs);
+        return kc;
     }
     if (int32Mode) {
         kc.primary = untiledKernel(queryLength, true);
@@ -95,12 +118,19 @@ public:
 
     ~MetalGaplessAligner() override { marvBackendSync(); }
 
-    bool isSingleTile(const OneToAllInputDataPSSM&) const override { return true; }
+    bool isSingleTile(const OneToAllInputDataPSSM& in) const override { return isSinglePass(in.queryLength); }
     int preferredKernelOutputArraySize() const override { return 1'000'000; }
-    int getTileSize(const OneToAllInputDataPSSM&) const override { return 8192; }
+    int getTileSize(const OneToAllInputDataPSSM& in) const override {
+        return isSinglePass(in.queryLength) ? kMaxSinglePassColumns : 128 * multiTileLayout(in.queryLength).regs;
+    }
     AlignmentAlgorithmE getAlignmentAlgorithm() const override { return AlignmentAlgorithmE::Gapless; }
     Datatype getScoreDatatype(int) const override { return int32Mode ? Datatype::Int : Datatype::Short2; }
-    size_t getMinimumSuggestedTempBytes_multiTile(const OneToAllInputDataPSSM&) const override { return 0; }
+    // carry slices for enough persistent SIMD-groups to fill the GPU
+    size_t getMinimumSuggestedTempBytes_multiTile(const OneToAllInputDataPSSM& in) const override {
+        if (isSinglePass(in.queryLength)) return 0;
+        const size_t simdgroups = std::min<size_t>(std::max(in.numAlignments, 1), kMultiTileSimdgroups);
+        return simdgroups * carryStride(in) * sizeof(int32_t);
+    }
 
     void makeGpuPssm(GpuConvertedPSSM& result, const cuda::std::mdspan<std::int8_t, cuda::std::dextents<int, 2>> hostPssmView,
                      cudaStream_t) override {
@@ -112,7 +142,7 @@ public:
         result.groupsize = 0;
         result.numRegs = 0;
         result.allocatedNumRegs = 0;
-        result.columnstride = 128 * untiledRegisters(cols);
+        result.columnstride = paddedPssmColumns(cols);
         result.gaplessScoreBound = 0;
         for (int c = 0; c < cols; ++c) {
             int best = 0;
@@ -129,17 +159,32 @@ public:
 
     void scoreOnly_singleTile(int* const devAlignmentScores, const OneToAllInputDataPSSM& inputData,
                               const GpuConvertedPSSM& pssm, GapScoreArgs, cudaStream_t stream) override {
-        run(devAlignmentScores, inputData, pssm, stream);
+        if (!isSinglePass(inputData.queryLength)) {
+            throw std::runtime_error("libmarv/Metal: query length " + std::to_string(inputData.queryLength) + " needs the multi-tile scan");
+        }
+        run(devAlignmentScores, inputData, pssm, nullptr, 0, stream);
     }
 
-    void scoreOnly_multiTile(char*, size_t, int* const devAlignmentScores, const OneToAllInputDataPSSM& inputData,
+    void scoreOnly_multiTile(char* tempStorage, size_t tempBytes, int* const devAlignmentScores, const OneToAllInputDataPSSM& inputData,
                              const GpuConvertedPSSM& pssm, GapScoreArgs, cudaStream_t stream) override {
-        run(devAlignmentScores, inputData, pssm, stream);
+        run(devAlignmentScores, inputData, pssm, tempStorage, tempBytes, stream);
     }
 
 private:
+    static constexpr size_t kMultiTileSimdgroups = 4096;
     bool int32Mode;
-    void run(int* const devAlignmentScores, const OneToAllInputDataPSSM& in, const GpuConvertedPSSM& pssm, cudaStream_t stream) {
+
+    // one int32 per subject row. maximumSubjectLength assumes a length-sorted database, which the host backends do not
+    // require, so the batch is measured (host-visible unified memory, read after the queue drained).
+    static size_t carryStride(const OneToAllInputDataPSSM& in) {
+        marvBackendSync();
+        int32_t longest = 1;
+        for (int i = 0; i < in.numAlignments; ++i) longest = std::max<int32_t>(longest, in.d_subjectLengths[in.indexIndirection[i]]);
+        return (size_t) longest;
+    }
+
+    void run(int* const devAlignmentScores, const OneToAllInputDataPSSM& in, const GpuConvertedPSSM& pssm,
+             char* tempStorage, size_t tempBytes, cudaStream_t stream) {
         const uint32_t L = (uint32_t) in.queryLength;
         const int n = in.numAlignments;
         if (n <= 0 || L == 0) return;
@@ -186,7 +231,24 @@ private:
         KernelChoice kc = chooseKernel(L, alphabetSize, int32Mode);
         if (L <= 128 && n < 4096) kc.threads = 128;
         const void* idArg = idList != nullptr ? (const void*) idList : (const void*) devAlignmentScores;
-        MetalKernelArg args[8];
+        const bool multiTile = !isSinglePass(L);
+        unsigned numSimdgroups = 0; // persistent SIMD-groups of the multi-tile kernel
+        if (multiTile) {
+            const size_t stride = carryStride(in);
+            const size_t fitting = tempStorage != nullptr ? tempBytes / (stride * sizeof(int32_t)) : 0;
+            if (fitting == 0) {
+                throw std::runtime_error("libmarv/Metal: temporary storage too small for the multi-tile scan of query length " + std::to_string(L));
+            }
+            const size_t carryBytes = resolveOrThrow(tempStorage, "multi-tile storage");
+            if (carryBytes % sizeof(int32_t)) throw std::runtime_error("libmarv/Metal: misaligned multi-tile storage");
+            numSimdgroups = (unsigned) std::min<size_t>({fitting, (size_t) n, kMultiTileSimdgroups});
+            const MultiTileLayout layout = multiTileLayout(L);
+            params.numTiles = layout.numTiles;
+            params.numSimdgroups = numSimdgroups;
+            params.carryBase = carryBytes / sizeof(int32_t);
+            params.carryStride = stride;
+        }
+        MetalKernelArg args[9];
         args[0] = MetalKernelArg::buffer(in.d_subjects);
         args[1] = MetalKernelArg::buffer(offsets);
         args[2] = MetalKernelArg::buffer(in.d_subjectLengths);
@@ -195,14 +257,17 @@ private:
         args[5] = MetalKernelArg::bytes(params);
         args[6] = MetalKernelArg::buffer(idArg);
         args[7] = MetalKernelArg{table, 256, false};
+        args[8] = MetalKernelArg::buffer(multiTile ? (const void*) tempStorage : (const void*) devAlignmentScores);
+        const int numArgs = multiTile ? 9 : 8;
 
         auto launch = [&](const std::string& name) {
             const size_t maxThreads = metalKernelMaxThreads(name.c_str());
             if (maxThreads == 0) throw std::runtime_error("libmarv/Metal: kernel not found: " + name);
             const unsigned sgPerTg = (unsigned) std::max<size_t>(1, std::min<size_t>(kc.threads / 32, maxThreads / 32));
             const unsigned itemsPerTg = sgPerTg * kc.subjectsPerSimdgroup;
-            const unsigned grid = (unsigned)(((size_t) n + itemsPerTg - 1) / itemsPerTg);
-            cudaError_t status = metalLaunchKernel(name.c_str(), args, 8, grid, sgPerTg * 32u, kc.threadgroupBytes, stream);
+            const size_t items = multiTile ? numSimdgroups : (size_t) n;
+            const unsigned grid = (unsigned)((items + itemsPerTg - 1) / itemsPerTg);
+            cudaError_t status = metalLaunchKernel(name.c_str(), args, numArgs, grid, sgPerTg * 32u, kc.threadgroupBytes, stream);
             if (status != cudaSuccess) throw std::runtime_error("libmarv/Metal: launch of " + name + " failed");
         };
         launch(kc.primary);

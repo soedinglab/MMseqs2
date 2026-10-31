@@ -231,6 +231,105 @@ kernel void gapless_untiled(
     }
 }
 
+// Queries longer than one untiled pass: the query is split into numTiles tiles of 128 * REGS columns, each subject is
+// scanned once per tile. The last column of a tile is carried per subject row to the first column of the next tile.
+// Persistent SIMD-groups, each owns a carry slice of carryStride elements.
+template<uint REGS, class ScoreT>
+kernel void gapless_multitile(
+    device const char*      dbChars      [[buffer(0)]],
+    device const uint64_t*  dbOffsets    [[buffer(1)]],
+    device const int32_t*   dbLengths    [[buffer(2)]],
+    device const int8_t*    pssm         [[buffer(3)]],
+    device int32_t*         outScores    [[buffer(4)]],
+    constant MarvMetalGaplessParams& params [[buffer(5)]],
+    device const int32_t*   subjectIds   [[buffer(6)]],
+    constant const uchar*   letterTable  [[buffer(7)]],
+    device int32_t*         tileCarry    [[buffer(8)]],
+    uint simdgroup_id        [[simdgroup_index_in_threadgroup]],
+    uint thread_in_simdgroup [[thread_index_in_simdgroup]],
+    uint threadgroup_id      [[threadgroup_position_in_grid]],
+    uint simdgroups_per_tg   [[simdgroups_per_threadgroup]]
+) {
+    using Vec = vec<ScoreT, 4>;
+    const uint globalSg = threadgroup_id * simdgroups_per_tg + simdgroup_id;
+    if (globalSg >= params.numSimdgroups) return;
+
+    const uint lane = thread_in_simdgroup;
+    const int clampLetter = (int) params.alphabetSize - 1;
+    const bool translate = (params.flags & MARV_METAL_FLAG_TRANSLATE) != 0;
+    device const int8_t* pssmData = pssm + params.pssmBase;
+    device int32_t* carry = tileCarry + params.carryBase + (uint64_t) globalSg * params.carryStride;
+
+    constexpr uint quarter = REGS;
+    constexpr uint tileColumns = 128 * REGS;
+    const uint myStart = lane * 4 * REGS;
+
+    for (uint listIdx = globalSg; listIdx < params.numItems; listIdx += params.numSimdgroups) {
+        const uint seqIdx = (params.flags & MARV_METAL_FLAG_ID_LIST) ? (uint) subjectIds[params.idsBase + listIdx] : params.indexOffset + listIdx;
+        const int32_t subjectLength = dbLengths[params.lengthsBase + seqIdx];
+        const uint64_t baseOffset = params.charsBase + (dbOffsets[params.offsetsBase + seqIdx] - ((params.flags & MARV_METAL_FLAG_ZERO_OFFSETS) ? dbOffsets[params.offsetsBase] : 0u));
+        Vec maximum4 = Vec(0);
+
+        for (uint tile = 0; tile < params.numTiles; tile++) {
+            device const int8_t* pssmTile = pssmData + tile * tileColumns;
+            const bool readCarry = tile > 0;
+            const bool writeCarry = tile + 1 < params.numTiles;
+            Vec penalty_here[REGS];
+            #pragma unroll
+            for (uint r = 0; r < quarter; r++) penalty_here[r] = Vec(0);
+            ScoreT prev_border = 0;
+
+            for (int32_t j = 0; j < subjectLength; j++) {
+                // lane 0 takes the previous tile's row j before lane 31 overwrites it with this tile's row j
+                ScoreT carriedBorder = 0;
+                if (readCarry && lane == 0) carriedBorder = (ScoreT) carry[j];
+                simdgroup_barrier(mem_flags::mem_device);
+
+                int raw = (int)(uchar) dbChars[baseOffset + j];
+                int subjectLetter = min(translate ? (int) letterTable[raw] : raw, clampLetter);
+                device const int8_t* pssmRow = pssmTile + subjectLetter * params.pssmStride;
+
+                Vec old_last = penalty_here[quarter - 1];
+                Vec old_prev = penalty_here[0];
+                uint p0 = myStart;
+                Vec scores0;
+                scores0.x = (ScoreT) pssmRow[p0];
+                scores0.y = (ScoreT) pssmRow[p0 + quarter];
+                scores0.z = (ScoreT) pssmRow[p0 + 2 * quarter];
+                scores0.w = (ScoreT) pssmRow[p0 + 3 * quarter];
+                Vec diag0 = Vec(prev_border, old_last.x, old_last.y, old_last.z);
+                Vec new0 = max(accum(diag0, scores0), Vec(0));
+                penalty_here[0] = new0;
+                maximum4 = max(maximum4, new0);
+                #pragma unroll
+                for (uint m = 1; m < quarter; m++) {
+                    Vec old_cur = penalty_here[m];
+                    uint pm = myStart + m;
+                    Vec scores;
+                    scores.x = (ScoreT) pssmRow[pm];
+                    scores.y = (ScoreT) pssmRow[pm + quarter];
+                    scores.z = (ScoreT) pssmRow[pm + 2 * quarter];
+                    scores.w = (ScoreT) pssmRow[pm + 3 * quarter];
+                    Vec new_val = max(accum(old_prev, scores), Vec(0));
+                    penalty_here[m] = new_val;
+                    maximum4 = max(maximum4, new_val);
+                    old_prev = old_cur;
+                }
+                if (writeCarry && lane == 31) carry[j] = (int32_t) penalty_here[quarter - 1].w;
+                ScoreT shuffled = simd_shuffle_up(penalty_here[quarter - 1].w, 1);
+                prev_border = (lane == 0) ? carriedBorder : shuffled;
+            }
+            // the next tile, or the next subject's first tile, reads rows this tile wrote
+            simdgroup_barrier(mem_flags::mem_device);
+        }
+        ScoreT groupMax = max(max(maximum4.x, maximum4.y), max(maximum4.z, maximum4.w));
+        groupMax = simd_max(groupMax);
+        if (lane == 0) {
+            outScores[params.outBase + listIdx] = (int32_t) groupMax;
+        }
+    }
+}
+
 #define INSTANTIATE_TILED_T(NAME, G, N, S, T, R) \
     template [[host_name(NAME)]] kernel void gapless_tiled<G, N, S, T, R>( \
         device const char*, device const uint64_t*, device const int32_t*, device const int8_t*, device int32_t*, \
@@ -276,3 +375,12 @@ TILED8_24_48(32)
 UNTILED(1) UNTILED(2) UNTILED(3) UNTILED(4) UNTILED(5) UNTILED(6) UNTILED(7) UNTILED(8)
 UNTILED(9) UNTILED(10) UNTILED(11) UNTILED(12) UNTILED(13) UNTILED(14) UNTILED(15) UNTILED(16)
 UNTILED(20) UNTILED(24) UNTILED(32) UNTILED(40) UNTILED(48) UNTILED(64)
+
+#define MULTITILE_ARGS \
+    device const char*, device const uint64_t*, device const int32_t*, device const int8_t*, device int32_t*, \
+    constant MarvMetalGaplessParams&, device const int32_t*, constant const uchar*, device int32_t*, uint, uint, uint, uint
+#define MULTITILE(R) \
+    template [[host_name("gl_multitile_s_r" #R)]] kernel void gapless_multitile<R, short>(MULTITILE_ARGS); \
+    template [[host_name("gl_multitile_i_r" #R)]] kernel void gapless_multitile<R, int>(MULTITILE_ARGS);
+// tiles of at most 2048 columns for queries above 4096: 9 to 16 registers
+MULTITILE(9) MULTITILE(10) MULTITILE(11) MULTITILE(12) MULTITILE(13) MULTITILE(14) MULTITILE(15) MULTITILE(16)
