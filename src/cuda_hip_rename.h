@@ -135,3 +135,23 @@ namespace cooperative_groups {
 #endif
 
 #endif
+// CUDA < 13.1 (CCCL < 3.1) lacks thrust::no_init, CUDA < 13.0 (CCCL < 3.0) lacks cuda::round_up
+#if defined(__CUDACC__) && !defined(__HIPCC__) && !defined(LIBMARV_CUDA_CCCL_COMPAT)
+#define LIBMARV_CUDA_CCCL_COMPAT
+#include <cuda/std/version>
+#if CCCL_VERSION < 3001000
+namespace thrust {
+    struct MarvNoInitTag {
+        template<class T>
+        constexpr operator T() const { return T{}; }
+    };
+    static constexpr MarvNoInitTag no_init{};
+}
+#endif
+#if CCCL_VERSION < 3000000
+namespace cuda {
+    template<class T, class U>
+    __host__ __device__ constexpr auto round_up(T a, U b) { return ((a + b - 1) / b) * b; }
+}
+#endif
+#endif
