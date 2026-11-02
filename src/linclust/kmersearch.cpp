@@ -81,7 +81,7 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
         }
 //        std::cout << kmers[i].id << "\t" << kmers[i].pos << std::endl;
         // find maximal diagonal and top score
-        short prevDiagonal;
+        short prevDiagonal = kmers[i].pos;
         int cnt = 0;
         int bestDiagonalCnt = 0;
         int bestRevertMask = reverMask;
@@ -92,7 +92,6 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
         DBKeyType hitId;
         do {
             prevHitId = kmers[i].id;
-            prevDiagonal = kmers[i].pos;
 
             cnt = (kmers[i].pos == prevDiagonal) ? cnt + 1 : 1 ;
             if(cnt > bestDiagonalCnt){
@@ -100,6 +99,7 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short, false, true> *k
                 bestDiagonal = kmers[i].pos;
                 bestRevertMask = reverMask;
             }
+            prevDiagonal = kmers[i].pos;
             topScore++;
             i++;
             if (i >= kmerCount) {
