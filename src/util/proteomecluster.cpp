@@ -40,7 +40,7 @@ struct ProteomeEntry {
 
     void computeProteomeSimilarityScore (unsigned int referenceSize) {
         uniScore = static_cast<float> (sharedEntryCount) / proteinEntrySize;
-        biScore = static_cast<float> (sharedEntryCount * 2) / (referenceSize + proteinEntrySize);
+        biScore = static_cast<float> (std::min(sharedEntryCount, referenceSize) * 2) / (referenceSize + proteinEntrySize);
     }
 
     void reset() {
@@ -164,7 +164,7 @@ inline char* writeProteomeToBuffer(const ProteomeEntry& proteome, char* buffer) 
 void runAlignmentForCluster(ClusterEntry& clusterRep, DBKeyType referenceProteomeKey, DBReader<DBKeyType>& tProteinDB, Matcher& matcher, Sequence& query, Sequence& target, std::vector<ProteomeEntry>& MAYBE_UNUSED(proteomeList), Parameters& par, unsigned int thread_idx, int swMode, std::vector<unsigned int>& localsharedEntryCount, std::map<DBKeyType, size_t>& proteomekeyToIndex, DBWriter& proteinAlignWriter) {
     char buffer[1024]; 
     unsigned int qLen = 0;
-    size_t queryId = DB_ENTRY_NOT_FOUND;
+    size_t longestIdx = SIZE_MAX;
     DBKeyType qproteomeKey = DB_KEY_INVALID;
     bool includeAlign = par.includeAlignFiles || par.proteomeIncludeAlignFiles;
     // find representative query protein which has the longest sequence length
@@ -174,69 +174,81 @@ void runAlignmentForCluster(ClusterEntry& clusterRep, DBKeyType referenceProteom
     } 
 
     //iterate over the cluster members from referenceProteomeKeyIdx to the end
-    for (size_t idx = referenceProteomeKeyIdx; idx < clusterRep.memberProteins.size();idx++) {
-        DBKeyType key = clusterRep.memberProteins[idx].proteomeKey;
+    size_t referenceEndIdx = referenceProteomeKeyIdx;
+    for (; referenceEndIdx < clusterRep.memberProteins.size(); referenceEndIdx++) {
+        DBKeyType key = clusterRep.memberProteins[referenceEndIdx].proteomeKey;
         if (key != referenceProteomeKey) {
             break;
         }
-        const size_t proteinId = clusterRep.memberProteins[idx].proteinId;
+        const size_t proteinId = clusterRep.memberProteins[referenceEndIdx].proteinId;
         const unsigned int seqlen = tProteinDB.getSeqLen(proteinId);
         if (seqlen > qLen) { 
             // If gene duplication happens, find the longest sequence length protein
             qLen = seqlen;
-            queryId = proteinId;
+            longestIdx = referenceEndIdx;
             qproteomeKey = key;
         }
     }
-    if (includeAlign) {
-        proteinAlignWriter.writeStart(thread_idx);
-    }
-    const DBKeyType queryKey = tProteinDB.getDbKey(queryId);
-    char* querySeq = tProteinDB.getData(queryId, thread_idx); 
-    query.mapSequence(queryId, queryKey, querySeq, tProteinDB.getSeqLen(queryId));
-    matcher.initQuery(&query);
-
-    // (Need it?) Alignment by representative protein itself : same query and target (for createtsv)
-    Matcher::result_t rep_result = matcher.getSWResult(&query, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, true);
-    size_t rep_len = Matcher::resultToBuffer(buffer, rep_result, par.addBacktrace);
-    if (includeAlign) {
-        proteinAlignWriter.writeAdd(buffer, rep_len, thread_idx);
+    if (par.proteomeScoreMode == 0) {
+        referenceProteomeKeyIdx = longestIdx;
+        referenceEndIdx = longestIdx + 1;
     }
     localsharedEntryCount[proteomekeyToIndex[qproteomeKey]] += 1;
+    std::vector<bool> isShared(clusterRep.memberProteins.size(), false);
 
-    //Alignment by representative protein and other proteins in the cluster
-    for (auto& eachTargetMember : clusterRep.memberProteins){
-        DBKeyType tproteomeKey = eachTargetMember.proteomeKey;
-        size_t proteomeIdx = proteomekeyToIndex[tproteomeKey];
-        if (eachTargetMember.proteomeKey == referenceProteomeKey) {
-            continue;
+    for (size_t queryIdx = referenceProteomeKeyIdx; queryIdx < referenceEndIdx; queryIdx++) {
+        const size_t queryId = clusterRep.memberProteins[queryIdx].proteinId;
+        if (includeAlign) {
+            proteinAlignWriter.writeStart(thread_idx);
         }
-       
-        const size_t targetId = eachTargetMember.proteinId;
-        const DBKeyType targetKey = tProteinDB.getDbKey(targetId);
-        char* targetSeq = tProteinDB.getData(targetId, thread_idx);
+        const DBKeyType queryKey = tProteinDB.getDbKey(queryId);
+        char* querySeq = tProteinDB.getData(queryId, thread_idx); 
+        query.mapSequence(queryId, queryKey, querySeq, tProteinDB.getSeqLen(queryId));
+        matcher.initQuery(&query);
 
-        target.mapSequence(targetId, targetKey, targetSeq, tProteinDB.getSeqLen(targetId));
-
-
-        if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {
-            continue;
+        // (Need it?) Alignment by representative protein itself : same query and target (for createtsv)
+        Matcher::result_t rep_result = matcher.getSWResult(&query, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, true);
+        size_t rep_len = Matcher::resultToBuffer(buffer, rep_result, par.addBacktrace);
+        if (includeAlign) {
+            proteinAlignWriter.writeAdd(buffer, rep_len, thread_idx);
         }
 
-        const bool isIdentity = (queryId == targetId && par.includeIdentity) ? true : false;
-        Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, isIdentity);
-
-        if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
-            size_t len = Matcher::resultToBuffer(buffer, result, par.addBacktrace);
-            if (includeAlign) {
-                proteinAlignWriter.writeAdd(buffer, len, thread_idx);
+        //Alignment by representative protein and other proteins in the cluster
+        for (size_t idx = 0; idx < clusterRep.memberProteins.size(); idx++) {
+            const MemberProtein& eachTargetMember = clusterRep.memberProteins[idx];
+            DBKeyType tproteomeKey = eachTargetMember.proteomeKey;
+            size_t proteomeIdx = proteomekeyToIndex[tproteomeKey];
+            if (eachTargetMember.proteomeKey == referenceProteomeKey || isShared[idx]) {
+                continue;
             }
-            localsharedEntryCount[proteomeIdx] += 1;
+           
+            const size_t targetId = eachTargetMember.proteinId;
+            const DBKeyType targetKey = tProteinDB.getDbKey(targetId);
+            char* targetSeq = tProteinDB.getData(targetId, thread_idx);
+
+            target.mapSequence(targetId, targetKey, targetSeq, tProteinDB.getSeqLen(targetId));
+
+
+            if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {
+                continue;
+            }
+
+            const bool isIdentity = (queryId == targetId && par.includeIdentity) ? true : false;
+            Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, isIdentity);
+
+            if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
+                size_t len = Matcher::resultToBuffer(buffer, result, par.addBacktrace);
+                if (includeAlign) {
+                    proteinAlignWriter.writeAdd(buffer, len, thread_idx);
+                }
+                localsharedEntryCount[proteomeIdx] += 1;
+                isShared[idx] = true;
+            }
+            
         }
-        
-    }
-    if (includeAlign) {
-        proteinAlignWriter.writeEnd(queryKey, thread_idx);
+        if (includeAlign) {
+            proteinAlignWriter.writeEnd(queryKey, thread_idx);
+        }
     }
 }
 
