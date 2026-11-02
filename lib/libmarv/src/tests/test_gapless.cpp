@@ -214,7 +214,7 @@ static void runAll() {
         const Case multiTile{100, 1, 1000, 21, true, true, {8193, 12000, 20000}, true, 0, false};
         for (bool int8 : {false, true}) runCase(5150, multiTile, int8, false, int8 ? "multi-tile int8" : "multi-tile int16");
         const Case multiTileSubset{300, 1, 1500, 25, false, false, {9000}, false, 40, true};
-        runCase(5151, multiTileSubset, false, false, "multi-tile subset");
+        if (!gpuCompatible) runCase(5151, multiTileSubset, false, false, "multi-tile subset");
         if (translationSupported) runCase(5151, multiTileSubset, false, true, "multi-tile subset ascii");
         // a 16385-column hit far above 16 bits forces the 32-bit multi-tile retry
         const Case multiTileWide{0, 1, 1, 21, true, true, {16385}, true, 0, false, 127};

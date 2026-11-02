@@ -79,7 +79,7 @@ endfunction()
 
 
 if (NOT ONLY_BUILD_TUNING)    
-    find_package(OpenMP REQUIRED)
+    find_package(OpenMP REQUIRED COMPONENTS CXX)
 
     set(MARV_ALIGNER_OBJECTS "")
     set(MARV_HAVE_ARCH_DEFINES "")
@@ -164,7 +164,9 @@ if (NOT ONLY_BUILD_TUNING)
 
     if(NOT ENABLE_HIP)
         set_target_properties(marv PROPERTIES CUDA_ARCHITECTURES "${MARV_CORE_ARCHS}" CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-        target_compile_options(marv PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fopenmp>)
+        # pass the host OpenMP flags (e.g. -I to omp.h for clang) to the CUDA host compiler
+        separate_arguments(MARV_OPENMP_CXX_FLAGS UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
+        target_compile_options(marv PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=$<JOIN:${MARV_OPENMP_CXX_FLAGS},$<COMMA>>>")
     else()
         set_target_properties(marv PROPERTIES HIP_ARCHITECTURES "${MARV_HIP_ARCHS}")
         target_compile_definitions(marv PRIVATE AMD_INLINE_ARCH_NAMESPACE_NAME=${MARV_AMD_FULL_INLINE_NAMESPACE_HELPER})
@@ -172,7 +174,7 @@ if (NOT ONLY_BUILD_TUNING)
 
     if(NOT LIBRARY_ONLY)
         find_package(ZLIB REQUIRED)
-        find_package(OpenMP REQUIRED)
+        find_package(OpenMP REQUIRED COMPONENTS CXX)
 
         set(MARV_ALIGN_GPU_SOURCES ${MARV_GPU_SOURCES} main2.cu gpudatabase.cu ${MARV_GPU_SEARCH_IMPL_SOURCES}  dbbatching.cu)
         set_source_files_properties(main2.cu gpudatabase.cu ${MARV_GPU_SEARCH_IMPL_SOURCES}  dbbatching.cu options.cpp makedb.cpp PROPERTIES LANGUAGE ${MARV_GPU_LANGUAGE})
@@ -224,7 +226,7 @@ if (NOT ONLY_BUILD_TUNING)
 endif()
 
 if(BUILD_TUNING)
-    find_package(OpenMP REQUIRED)
+    find_package(OpenMP REQUIRED COMPONENTS CXX)
 
     set(MARV_ALIGNER_OBJECTS "")
     set(MARV_HAVE_ARCH_DEFINES "")
