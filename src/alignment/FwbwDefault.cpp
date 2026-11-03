@@ -11,7 +11,6 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <type_traits>
 
 namespace FwBwDefault {
 
