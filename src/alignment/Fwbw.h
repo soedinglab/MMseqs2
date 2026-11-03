@@ -34,17 +34,11 @@ public:
         int word;
     } s_align;
 
-    // Forward-backward kernel of runFwBw (all modes; the backtrace runs on its posteriors).
+    // SCALED_FAST skips the forward/backward Z check, posteriors on steep score matrices can then be wrong
     enum ScaledMode {
-        SCALED_OFF = 0,  // log-space blocks
-        SCALED = 1,      // scaled mantissas; a call whose backward Z disagrees with the forward Z is run again
-                         // with double mantissas, and in log-space double if that is flagged as well
-        SCALED_FAST = 2  // scaled mantissas without that check, a few percent faster. WARNING: a path that
-                         // starts next to a much stronger one can then be lost without any flag, and the
-                         // posteriors around it are wrong by up to 1, not just slightly off. Seen on score
-                         // matrices whose per-cell scores (divided by T) have a standard deviation of about
-                         // 4-5 nats or more, earlier with cheap gap extension. Use SCALED unless the scores
-                         // are known to be flat.
+        SCALED_OFF = 0,
+        SCALED = 1,
+        SCALED_FAST = 2
     };
 
     class Impl {
@@ -97,7 +91,6 @@ public:
     }
     void initScoreMatrix(float** inputScoreMatrix, int* gaps) { impl->initScoreMatrix(inputScoreMatrix, gaps); }
     void setTemperature(float newTemperature) { impl->setTemperature(newTemperature); }
-    // forward-backward kernel of runFwBw, see ScaledMode
     void setScaledMode(ScaledMode mode) { impl->setScaledMode(mode); }
 
     // profile: score from the query profile (true) or from a user-supplied score matrix (false).

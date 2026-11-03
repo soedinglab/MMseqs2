@@ -53,17 +53,30 @@ inline simd_float simdf32_prefixsum(simd_float a) {
 #endif
 }
 
-// Helpers of ScaledFwBw and MacFill
-
-// simdf32_movemask_ps with every lane set
 const int ALL_LANES = (1 << VECSIZE_FLOAT) - 1;
 
-// 2^e at compile time
-constexpr float pow2c(int e) {
-    return e == 0 ? 1.0f : (e < 0 ? 0.5f * pow2c(e + 1) : 2.0f * pow2c(e - 1));
+// 2^e: 0 below 2^-126, clamped at 2^127
+inline float pow2f(int e) {
+    e = std::max(-127, std::min(e, 127));
+    const uint32_t bits = (uint32_t)(e + 127) << 23;
+    float f;
+    memcpy(&f, &bits, sizeof(f));
+    return f;
 }
 
-// row[p, p + VECSIZE_FLOAT) with lanes at or after cols set to pad
+// 2^e: 0 below 2^-1022, clamped at 2^1023
+inline double pow2d(int e) {
+    if (e < -1022) {
+        return 0.0;
+    }
+    e = std::min(e, 1023);
+    const uint64_t bits = (uint64_t)(e + 1023) << 52;
+    double d;
+    memcpy(&d, &bits, sizeof(d));
+    return d;
+}
+
+// row[p, p + VECSIZE_FLOAT), lanes at or after cols set to pad
 inline simd_float loadCols(const float *row, int p, int cols, float pad) {
     if (p + VECSIZE_FLOAT <= cols) {
         return simdf32_loadu(row + p);
@@ -78,125 +91,49 @@ inline simd_float loadCols(const float *row, int p, int cols, float pad) {
     return simdf32_loadu(t);
 }
 
-// Scaled-mantissa forward-backward, used by runFwBw (score matrix or profile, any backtrace mode) when
-// FwBwAligner::setScaledMode is set. Same model as the log-space blocks below:
-//   ZM_ij = (ZM_{i-1,j-1} + ZE_{i-1,j-1} + ZF_{i-1,j-1} + 1) * exp(S_ij)      (S already divided by T)
-//   ZE_ij = ZM_{i,j-1} * eGo + ZE_{i,j-1} * eGe
-//   ZF_ij = ZM_{i-1,j} * eGo + ZF_{i-1,j} * eGe
-//   Z = sum ZM,  P_ij = ZM_ij * ZMb_ij / (exp(S_ij) * Z)
-// ZMb is the same recurrence on the reversed matrix. ZMb_ij / exp(S_ij) is its "predecessor + 1" term,
-// which the backward pass has at hand, so the posterior needs no division and no second exp.
-//
-// Values are stored as float mantissas with one power-of-two scale per (row, BLOCK_COLS-column block):
-// 16 columns for a score matrix (LoL-align's steep scores lose paths far more often in wider blocks), 32 for
-// a profile (substitution scores are flat enough; 12-17% faster per cell). A block is rescaled (exponent
-// arithmetic only) when its values leave [2^-RENORM_BITS, 2^RENORM_BITS]; the local-start term 1 bounds
-// the values from below, so scales never go negative.
-//
-// Lost paths: values sharing a block's scale can only lie within ~2^126 of the block's largest value.
-// As a block is rescaled only when needed, it can keep a large scale after a strong path has left it, and a
-// path that starts there underflows without any non-finite value. Z of the backward pass then differs from
-// the forward pass's: run<true, ...> sums both and flags the difference (FLAG_ZCHECK), and runScaledKernel
-// runs the call again in runScaledDouble().
-//
-// The kernel (lane helpers in simd.h, decayedScan) covers 4 (SSE, NEON), 8 (AVX2, AVX512VL at 256 bit)
-// and 16 (AVX512 with MMSEQS_NO_SIMD256) lanes.
-static_assert(VECSIZE_FLOAT == 4 || VECSIZE_FLOAT == 8 || VECSIZE_FLOAT == 16, "4, 8 or 16 float lanes");
+inline void storeCols(float *row, int p, int cols, simd_float a) {
+    if (p + VECSIZE_FLOAT <= cols) {
+        simdf32_storeu(row + p, a);
+        return;
+    }
+    if (p >= cols) {
+        return;
+    }
+    float t[VECSIZE_FLOAT];
+    simdf32_storeu(t, a);
+    // one test per lane, a copy loop would become a memcpy call
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        if (p + k < cols) {
+            row[p + k] = t[k];
+        }
+    }
+}
 
+// Forward-backward with float mantissas and one power-of-two scale per (row, BLOCK_COLS-column block):
+//   ZM_ij = (ZM_i-1,j-1 + ZE_i-1,j-1 + ZF_i-1,j-1 + 1) * exp(S_ij)
+//   ZE_ij = ZM_i,j-1 * exp_go + ZE_i,j-1 * exp_ge
+//   ZF_ij = ZM_i-1,j * exp_go + ZF_i-1,j * exp_ge
+//   P_ij = ZM_ij * ZMb_ij / (exp(S_ij) * Z)
+// ZMb is the same recurrence on the reversed matrix. A call whose check fails is run again with double
+// mantissas, and then in log space.
 template<int BLOCK_COLS>
 class ScaledFwBw {
 public:
-    // flags of run() and runScaledDouble(); prob and maxP are invalid if any is set
-    static const unsigned int FLAG_NON_FINITE = 1; // exp saturated or NaN
-    static const unsigned int FLAG_Z = 2;          // Z is 0 or not finite
-    static const unsigned int FLAG_P = 4;          // a posterior above 1
-    static const unsigned int FLAG_ZCHECK = 8;     // backward Z differs from forward Z by more than 1e-4 (runScaledDouble: 1e-6)
-
-    // a block is rescaled only when its values leave [2^-RENORM_BITS, 2^RENORM_BITS]
-    static const int RENORM_BITS = 32;
-
-    // score, prob: rows x cols, score already divided by T; with expScores, score holds exp(S) instead
-    template<bool checkZ, bool expScores = false>
-    unsigned int run(float **score, int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
-        // flush-to-zero for the duration of the call (x86 only): values far below their block's scale are
-        // negligible, but denormal arithmetic costs 10-27% of the run time
-        SimdFlushDenormals ftz;
-        const int blocks = (cols + BLOCK_COLS - 1) / BLOCK_COLS;
-        const int colsPadded = blocks * BLOCK_COLS;
-        if (prevScale.size() < (size_t)blocks) {
-            prevM.resize(colsPadded);
-            prevF.resize(colsPadded);
-            diagRow[0].resize(colsPadded + 1);
-            diagRow[1].resize(colsPadded + 1);
-            prevScale.resize(blocks);
+    // with expScores, expScore holds exp(score) rows and score the score rows (already divided by T),
+    // otherwise both are the score rows
+    template<bool expScores>
+    void run(FwBwAligner::ScaledMode mode, float **score, float **expScore, int rows, int cols,
+             float expGo, float expGe, float **prob, float &maxP) {
+        const bool valid = (mode == FwBwAligner::SCALED_FAST)
+                           ? runScaledFloat<false, expScores>(expScore, rows, cols, expGo, expGe, prob, maxP)
+                           : runScaledFloat<true, expScores>(expScore, rows, cols, expGo, expGe, prob, maxP);
+        if (valid) {
+            return;
         }
-        if (fwdScale.size() < (size_t)rows * blocks) {
-            fwdScale.resize((size_t)rows * blocks);
+        if (runScaledDouble(score, rows, cols, expGo, expGe, prob, maxP) == false) {
+            runLogDouble(score, rows, cols, expGo, expGe, prob, maxP);
         }
-        // with expScores, the backward pass reads exp(S) from score itself
-        if (!expScores && expScore.size() < (size_t)rows * colsPadded) {
-            expScore.resize((size_t)rows * colsPadded);
-        }
-        float unused = 0.0f;
-        unsigned int flags = pass<false, checkZ, expScores>(score, rows, cols, expGo, expGe, prob, 0, 1.0f, unused);
-        if (flags != 0) {
-            return flags;
-        }
-        // Z = m * 2^zExp with m in [0.5, 1)
-        int e = 0;
-        const double m = std::frexp(zFwd.value, &e);
-        flags = pass<true, checkZ, expScores>(score, rows, cols, expGo, expGe, prob, zFwd.exp + e, (float)(1.0 / m), maxP);
-        if (checkZ) {
-            const double ratio = (zBwd.value / zFwd.value) * std::ldexp(1.0, zBwd.exp - zFwd.exp);
-            if (!(std::fabs(ratio - 1.0) <= 1e-4)) {
-                flags |= FLAG_ZCHECK;
-            }
-        }
-        return flags;
-    }
-
-    // The same model with double mantissas, one power-of-two scale per (row, DOUBLE_BLOCK_COLS-column block),
-    // rescaled in every block; scalar. Values sharing a scale can lie ~2^1022 (e^708) apart instead of
-    // ~2^126, which keeps the paths run() loses next to much stronger ones. ~5x slower per cell than
-    // run(), ~10x faster than runDouble(). score: S / T (never exp(S)); prob, maxP and the flags as for run().
-    unsigned int runScaledDouble(float **score, int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
-        const int blocks = (cols + DOUBLE_BLOCK_COLS - 1) / DOUBLE_BLOCK_COLS;
-        if (dM.size() < (size_t)rows * cols) {
-            dM.resize((size_t)rows * cols);
-        }
-        if (dExpScore.size() < (size_t)rows * cols) {
-            dExpScore.resize((size_t)rows * cols);
-        }
-        if (dFwdScale.size() < (size_t)rows * blocks) {
-            dFwdScale.resize((size_t)rows * blocks);
-        }
-        double unused = 0.0;
-        unsigned int flags = passScaledDouble<false>(score, rows, cols, expGo, expGe, prob, 0, 1.0, unused);
-        if (flags != 0) {
-            return flags;
-        }
-        if (!(zFwd.value > 0) || !std::isfinite(zFwd.value)) {
-            return FLAG_Z;
-        }
-        // Z = m * 2^zExp with m in [0.5, 1)
-        int e = 0;
-        const double m = std::frexp(zFwd.value, &e);
-        double maxPd = 0.0;
-        flags = passScaledDouble<true>(score, rows, cols, expGo, expGe, prob, zFwd.exp + e, 1.0 / m, maxPd);
-        const double ratio = (zBwd.value / zFwd.value) * std::ldexp(1.0, zBwd.exp - zFwd.exp);
-        if (!(std::fabs(ratio - 1.0) <= 1e-6)) {
-            flags |= FLAG_ZCHECK;
-        }
-        if (!(maxPd <= 1.0 + 1e-3)) {
-            flags |= FLAG_P;
-        }
-        maxP = (float)maxPd;
-        return flags;
-    }
-
-    // frees the buffers of runScaledDouble() and runDouble() (rows x cols doubles): only the rare calls that
-    // fall back need them
-    void freeFallbackBuffers() {
+        // rows x cols doubles, only needed by the rare calls that fall back
         std::vector<double>().swap(dM);
         std::vector<double>().swap(dExpScore);
         std::vector<double>().swap(dPred);
@@ -208,79 +145,14 @@ public:
         std::vector<int>().swap(dCurrScale);
     }
 
-    // The same model in double precision and log space with log-sum-exp per cell: nothing shares a
-    // scale, so no path is lost. ~50x slower per cell than run(), the last resort for the calls
-    // runScaledDouble() flags.
-    // Z = 0 (all scores -inf) gives P = 0 and maxP = 0, like an overflow of the log-space blocks.
-    void runDouble(float **score, int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
-        const double NI = -std::numeric_limits<double>::infinity();
-        const double logGo = std::log((double)expGo);
-        const double logGe = std::log((double)expGe);
-        if (dM.size() < (size_t)rows * cols) {
-            dM.resize((size_t)rows * cols);
-        }
-        double *M = dM.data();
-        std::vector<double> &Eprev = dRow[0], &Ecurr = dRow[1], &Fprev = dRow[2], &Fcurr = dRow[3];
-        Eprev.assign(cols, NI);
-        Ecurr.assign(cols, NI);
-        Fprev.assign(cols, NI);
-        Fcurr.assign(cols, NI);
-        double logZ = NI;
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < cols; ++j) {
-                const double s = score[i][j];
-                const double pred = (i > 0 && j > 0) ? lse3(M[(size_t)(i - 1) * cols + j - 1], Eprev[j - 1], Fprev[j - 1]) : NI;
-                const double m = (s == NI) ? NI : s + lse2(pred, 0.0);
-                M[(size_t)i * cols + j] = m;
-                Fcurr[j] = (i > 0) ? lse2(M[(size_t)(i - 1) * cols + j] + logGo, Fprev[j] + logGe) : NI;
-                Ecurr[j] = (j > 0) ? lse2(M[(size_t)i * cols + j - 1] + logGo, Ecurr[j - 1] + logGe) : NI;
-                logZ = lse2(logZ, m);
-            }
-            std::swap(Eprev, Ecurr);
-            std::swap(Fprev, Fcurr);
-        }
-        maxP = 0.0f;
-        if (logZ == NI) {
-            for (int i = 0; i < rows; ++i) {
-                std::fill(prob[i], prob[i] + cols, 0.0f);
-            }
-            return;
-        }
-        // backward recurrence in forward coordinates, posterior on the fly
-        std::vector<double> &BMnext = dRow[0], &BEnext = dRow[1], &BFnext = dRow[2];
-        std::vector<double> &BMcurr = dRow[3], &BEcurr = dRow[4], &BFcurr = dRow[5];
-        for (int k = 0; k < 6; ++k) {
-            dRow[k].assign(cols, NI);
-        }
-        double maxPd = 0.0;
-        for (int i = rows - 1; i >= 0; --i) {
-            for (int j = cols - 1; j >= 0; --j) {
-                const double s = score[i][j];
-                const double pred = (i < rows - 1 && j < cols - 1) ? lse3(BMnext[j + 1], BEnext[j + 1], BFnext[j + 1]) : NI;
-                const double bm = (s == NI) ? NI : s + lse2(pred, 0.0);
-                BMcurr[j] = bm;
-                BFcurr[j] = (i < rows - 1) ? lse2(BMnext[j] + logGo, BFnext[j] + logGe) : NI;
-                BEcurr[j] = (j < cols - 1) ? lse2(BMcurr[j + 1] + logGo, BEcurr[j + 1] + logGe) : NI;
-                const double p = (s == NI) ? 0.0 : std::exp(M[(size_t)i * cols + j] + bm - s - logZ);
-                prob[i][j] = (float)p;
-                maxPd = std::max(maxPd, p);
-            }
-            std::swap(BMnext, BMcurr);
-            std::swap(BEnext, BEcurr);
-            std::swap(BFnext, BFcurr);
-        }
-        maxP = (float)maxPd;
-    }
-
 private:
     static const int BLOCK_VECS = BLOCK_COLS / VECSIZE_FLOAT;
-    static const int DOUBLE_BLOCK_COLS = 16; // runScaledDouble
+    static const int DOUBLE_BLOCK_COLS = 16;
 
-    // Z = value * 2^exp. Each block sums its ZM in float at its current scale and hands the sum to the
-    // double total whenever the scale changes.
+    // Z = value * 2^exp, summed per block in float at the block's scale
     struct ZSum {
-        std::vector<float> blockSum; // [blocks * VECSIZE_FLOAT]
-        std::vector<int> blockScale; // [blocks]
+        std::vector<float> blockSum;
+        std::vector<int> blockScale;
         double value = 0;
         int exp = 0;
 
@@ -294,15 +166,9 @@ private:
             value = 0;
             exp = 0;
         }
-        // add to this total
-        void add(double v, int s) {
-            addTo(v, s, value, exp);
-        }
-        // total * 2^totalExp += v * 2^s; a power-of-two product instead of ldexp, which would be a call inside
-        // pass()'s block loop (GCC then saves and restores the vector registers around it in every block).
-        // Both are exact for normal results; a shift below -1022 gives 0 instead of a denormal, which the
-        // following addition of a normal value absorbs either way.
-        static void addTo(double v, int s, double &total, int &totalExp) {
+
+        // total * 2^totalExp += v * 2^s
+        static void add(double v, int s, double &total, int &totalExp) {
             if (v == 0) {
                 return;
             }
@@ -316,31 +182,158 @@ private:
                 total += v * pow2d(s - totalExp);
             }
         }
-        // sums, scales: blockSum.data(), blockScale.data(); total, totalExp: the running Z, all held by the caller
-        // (see pass()) so that they stay in registers
+
         static void addBlock(float *sums, int *scales, int b, simd_float m, int scale, double &total, int &totalExp) {
             float *sum = sums + (size_t)b * VECSIZE_FLOAT;
             if (scale != scales[b]) {
-                addTo(simdf32_hsum_double(simdf32_loadu(sum)), scales[b], total, totalExp);
+                add(simdf32_hadd_double(simdf32_loadu(sum)), scales[b], total, totalExp);
                 simdf32_storeu(sum, simdf32_setzero());
                 scales[b] = scale;
             }
             simdf32_storeu(sum, simdf32_add(simdf32_loadu(sum), m));
         }
+
         void finish(int blocks) {
             for (int b = 0; b < blocks; ++b) {
-                add(simdf32_hsum_double(simdf32_loadu(blockSum.data() + (size_t)b * VECSIZE_FLOAT)), blockScale[b]);
+                add(simdf32_hadd_double(simdf32_loadu(blockSum.data() + (size_t)b * VECSIZE_FLOAT)), blockScale[b], value, exp);
             }
         }
     };
 
-    // One pass over the matrix. Forward: rows top to bottom, stores the ZM mantissas in prob and their
-    // scales in fwdScale, sums Z. Backward: the same recurrence on the reversed matrix (row rows-1-i,
-    // column colsPadded-1-j, so backward block b covers forward block blocks-1-b), overwrites prob with P.
-    // zExp, zInvMant: Z of the forward pass (backward only)
+    template<bool checkZ, bool expScores>
+    bool runScaledFloat(float **score, int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
+        // denormals cost 10-27% of the run time
+        SimdFlushDenormals ftz;
+        const int blocks = (cols + BLOCK_COLS - 1) / BLOCK_COLS;
+        const int colsPadded = blocks * BLOCK_COLS;
+        if (prevScale.size() < (size_t)blocks) {
+            prevM.resize(colsPadded);
+            prevF.resize(colsPadded);
+            diagRow[0].resize(colsPadded + 1);
+            diagRow[1].resize(colsPadded + 1);
+            prevScale.resize(blocks);
+        }
+        if (fwdScale.size() < (size_t)rows * blocks) {
+            fwdScale.resize((size_t)rows * blocks);
+        }
+        if (!expScores && expScore.size() < (size_t)rows * colsPadded) {
+            expScore.resize((size_t)rows * colsPadded);
+        }
+        float unused = 0.0f;
+        if (pass<false, checkZ, expScores>(score, rows, cols, expGo, expGe, prob, 0, 1.0f, unused) == false) {
+            return false;
+        }
+        int e = 0;
+        const double m = std::frexp(zFwd.value, &e);
+        bool valid = pass<true, checkZ, expScores>(score, rows, cols, expGo, expGe, prob, zFwd.exp + e, (float)(1.0 / m), maxP);
+        if (checkZ) {
+            const double ratio = (zBwd.value / zFwd.value) * std::ldexp(1.0, zBwd.exp - zFwd.exp);
+            if (!(std::fabs(ratio - 1.0) <= 1e-4)) {
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    // a path next to a much stronger one can underflow in runScaledFloat, double mantissas keep it
+    bool runScaledDouble(float **score, int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
+        const int blocks = (cols + DOUBLE_BLOCK_COLS - 1) / DOUBLE_BLOCK_COLS;
+        if (dM.size() < (size_t)rows * cols) {
+            dM.resize((size_t)rows * cols);
+        }
+        if (dExpScore.size() < (size_t)rows * cols) {
+            dExpScore.resize((size_t)rows * cols);
+        }
+        if (dFwdScale.size() < (size_t)rows * blocks) {
+            dFwdScale.resize((size_t)rows * blocks);
+        }
+        double unused = 0.0;
+        if (passDouble<false>(score, rows, cols, expGo, expGe, prob, 0, 1.0, unused) == false) {
+            return false;
+        }
+        if (!(zFwd.value > 0) || !std::isfinite(zFwd.value)) {
+            return false;
+        }
+        int e = 0;
+        const double m = std::frexp(zFwd.value, &e);
+        double maxPd = 0.0;
+        bool valid = passDouble<true>(score, rows, cols, expGo, expGe, prob, zFwd.exp + e, 1.0 / m, maxPd);
+        const double ratio = (zBwd.value / zFwd.value) * std::ldexp(1.0, zBwd.exp - zFwd.exp);
+        if (!(std::fabs(ratio - 1.0) <= 1e-6)) {
+            valid = false;
+        }
+        if (!(maxPd <= 1.0 + 1e-3)) {
+            valid = false;
+        }
+        maxP = (float)maxPd;
+        return valid;
+    }
+
+    // log space, nothing shares a scale; Z = 0 gives P = 0
+    void runLogDouble(float **score, int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
+        const double negInf = -std::numeric_limits<double>::infinity();
+        const double logGo = std::log((double)expGo);
+        const double logGe = std::log((double)expGe);
+        if (dM.size() < (size_t)rows * cols) {
+            dM.resize((size_t)rows * cols);
+        }
+        double *M = dM.data();
+        std::vector<double> &prevE = dRow[0], &currE = dRow[1], &prevF = dRow[2], &currF = dRow[3];
+        prevE.assign(cols, negInf);
+        currE.assign(cols, negInf);
+        prevF.assign(cols, negInf);
+        currF.assign(cols, negInf);
+        double logZ = negInf;
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                const double s = score[i][j];
+                const double pred = (i > 0 && j > 0) ? logSumExp(M[(size_t)(i - 1) * cols + j - 1], prevE[j - 1], prevF[j - 1]) : negInf;
+                const double m = (s == negInf) ? negInf : s + logSumExp(pred, 0.0);
+                M[(size_t)i * cols + j] = m;
+                currF[j] = (i > 0) ? logSumExp(M[(size_t)(i - 1) * cols + j] + logGo, prevF[j] + logGe) : negInf;
+                currE[j] = (j > 0) ? logSumExp(M[(size_t)i * cols + j - 1] + logGo, currE[j - 1] + logGe) : negInf;
+                logZ = logSumExp(logZ, m);
+            }
+            std::swap(prevE, currE);
+            std::swap(prevF, currF);
+        }
+        maxP = 0.0f;
+        if (logZ == negInf) {
+            for (int i = 0; i < rows; ++i) {
+                std::fill(prob[i], prob[i] + cols, 0.0f);
+            }
+            return;
+        }
+        std::vector<double> &nextBM = dRow[0], &nextBE = dRow[1], &nextBF = dRow[2];
+        std::vector<double> &currBM = dRow[3], &currBE = dRow[4], &currBF = dRow[5];
+        for (int k = 0; k < 6; ++k) {
+            dRow[k].assign(cols, negInf);
+        }
+        double maxPd = 0.0;
+        for (int i = rows - 1; i >= 0; --i) {
+            for (int j = cols - 1; j >= 0; --j) {
+                const double s = score[i][j];
+                const double pred = (i < rows - 1 && j < cols - 1) ? logSumExp(nextBM[j + 1], nextBE[j + 1], nextBF[j + 1]) : negInf;
+                const double bm = (s == negInf) ? negInf : s + logSumExp(pred, 0.0);
+                currBM[j] = bm;
+                currBF[j] = (i < rows - 1) ? logSumExp(nextBM[j] + logGo, nextBF[j] + logGe) : negInf;
+                currBE[j] = (j < cols - 1) ? logSumExp(currBM[j + 1] + logGo, currBE[j + 1] + logGe) : negInf;
+                const double p = (s == negInf) ? 0.0 : std::exp(M[(size_t)i * cols + j] + bm - s - logZ);
+                prob[i][j] = (float)p;
+                maxPd = std::max(maxPd, p);
+            }
+            std::swap(nextBM, currBM);
+            std::swap(nextBE, currBE);
+            std::swap(nextBF, currBF);
+        }
+        maxP = (float)maxPd;
+    }
+
+    // Forward stores the ZM mantissas in prob and their scales in fwdScale. Backward runs on the reversed
+    // matrix (backward block b is forward block blocks - 1 - b) and overwrites prob with P.
     template<bool backward, bool checkZ, bool expScores>
-    unsigned int pass(float **score, int rows, int cols, float expGo, float expGe, float **prob,
-                      int zExp, float zInvMant, float &maxP) {
+    bool pass(float **score, int rows, int cols, float expGo, float expGe, float **prob,
+              int zExp, float zInvMant, float &maxP) {
         const int blocks = (cols + BLOCK_COLS - 1) / BLOCK_COLS;
         const int colsPadded = blocks * BLOCK_COLS;
         std::fill(prevM.begin(), prevM.begin() + colsPadded, 0.0f);
@@ -353,8 +346,7 @@ private:
         } else if (checkZ) {
             zBwd.reset(blocks);
         }
-        // the buffers through local pointers: a vector store may alias any memory, the pointers inside the
-        // std::vectors included, so GCC would load them again through this after every store
+        // local pointers, GCC reloads the vector members after every SIMD store otherwise
         float *const prevMPtr = prevM.data();
         float *const prevFPtr = prevF.data();
         int *const prevScalePtr = prevScale.data();
@@ -362,12 +354,10 @@ private:
         ZSum &z = backward ? zBwd : zFwd;
         float *const zBlockSum = z.blockSum.data();
         int *const zBlockScale = z.blockScale.data();
-        // running Z = zTotal * 2^zTotalExp, in locals (registers) during the pass, written back to z before finish()
         double zTotal = 0.0;
         int zTotalExp = 0;
-        // the block with padding columns: the last one forward, the first one backward
+        // the block with padding columns, last forward and first backward
         const int edgeBlock = (colsPadded == cols) ? -1 : (backward ? 0 : blocks - 1);
-        // gePow[k] = expGe^k
         float gePow[BLOCK_COLS + 1];
         gePow[0] = 1.0f;
         for (int k = 1; k <= BLOCK_COLS; ++k) {
@@ -378,17 +368,18 @@ private:
         const simd_float geStep[4] = {simdf32_set(gePow[1]), simdf32_set(gePow[2]), simdf32_set(gePow[4]),
                                       simdf32_set(gePow[8])};
         const simd_float vGeLast = simdf32_set(gePow[VECSIZE_FLOAT - 1]);
-        const simd_float vGeLanes = simdf32_loadu(gePow); // (1, ge, ..., ge^(VECSIZE_FLOAT-1))
-        simd_float vGeVec[BLOCK_VECS];                     // ge^(v * VECSIZE_FLOAT): block start to vector v
+        const simd_float vGeLanes = simdf32_loadu(gePow);
+        simd_float vGeVec[BLOCK_VECS];
         for (int v = 0; v < BLOCK_VECS; ++v) {
             vGeVec[v] = simdf32_set(gePow[v * VECSIZE_FLOAT]);
         }
-        const simd_float vHi = simdf32_set(pow2c(RENORM_BITS));
-        const simd_float vLo = simdf32_set(pow2c(-RENORM_BITS));
+        // a block is rescaled when its values leave [2^-32, 2^32]
+        const simd_float vHi = simdf32_set(pow2f(32));
+        const simd_float vLo = simdf32_set(pow2f(-32));
         const simd_float lane0 = simdi_i2fcast(simdi32_insert(simdi_setzero(), -1, 0));
         simd_float nan = simdf32_setzero();
         simd_float vMaxP = simdf32_setzero();
-        unsigned int flags = 0;
+        bool valid = true;
 
         simd_float expS[BLOCK_VECS], pred[BLOCK_VECS], M[BLOCK_VECS], E[BLOCK_VECS], F[BLOCK_VECS], diag[BLOCK_VECS];
         for (int row = 0; row < rows; ++row) {
@@ -397,94 +388,96 @@ private:
             int *fwdScaleRow = fwdScale.data() + (size_t)i * blocks;
             const float *scoreRow = score[i];
             float *probRow = prob[i];
-            // diag = M + E + F of the previous and of this row, column j at [j + 1] ([0] = 0 left of the matrix)
+            // M + E + F of the previous and of this row, column j at [j + 1]
             const float *diagAbove = diagRowPtr[row & 1];
             float *diagCurr = diagRowPtr[(row + 1) & 1];
-            // E entering the block from the left, and its scale
             float carryE = 0.0f;
             int carryScale = 0;
-            // scale of the previous row in the block to the left
             int diagLeftScale = 0;
-            // only the block at the matrix edge holds padding columns: the others load and store without
-            // the column checks (two copies of the block body, edgeBlock < 0 when there are none).
-            // processBlock updates the row state (carryE, carryScale, diagLeftScale) and the pass state (flags,
-            // nan, vMaxP, the Z total); it is inlined into both copies so that this state stays in registers
+            // inlined into both calls below, so that the row and pass state stay in registers
             const auto processBlock = [&](const int b, auto edgeTag) __attribute__((__always_inline__)) {
                 constexpr bool edge = decltype(edgeTag)::value;
                 const int j0 = b * BLOCK_COLS;
                 const int scaleAbove = prevScalePtr[b];
                 int scale = std::max(scaleAbove, diagLeftScale);
-                const simd_float fromAbove = simdf32_set(pow2fNonPos(scaleAbove - scale));
-                const simd_float localStart = simdf32_set(pow2fNonPos(-scale));
-                // pred = diag of the previous row one column to the left, plus the local start; the column left
-                // of the block is on that block's scale
-                const simd_float carryDiag = simdf32_set(diagAbove[j0] * pow2fNonPos(diagLeftScale - scale));
+                const simd_float fromAbove = simdf32_set(pow2f(scaleAbove - scale));
+                const simd_float localStart = simdf32_set(pow2f(-scale));
+                const simd_float carryDiag = simdf32_set(diagAbove[j0] * pow2f(diagLeftScale - scale));
                 for (int v = 0; v < BLOCK_VECS; ++v) {
                     const int j = j0 + v * VECSIZE_FLOAT;
-                    if (!backward) {
-                        // forward: exp(S) once, kept in expScore for the backward pass (padding columns get
-                        // exp(-inf) = 0); with expScores, score already holds exp(S) and the backward pass reads it
+                    if (backward) {
+                        const int p = colsPadded - j - VECSIZE_FLOAT;
                         if (expScores) {
-                            expS[v] = loadColsIn<edge>(scoreRow, j, cols, 0.0f);
+                            expS[v] = simdf32_reverse(edge ? loadCols(scoreRow, p, cols, 0.0f) : simdf32_loadu(scoreRow + p));
                         } else {
-                            expS[v] = simdf32_exp(loadColsIn<edge>(scoreRow, j, cols, -std::numeric_limits<float>::infinity()));
-                            simdf32_storeu(expRow + j, expS[v]);
+                            expS[v] = simdf32_reverse(simdf32_loadu(expRow + p));
                         }
+                    } else if (expScores) {
+                        expS[v] = edge ? loadCols(scoreRow, j, cols, 0.0f) : simdf32_loadu(scoreRow + j);
                     } else {
-                        expS[v] = simdf32_reverse(
-                            expScores ? loadColsIn<edge>(scoreRow, colsPadded - j - VECSIZE_FLOAT, cols, 0.0f)
-                                      : simdf32_loadu(expRow + colsPadded - j - VECSIZE_FLOAT));
+                        const float negInf = -std::numeric_limits<float>::infinity();
+                        expS[v] = simdf32_exp(edge ? loadCols(scoreRow, j, cols, negInf) : simdf32_loadu(scoreRow + j));
+                        simdf32_storeu(expRow + j, expS[v]);
                     }
                     const simd_float mAbove = simdf32_loadu(prevMPtr + j);
                     const simd_float fAbove = simdf32_loadu(prevFPtr + j);
-                    const simd_float diagScaled =
-                        simdf32_no_contract(simdf32_mul(simdf32_loadu(diagAbove + j), fromAbove));
+                    const simd_float diagScaled = simdf32_no_contract(simdf32_mul(simdf32_loadu(diagAbove + j), fromAbove));
                     pred[v] = simdf32_add((v == 0) ? simdf32_blendv_ps(diagScaled, carryDiag, lane0) : diagScaled, localStart);
                     M[v] = simdf32_mul(pred[v], expS[v]);
                     F[v] = simdf32_mul(simdf32_fmadd(mAbove, vGo, simdf32_mul(fAbove, vGe)), fromAbove);
                 }
                 const int predScale = scale;
-                // without E from the left carryScale is 0, and scales are >= 0
                 if (carryScale > scale) {
-                    // E from the left is on a larger scale: lift the block to it
-                    const simd_float f = simdf32_set(pow2fNonPos(scale - carryScale));
+                    const simd_float f = simdf32_set(pow2f(scale - carryScale));
                     for (int v = 0; v < BLOCK_VECS; ++v) {
                         M[v] = simdf32_mul(M[v], f);
                         F[v] = simdf32_mul(F[v], f);
                     }
                     scale = carryScale;
                 }
-                // E along the row: ge-decayed prefix sums of M * go, plus the carry from the left
-                const float eIn = carryE * pow2fNonPos(carryScale - scale); // 0 without E from the left
+                // E along the row: prefix sums of M * exp_go decayed by exp_ge, plus the carry from the left
+                const float eIn = carryE * pow2f(carryScale - scale);
                 const simd_float vEIn = simdf32_set(eIn);
-                simd_float eRun = simdf32_setzero(); // E entering vector v, without eIn
+                simd_float eRun = simdf32_setzero();
                 for (int v = 0; v < BLOCK_VECS; ++v) {
                     const simd_float x = simdf32_mul(M[v], vGo);
-                    const simd_float y = decayedScan(x, geStep);
+                    simd_float y = simdf32_shiftl_lanes<1>(x);
+                    y = simdf32_fmadd(simdf32_shiftl_lanes<1>(y), geStep[0], y);
+                    y = simdf32_fmadd(simdf32_shiftl_lanes<2>(y), geStep[1], y);
+#if VECSIZE_FLOAT >= 8
+                    y = simdf32_fmadd(simdf32_shiftl_lanes<4>(y), geStep[2], y);
+#endif
+#if VECSIZE_FLOAT == 16
+                    y = simdf32_fmadd(simdf32_shiftl_lanes<8>(y), geStep[3], y);
+#endif
                     E[v] = simdf32_fmadd(simdf32_fmadd(vEIn, vGeVec[v], eRun), vGeLanes, y);
                     eRun = simdf32_fmadd(simdf32_fmadd(eRun, vGeLast, simdf32_broadcast_last(y)), vGe,
                                          simdf32_broadcast_last(x));
                 }
-                const float eOut = simdf32_first(eRun) + eIn * gePow[BLOCK_COLS];
+                const float eOut = eRun[0] + eIn * gePow[BLOCK_COLS];
                 diagLeftScale = scaleAbove;
 
-                // rescale the block if its values left [2^-RENORM_BITS, 2^RENORM_BITS]
                 simd_float diagMax = simdf32_setzero();
-                simd_float diagSum = simdf32_setzero(); // NaN iff a diag is NaN (all >= 0, so no inf - inf)
+                simd_float diagSum = simdf32_setzero();
                 for (int v = 0; v < BLOCK_VECS; ++v) {
                     diag[v] = simdf32_add(simdf32_add(M[v], E[v]), F[v]);
                     diagMax = (v == 0) ? diag[v] : simdf32_max(diagMax, diag[v]);
                     diagSum = (v == 0) ? diag[v] : simdf32_add(diagSum, diag[v]);
                 }
-                nan = simdf32_or(nan, simdf32_isnan(diagSum));
+                // max drops a NaN, the sum keeps it
+                nan = simdf32_or(nan, simdf32_cmp(diagSum, diagSum, _CMP_UNORD_Q));
                 int newScale = scale;
                 if (simdf32_movemask_ps(simdf32_gt(diagMax, vHi)) != 0 ||
                     (scale > 0 && simdf32_movemask_ps(simdf32_lt(diagMax, vLo)) == ALL_LANES)) {
                     const float m = simdf32_hmax(diagMax);
                     if (!(m < 1.0e38f)) {
-                        flags |= FLAG_NON_FINITE;
+                        valid = false;
+                    } else if (m > 0.0f) {
+                        uint32_t bits;
+                        memcpy(&bits, &m, sizeof(bits));
+                        newScale = std::max(0, scale + (int)((bits >> 23) & 0xff) - 127);
                     } else {
-                        newScale = (m > 0.0f) ? std::max(0, scale + floatExp(m)) : 0;
+                        newScale = 0;
                     }
                 }
                 if (newScale != scale) {
@@ -493,7 +486,6 @@ private:
                         M[v] = simdf32_no_contract(simdf32_mul(M[v], f));
                         E[v] = simdf32_no_contract(simdf32_mul(E[v], f));
                         F[v] = simdf32_no_contract(simdf32_mul(F[v], f));
-                        // from the rescaled values, as the next row would sum them
                         diag[v] = simdf32_add(simdf32_add(M[v], E[v]), F[v]);
                     }
                 }
@@ -512,27 +504,34 @@ private:
                 carryScale = (eOut == 0.0f) ? 0 : scale;
 
                 if (!backward) {
-                    // forward: keep ZM (mantissas in prob, scale in fwdScale) and sum Z
                     for (int v = 0; v < BLOCK_VECS; ++v) {
-                        storeColsIn<edge>(probRow, j0 + v * VECSIZE_FLOAT, cols, M[v]);
+                        const int j = j0 + v * VECSIZE_FLOAT;
+                        if (edge) {
+                            storeCols(probRow, j, cols, M[v]);
+                        } else {
+                            simdf32_storeu(probRow + j, M[v]);
+                        }
                     }
                     fwdScaleRow[b] = newScale;
                     ZSum::addBlock(zBlockSum, zBlockScale, b, sumM, newScale, zTotal, zTotalExp);
                 } else {
-                    // backward: P = M_fwd * pred_bwd / Z overwrites ZM in prob; pred_bwd is at predScale,
-                    // 2^pExp is split in two so neither factor overflows
+                    // 2^pExp in two factors so that neither overflows
                     const int pExp = fwdScaleRow[blocks - 1 - b] + predScale - zExp;
                     const simd_float pFactor = simdf32_set(pow2f(pExp / 2) * pow2f(pExp - pExp / 2) * zInvMant);
-                    simd_float pSum = simdf32_setzero(); // NaN iff a P is NaN (all P >= 0)
+                    simd_float pSum = simdf32_setzero();
                     for (int v = 0; v < BLOCK_VECS; ++v) {
                         const int p = colsPadded - j0 - (v + 1) * VECSIZE_FLOAT;
-                        const simd_float mFwd = simdf32_reverse(loadColsIn<edge>(probRow, p, cols, 0.0f));
+                        const simd_float mFwd = simdf32_reverse(edge ? loadCols(probRow, p, cols, 0.0f) : simdf32_loadu(probRow + p));
                         const simd_float P = simdf32_mul(simdf32_mul(mFwd, pred[v]), pFactor);
-                        storeColsIn<edge>(probRow, p, cols, simdf32_reverse(P));
+                        if (edge) {
+                            storeCols(probRow, p, cols, simdf32_reverse(P));
+                        } else {
+                            simdf32_storeu(probRow + p, simdf32_reverse(P));
+                        }
                         vMaxP = simdf32_max(vMaxP, P);
                         pSum = simdf32_add(pSum, P);
                     }
-                    nan = simdf32_or(nan, simdf32_isnan(pSum));
+                    nan = simdf32_or(nan, simdf32_cmp(pSum, pSum, _CMP_UNORD_Q));
                     if (checkZ) {
                         ZSum::addBlock(zBlockSum, zBlockScale, b, sumM, newScale, zTotal, zTotalExp);
                     }
@@ -547,14 +546,14 @@ private:
             }
         }
         if (simdf32_movemask_ps(nan) != 0) {
-            flags |= FLAG_NON_FINITE;
+            valid = false;
         }
         z.value = zTotal;
         z.exp = zTotalExp;
         if (!backward) {
             z.finish(blocks);
             if (!(zFwd.value > 0) || !std::isfinite(zFwd.value)) {
-                flags |= FLAG_Z;
+                valid = false;
             }
         } else {
             if (checkZ) {
@@ -562,21 +561,18 @@ private:
             }
             maxP = simdf32_hmax(vMaxP);
             if (!(maxP <= 1.0f + 1e-3f)) {
-                flags |= FLAG_P;
+                valid = false;
             }
         }
-        return flags;
+        return valid;
     }
 
-    // One pass of runScaledDouble, the recurrence of pass() cell by cell. Forward: stores exp(S) in dExpScore,
-    // the ZM mantissas in dM and their scales in dFwdScale, sums Z. Backward: the same recurrence on the
-    // reversed matrix (row rows-1-row, column cols-1-c), writes P to prob and its maximum to maxPd.
-    // zExp, zInvMant: Z of the forward pass (backward only)
+    // the recurrence of pass() cell by cell, rescaled in every block
     template<bool backward>
-    unsigned int passScaledDouble(float **score, int rows, int cols, double expGo, double expGe, float **prob,
-                            int zExp, double zInvMant, double &maxPd) {
+    bool passDouble(float **score, int rows, int cols, double expGo, double expGe, float **prob,
+                    int zExp, double zInvMant, double &maxPd) {
         const int blocks = (cols + DOUBLE_BLOCK_COLS - 1) / DOUBLE_BLOCK_COLS;
-        // M, F of the previous and the current row at [c]; diag = M + E + F at [c + 1] ([0] = 0)
+        // M, F at [c], M + E + F at [c + 1]
         std::vector<double> &mPrev = dRow[0], &fPrev = dRow[1], &diagPrev = dRow[2];
         std::vector<double> &mCurr = dRow[3], &fCurr = dRow[4], &diagCurr = dRow[5];
         for (int k = 0; k < 6; ++k) {
@@ -586,21 +582,18 @@ private:
         dPrevScale.assign(blocks, 0);
         dCurrScale.assign(blocks, 0);
         ZSum &z = backward ? zBwd : zFwd;
-        z.reset(0); // value and exp only: passScaledDouble adds whole sums, no block sums
-        unsigned int flags = 0;
+        z.reset(0);
+        bool valid = true;
         for (int row = 0; row < rows; ++row) {
             const int i = backward ? rows - 1 - row : row;
             double *expRow = dExpScore.data() + (size_t)i * cols;
             double *mFwdRow = dM.data() + (size_t)i * cols;
             int *fwdScaleRow = dFwdScale.data() + (size_t)i * blocks;
-            // M and E of the column left of the block, and their scale
             double mLeft = 0.0, eLeft = 0.0;
             int leftScale = 0;
             for (int b = 0; b < blocks; ++b) {
                 const int c0 = b * DOUBLE_BLOCK_COLS;
                 const int c1 = std::min(cols, c0 + DOUBLE_BLOCK_COLS);
-                // the largest scale among the inputs: the block above, the previous row's column left of the
-                // block (diagPrev[c0]) and this row's column left of the block
                 int scale = dPrevScale[b];
                 if (b > 0 && diagPrev[c0] != 0.0) {
                     scale = std::max(scale, dPrevScale[b - 1]);
@@ -611,7 +604,7 @@ private:
                 const double fromAbove = pow2d(dPrevScale[b] - scale);
                 const double fromDiagLeft = (b > 0) ? pow2d(dPrevScale[b - 1] - scale) : 0.0;
                 const double fromLeft = pow2d(leftScale - scale);
-                // 2^-scale split in two, so that a scale above 1022 gives a denormal instead of 0
+                // 2^-scale in two factors, a scale above 1022 gives a denormal instead of 0
                 const int halfScale = scale / 2;
                 const double localStart = pow2d(-halfScale) * pow2d(halfScale - scale);
                 double m = mLeft * fromLeft;
@@ -629,7 +622,6 @@ private:
                     }
                     const double pred = diagPrev[c] * ((c == c0) ? fromDiagLeft : fromAbove) + localStart;
                     const double f = (mPrev[c] * expGo + fPrev[c] * expGe) * fromAbove;
-                    // E from M and E of column c - 1
                     e = m * expGo + e * expGe;
                     m = pred * expS;
                     const double diag = m + e + f;
@@ -639,7 +631,6 @@ private:
                     dPred[c] = pred;
                     diagMax = std::max(diagMax, diag);
                 }
-                // rescale so that the largest diag is in [1, 2)
                 const int newScale = (diagMax > 0.0) ? scale + std::ilogb(diagMax) : 0;
                 const double rescale = pow2d(scale - newScale);
                 double sumM = 0.0;
@@ -649,9 +640,8 @@ private:
                     diagCurr[c + 1] *= rescale;
                     sumM += mCurr[c];
                 }
-                // max() drops a NaN, the sum keeps it
                 if (!(diagMax < std::numeric_limits<double>::infinity()) || std::isnan(sumM)) {
-                    flags |= FLAG_NON_FINITE;
+                    valid = false;
                 }
                 mLeft = m * rescale;
                 eLeft = e * rescale;
@@ -663,30 +653,28 @@ private:
                     }
                     fwdScaleRow[b] = newScale;
                 } else {
-                    // P = M_fwd * pred_bwd / Z; pred_bwd is at scale, 2^pExp is split in two so neither
-                    // factor overflows
                     for (int c = c0; c < c1; ++c) {
                         const int j = cols - 1 - c;
                         const int pExp = fwdScaleRow[j / DOUBLE_BLOCK_COLS] + scale - zExp;
                         const double p = mFwdRow[j] * dPred[c] * zInvMant * pow2d(pExp / 2) * pow2d(pExp - pExp / 2);
                         prob[i][j] = (float)p;
                         if (std::isnan(p)) {
-                            flags |= FLAG_NON_FINITE;
+                            valid = false;
                         }
                         maxPd = std::max(maxPd, p);
                     }
                 }
-                z.add(sumM, newScale);
+                ZSum::add(sumM, newScale, z.value, z.exp);
             }
             std::swap(mPrev, mCurr);
             std::swap(fPrev, fCurr);
             std::swap(diagPrev, diagCurr);
             std::swap(dPrevScale, dCurrScale);
         }
-        return flags;
+        return valid;
     }
 
-    static double lse2(double a, double b) {
+    static double logSumExp(double a, double b) {
         const double m = std::max(a, b);
         if (m == -std::numeric_limits<double>::infinity()) {
             return m;
@@ -694,7 +682,7 @@ private:
         return m + std::log(std::exp(a - m) + std::exp(b - m));
     }
 
-    static double lse3(double a, double b, double c) {
+    static double logSumExp(double a, double b, double c) {
         const double m = std::max(a, std::max(b, c));
         if (m == -std::numeric_limits<double>::infinity()) {
             return m;
@@ -702,291 +690,17 @@ private:
         return m + std::log(std::exp(a - m) + std::exp(b - m) + std::exp(c - m));
     }
 
-    // 2^e for integer e: 0 below 2^-126, clamped at 2^127
-    static float pow2f(int e) {
-        e = std::max(-127, std::min(e, 127));
-        const uint32_t bits = (uint32_t)(e + 127) << 23;
-        float f;
-        memcpy(&f, &bits, sizeof(f));
-        return f;
-    }
-
-    // 2^e for integer e: 0 below 2^-1022, clamped at 2^1023
-    static double pow2d(int e) {
-        if (e < -1022) {
-            return 0.0;
-        }
-        e = std::min(e, 1023);
-        const uint64_t bits = (uint64_t)(e + 1023) << 52;
-        double d;
-        memcpy(&d, &bits, sizeof(d));
-        return d;
-    }
-
-    // pow2f for e <= 0 (one clamp)
-    static float pow2fNonPos(int e) {
-        e = std::max(-127, e);
-        const uint32_t bits = (uint32_t)(e + 127) << 23;
-        float f;
-        memcpy(&f, &bits, sizeof(f));
-        return f;
-    }
-
-    // binary exponent of a normal float
-    static int floatExp(float x) {
-        uint32_t bits;
-        memcpy(&bits, &x, sizeof(bits));
-        return (int)((bits >> 23) & 0xff) - 127;
-    }
-
-    // y_t = sum_{k<t} x_k * ge^(t-1-k): exclusive prefix sum decayed by ge; geStep[s] = ge^(2^s)
-    static simd_float decayedScan(simd_float x, const simd_float *geStep) {
-        simd_float y = simdf32_shiftl_lanes<1>(x);
-        y = simdf32_fmadd(simdf32_shiftl_lanes<1>(y), geStep[0], y);
-        y = simdf32_fmadd(simdf32_shiftl_lanes<2>(y), geStep[1], y);
-#if VECSIZE_FLOAT >= 8
-        y = simdf32_fmadd(simdf32_shiftl_lanes<4>(y), geStep[2], y);
-#endif
-#if VECSIZE_FLOAT == 16
-        y = simdf32_fmadd(simdf32_shiftl_lanes<8>(y), geStep[3], y);
-#endif
-        return y;
-    }
-
-    // loadCols/storeCols, or a plain vector load/store inside the matrix (edge = false)
-    template<bool edge>
-    static simd_float loadColsIn(const float *row, int p, int cols, float pad) {
-        return edge ? loadCols(row, p, cols, pad) : simdf32_loadu(row + p);
-    }
-    template<bool edge>
-    static void storeColsIn(float *row, int p, int cols, simd_float a) {
-        if (edge) {
-            storeCols(row, p, cols, a);
-        } else {
-            simdf32_storeu(row + p, a);
-        }
-    }
-
-    // stores the lanes of a before cols to row[p, ...)
-    static void storeCols(float *row, int p, int cols, simd_float a) {
-        if (p + VECSIZE_FLOAT <= cols) {
-            simdf32_storeu(row + p, a);
-            return;
-        }
-        if (p >= cols) {
-            return;
-        }
-        float t[VECSIZE_FLOAT];
-        simdf32_storeu(t, a);
-        // one test per lane: GCC turns a copy loop into a memcpy call, and a call inside pass()'s block loop
-        // makes it save and restore the vector registers around it in every block
-        for (int k = 0; k < VECSIZE_FLOAT; ++k) {
-            if (p + k < cols) {
-                row[p + k] = t[k];
-            }
-        }
-    }
-
-    // buffers of run(), kept across calls and freed with the aligner
-    std::vector<float> prevM, prevF;         // previous row's mantissas [colsPadded]
-    std::vector<float> diagRow[2];           // M + E + F of the previous and the current row [colsPadded + 1]
-    std::vector<int> prevScale;              // previous row's scale per block
-    std::vector<int> fwdScale;               // forward ZM scale per (row, block)
-    std::vector<float> expScore;             // exp(score) of the forward pass [rows * colsPadded], without expScores
+    std::vector<float> prevM, prevF;
+    std::vector<float> diagRow[2];
+    std::vector<int> prevScale;
+    std::vector<int> fwdScale;
+    std::vector<float> expScore;
     ZSum zFwd, zBwd;
-    // buffers of runScaledDouble() and runDouble(), freed after each fallback (freeFallbackBuffers)
-    std::vector<double> dM, dRow[6];         // runDouble: log-space M, E/F rows; runScaledDouble: ZM mantissas,
-                                             // M/F/diag rows [cols + 1]
-    std::vector<double> dExpScore, dPred;    // runScaledDouble: exp(score) [rows * cols], pred of the row [cols]
-    std::vector<int> dFwdScale;              // runScaledDouble: forward ZM scale per (row, block)
-    std::vector<int> dPrevScale, dCurrScale; // runScaledDouble: scale per block of the previous and the current row
-};
-
-// The matrix part of Impl::computeBacktrace<mode> (MAC), VECSIZE_FLOAT cells at a time, with the same floats,
-// states and end cell as its cell-by-cell loop (rows, cols >= 1). Returns false, leaving the result to
-// that loop, when P holds a NaN (log-space posteriors at a low temperature; max() would drop it) or when
-// mact / 2 is not a float:
-//   S_ij = max(P_ij - mact, S_i-1,j-1 + P_ij - mact, S_i,j-1 - mact/2, S_i-1,j - mact/2)
-// Only the left term depends on the same row: S_j = max(T_j, S_j-1 - h) is a running maximum that loses
-// h = mact/2 per column. Subtracting h commutes with max exactly (both are monotone), so a log-step scan
-// and a carry that subtracts h once per lane give the floats of the loop. (The loop subtracts 0.5 * mact
-// in double and rounds to float; double has more than 2 * 24 + 2 bits, so that equals the float subtraction.)
-class MacFill {
-public:
-    template<int mode>
-    bool run(float **P, int rows, int cols, float mact, uint8_t **bt, size_t &maxI, size_t &maxJ, float &score) {
-        if (0.5f * mact * 2.0f != mact) {
-            return false;
-        }
-        const float NI = -std::numeric_limits<float>::infinity();
-        const float FMAX = std::numeric_limits<float>::max();
-        const int colsVec = (cols + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT * VECSIZE_FLOAT;
-        // S of the previous and current row at [j], j = 0..cols, -inf behind
-        for (int r = 0; r < 2; ++r) {
-            if (sRow[r].size() < (size_t)colsVec + VECSIZE_FLOAT + 1) {
-                sRow[r].resize(colsVec + VECSIZE_FLOAT + 1);
-            }
-        }
-        float *prev = sRow[0].data();
-        float *curr = sRow[1].data();
-        std::fill(prev, prev + colsVec + VECSIZE_FLOAT + 1, NI);
-        std::fill(curr, curr + colsVec + VECSIZE_FLOAT + 1, NI);
-        prev[0] = 0.0f;
-        std::fill(prev + 1, prev + cols + 1, (mode == 3) ? -FMAX : 0.0f);
-
-        float laneIdx[VECSIZE_FLOAT];
-        for (int k = 0; k < VECSIZE_FLOAT; ++k) {
-            laneIdx[k] = (float)k;
-        }
-        const simd_float vLane = simdf32_loadu(laneIdx);
-        const simd_float vZero = simdf32_setzero();
-        const simd_float vNI = simdf32_set(NI);
-        const simd_float vMact = simdf32_set(mact);
-        const simd_float vH = simdf32_set(0.5f * mact);
-        const simd_float lt1 = simdf32_lt(vLane, simdf32_set(1.0f));
-        const simd_float lt2 = simdf32_lt(vLane, simdf32_set(2.0f));
-        const simd_float lt4 = simdf32_lt(vLane, simdf32_set(4.0f));
-        const simd_float lt8 = simdf32_lt(vLane, simdf32_set(8.0f));
-        // hFrom[k]: h in lanes >= k, 0 below (x - 0 is exact)
-        simd_float hFrom[VECSIZE_FLOAT];
-        for (int k = 0; k < VECSIZE_FLOAT; ++k) {
-            hFrom[k] = simdf32_blendv_ps(vH, vZero, simdf32_lt(vLane, simdf32_set((float)k)));
-        }
-        // hSteps[k] = (k + 1) h: what the carry loses on the way to lane k; hSpan = VECSIZE_FLOAT h, the largest
-        float hSteps[VECSIZE_FLOAT];
-        for (int k = 0; k < VECSIZE_FLOAT; ++k) {
-            hSteps[k] = (float)(k + 1) * (0.5f * mact);
-        }
-        const simd_float vHSteps = simdf32_loadu(hSteps);
-        const float hSpan = (float)VECSIZE_FLOAT * 0.5f * mact;
-        const simd_float stM = simdf32_set((float)States::M);
-        const simd_float stStop = simdf32_set((float)States::STOP);
-        const simd_float stI = simdf32_set((float)States::I);
-        const simd_float stD = simdf32_set((float)States::D);
-
-        float best = -FMAX;
-        size_t bestI = 0, bestJ = 0;
-        float lastColAbove = (mode == 3) ? -FMAX : 0.0f; // S[i-1][cols]
-        float st[VECSIZE_FLOAT];
-        for (int i = 1; i <= rows; ++i) {
-            const float left = (mode == 3 && (i & 1)) ? -FMAX : 0.0f;
-            curr[0] = left;
-            float carry = left; // S[i][j0 - 1]
-            simd_float rowMax = vNI;
-            simd_float nan = vZero;
-            const float *pRow = P[i - 1];
-            uint8_t *btRow = bt[i];
-            for (int j0 = 1; j0 <= cols; j0 += VECSIZE_FLOAT) {
-                const simd_float p = loadCols(pRow, j0 - 1, cols, 0.0f);
-                nan = simdf32_or(nan, simdf32_isnan(p));
-                const simd_float t1 = simdf32_sub(p, vMact);                                               // STOP
-                const simd_float t2 = simdf32_sub(simdf32_add(simdf32_loadu(prev + j0 - 1), p), vMact);  // M
-                const simd_float t4 = simdf32_sub(simdf32_loadu(prev + j0), vH);                           // D
-                // running maximum of T - k*h inside the vector, then the carry from the left
-                simd_float y = simdf32_max(simdf32_max(t1, t2), t4);
-                y = simdf32_max(y, subH(simdf32_blendv_ps(simdf32_shiftl_lanes<1>(y), vNI, lt1), vH, 1));
-                y = simdf32_max(y, subH(simdf32_blendv_ps(simdf32_shiftl_lanes<2>(y), vNI, lt2), vH, 2));
-#if VECSIZE_FLOAT >= 8
-                y = simdf32_max(y, subH(simdf32_blendv_ps(simdf32_shiftl_lanes<4>(y), vNI, lt4), vH, 4));
-#else
-                (void)lt4;
-#endif
-#if VECSIZE_FLOAT == 16
-                y = simdf32_max(y, subH(simdf32_blendv_ps(simdf32_shiftl_lanes<8>(y), vNI, lt8), vH, 8));
-#else
-                (void)lt8;
-#endif
-                // The carry wins only in lanes where carry - h, subtracted k + 1 times, is above y. That chain
-                // rounds k + 1 times, by less than 2^-19 (|carry| + hSpan) in total; if y exceeds carry - (k + 1) h
-                // by twice that (slack) in every lane, S = y exactly and the serial chain is skipped.
-                simd_float S;
-                const float slack = (std::fabs(carry) + hSpan) * pow2c(-18);
-                const simd_float bound = simdf32_add(simdf32_sub(simdf32_set(carry), vHSteps), simdf32_set(slack));
-                if (simdf32_movemask_ps(simdf32_gt(y, bound)) == ALL_LANES) {
-                    S = y;
-                } else {
-                    simd_float c = simdf32_set(carry);
-                    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
-                        c = simdf32_sub(c, hFrom[k]); // lane k: carry - h, k + 1 times
-                    }
-                    S = simdf32_max(y, c);
-                }
-                if (j0 + VECSIZE_FLOAT - 1 > cols) {
-                    S = simdf32_blendv_ps(vNI, S, simdf32_lt(vLane, simdf32_set((float)(cols + 1 - j0))));
-                }
-                simdf32_storeu(curr + j0, S);
-                // states in the order of calculate_max4
-                const simd_float t3 = simdf32_sub(
-                    simdf32_blendv_ps(simdf32_shiftl_lanes<1>(S), simdf32_set(carry), lt1), vH); // I
-                // simdf32_max(a, b) is a > b ? a : b, the value the blends on c12 / c3 select (ties: b)
-                simd_float c12 = simdf32_gt(t1, t2);
-                simd_float mx = simdf32_max(t1, t2);
-                simd_float state = simdf32_blendv_ps(stM, stStop, c12);
-                const simd_float c3 = simdf32_gt(t3, mx);
-                mx = simdf32_max(t3, mx);
-                state = simdf32_blendv_ps(state, stI, c3);
-                state = simdf32_blendv_ps(state, stD, simdf32_gt(t4, mx));
-                if (j0 + VECSIZE_FLOAT - 1 <= cols) {
-                    simdf32_storeu_u8(btRow + j0, state);
-                } else {
-                    simdf32_storeu(st, state);
-                    for (int k = 0; j0 + k <= cols; ++k) {
-                        btRow[j0 + k] = (uint8_t)st[k];
-                    }
-                }
-                rowMax = simdf32_max(rowMax, S);
-                carry = simdf32_first(simdf32_broadcast_last(S));
-            }
-            if (simdf32_movemask_ps(nan) != 0) {
-                return false;
-            }
-            // end cell: the first strict improvement in row-major order
-            if (mode == 1) {
-                const float m = simdf32_hmax(rowMax);
-                if (m > best) {
-                    int j = 1;
-                    while (curr[j] != m) {
-                        ++j;
-                    }
-                    best = m;
-                    bestI = i;
-                    bestJ = j;
-                }
-            } else if (mode == 2) {
-                for (int j = (i == rows) ? 1 : cols; j <= cols; ++j) {
-                    if (curr[j] > best) {
-                        best = curr[j];
-                        bestI = i;
-                        bestJ = j;
-                    }
-                }
-            } else if (i < rows) {
-                lastColAbove = curr[cols];
-            }
-            std::swap(prev, curr);
-        }
-        if (mode == 3) {
-            // as computeBacktrace: the row buffer it reads after the last swap holds row rows - 1
-            bestI = rows;
-            bestJ = cols;
-            best = lastColAbove;
-        }
-        maxI = bestI;
-        maxJ = bestJ;
-        score = best;
-        return true;
-    }
-
-private:
-    // a - h, n times one after the other (each step rounds, as in a cell-by-cell loop)
-    static simd_float subH(simd_float a, simd_float h, int n) {
-        for (int k = 0; k < n; ++k) {
-            a = simdf32_sub(a, h);
-        }
-        return a;
-    }
-
-    std::vector<float> sRow[2]; // S of the previous and the current row
+    // runScaledDouble and runLogDouble
+    std::vector<double> dM, dRow[6];
+    std::vector<double> dExpScore, dPred;
+    std::vector<int> dFwdScale;
+    std::vector<int> dPrevScale, dCurrScale;
 };
 
 // FwBwAligner Constructor for general case: use profile scoring matrix
@@ -1039,7 +753,8 @@ private:
     template<int backtrace>
     void computeBacktrace();
 
-    bool runScaled(bool profile);
+    template<int backtrace>
+    bool computeBacktraceSimd(size_t &maxI, size_t &maxJ, float &score);
 
     unsigned char* colSeqAANum = nullptr;
     unsigned char* rowSeqAANum = nullptr;
@@ -1098,10 +813,10 @@ private:
     FwBwAligner::s_align alignResult;
 
     FwBwAligner::ScaledMode scaledMode = FwBwAligner::SCALED_OFF;
-    ScaledFwBw<16> scaled;        // score matrix
-    ScaledFwBw<32> scaledProfile; // profile
-    std::vector<float*> scaledRows; // profile mode: score row, then exp(score) row, of each target residue
-    MacFill macFill;              // computeBacktrace: the MAC matrix VECSIZE_FLOAT cells at a time
+    ScaledFwBw<16> scaledFwBw;
+    ScaledFwBw<32> scaledFwBwProfile;
+    std::vector<float*> scaledProfileRows;
+    std::vector<float> macRow[2];
 };
 
 Impl::Impl(SubstitutionMatrix &subMat, float gapOpen, float gapExtend, float temperature, float mact, size_t rowsCapacity, size_t colsCapacity, size_t length, int backtrace)
@@ -1988,6 +1703,177 @@ void Impl::computeProbabilityMatrix() {
 
 }
 
+// a - h, n times, each step rounded as in the cell-by-cell loop
+inline simd_float subRepeat(simd_float a, simd_float h, int n) {
+    for (int k = 0; k < n; ++k) {
+        a = simdf32_sub(a, h);
+    }
+    return a;
+}
+
+// The S and btMatrix fill of computeBacktrace VECSIZE_FLOAT cells at a time, with the floats, states and end
+// cell of its loop. S_j = max(T_j, S_j-1 - mact/2) is a running maximum, computed as a log-step scan plus a
+// carry from the left. Returns false if P holds a NaN or mact/2 is not exact.
+template<int backtrace>
+bool Impl::computeBacktraceSimd(size_t &maxI, size_t &maxJ, float &score) {
+    if (0.5f * mact * 2.0f != mact) {
+        return false;
+    }
+    const int rows = (int)rowSeqLen;
+    const int cols = (int)colSeqLen;
+    const float negInf = -std::numeric_limits<float>::infinity();
+    const float floatMax = std::numeric_limits<float>::max();
+    const int colsVec = (cols + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT * VECSIZE_FLOAT;
+    for (int r = 0; r < 2; ++r) {
+        if (macRow[r].size() < (size_t)colsVec + VECSIZE_FLOAT + 1) {
+            macRow[r].resize(colsVec + VECSIZE_FLOAT + 1);
+        }
+    }
+    float *prev = macRow[0].data();
+    float *curr = macRow[1].data();
+    std::fill(prev, prev + colsVec + VECSIZE_FLOAT + 1, negInf);
+    std::fill(curr, curr + colsVec + VECSIZE_FLOAT + 1, negInf);
+    prev[0] = 0.0f;
+    std::fill(prev + 1, prev + cols + 1, (backtrace == 3) ? -floatMax : 0.0f);
+
+    float laneIdx[VECSIZE_FLOAT];
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        laneIdx[k] = (float)k;
+    }
+    const simd_float vLane = simdf32_loadu(laneIdx);
+    const simd_float vZero = simdf32_setzero();
+    const simd_float vNegInf = simdf32_set(negInf);
+    const simd_float vMact = simdf32_set(mact);
+    const simd_float vH = simdf32_set(0.5f * mact);
+    const simd_float lt1 = simdf32_lt(vLane, simdf32_set(1.0f));
+    const simd_float lt2 = simdf32_lt(vLane, simdf32_set(2.0f));
+#if VECSIZE_FLOAT >= 8
+    const simd_float lt4 = simdf32_lt(vLane, simdf32_set(4.0f));
+#endif
+#if VECSIZE_FLOAT == 16
+    const simd_float lt8 = simdf32_lt(vLane, simdf32_set(8.0f));
+#endif
+    // hFrom[k]: h in lanes >= k, 0 below
+    simd_float hFrom[VECSIZE_FLOAT];
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        hFrom[k] = simdf32_blendv_ps(vH, vZero, simdf32_lt(vLane, simdf32_set((float)k)));
+    }
+    // hSteps[k] = (k + 1) h
+    float hSteps[VECSIZE_FLOAT];
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        hSteps[k] = (float)(k + 1) * (0.5f * mact);
+    }
+    const simd_float vHSteps = simdf32_loadu(hSteps);
+    const float hSpan = (float)VECSIZE_FLOAT * 0.5f * mact;
+    const simd_float vStop = simdf32_set((float)States::STOP);
+    const simd_float vM = simdf32_set((float)States::M);
+    const simd_float vI = simdf32_set((float)States::I);
+    const simd_float vD = simdf32_set((float)States::D);
+
+    float best = -floatMax;
+    size_t bestI = 0;
+    size_t bestJ = 0;
+    float lastColAbove = (backtrace == 3) ? -floatMax : 0.0f;
+    float states[VECSIZE_FLOAT];
+    for (int i = 1; i <= rows; ++i) {
+        const float left = (backtrace == 3 && (i & 1)) ? -floatMax : 0.0f;
+        curr[0] = left;
+        float carry = left;
+        simd_float rowMax = vNegInf;
+        simd_float nan = vZero;
+        const float *pRow = P[i - 1];
+        uint8_t *btRow = btMatrix[i];
+        for (int j0 = 1; j0 <= cols; j0 += VECSIZE_FLOAT) {
+            const simd_float p = loadCols(pRow, j0 - 1, cols, 0.0f);
+            nan = simdf32_or(nan, simdf32_cmp(p, p, _CMP_UNORD_Q));
+            const simd_float term1 = simdf32_sub(p, vMact);
+            const simd_float term2 = simdf32_sub(simdf32_add(simdf32_loadu(prev + j0 - 1), p), vMact);
+            const simd_float term4 = simdf32_sub(simdf32_loadu(prev + j0), vH);
+            simd_float y = simdf32_max(simdf32_max(term1, term2), term4);
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<1>(y), vNegInf, lt1), vH, 1));
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<2>(y), vNegInf, lt2), vH, 2));
+#if VECSIZE_FLOAT >= 8
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<4>(y), vNegInf, lt4), vH, 4));
+#endif
+#if VECSIZE_FLOAT == 16
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<8>(y), vNegInf, lt8), vH, 8));
+#endif
+            // the serial carry chain rounds by less than 2^-19 (|carry| + hSpan), skip it if y is above it by twice that
+            simd_float S;
+            const float slack = (std::fabs(carry) + hSpan) * pow2f(-18);
+            const simd_float bound = simdf32_add(simdf32_sub(simdf32_set(carry), vHSteps), simdf32_set(slack));
+            if (simdf32_movemask_ps(simdf32_gt(y, bound)) == ALL_LANES) {
+                S = y;
+            } else {
+                simd_float c = simdf32_set(carry);
+                for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+                    c = simdf32_sub(c, hFrom[k]);
+                }
+                S = simdf32_max(y, c);
+            }
+            if (j0 + VECSIZE_FLOAT - 1 > cols) {
+                S = simdf32_blendv_ps(vNegInf, S, simdf32_lt(vLane, simdf32_set((float)(cols + 1 - j0))));
+            }
+            simdf32_storeu(curr + j0, S);
+            const simd_float term3 = simdf32_sub(simdf32_blendv_ps(simdf32_shiftl_lanes<1>(S), simdf32_set(carry), lt1), vH);
+            // the order of calculate_max4, simdf32_max(a, b) is a > b ? a : b
+            simd_float mx = simdf32_max(term1, term2);
+            simd_float state = simdf32_blendv_ps(vM, vStop, simdf32_gt(term1, term2));
+            const simd_float c3 = simdf32_gt(term3, mx);
+            mx = simdf32_max(term3, mx);
+            state = simdf32_blendv_ps(state, vI, c3);
+            state = simdf32_blendv_ps(state, vD, simdf32_gt(term4, mx));
+            if (j0 + VECSIZE_FLOAT - 1 <= cols) {
+                simdf32_storeu_u8(btRow + j0, state);
+            } else {
+                simdf32_storeu(states, state);
+                for (int k = 0; j0 + k <= cols; ++k) {
+                    btRow[j0 + k] = (uint8_t)states[k];
+                }
+            }
+            rowMax = simdf32_max(rowMax, S);
+            carry = S[VECSIZE_FLOAT - 1];
+        }
+        if (simdf32_movemask_ps(nan) != 0) {
+            return false;
+        }
+        // the first strict improvement in row-major order
+        if (backtrace == 1) {
+            const float m = simdf32_hmax(rowMax);
+            if (m > best) {
+                int j = 1;
+                while (curr[j] != m) {
+                    ++j;
+                }
+                best = m;
+                bestI = i;
+                bestJ = j;
+            }
+        } else if (backtrace == 2) {
+            for (int j = (i == rows) ? 1 : cols; j <= cols; ++j) {
+                if (curr[j] > best) {
+                    best = curr[j];
+                    bestI = i;
+                    bestJ = j;
+                }
+            }
+        } else if (i < rows) {
+            lastColAbove = curr[cols];
+        }
+        std::swap(prev, curr);
+    }
+    if (backtrace == 3) {
+        // computeBacktrace reads the row buffer that holds row rows - 1 after its last swap
+        bestI = rows;
+        bestJ = cols;
+        best = lastColAbove;
+    }
+    maxI = bestI;
+    maxJ = bestJ;
+    score = best;
+    return true;
+}
+
 template<int backtrace>
 void Impl::computeBacktrace() {
     // MAC algorithm from HH-suite
@@ -2021,9 +1907,7 @@ void Impl::computeBacktrace() {
         btMatrix[0][j] = States::STOP;
     }
 
-    // SIMD version of the loop below: same S, states and end cell
-    const bool simdFill = rowSeqLen > 0 && colSeqLen > 0 &&
-                          macFill.run<backtrace>(P, (int)rowSeqLen, (int)colSeqLen, mact, btMatrix, max_i, max_j, score_MAC);
+    const bool simdFill = rowSeqLen > 0 && colSeqLen > 0 && computeBacktraceSimd<backtrace>(max_i, max_j, score_MAC);
     for (size_t i = 1; i <= rowSeqLen && !simdFill; ++i) {
         for (size_t j = 1; j <= colSeqLen; ++j) {
             term1 = P[i - 1][j - 1] - mact; // STOP
@@ -2133,50 +2017,23 @@ void Impl::resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, si
     }
 }
 
-// run() first; a call it flags (any FLAG_*, in SCALED also a backward Z that disagrees) is run again with
-// double mantissas (runScaledDouble), and one still flagged in log space (runDouble)
-// expScore: exp(score) rows, or score itself when expScores is false
-template<bool expScores, class Kernel>
-static void runScaledKernel(Kernel &k, FwBwAligner::ScaledMode mode, float **score, float **expScore,
-                            int rows, int cols, float expGo, float expGe, float **prob, float &maxP) {
-    unsigned int flags = (mode == FwBwAligner::SCALED_FAST)
-                         ? k.template run<false, expScores>(expScore, rows, cols, expGo, expGe, prob, maxP)
-                         : k.template run<true, expScores>(expScore, rows, cols, expGo, expGe, prob, maxP);
-    if (flags != 0) {
-        flags = k.runScaledDouble(score, rows, cols, expGo, expGe, prob, maxP);
-        if (flags != 0) {
-            k.runDouble(score, rows, cols, expGo, expGe, prob, maxP);
-        }
-        k.freeFallbackBuffers();
-    }
-}
-
-// Scaled-mantissa kernel in place of forward, backward and computeProbabilityMatrix: fills P = zm and maxP
-bool Impl::runScaled(bool profile) {
-    if (scaledMode == FwBwAligner::SCALED_OFF) {
-        return false;
-    }
-    P = zm;
-    const int rows = (int)rowSeqLen, cols = (int)colSeqLen;
-    if (profile) {
-        // the profile's score row (already divided by T) and its exp, computed once per query, for each
-        // target residue
-        scaledRows.resize(2 * rowSeqLen);
-        for (size_t i = 0; i < rowSeqLen; ++i) {
-            scaledRows[i] = scoreForwardProfile[rowSeqAANum[i]];
-            scaledRows[rowSeqLen + i] = scoreForwardProfile_exp[rowSeqAANum[i]];
-        }
-        runScaledKernel<true>(scaledProfile, scaledMode, scaledRows.data(), scaledRows.data() + rowSeqLen, rows, cols,
-                              exp_go, exp_ge, zm, maxP);
-    } else {
-        runScaledKernel<false>(scaled, scaledMode, scoreForward, scoreForward, rows, cols, exp_go, exp_ge, zm, maxP);
-    }
-    return true;
-}
-
 void Impl::runFwBw(bool profile, int backtraceMode) {
-    if (runScaled(profile)) {
-        // the backtrace only reads P and maxP
+    if (scaledMode != FwBwAligner::SCALED_OFF) {
+        P = zm;
+        const int rows = (int)rowSeqLen;
+        const int cols = (int)colSeqLen;
+        if (profile) {
+            // score and exp(score) rows of the query profile, one per target residue
+            scaledProfileRows.resize(2 * rowSeqLen);
+            for (size_t i = 0; i < rowSeqLen; ++i) {
+                scaledProfileRows[i] = scoreForwardProfile[rowSeqAANum[i]];
+                scaledProfileRows[rowSeqLen + i] = scoreForwardProfile_exp[rowSeqAANum[i]];
+            }
+            scaledFwBwProfile.run<true>(scaledMode, scaledProfileRows.data(), scaledProfileRows.data() + rowSeqLen,
+                                        rows, cols, exp_go, exp_ge, zm, maxP);
+        } else {
+            scaledFwBw.run<false>(scaledMode, scoreForward, scoreForward, rows, cols, exp_go, exp_ge, zm, maxP);
+        }
         switch (backtraceMode) {
             case 0: break;
             case 2: computeBacktrace<2>(); break;
