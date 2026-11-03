@@ -3,6 +3,7 @@
 
 
 #include <cuda/functional>
+#include <numeric>
 #include <cuda/cmath>
 #include <cuda/std/span>
 #include <cuda/std/mdspan>
@@ -284,7 +285,7 @@ std::vector<SearchResult> ScoreEndposSearch::execute(
 
     scanTimer->stop();
 
-    const int sumOfQueryLengths = std::reduce(currentQueryLengths.begin(), currentQueryLengths.end());
+    const int sumOfQueryLengths = std::accumulate(currentQueryLengths.begin(), currentQueryLengths.end(), 0);
     
     std::vector<SearchResult> allResults(numQueries);
     for(int q = 0; q < numQueries; q++){
@@ -360,7 +361,7 @@ std::vector<SearchResult> ScoreEndposSearch::execute(
 
     scanTimer->stop();
 
-    const int sumOfQueryLengths = std::reduce(currentQueryLengths.begin(), currentQueryLengths.end());
+    const int sumOfQueryLengths = std::accumulate(currentQueryLengths.begin(), currentQueryLengths.end(), 0);
     
     std::vector<SearchResult> allResults(numQueries);
     for(int q = 0; q < numQueries; q++){
@@ -915,7 +916,7 @@ void ScoreEndposSearch::finalizeResults(cuda::std::span<cudaStream_t> streams){
         bytes[2] = SDIV(sizeof(int) * numGpus * topNSize, 256) * 256;
         bytes[3] = SDIV(sizeof(int) * numGpus * topNSize, 256) * 256;
         std::array<size_t, 4> bytesInclPS;
-        std::inclusive_scan(bytes.begin(), bytes.end(), bytesInclPS.begin());
+        std::partial_sum(bytes.begin(), bytes.end(), bytesInclPS.begin());
         size_t maxBytesForAllResultsPerQuery = bytesInclPS.back();
 
         //standard async mempool allocation is only accessible by current device so it cannot be used for peer copies, use plain allocation instead
@@ -938,10 +939,9 @@ void ScoreEndposSearch::finalizeResults(cuda::std::span<cudaStream_t> streams){
             }
 
             std::vector<int> gatherDstOffsets(numGpus);
-            std::exclusive_scan(
-                resultSizePerQueryPerGpu[queryIndex].begin(), resultSizePerQueryPerGpu[queryIndex].end(), 
-                gatherDstOffsets.begin(),
-                0
+            std::partial_sum( // exclusive scan, gatherDstOffsets[0] stays 0
+                resultSizePerQueryPerGpu[queryIndex].begin(), resultSizePerQueryPerGpu[queryIndex].end() - 1, 
+                gatherDstOffsets.begin() + 1
             );
             const int totalNumResultsAllGpus = gatherDstOffsets.back() + resultSizePerQueryPerGpu[queryIndex].back();
 

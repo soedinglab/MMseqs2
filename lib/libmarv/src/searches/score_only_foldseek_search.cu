@@ -471,7 +471,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 
         double firstPassSeconds = scanTimer->elapsed() / 1000.0;
 
-        const int sumOfQueryLengths = std::reduce(currentQueryLengths.begin(), currentQueryLengths.end());
+        const int sumOfQueryLengths = std::accumulate(currentQueryLengths.begin(), currentQueryLengths.end(), 0);
         const auto& sequenceLengthStatistics = gpuDatabase->getSequenceLengthStatistics();
         size_t computedCellsFirstPass = size_t(sequenceLengthStatistics.sumOfLengths) * sumOfQueryLengths;
 
@@ -1069,7 +1069,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
             bytes[0] = SDIV(sizeof(int) * numGpus * topNSize, 256) * 256;
             bytes[1] = SDIV(sizeof(ReferenceIdT) * numGpus * topNSize, 256) * 256;
             std::array<size_t, 2> bytesInclPS;
-            std::inclusive_scan(bytes.begin(), bytes.end(), bytesInclPS.begin());
+            std::partial_sum(bytes.begin(), bytes.end(), bytesInclPS.begin());
             size_t maxBytesForAllResultsPerQuery = bytesInclPS.back();
 
             //standard async mempool allocation is only accessible by current device so it cannot be used for peer copies, use plain allocation instead
@@ -1091,10 +1091,9 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
                 }
 
                 std::vector<int> gatherDstOffsets(numGpus);
-                std::exclusive_scan(
-                    resultSizePerQueryPerGpu[queryIndex].begin(), resultSizePerQueryPerGpu[queryIndex].end(), 
-                    gatherDstOffsets.begin(),
-                    0
+                std::partial_sum( // exclusive scan, gatherDstOffsets[0] stays 0
+                    resultSizePerQueryPerGpu[queryIndex].begin(), resultSizePerQueryPerGpu[queryIndex].end() - 1, 
+                    gatherDstOffsets.begin() + 1
                 );
                 const int totalNumResultsAllGpus = gatherDstOffsets.back() + resultSizePerQueryPerGpu[queryIndex].back();
 
@@ -1309,7 +1308,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
             bytes[0] = SDIV(sizeof(int) * numGpus * topNSize, 256) * 256;
             bytes[1] = SDIV(sizeof(ReferenceIdT) * numGpus * topNSize, 256) * 256;
             std::array<size_t, 2> bytesInclPS;
-            std::inclusive_scan(bytes.begin(), bytes.end(), bytesInclPS.begin());
+            std::partial_sum(bytes.begin(), bytes.end(), bytesInclPS.begin());
             size_t maxBytesForAllResultsPerQuery = bytesInclPS.back();
 
             //standard async mempool allocation is only accessible by current device so it cannot be used for peer copies, use plain allocation instead
@@ -1323,10 +1322,9 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 
             //combine per-gpu results, then copy final topN results to host
             std::vector<int> gatherDstOffsets(numGpus);
-            std::exclusive_scan(
-                resultSizePerQueryPerGpu[queryIndex].begin(), resultSizePerQueryPerGpu[queryIndex].end(), 
-                gatherDstOffsets.begin(),
-                0
+            std::partial_sum( // exclusive scan, gatherDstOffsets[0] stays 0
+                resultSizePerQueryPerGpu[queryIndex].begin(), resultSizePerQueryPerGpu[queryIndex].end() - 1, 
+                gatherDstOffsets.begin() + 1
             );
             const int totalNumResultsAllGpus = gatherDstOffsets.back() + resultSizePerQueryPerGpu[queryIndex].back();
 
