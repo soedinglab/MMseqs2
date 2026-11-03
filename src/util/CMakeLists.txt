@@ -7,6 +7,7 @@ set(util_source_files
         util/clusthash.cpp
         util/compress.cpp
         util/convert2fasta.cpp
+        util/convert2parquet.cpp
         util/convertalignments.cpp
         util/convertblastdb.cpp
         util/convertca3m.cpp

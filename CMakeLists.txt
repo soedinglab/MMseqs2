@@ -360,6 +360,8 @@ include_directories(lib/tantan)
 add_subdirectory(lib/tantan)
 
 # carquet
+# brotli is off by default: linking the system libbrotlienc/libbrotlidec fails 
+set(CARQUET_ENABLE_BROTLI OFF CACHE BOOL "Build the BROTLI codec of carquet (needs libbrotli)")
 include_directories(lib/carquet)
 add_subdirectory(lib/carquet)
 

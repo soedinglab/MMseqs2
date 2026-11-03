@@ -621,6 +621,13 @@ public:
 
     // convert2fasta
     bool useHeaderFile;
+
+    // convert2parquet
+    int parquetSortMode;
+    int parquetCompression;
+    int parquetCompressionLevel;
+    size_t parquetRowGroupSize;
+    std::string parquetSchema;
     int writeLookup;
 
     // result2flat
@@ -1019,6 +1026,13 @@ public:
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
 
+    // convert2parquet
+    PARAMETER(PARAM_PARQUET_SORT_MODE)
+    PARAMETER(PARAM_PARQUET_COMPRESSION)
+    PARAMETER(PARAM_PARQUET_COMPRESSION_LEVEL)
+    PARAMETER(PARAM_PARQUET_ROW_GROUP_SIZE)
+    PARAMETER(PARAM_PARQUET_SCHEMA)
+
     // setextendedbtype
     PARAMETER(PARAM_EXTENDED_DBTYPE)
 
@@ -1238,6 +1252,7 @@ public:
     std::vector<MMseqsParameter*> createdb;
     std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
+    std::vector<MMseqsParameter*> convert2parquet;
     std::vector<MMseqsParameter*> result2flat;
     std::vector<MMseqsParameter*> result2repseq;
     std::vector<MMseqsParameter*> pickrepprofile;
