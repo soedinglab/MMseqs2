@@ -34,6 +34,13 @@ public:
         int word;
     } s_align;
 
+    // SCALED_FAST skips the forward/backward Z check, posteriors on steep score matrices can then be wrong
+    enum ScaledMode {
+        SCALED_OFF = 0,
+        SCALED = 1,
+        SCALED_FAST = 2
+    };
+
     class Impl {
     public:
         virtual ~Impl() {}
@@ -41,6 +48,7 @@ public:
         virtual void resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, size_t newColsCapacity) = 0;
         virtual void resetParams(float newGapOpen, float newGapExtend, float newTemperature) = 0;
         virtual void setTemperature(float newTemperature) = 0;
+        virtual void setScaledMode(ScaledMode mode) = 0;
         virtual void initProfile(unsigned char* colAANum, size_t colAALen) = 0;
         virtual void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen) = 0;
         virtual void initScoreMatrix(float** inputScoreMatrix, int* gaps) = 0;
@@ -83,6 +91,7 @@ public:
     }
     void initScoreMatrix(float** inputScoreMatrix, int* gaps) { impl->initScoreMatrix(inputScoreMatrix, gaps); }
     void setTemperature(float newTemperature) { impl->setTemperature(newTemperature); }
+    void setScaledMode(ScaledMode mode) { impl->setScaledMode(mode); }
 
     // profile: score from the query profile (true) or from a user-supplied score matrix (false).
     // backtraceMode: 0 no backtrace, 1 local, 2 semi-global, 3 global.

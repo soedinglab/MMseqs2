@@ -43,6 +43,7 @@ int easyproteomesearch(int argc, const char **argv, const Command &command) {
 
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("LEAVE_INPUT", par.dbOut ? "TRUE" : NULL);
+    cmd.addVariable("SWAP_RESULT", par.proteomeScoreMode == 1 ? "TRUE" : NULL);
     
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb,true).c_str());
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow, true).c_str());

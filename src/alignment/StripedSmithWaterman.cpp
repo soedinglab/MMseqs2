@@ -1254,7 +1254,7 @@ s_align SmithWaterman::alignStartPosBacktrace (
 	if(correlationScoreWeight > 0.0){
         int correlationScore = computeCorrelationScore(scorePerCol, mStateCnt);
         r.score1 += static_cast<float>(correlationScore) * correlationScoreWeight;
-        r.evalue = evaluer->computeEvalue(r.score1, query_length);
+        r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
     }
 	if(path != NULL) {
         delete path;

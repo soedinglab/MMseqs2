@@ -315,6 +315,10 @@ corrosion_import_crate(
     FEATURES "${RUST_FEATURE}"
     CRATE_TYPES staticlib
 )
+if(APPLE)
+    # corrosion adds the Command Line Tools SDK to the link path, which can mismatch the selected SDK
+    set_property(TARGET block_aligner_c-static PROPERTY INTERFACE_LINK_DIRECTORIES "")
+endif()
 include_directories(lib/block-aligner/c)
 if(EMSCRIPTEN)
     corrosion_add_target_local_rustflags(block_aligner_c "-Clink-args=--no-entry -sRELOCATABLE=1")

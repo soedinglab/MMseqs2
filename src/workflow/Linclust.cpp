@@ -41,6 +41,14 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
 
+    const int dbType = FileUtil::parseDbType(par.db1.c_str());
+    if (Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES) && par.linclustVersion == Parameters::LINCLUST_VERSION2) {
+        if (par.PARAM_LINCLUST_VERSION.wasSet) {
+            Debug(Debug::WARNING) << "--linclust-version 2 does not support nucleotide databases; using --linclust-version 1.\n";
+        }
+        par.linclustVersion = Parameters::LINCLUST_VERSION1;
+    }
+
     CommandCaller cmd;
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
@@ -114,7 +122,6 @@ int linclust(int argc, const char **argv, const Command& command) {
         par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
     }
 
-    const int dbType = FileUtil::parseDbType(par.db1.c_str());
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE)) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);

@@ -342,6 +342,7 @@ Parameters::Parameters():
         PARAM_TEMPERATURE(PARAM_TEMPERATURE_ID, "--temperature", "Temperature", "Temperature for forward-backward", typeid(float), (void *) &temperature, "^(0\\.[0-9]+|[1-9][0-9]*\\.?[0-9]*)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_BLOCKLEN(PARAM_BLOCKLEN_ID, "--blocklen", "Block length", "Block length for forward-backward", typeid(int), (void *) &blocklen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_FWBW_BACKTRACE_MODE(PARAM_FWBW_BACKTRACE_MODE_ID, "--fwbw-backtrace-mode", "Backtrace mode", "Backtrace mode 0: no backtrace, 1: local", typeid(int), (void *) &fwbwBacktraceMode, "^[01]$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FWBW_SCALED_MODE(PARAM_FWBW_SCALED_MODE_ID, "--fwbw-scaled-mode", "Scaled mode", "Forward-backward kernel:\n0: log space\n1: scaled, failed calls are rerun in double precision\n2: scaled without the forward/backward check", typeid(int), (void *) &fwbwScaledMode, "^[0-2]$", MMseqsParameter::COMMAND_EXPERT),
         // touchdb
         PARAM_TOUCH_LOCK(PARAM_TOUCH_LOCK_ID, "--touch-lock", "Touch lock", "Lock touched database or database entries into memory. Process will not exit until killed.", typeid(bool), (void *) &touchLock, "", MMseqsParameter::COMMAND_EXPERT),
         // proteomecluster
@@ -354,6 +355,8 @@ Parameters::Parameters():
         PARAM_PROTEOME_WEIGHT_FILE(PARAM_PROTEOME_WEIGHT_FILE_ID, "--proteome-weights", "Proteome Weight file name", "Weights used for proteome priorization", typeid(std::string), (void*) &proteomeWeightFile, "",MMseqsParameter::COMMAND_EXPERT ),
         PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT_ID, "--proteome-weight-clustercount", "Weight cluster count in proteome clustering", "Weight of cluster count in proteome clustering", typeid(float), (void *) &proteomeWeightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_INCLUDE_ALIGN_FILES(PARAM_PROTEOME_INCLUDE_ALIGN_FILES_ID, "--proteome-include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &proteomeIncludeAlignFiles, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROTEOME_SCORE_MODE(PARAM_PROTEOME_SCORE_MODE_ID, "--proteome-score-mode", "Proteome score mode", "How a proteome is scored:\n0: default\n1: fraction of its proteins aligning to any protein of the reference proteome", typeid(int), (void *) &proteomeScoreMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROTEOME_REASSIGN(PARAM_PROTEOME_REASSIGN_ID, "--proteome-reassign", "Proteome reassign", "Proteome clustering can leave a proteome cluster apart although all its proteomes match an earlier reference.\nProteome reassignment merges such a cluster into the first earlier one", typeid(bool), (void *) &proteomeReassign, "", MMseqsParameter::COMMAND_EXPERT),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -1414,6 +1417,7 @@ Parameters::Parameters():
     fwbw.push_back(&PARAM_TEMPERATURE);
     fwbw.push_back(&PARAM_BLOCKLEN);
     fwbw.push_back(&PARAM_FWBW_BACKTRACE_MODE);
+    fwbw.push_back(&PARAM_FWBW_SCALED_MODE);
     fwbw.push_back(&PARAM_E);
     fwbw.push_back(&PARAM_MIN_SEQ_ID);
     fwbw.push_back(&PARAM_MIN_ALN_LEN);
@@ -1446,6 +1450,7 @@ Parameters::Parameters():
     proteomecluster.push_back(&PARAM_PROTEOME_SIMILARITY);
     proteomecluster.push_back(&PARAM_PROTEOME_RELATIVE_SIMILARITY);
     proteomecluster.push_back(&PARAM_PROTEOME_CASCADED_CLUSTERING);
+    proteomecluster.push_back(&PARAM_PROTEOME_SCORE_MODE);
     proteomecluster.push_back(&PARAM_INCLUDE_ALIGN_FILES);
     proteomecluster.push_back(&PARAM_REALIGN);
     proteomecluster.push_back(&PARAM_INCLUDE_IDENTITY);
@@ -1462,6 +1467,13 @@ Parameters::Parameters():
     parseproteomealignments.push_back(&PARAM_THREADS);
     parseproteomealignments.push_back(&PARAM_COMPRESSED);
     parseproteomealignments.push_back(&PARAM_V);
+
+    //mergeproteomeclusters
+    mergeproteomeclusters.push_back(&PARAM_PROTEOME_SIMILARITY);
+    mergeproteomeclusters.push_back(&PARAM_PROTEOME_RELATIVE_SIMILARITY);
+    mergeproteomeclusters.push_back(&PARAM_THREADS);
+    mergeproteomeclusters.push_back(&PARAM_COMPRESSED);
+    mergeproteomeclusters.push_back(&PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
@@ -1510,6 +1522,7 @@ Parameters::Parameters():
     // easyproteomesearch
     easyproteomesearchworkflow = combineList(searchworkflow, createdb);
     easyproteomesearchworkflow = combineList(searchworkflow, parseproteomealignments);
+    easyproteomesearchworkflow.push_back(&PARAM_PROTEOME_SCORE_MODE);
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
@@ -1560,6 +1573,7 @@ Parameters::Parameters():
     // easyproteomeclusterworkflow
     easyproteomeclusterworkflow = combineList(easyclusterworkflow, proteomecluster);
     easyproteomeclusterworkflow.push_back(&PARAM_CLUSTER_MODULE);
+    easyproteomeclusterworkflow.push_back(&PARAM_PROTEOME_REASSIGN);
 
     // taxonomy
     taxonomy.push_back(&PARAM_ORF_FILTER);
@@ -2902,6 +2916,7 @@ void Parameters::setDefaults() {
     temperature = 1;
     blocklen = 16;
     fwbwBacktraceMode = 1;
+    fwbwScaledMode = 1;
 
     // touchdb
     touchLock = false;
@@ -2917,6 +2932,8 @@ void Parameters::setDefaults() {
     proteomeCascadedClustering = 0;
     includeAlignFiles = false;
     proteomeIncludeAlignFiles = false;
+    proteomeScoreMode = 0;
+    proteomeReassign = false;
 
     // help
     help = 0;
