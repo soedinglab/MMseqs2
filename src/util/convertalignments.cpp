@@ -1080,7 +1080,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         // one file per thread at least, as before
         hooks.minFiles = localThreads;
         ParquetDBWriter::writeDbAsParquet(alnDbr, par.db4, par.parquetSortMode, localThreads,
-                                          ParquetDBWriter::writerOptionsFromParameters(par), false,
+                                          ParquetDBWriter::writerOptionsFromParameters(par), NULL,
                                           std::vector<ParquetDBWriter::ColumnSpec>(), hooks);
     } else {
 #pragma omp parallel num_threads(localThreads)

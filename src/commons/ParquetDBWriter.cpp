@@ -1500,7 +1500,7 @@ static void writeLookupParquet(DBReader<DBKeyType>& reader, const std::string& n
 }
 
 void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::string& output, const int sortMode,
-                                       const int threads, const WriterOptions& options, const bool withLookup,
+                                       const int threads, const WriterOptions& options, DBReader<DBKeyType>* lookupReader,
                                        const std::vector<ColumnSpec>& schemaColumns, const ConvertHooks& hooks){
     const size_t TARGET_FILE_BYTES = 2ULL * 1024 * 1024 * 1024;   // raw DB bytes per output file
     const size_t MIN_FILE_BYTES = 256ULL * 1024 * 1024;           // smallest file worth a separate worker
@@ -1540,10 +1540,10 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
     const char* modeName[] = {"auto", "linear", "keyorder", "spillsort"};
     Debug(Debug::INFO) << "Writing " << files << " parquet file(s) with " << workers << " worker(s), sort mode "
                        << modeName[mode] << "\n";
-    if (withLookup) {
+    if (lookupReader != NULL) {
         const std::string lookupName = lookupParquetName(output, files > 1);
         Debug(Debug::INFO) << "Writing lookup to " << lookupName << "\n";
-        writeLookupParquet(reader, lookupName, options);
+        writeLookupParquet(*lookupReader, lookupName, options);
     }
 
     // each output file is written by one worker; its writer only lives while the file is written

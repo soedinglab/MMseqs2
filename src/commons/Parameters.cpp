@@ -226,6 +226,7 @@ Parameters::Parameters():
         PARAM_PARQUET_COMPRESSION_LEVEL(PARAM_PARQUET_COMPRESSION_LEVEL_ID, "--parquet-compression-level", "Parquet compression level", "Compression level of the codec (zstd: 1-22, gzip: 1-9)", typeid(int), (void *) &parquetCompressionLevel, "^[0-9]{1,2}$"),
         PARAM_PARQUET_ROW_GROUP_SIZE(PARAM_PARQUET_ROW_GROUP_SIZE_ID, "--parquet-row-group-size", "Parquet row group size", "Uncompressed row group size, e.g. 64M, 128M, 1G", typeid(ByteParser), (void *) &parquetRowGroupSize, "^[1-9]{1}[0-9]*(B|K|M|G|T)?$"),
         PARAM_PARQUET_SCHEMA(PARAM_PARQUET_SCHEMA_ID, "--parquet-schema", "Parquet schema", "Columns as '{name:type, name:type, ...}', types: int8, uint8, int16, int32, int64, float, double, string.\nGeneric DBs (required): one row per tab separated line, columns in line order, prefixed by the entry key.\nOther DBs: write only the named columns of the DB layout (types as in the layout)", typeid(std::string), (void *) &parquetSchema, ""),
+        PARAM_LOOKUP_DB(PARAM_LOOKUP_DB_ID, "--lookup-db", "Lookup DB", "Lookup file (<name>.lookup) or DB name whose .lookup maps the keys of the input DB to accessions, if it is not <input DB>.lookup", typeid(std::string), (void *) &lookupDb, ""),
         // setextendeddbtype
         PARAM_EXTENDED_DBTYPE(PARAM_EXTENDED_DBTYPE_ID, "--extended-dbtype", "Extended dbtype", "Set extended dbtype 1: compressed, 2: need src, 4: context pseudoe cnts", typeid(int), (void *) &extendedDbtype, "^[0-4]{1}"),
         // splitsequence
@@ -942,6 +943,7 @@ Parameters::Parameters():
     convert2parquet.push_back(&PARAM_PARQUET_COMPRESSION_LEVEL);
     convert2parquet.push_back(&PARAM_PARQUET_ROW_GROUP_SIZE);
     convert2parquet.push_back(&PARAM_PARQUET_SCHEMA);
+    convert2parquet.push_back(&PARAM_LOOKUP_DB);
     convert2parquet.push_back(&PARAM_THREADS);
     convert2parquet.push_back(&PARAM_V);
 
@@ -2726,6 +2728,7 @@ void Parameters::setDefaults() {
     parquetCompressionLevel = 3;
     parquetRowGroupSize = 128 * 1024 * 1024;
     parquetSchema = "";
+    lookupDb = "";
 
     // result2flat
     useHeader = false;

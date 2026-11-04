@@ -628,6 +628,7 @@ public:
     int parquetCompressionLevel;
     size_t parquetRowGroupSize;
     std::string parquetSchema;
+    std::string lookupDb;
     int writeLookup;
 
     // result2flat
@@ -1032,6 +1033,7 @@ public:
     PARAMETER(PARAM_PARQUET_COMPRESSION_LEVEL)
     PARAMETER(PARAM_PARQUET_ROW_GROUP_SIZE)
     PARAMETER(PARAM_PARQUET_SCHEMA)
+    PARAMETER(PARAM_LOOKUP_DB)
 
     // setextendedbtype
     PARAMETER(PARAM_EXTENDED_DBTYPE)

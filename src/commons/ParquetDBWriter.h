@@ -109,11 +109,10 @@ public:
         ConvertHooks() : minFiles(0) {}
     };
     // convert a whole DB (reader opened with USE_INDEX|USE_DATA and SORT_BY_ID) into <output> when it
-    // results in one file, or <output>/part-NNNNN.parquet otherwise. withLookup (reader opened with
-    // USE_LOOKUP): the lookup (key, accession, file_number) is written next to it, see lookupParquetName.
-    // DBReader does not initialise its lookup pointer without USE_LOOKUP, so it has to be passed explicitly
+    // results in one file, or <output>/part-NNNNN.parquet otherwise. lookupReader (opened with USE_LOOKUP,
+    // NULL = none): its lookup (key, accession, file_number) is written next to it, see lookupParquetName
     static void writeDbAsParquet(DBReader<DBKeyType>& reader, const std::string& output, const int sortMode,
-                                 const int threads, const WriterOptions& options, const bool withLookup,
+                                 const int threads, const WriterOptions& options, DBReader<DBKeyType>* lookupReader,
                                  const std::vector<ColumnSpec>& schemaColumns = std::vector<ColumnSpec>(),
                                  const ConvertHooks& hooks = ConvertHooks());
     static bool isSupportedDbType(const int dbtype);
