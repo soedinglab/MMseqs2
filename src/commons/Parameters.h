@@ -726,13 +726,17 @@ public:
 
     // reclassify
     double reclassifyLambda;
-    double reclassifyAlpha;
-    double reclassifyAlphaTau;
-    double reclassifyCoveragePrior;
+    double reclassifyPriorMass;
     int reclassifyMaxIterations;
     double reclassifyTolerance;
+    int abundanceMinReads;
     int reclassifyTaxonomy;
-    double reclassifyMaxDropPercentage;
+    double abundanceLcaThreshold;
+
+    // em --ref-group / --target-groups / --mate-pair
+    int emRefGroup;
+    std::string emTargetGroups;
+    int emMatePair;
 
     // for modules that should handle -h themselves
     bool help;
@@ -1093,13 +1097,16 @@ public:
 
     // reclassify
     PARAMETER(PARAM_RECLASSIFY_LAMBDA)
-    PARAMETER(PARAM_RECLASSIFY_ALPHA)
-    PARAMETER(PARAM_RECLASSIFY_ALPHA_TAU)
-    PARAMETER(PARAM_RECLASSIFY_COV_PRIOR)
+    PARAMETER(PARAM_RECLASSIFY_PRIOR_MASS)
     PARAMETER(PARAM_RECLASSIFY_MAX_ITER)
     PARAMETER(PARAM_RECLASSIFY_TOL)
+    PARAMETER(PARAM_ABUNDANCE_MIN_READS)
     PARAMETER(PARAM_RECLASSIFY_TAXONOMY)
-    PARAMETER(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE)
+    PARAMETER(PARAM_ABUNDANCE_LCA_THRESHOLD)
+    // em / em-abundance: genomes and mate pairs
+    PARAMETER(PARAM_EM_REF_GROUP)
+    PARAMETER(PARAM_EM_TARGET_GROUPS)
+    PARAMETER(PARAM_EM_MATE_PAIR)
 
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)

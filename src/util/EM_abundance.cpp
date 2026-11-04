@@ -1,139 +1,288 @@
 #include "Parameters.h"
 #include "DBReader.h"
+#include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
 #include "Matcher.h"
 #include "FileUtil.h"
 #include "NcbiTaxonomy.h"
 #include "MappingReader.h"
+#include "FastSort.h"
 #include "EMCoverage.h"
+#include "EMTargetGroups.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <numeric>
+#include <limits>
+#include <sstream>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
 namespace {
-struct ReclassTaxEntry {
-    Matcher::result_t result;
-    double abundance;
-    double posterior;   // EM posterior gamma_qt (read from the reclassified alignment's column 3)
-};
 
-typedef std::unordered_map<unsigned int, std::vector<ReclassTaxEntry> > MappingTable;
+struct HitData {
+    // per query: the reads with >= 1 hit.  The filter rounds compact deleted reads away, so after
+    // filtering these are the surviving reads only.
+    std::vector<unsigned int> queryKey;
+    std::vector<size_t> queryOffset;          // queryCount + 1 entries
+
+    // per hit, hot
+    std::vector<unsigned int> hitTarget;      // dense index into targetKey
+    std::vector<double> hitPosterior;         // EM posterior gamma_qt, from alignment column 3
+
+    // per hit, cold: read by the coverage pass, which needs the CIGAR and the target span
+    std::vector<Matcher::result_t> hitResult;
+
+    // per target
+    std::vector<unsigned int> targetKey;      // sorted, unique
+    std::vector<unsigned int> targetLength;   // dbLen
+    std::vector<double> abundance;            // theta_t
+    std::vector<size_t> topHitReads;          // reads whose top hit (highest posterior) is the target
+    std::vector<double> expectedReads;        // sum of the posteriors on the target
+    std::vector<char> dropped;                // removed by --min-reads
+    std::vector<int> droppedRound;            // filter round that removed it (0 = kept)
+
+    size_t queryCount() const { return queryOffset.empty() ? 0 : (queryOffset.size() - 1); }
+    size_t hitCount() const { return hitTarget.size(); }
+    size_t targetCount() const { return targetKey.size(); }
+};
 
 struct TargetStats {
     unsigned int key;
     unsigned int targetLength;
     double abundance;
+    size_t topHitReads;
+    double expectedReads;
     bool dropped;
+    int droppedRound;
     // Posterior-weighted coverage, using the EM assignment probabilities gamma_qt.
     //   coverageDepth     = mean expected read depth over the target = (1/L) * sum_p depth_p
     //   coveredLength     = expected number of covered residues = sum_p [1 - prod_hits(1 - gamma)]
     //   breadth           = coveredLength / L  (derived at write time)
     //   coverageEvenness  = how uniformly that depth is spread over the target (EMCoverage::evenness)
-    //
-    // breadth and evenness answer different questions and neither replaces the other. breadth
-    // saturates: 1 - prod(1 - gamma) -> 1 as soon as enough reads touch a position, so with
-    // --max-seqs 300 on a deep sample even a spurious target reaches breadth ~= 1 and the column
-    // stops discriminating. Evenness stays informative there, because it drops when the coverage
-    // piles up on a small part of the target instead of spreading over it.
     double coverageDepth;
     double coveredLength;
     double coverageEvenness;
 };
 
-// No queryOrder / hasOrfPosition here: unlike `reclassify`, `abundance` writes no alignment DB,
-// so nothing ever read them. The counters below are diagnostics only -- they are what tells you
-// which coverage path actually ran (see reportInputDiagnostics).
+
 struct ReclassTaxContext {
-    MappingTable mappingTable;
-    std::unordered_set<unsigned int> targetSet;
-    size_t queryCount;
-    size_t hitCount;
+    HitData hits;
+    size_t hitCount;            // hits loaded from the input (before filtering)
     size_t backtraceHitCount;   // hits whose coverage came from the CIGAR
     size_t reverseStrandHits;   // hits with dbStartPos > dbEndPos (reverse-strand target)
+    bool hasBacktrace;          // input records carry a backtrace column
+    bool hasOrfPosition;        // input records carry the ORF position columns
+    std::vector<unsigned int> emptyQueryKey;    // queries of the input DB without any hit
+    std::vector<unsigned int> deletedQueryKey;  // reads deleted by the filter (their top hit was removed)
 
-    ReclassTaxContext() : queryCount(0), hitCount(0), backtraceHitCount(0), reverseStrandHits(0) {}
+    ReclassTaxContext() : hitCount(0), backtraceHitCount(0), reverseStrandHits(0), hasBacktrace(false),
+                          hasOrfPosition(false) {}
 };
-
-static const double EPS = 1e-12;
-static const size_t MIN_FILTER_TARGETS = 20;
-static const size_t MIN_TAIL_TARGETS = 2;
 
 static double clamp01(double value);
 
-static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &ctx) {
-    Debug::Progress progress(reader.getSize());
-    const char *entry[255];
+static const size_t SCALAR_REDUCTION_BLOCKS = 64;
 
+static int usableThreads(int threads) {
+#ifdef OPENMP
+    return std::max(1, threads);
+#else
+    (void)threads;
+    return 1;
+#endif
+}
+
+
+struct TargetHitIndex {
+    std::vector<size_t> offset;
+    std::vector<unsigned int> hit;
+};
+
+static TargetHitIndex groupHitsByTarget(const HitData &hits) {
+    const size_t targetCount = hits.targetCount();
+    const size_t hitCount = hits.hitCount();
+    if (hitCount > static_cast<size_t>(std::numeric_limits<unsigned int>::max())) {
+        Debug(Debug::ERROR) << "Cannot index " << hitCount
+                            << " hits for the coverage pass; split the alignment DB.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    TargetHitIndex byTarget;
+    byTarget.offset.assign(targetCount + 1, 0);
+    for (size_t h = 0; h < hitCount; ++h) {
+        ++byTarget.offset[hits.hitTarget[h] + 1];
+    }
+    for (size_t t = 0; t < targetCount; ++t) {
+        byTarget.offset[t + 1] += byTarget.offset[t];
+    }
+    byTarget.hit.assign(hitCount, 0);
+    std::vector<size_t> cursor(byTarget.offset.begin(), byTarget.offset.end() - 1);
+    for (size_t h = 0; h < hitCount; ++h) {
+        byTarget.hit[cursor[hits.hitTarget[h]]++] = static_cast<unsigned int>(h);
+    }
+    return byTarget;
+}
+
+static size_t countRecords(const char *data) {
+    size_t records = 0;
+    char *cursor = const_cast<char *>(data);
+    while (*cursor != '\0') {
+        ++records;
+        cursor = Util::skipLine(cursor);
+    }
+    return records;
+}
+
+static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &ctx, int threads) {
+    HitData &hits = ctx.hits;
+    const int nThreads = usableThreads(threads);
+
+    std::vector<size_t> entryIds;
+    entryIds.reserve(reader.getSize());
     for (size_t i = 0; i < reader.getSize(); ++i) {
-        progress.updateProgress();
-        const unsigned int queryKey = reader.getDbKey(i);
-        char *data = reader.getData(i, 0);
-
         if (reader.getEntryLen(i) <= 1) {
+            ctx.emptyQueryKey.push_back(reader.getDbKey(i));
             continue;
         }
+        entryIds.push_back(i);
+    }
+    std::vector<size_t> recordsPerQuery(entryIds.size(), 0);
 
-        std::vector<ReclassTaxEntry> &records = ctx.mappingTable[queryKey];
-        while (*data != '\0') {
-            const size_t columns = Util::getWordsOfLine(data, entry, 255);
-            if (columns < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
-                Debug(Debug::ERROR) << "Invalid alignment result record in query " << queryKey << ".\n";
-                EXIT(EXIT_FAILURE);
-            }
-
-            Matcher::result_t result = Matcher::parseAlignmentRecord(data, true);
-
-            // Always use the 3rd alignment column (seqId) as posterior.
-            // Do not consume optional trailing columns as posterior.
-            // `mmseqs reclassify` writes that column with resultToBuffer(..., highPrecisionSeqId=true),
-            // and parseAlignmentRecord reads it through fast_float, so the full float range arrives
-            // intact. Clamp anyway: result_t::seqId is a float, so a round-tripped 1.0 can come back
-            // as 1.0000001, and accumulateBacktrace/accumulateSpan would then multiply by a negative
-            // (1 - gamma) and report a covered length above the target length.
-            double posterior = clamp01(static_cast<double>(result.seqId));
-
-            ++ctx.hitCount;
-            if (result.backtrace.empty() == false) {
-                ++ctx.backtraceHitCount;
-            }
-            if (result.dbStartPos > result.dbEndPos) {
-                ++ctx.reverseStrandHits;
-            }
-
-            records.push_back(ReclassTaxEntry{result, 0.0, posterior});
-            ctx.targetSet.insert(result.dbKey);
-            data = Util::skipLine(data);
+    Debug::Progress countProgress(entryIds.size());
+#pragma omp parallel num_threads(nThreads)
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+#pragma omp for schedule(dynamic, 64)
+        for (size_t q = 0; q < entryIds.size(); ++q) {
+            countProgress.updateProgress();
+            recordsPerQuery[q] = countRecords(reader.getData(entryIds[q], thread_idx));
         }
     }
 
-    ctx.queryCount = ctx.mappingTable.size();
+    hits.queryKey.resize(entryIds.size());
+    hits.queryOffset.resize(entryIds.size() + 1, 0);
+    for (size_t q = 0; q < entryIds.size(); ++q) {
+        hits.queryKey[q] = reader.getDbKey(entryIds[q]);
+        hits.queryOffset[q + 1] = hits.queryOffset[q] + recordsPerQuery[q];
+    }
+    const size_t hitCount = hits.queryOffset.back();
+    hits.hitTarget.resize(hitCount);
+    hits.hitPosterior.resize(hitCount);
+    hits.hitResult.resize(hitCount);
+
+    std::vector<size_t> backtraceHits(nThreads, 0);
+    std::vector<size_t> reverseHits(nThreads, 0);
+    std::vector<char> sawBacktrace(nThreads, 0);
+    std::vector<char> sawOrfPosition(nThreads, 0);
+    // dbKey -> dbLen over every target seen. The key set is the target set.
+    std::vector<std::unordered_map<unsigned int, unsigned int> > targetLengthByThread(nThreads);
+
+    Debug::Progress progress(entryIds.size());
+#pragma omp parallel num_threads(nThreads)
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        const char *entry[255];
+        std::unordered_map<unsigned int, unsigned int> &targetLength = targetLengthByThread[thread_idx];
+
+#pragma omp for schedule(dynamic, 64)
+        for (size_t q = 0; q < entryIds.size(); ++q) {
+            progress.updateProgress();
+            char *data = reader.getData(entryIds[q], thread_idx);
+            size_t h = hits.queryOffset[q];
+            while (*data != '\0') {
+                const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                if (columns < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                    Debug(Debug::ERROR) << "Invalid alignment result record in query "
+                                        << reader.getDbKey(entryIds[q]) << ".\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT
+                    || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
+                    sawBacktrace[thread_idx] = 1;
+                }
+                if (columns == Matcher::ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT
+                    || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
+                    sawOrfPosition[thread_idx] = 1;
+                }
+
+                Matcher::result_t result = Matcher::parseAlignmentRecord(data, true);
+
+                // Always use the 3rd alignment column (seqId) as posterior.
+                // `mmseqs em` writes that column with resultToBuffer(..., highPrecisionSeqId=true),
+                hits.hitPosterior[h] = clamp01(static_cast<double>(result.seqId));
+                hits.hitTarget[h] = result.dbKey;  // raw dbKey until the remap below
+                targetLength[result.dbKey] = result.dbLen;
+
+                if (result.backtrace.empty() == false) {
+                    ++backtraceHits[thread_idx];
+                }
+                if (result.dbStartPos > result.dbEndPos) {
+                    ++reverseHits[thread_idx];
+                }
+
+                hits.hitResult[h] = std::move(result);
+                ++h;
+                data = Util::skipLine(data);
+            }
+        }
+    }
+
+    ctx.hitCount = hitCount;
+    for (int t = 0; t < nThreads; ++t) {
+        ctx.backtraceHitCount += backtraceHits[t];
+        ctx.reverseStrandHits += reverseHits[t];
+        ctx.hasBacktrace = ctx.hasBacktrace || (sawBacktrace[t] != 0);
+        ctx.hasOrfPosition = ctx.hasOrfPosition || (sawOrfPosition[t] != 0);
+    }
+
+    std::unordered_map<unsigned int, unsigned int> targetLengthByKey;
+    for (int t = 0; t < nThreads; ++t) {
+        targetLengthByKey.insert(targetLengthByThread[t].begin(), targetLengthByThread[t].end());
+        std::unordered_map<unsigned int, unsigned int>().swap(targetLengthByThread[t]);
+    }
+
+
+    hits.targetKey.reserve(targetLengthByKey.size());
+    for (std::unordered_map<unsigned int, unsigned int>::const_iterator it = targetLengthByKey.begin();
+         it != targetLengthByKey.end(); ++it) {
+        hits.targetKey.push_back(it->first);
+    }
+    SORT_SERIAL(hits.targetKey.begin(), hits.targetKey.end());
+    hits.targetLength.resize(hits.targetKey.size());
+    for (size_t t = 0; t < hits.targetKey.size(); ++t) {
+        hits.targetLength[t] = targetLengthByKey[hits.targetKey[t]];
+    }
+    const size_t targetCount = hits.targetKey.size();
+    hits.abundance.assign(targetCount, 0.0);
+    hits.topHitReads.assign(targetCount, 0);
+    hits.expectedReads.assign(targetCount, 0.0);
+    hits.dropped.assign(targetCount, 0);
+    hits.droppedRound.assign(targetCount, 0);
+
+#pragma omp parallel for schedule(static) num_threads(nThreads)
+    for (size_t h = 0; h < hitCount; ++h) {
+        const std::vector<unsigned int>::const_iterator found =
+                std::lower_bound(hits.targetKey.begin(), hits.targetKey.end(), hits.hitTarget[h]);
+        hits.hitTarget[h] = static_cast<unsigned int>(found - hits.targetKey.begin());
+    }
 }
 
-// `abundance` trusts alignment column 3 to hold the EM posterior gamma_qt that `reclassify` wrote
-// there. Nothing in the file format distinguishes that from an ordinary sequence identity, so an
-// alignment DB that never went through `reclassify` produces a plausible-looking but meaningless
-// abundance table. The one invariant that separates the two is that EM posteriors sum to 1 over
-// each query's hits (computePosterior() normalises by construction, and denom > 0 always holds
-// because phi >= exp(-60) and pi >= 1e-8), whereas sequence identities do not.
-//
-// Also report which coverage path the hits will take: without a backtrace the coverage falls back
-// to the whole aligned span, which ignores indels and over-counts by the gap length. That happens
-// silently when the upstream search ran without -a.
+
 static const char *WARNING_RULE =
         "========================================================================\n";
 
-// Both conditions below mean the numbers `abundance` is about to print are wrong, not merely
-// imprecise, so they get a banner rather than a line that scrolls past in the middle of the
-// progress output.
+
 static void warningBanner(const std::string &headline, const std::string &detail) {
     Debug(Debug::WARNING) << "\n" << WARNING_RULE
                           << "  WARNING: " << headline << "\n"
@@ -142,6 +291,7 @@ static void warningBanner(const std::string &headline, const std::string &detail
 }
 
 static void reportInputDiagnostics(const ReclassTaxContext &ctx) {
+    const HitData &hits = ctx.hits;
     Debug(Debug::INFO) << ctx.hitCount << " hits; coverage source: "
                        << ctx.backtraceHitCount << " from backtrace, "
                        << (ctx.hitCount - ctx.backtraceHitCount) << " from aligned span";
@@ -160,16 +310,17 @@ static void reportInputDiagnostics(const ReclassTaxContext &ctx) {
                       "           length, so coverage_depth and breadth_of_coverage are too high.\n");
     }
 
-    if (ctx.queryCount == 0) {
+    const size_t queryCount = hits.queryCount();
+    if (queryCount == 0) {
         return;
     }
     double deviationSum = 0.0;
     double maxDeviation = 0.0;
     size_t offQueries = 0;
-    for (MappingTable::const_iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end(); ++it) {
+    for (size_t q = 0; q < queryCount; ++q) {
         double posteriorSum = 0.0;
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            posteriorSum += it->second[j].posterior;
+        for (size_t h = hits.queryOffset[q]; h < hits.queryOffset[q + 1]; ++h) {
+            posteriorSum += hits.hitPosterior[h];
         }
         const double deviation = std::fabs(posteriorSum - 1.0);
         deviationSum += deviation;
@@ -178,115 +329,237 @@ static void reportInputDiagnostics(const ReclassTaxContext &ctx) {
             ++offQueries;
         }
     }
-    const double meanDeviation = deviationSum / static_cast<double>(ctx.queryCount);
+    const double meanDeviation = deviationSum / static_cast<double>(queryCount);
     Debug(Debug::INFO) << "Posterior check: mean |sum(gamma) - 1| = " << meanDeviation
                        << ", max = " << maxDeviation << ", "
-                       << offQueries << "/" << ctx.queryCount << " queries off by > 1e-3.\n";
+                       << offQueries << "/" << queryCount << " queries off by > 1e-3.\n";
     if (meanDeviation > 0.01) {
-        warningBanner("You should run 'mmseqs reclassify' first.",
+        warningBanner("You should run 'mmseqs em' first.",
                       "\n"
                       "           Alignment column 3 does not sum to 1 per query, so it does not\n"
                       "           hold EM posteriors -- it still holds sequence identities.\n"
                       "           mean |sum(gamma) - 1| = " + SSTR(meanDeviation)
-                      + " over " + SSTR(ctx.queryCount) + " queries.\n"
+                      + " over " + SSTR(queryCount) + " queries.\n"
                       "\n"
                       "           Every number below is meaningless until this DB has been\n"
-                      "           through 'mmseqs reclassify'.\n");
+                      "           through 'mmseqs em'.\n");
     }
 }
 
-static void computeAbundanceFromPosterior(MappingTable &mappingTable,
-                                          const std::unordered_set<unsigned int> &targetSet,
-                                          size_t queryCount) {
-    std::unordered_map<unsigned int, double> abundance;
-    abundance.reserve(targetSet.size());
-    for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
-        abundance[*it] = 0.0;
-    }
 
-    for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            abundance[it->second[j].result.dbKey] += it->second[j].posterior;
+// ------------------------------------------------------------------ target filter
+// The top hit of a read: highest posterior, then highest score, then Matcher::compareHits.
+static size_t topHitOf(const HitData &hits, size_t q) {
+    const size_t begin = hits.queryOffset[q];
+    const size_t end = hits.queryOffset[q + 1];
+    size_t best = begin;
+    for (size_t h = begin + 1; h < end; ++h) {
+        if (hits.hitPosterior[h] > hits.hitPosterior[best]) {
+            best = h;
+        } else if (hits.hitPosterior[h] == hits.hitPosterior[best]) {
+            if (hits.hitResult[h].score > hits.hitResult[best].score) {
+                best = h;
+            } else if (hits.hitResult[h].score == hits.hitResult[best].score
+                       && Matcher::compareHits(hits.hitResult[h], hits.hitResult[best])) {
+                best = h;
+            }
         }
     }
-
-    if (queryCount > 0) {
-        const double denom = static_cast<double>(queryCount);
-        for (std::unordered_map<unsigned int, double>::iterator it = abundance.begin(); it != abundance.end(); ++it) {
-            it->second /= denom;
-        }
-    }
-
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            it->second[j].abundance = abundance[it->second[j].result.dbKey];
-        }
-    }
+    return best;
 }
 
-static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx, int threads) {
+// Per target: the number of reads whose top hit it is, and the expected read count (sum of gamma).
+static void computeSupport(HitData &hits, std::vector<size_t> &top, int threads) {
     (void)threads;
-    // Group the hits by target and record the per-target metadata in one pass. We keep a pointer to
-    // the whole entry (not just result) because the coverage weighting needs its posterior.
-    std::unordered_map<unsigned int, TargetStats> statsByTarget;
-    std::unordered_map<unsigned int, std::vector<const ReclassTaxEntry *> > hitsByTarget;
-
-    for (MappingTable::const_iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const ReclassTaxEntry &entry = it->second[j];
-            TargetStats &stats = statsByTarget[entry.result.dbKey];
-            stats.key = entry.result.dbKey;
-            stats.targetLength = entry.result.dbLen;
-            stats.abundance = entry.abundance;
-            stats.dropped = false;
-            stats.coverageDepth = 0.0;
-            stats.coveredLength = 0.0;
-            stats.coverageEvenness = 0.0;
-            hitsByTarget[entry.result.dbKey].push_back(&entry);
+    const size_t queryCount = hits.queryCount();
+    const size_t targetCount = hits.targetCount();
+    top.resize(queryCount);
+#pragma omp parallel for schedule(static) num_threads(usableThreads(threads))
+    for (size_t q = 0; q < queryCount; ++q) {
+        top[q] = topHitOf(hits, q);
+    }
+    hits.topHitReads.assign(targetCount, 0);
+    hits.expectedReads.assign(targetCount, 0.0);
+    for (size_t q = 0; q < queryCount; ++q) {
+        hits.topHitReads[hits.hitTarget[top[q]]] += 1;
+        for (size_t h = hits.queryOffset[q]; h < hits.queryOffset[q + 1]; ++h) {
+            hits.expectedReads[hits.hitTarget[h]] += hits.hitPosterior[h];
         }
     }
+}
 
-    std::vector<TargetStats> out;
-    out.reserve(statsByTarget.size());
-    for (std::unordered_map<unsigned int, TargetStats>::const_iterator it = statsByTarget.begin(); it != statsByTarget.end(); ++it) {
-        out.push_back(it->second);
+// --min-reads.  A target that is the top hit of fewer than minReads reads is removed together with
+// those reads (deleted, never re-assigned to their second-best target); the hits of the surviving
+// reads on removed targets are dropped and their posteriors renormalised.  Removing reads changes
+// the support of the other targets (their secondary mass is gone and the read pool shrank), so the
+// pass is repeated until every remaining target is the top hit of at least minReads reads.
+static void filterTargets(ReclassTaxContext &ctx, int minReads, int threads) {
+    HitData &hits = ctx.hits;
+    const size_t targetCount = hits.targetCount();
+    const size_t initialQueries = hits.queryCount();
+    const size_t initialHits = hits.hitCount();
+    std::vector<size_t> top;
+    std::vector<size_t> savedTop(targetCount, 0);      // support of a removed target at removal time
+    std::vector<double> savedExp(targetCount, 0.0);
+    size_t removedTargets = 0;
+    int round = 0;
+    const int maxRounds = 1000;
+    while (true) {
+        computeSupport(hits, top, threads);
+        const size_t queryCount = hits.queryCount();
+        std::vector<char> dropNow(targetCount, 0);
+        size_t byReads = 0;
+        for (size_t t = 0; t < targetCount; ++t) {
+            if (hits.dropped[t] || minReads <= 0) {
+                continue;
+            }
+            if (hits.topHitReads[t] < static_cast<size_t>(minReads)) {
+                dropNow[t] = 1;
+                hits.dropped[t] = 1;
+                hits.droppedRound[t] = round + 1;
+                savedTop[t] = hits.topHitReads[t];
+                savedExp[t] = hits.expectedReads[t];
+                ++byReads;
+            }
+        }
+        if (byReads == 0 || round >= maxRounds) {
+            break;
+        }
+        ++round;
+        removedTargets += byReads;
+
+        // in-place compaction: reads whose top hit was removed go, hits on removed targets go
+        size_t writeHit = 0;
+        size_t writeQuery = 0;
+        size_t deletedReads = 0;
+        std::vector<size_t> newOffset;
+        newOffset.reserve(queryCount + 1);
+        newOffset.push_back(0);
+        for (size_t q = 0; q < queryCount; ++q) {
+            const size_t begin = hits.queryOffset[q];
+            const size_t end = hits.queryOffset[q + 1];
+            if (dropNow[hits.hitTarget[top[q]]]) {
+                ctx.deletedQueryKey.push_back(hits.queryKey[q]);
+                ++deletedReads;
+                continue;
+            }
+            const size_t first = writeHit;
+            double mass = 0.0;
+            for (size_t h = begin; h < end; ++h) {
+                if (hits.dropped[hits.hitTarget[h]]) {
+                    continue;
+                }
+                if (writeHit != h) {
+                    hits.hitTarget[writeHit] = hits.hitTarget[h];
+                    hits.hitPosterior[writeHit] = hits.hitPosterior[h];
+                    hits.hitResult[writeHit] = std::move(hits.hitResult[h]);
+                }
+                mass += hits.hitPosterior[writeHit];
+                ++writeHit;
+            }
+            if (mass > 0.0) {
+                for (size_t h = first; h < writeHit; ++h) {
+                    hits.hitPosterior[h] /= mass;
+                }
+            }
+            hits.queryKey[writeQuery] = hits.queryKey[q];
+            ++writeQuery;
+            newOffset.push_back(writeHit);
+        }
+        hits.queryKey.resize(writeQuery);
+        hits.queryOffset.swap(newOffset);
+        hits.hitTarget.resize(writeHit);
+        hits.hitPosterior.resize(writeHit);
+        hits.hitResult.resize(writeHit);
+
+        Debug(Debug::INFO) << "Filter round " << round << ": removed " << byReads
+                           << " targets with < " << minReads << " top-hit reads and the "
+                           << deletedReads << " reads whose top hit they were; "
+                           << hits.queryCount() << " reads and " << hits.hitCount() << " hits remain.\n";
     }
+    if (round >= maxRounds) {
+        Debug(Debug::WARNING) << "Target filter stopped after " << maxRounds << " rounds.\n";
+    }
+    for (size_t t = 0; t < targetCount; ++t) {
+        if (hits.dropped[t]) {
+            hits.topHitReads[t] = savedTop[t];
+            hits.expectedReads[t] = savedExp[t];
+        }
+    }
+    const size_t keptTargets = targetCount - removedTargets;
+    Debug(Debug::INFO) << "--min-reads " << minReads << ": " << removedTargets << " of " << targetCount
+                       << " targets removed in " << round << " round(s), " << keptTargets << " kept; "
+                       << ctx.deletedQueryKey.size() << " of " << initialQueries << " reads deleted, "
+                       << (initialHits - hits.hitCount()) << " of " << initialHits << " hits dropped.\n";
+    if (keptTargets == 0 && targetCount > 0) {
+        warningBanner("The filter removed every target.",
+                      "           --min-reads " + SSTR(minReads) + " is above the top-hit read count of\n"
+                      "           every target, so nothing is left to report.\n");
+    }
+}
+
+
+static void computeAbundanceFromPosterior(HitData &hits, const TargetHitIndex &byTarget, int threads) {
+    (void)threads;  // only read by the num_threads() clause, which vanishes without OPENMP
+    const size_t targetCount = hits.targetCount();
+    const size_t queryCount = hits.queryCount();
+    const double denom = (queryCount > 0) ? static_cast<double>(queryCount) : 1.0;
+    hits.abundance.assign(targetCount, 0.0);
+
+#pragma omp parallel for schedule(dynamic, 256) num_threads(usableThreads(threads))
+    for (size_t t = 0; t < targetCount; ++t) {
+        double mass = 0.0;
+        for (size_t g = byTarget.offset[t]; g < byTarget.offset[t + 1]; ++g) {
+            mass += hits.hitPosterior[byTarget.hit[g]];
+        }
+        hits.abundance[t] = mass / denom;
+    }
+}
+
+static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx,
+                                                   const TargetHitIndex &byTarget,
+                                                   int threads) {
+    const HitData &hits = ctx.hits;
+    const size_t targetCount = hits.targetCount();
+    const int nThreads = usableThreads(threads);
+    (void)nThreads;
 
     // Posterior-weighted coverage per target, on a map sized to the target length. Every position is
     // confined to [0, targetLength), so coveredLength <= targetLength by construction (no clamping).
-    Debug::Progress covProgress(out.size());
-#pragma omp parallel for num_threads(threads) schedule(dynamic, 1)
-    for (size_t i = 0; i < out.size(); ++i) {
+    std::vector<TargetStats> out(targetCount);
+    Debug::Progress covProgress(targetCount);
+#pragma omp parallel for num_threads(nThreads) schedule(dynamic, 1)
+    for (size_t t = 0; t < targetCount; ++t) {
         covProgress.updateProgress();
-        TargetStats &stats = out[i];
-        if (stats.targetLength == 0) {
-            stats.coverageDepth = 0.0;
-            stats.coveredLength = 0.0;
-            stats.coverageEvenness = 0.0;
+        TargetStats &stats = out[t];
+        stats.key = hits.targetKey[t];
+        stats.targetLength = hits.targetLength[t];
+        stats.abundance = hits.abundance[t];
+        stats.topHitReads = hits.topHitReads[t];
+        stats.expectedReads = hits.expectedReads[t];
+        stats.dropped = (hits.dropped[t] != 0);
+        stats.droppedRound = hits.droppedRound[t];
+        stats.coverageDepth = 0.0;
+        stats.coveredLength = 0.0;
+        stats.coverageEvenness = 0.0;
+        if (stats.targetLength == 0 || stats.dropped) {
             continue;
         }
         // notCov[p] = prod over hits covering p of (1 - gamma); starts at 1 (uncovered).
         // depth[p]  = sum over hits covering p of gamma; the expected read depth at p.
         std::vector<double> notCov(stats.targetLength, 1.0);
         std::vector<double> depth(stats.targetLength, 0.0);
-        // find() rather than operator[]: this runs inside a parallel region, and operator[] is a
-        // non-const member, so calling it concurrently is a data race even when every key already
-        // exists and no rehash can happen. Same reason EM_reclassify.cpp uses find() here.
-        std::unordered_map<unsigned int, std::vector<const ReclassTaxEntry *> >::const_iterator hitIt =
-                hitsByTarget.find(stats.key);
-        if (hitIt != hitsByTarget.end()) {
-            const std::vector<const ReclassTaxEntry *> &hits = hitIt->second;
-            for (size_t h = 0; h < hits.size(); ++h) {
-                const ReclassTaxEntry *entry = hits[h];
-                if (entry->result.backtrace.empty() == false) {
-                    EMCoverage::paintBacktrace(notCov, depth, entry->result.backtrace,
-                                               entry->result.dbStartPos, entry->result.dbEndPos,
-                                               entry->posterior);
-                } else {
-                    EMCoverage::paintSpan(notCov, depth,
-                                          entry->result.dbStartPos, entry->result.dbEndPos,
-                                          entry->posterior);
-                }
+        for (size_t g = byTarget.offset[t]; g < byTarget.offset[t + 1]; ++g) {
+            const size_t h = byTarget.hit[g];
+            const Matcher::result_t &result = hits.hitResult[h];
+            if (result.backtrace.empty() == false) {
+                EMCoverage::paintBacktrace(notCov, depth, result.backtrace,
+                                           result.dbStartPos, result.dbEndPos,
+                                           hits.hitPosterior[h]);
+            } else {
+                EMCoverage::paintSpan(notCov, depth,
+                                      result.dbStartPos, result.dbEndPos,
+                                      hits.hitPosterior[h]);
             }
         }
         stats.coveredLength = EMCoverage::expectedCoveredLength(notCov);
@@ -294,9 +567,16 @@ static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx,
         stats.coverageEvenness = EMCoverage::evenness(depth);
     }
 
+    // kept targets by abundance, then the removed ones by their support at removal time
     std::sort(out.begin(), out.end(), [](const TargetStats &lhs, const TargetStats &rhs) {
+        if (lhs.dropped != rhs.dropped) {
+            return lhs.dropped < rhs.dropped;
+        }
         if (lhs.abundance != rhs.abundance) {
             return lhs.abundance > rhs.abundance;
+        }
+        if (lhs.topHitReads != rhs.topHitReads) {
+            return lhs.topHitReads > rhs.topHitReads;
         }
         return lhs.key < rhs.key;
     });
@@ -307,140 +587,20 @@ static double clamp01(double value) {
     return std::max(0.0, std::min(1.0, value));
 }
 
-// `--drop P` means exactly "drop the lowest-abundance targets that together hold at most P% of the
-// abundance mass" -- nothing else. The cut point is the user's percentage and only that.
-//
-// A largest-gap heuristic used to run first and pick the cut wherever the sorted abundances showed
-// their biggest jump (within the same mass budget). It was removed on request: it made the number
-// of dropped targets a non-monotone, data-dependent function of P that the user could neither
-// predict nor control, and the gap it keyed on is meaningless for an exponential-looking abundance
-// distribution, where the largest absolute gap sits at the top of the allowed range regardless of
-// whether anything there is spurious.
-static bool tailQuantileCutoff(std::vector<double> values,
-                               double maxTailFraction,
-                               size_t &tailCount) {
-    tailCount = 0;
-    if (values.size() < MIN_FILTER_TARGETS) {
-        return false;
-    }
-
-    std::sort(values.begin(), values.end());
-    maxTailFraction = clamp01(maxTailFraction);
-    const double totalMass = std::accumulate(values.begin(), values.end(), 0.0);
-    if (totalMass <= EPS || maxTailFraction <= 0.0) {
-        return false;
-    }
-    const double maxTailMass = maxTailFraction * totalMass;
-
-    double accumulatedMass = 0.0;
-    size_t maxTailCount = 0;
-    for (size_t i = 0; i < values.size(); ++i) {
-        const double candidate = accumulatedMass + values[i];
-        if (candidate > (maxTailMass + EPS)) {
-            break;
-        }
-        accumulatedMass = candidate;
-        ++maxTailCount;
-    }
-    if (maxTailCount < MIN_TAIL_TARGETS || maxTailCount >= values.size()) {
-        return false;
-    }
-
-    tailCount = maxTailCount;
-    return true;
-}
-
-static std::unordered_set<unsigned int> selectTailTargets(const std::vector<TargetStats> &stats,
-                                                          bool useLowTail,
-                                                          size_t tailCount,
-                                                          double maxTailFraction) {
-    std::vector<const TargetStats *> ordered;
-    ordered.reserve(stats.size());
-    for (size_t i = 0; i < stats.size(); ++i) {
-        ordered.push_back(&stats[i]);
-    }
-
-    // Dropping ranks by abundance only (low tail); the function is never called on any other key.
-    std::sort(ordered.begin(), ordered.end(), [useLowTail](const TargetStats *lhs, const TargetStats *rhs) {
-        const double lhsValue = lhs->abundance;
-        const double rhsValue = rhs->abundance;
-        if (lhsValue != rhsValue) {
-            return useLowTail ? (lhsValue < rhsValue) : (lhsValue > rhsValue);
-        }
-        return lhs->key < rhs->key;
-    });
-
-    double totalMass = 0.0;
-    for (size_t i = 0; i < ordered.size(); ++i) {
-        totalMass += ordered[i]->abundance;
-    }
-    const double maxTailMass = clamp01(maxTailFraction) * totalMass;
-
-    std::unordered_set<unsigned int> selected;
-    const size_t limit = std::min(tailCount, ordered.size());
-    double selectedMass = 0.0;
-    selected.reserve(limit);
-    for (size_t i = 0; i < limit; ++i) {
-        const double value = ordered[i]->abundance;
-        if (selected.size() >= MIN_TAIL_TARGETS && (selectedMass + value) > (maxTailMass + EPS)) {
-            break;
-        }
-        selectedMass += value;
-        selected.insert(ordered[i]->key);
-    }
-    return selected;
-}
-
-static std::unordered_set<unsigned int> selectDroppedTargets(const std::vector<TargetStats> &stats,
-                                                             double maxDropPercentage) {
-    std::unordered_set<unsigned int> dropped;
-    if (stats.empty() || stats.size() < MIN_FILTER_TARGETS) {
-        return dropped;
-    }
-
-    std::vector<double> abundances;
-    abundances.reserve(stats.size());
-    for (size_t i = 0; i < stats.size(); ++i) {
-        abundances.push_back(stats[i].abundance);
-    }
-
-    const double maxTailFraction = clamp01(maxDropPercentage / 100.0);
-    size_t abundanceTailCount = 0;
-    if (tailQuantileCutoff(abundances, maxTailFraction, abundanceTailCount) == false) {
-        return dropped;
-    }
-
-    const std::unordered_set<unsigned int> lowAbundanceTargets = selectTailTargets(stats, true, abundanceTailCount, maxTailFraction);
-    for (std::unordered_set<unsigned int>::const_iterator it = lowAbundanceTargets.begin(); it != lowAbundanceTargets.end(); ++it) {
-        dropped.insert(*it);
-    }
-    if (dropped.size() == stats.size()) {
-        dropped.clear();
-    }
-    return dropped;
-}
-
-static void markDroppedTargets(std::vector<TargetStats> &stats, const std::unordered_set<unsigned int> &dropped) {
-    for (size_t i = 0; i < stats.size(); ++i) {
-        stats[i].dropped = (dropped.find(stats[i].key) != dropped.end());
-    }
-}
-
 static void convertAbundanceToPercent(std::vector<TargetStats> &stats) {
     double total = 0.0;
     for (size_t i = 0; i < stats.size(); ++i) {
-        total += stats[i].abundance;
-    }
-
-    if (total <= 0.0) {
-        for (size_t i = 0; i < stats.size(); ++i) {
-            stats[i].abundance = 0.0;
+        if (stats[i].dropped == false) {
+            total += stats[i].abundance;
         }
-        return;
     }
 
     for (size_t i = 0; i < stats.size(); ++i) {
-        stats[i].abundance = 100.0 * (stats[i].abundance / total);
+        if (stats[i].dropped || total <= 0.0) {
+            stats[i].abundance = 0.0;
+        } else {
+            stats[i].abundance = 100.0 * (stats[i].abundance / total);
+        }
     }
 }
 
@@ -461,30 +621,36 @@ static std::string identifierForKey(DBReader<unsigned int> &headerReader, unsign
     return parsed.empty() ? SSTR(key) : parsed;
 }
 
+// abundance_pct of the kept targets sums to 100 over the surviving reads.  A removed target is
+// listed with Drop=y, abundance_pct 0 and the support (reads_top_hit, reads_expected) it had in the
+// round that removed it, so the reason for the removal stays visible.
 static void writeProteinStats(const std::vector<TargetStats> &stats,
                               DBReader<unsigned int> &targetHeaderReader,
                               const std::string &path) {
     FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("target_key\ttarget_id\tabundance_pct\tcoverage_depth\tbreadth_of_coverage\tcoverage_evenness\tDrop(y/n)\tcovered_length\ttarget_length\n", handle);
+    fputs("target_key\ttarget_id\tabundance_pct\treads_top_hit\treads_expected\tcoverage_depth\tbreadth_of_coverage\t"
+          "coverage_evenness\tDrop(y/n)\tdrop_round\tcovered_length\ttarget_length\n", handle);
 
     for (size_t i = 0; i < stats.size(); ++i) {
         const unsigned int key = stats[i].key;
         const std::string targetId = identifierForKey(targetHeaderReader, key, 0);
-        // Posterior-weighted coverage (see collectTargetStats). coveredLength is the expected number
-        // of covered residues and is bounded by targetLength, so breadth is naturally in [0, 1].
+
         const double coveredLength = stats[i].coveredLength;
         const double breadthOfCoverage = (stats[i].targetLength > 0)
                 ? coveredLength / static_cast<double>(stats[i].targetLength)
                 : 0.0;
 
-        fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%.12g\t%.12g\t%s\t%.12g\t%u\n",
+        fprintf(handle, "%u\t%s\t%.12g\t%zu\t%.12g\t%.12g\t%.12g\t%.12g\t%s\t%d\t%.12g\t%u\n",
                 key,
                 targetId.c_str(),
                 stats[i].abundance,
+                stats[i].topHitReads,
+                stats[i].expectedReads,
                 stats[i].coverageDepth,
                 breadthOfCoverage,
                 stats[i].coverageEvenness,
                 stats[i].dropped ? "y" : "n",
+                stats[i].droppedRound,
                 coveredLength,
                 stats[i].targetLength);
     }
@@ -492,12 +658,162 @@ static void writeProteinStats(const std::vector<TargetStats> &stats,
     fclose(handle);
 }
 
+// --ref-group 1: the per-target rows summed per genome (--target-groups, as in `mmseqs em`); a target outside every
+// genome is a row of its own.  length = every target of the genome in targetDB (hit or not), the L_g of the EM.
+// abundance_pct = share of the reads (as per target); coverage_pct = share of reads_expected / length, i.e. the
+// genomes' relative coverage depth (cell abundance rather than read share).
+static void writeGroupStats(const std::vector<TargetStats> &stats,
+                            const std::string &targetDb,
+                            const std::string &spec,
+                            DBReader<unsigned int> &targetHeaderReader,
+                            const std::string &path) {
+    DBReader<unsigned int> tdb(targetDb.c_str(), (targetDb + ".index").c_str(), 1, DBReader<unsigned int>::USE_INDEX);
+    tdb.open(DBReader<unsigned int>::NOSORT);
+    unsigned int maxKey = 0;
+    for (size_t i = 0; i < tdb.getSize(); ++i) {
+        maxKey = std::max(maxKey, tdb.getDbKey(i));
+    }
+    EMTargetGroups::Groups groups = EMTargetGroups::load(targetDb, spec, maxKey);
+    struct Row {
+        std::string name;
+        double abundance = 0.0, readsExpected = 0.0, length = 0.0;
+        size_t readsTopHit = 0, targets = 0, targetsWithReads = 0;
+    };
+    std::vector<Row> rows(groups.names.size());
+    for (size_t g = 0; g < rows.size(); ++g) {
+        rows[g].name = groups.names[g];
+    }
+    for (size_t i = 0; i < tdb.getSize(); ++i) {
+        const unsigned int g = groups.groupOfKey[tdb.getDbKey(i)];
+        if (g != EMTargetGroups::NONE) {
+            rows[g].length += static_cast<double>(tdb.getSeqLen(i));
+            rows[g].targets += 1;
+        }
+    }
+    tdb.close();
+    Debug(Debug::INFO) << "Genomes from " << groups.how << ": " << groups.mapped << " targets in "
+                       << groups.names.size() << " genomes.\n";
+    for (size_t i = 0; i < stats.size(); ++i) {
+        if (stats[i].dropped) {
+            continue;
+        }
+        const unsigned int key = stats[i].key;
+        unsigned int g = key <= maxKey ? groups.groupOfKey[key] : EMTargetGroups::NONE;
+        if (g == EMTargetGroups::NONE) {
+            g = static_cast<unsigned int>(rows.size());
+            rows.push_back(Row());
+            rows[g].name = identifierForKey(targetHeaderReader, key, 0);
+            rows[g].length = stats[i].targetLength;
+            rows[g].targets = 1;
+        }
+        rows[g].abundance += stats[i].abundance;
+        rows[g].readsExpected += stats[i].expectedReads;
+        rows[g].readsTopHit += stats[i].topHitReads;
+        rows[g].targetsWithReads += 1;
+    }
+    double densitySum = 0.0;
+    for (size_t g = 0; g < rows.size(); ++g) {
+        densitySum += rows[g].length > 0.0 ? rows[g].readsExpected / rows[g].length : 0.0;
+    }
+    std::vector<size_t> order;
+    for (size_t g = 0; g < rows.size(); ++g) {
+        if (rows[g].targetsWithReads > 0) {
+            order.push_back(g);
+        }
+    }
+    std::sort(order.begin(), order.end(), [&rows](size_t a, size_t b) {
+        if (rows[a].abundance != rows[b].abundance) {
+            return rows[a].abundance > rows[b].abundance;
+        }
+        return rows[a].name < rows[b].name;
+    });
+    FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
+    fputs("genome\tabundance_pct\tcoverage_pct\treads_expected\treads_top_hit\tdensity\tlength\ttargets_with_reads\ttargets\n", handle);
+    for (size_t k = 0; k < order.size(); ++k) {
+        const Row &r = rows[order[k]];
+        const double density = r.length > 0.0 ? r.readsExpected / r.length : 0.0;
+        fprintf(handle, "%s\t%.12g\t%.12g\t%.12g\t%zu\t%.12g\t%.0f\t%zu\t%zu\n", r.name.c_str(), r.abundance,
+                densitySum > 0.0 ? 100.0 * density / densitySum : 0.0, r.readsExpected, r.readsTopHit, density,
+                r.length, r.targetsWithReads, r.targets);
+    }
+    fclose(handle);
+    Debug(Debug::INFO) << order.size() << " genomes (or lone targets) with reads written to " << path << ".\n";
+}
+
+// The surviving reads with their surviving hits, column 3 = renormalised posterior, best first.
+// Deleted reads and reads that had no hit are written as empty entries, so the output holds every
+// key of the input DB and `mmseqs convertalis` / `createsubdb` work on it unchanged.
+static void writeFilteredDb(ReclassTaxContext &ctx,
+                            int dbType,
+                            const std::string &outDb,
+                            const std::string &outIndex,
+                            int threads,
+                            bool compress) {
+    HitData &hits = ctx.hits;
+    const size_t queryCount = hits.queryCount();
+    const size_t hitCount = hits.hitCount();
+    DBWriter writer(outDb.c_str(), outIndex.c_str(), threads, compress, dbType);
+    writer.open();
+
+#pragma omp parallel for schedule(static) num_threads(usableThreads(threads))
+    for (size_t h = 0; h < hitCount; ++h) {
+        hits.hitResult[h].seqId = static_cast<float>(hits.hitPosterior[h]);
+    }
+
+    Debug::Progress progress(queryCount);
+#pragma omp parallel num_threads(usableThreads(threads))
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        char buffer[1024 + 32768 * 4];
+        std::vector<size_t> order;
+
+#pragma omp for schedule(dynamic, 5)
+        for (size_t q = 0; q < queryCount; ++q) {
+            progress.updateProgress();
+            const size_t begin = hits.queryOffset[q];
+            const size_t end = hits.queryOffset[q + 1];
+            order.clear();
+            for (size_t h = begin; h < end; ++h) {
+                order.push_back(h);
+            }
+            SORT_SERIAL(order.begin(), order.end(), [&hits](size_t lhs, size_t rhs) {
+                if (hits.hitPosterior[lhs] != hits.hitPosterior[rhs]) {
+                    return hits.hitPosterior[lhs] > hits.hitPosterior[rhs];
+                }
+                if (hits.hitResult[lhs].score != hits.hitResult[rhs].score) {
+                    return hits.hitResult[lhs].score > hits.hitResult[rhs].score;
+                }
+                return Matcher::compareHits(hits.hitResult[lhs], hits.hitResult[rhs]);
+            });
+            writer.writeStart(thread_idx);
+            for (size_t j = 0; j < order.size(); ++j) {
+                // The backtrace was parsed with readCompressed=true.
+                size_t len = Matcher::resultToBuffer(buffer, hits.hitResult[order[j]], ctx.hasBacktrace,
+                                                     false, ctx.hasOrfPosition, true);
+                writer.writeAdd(buffer, len, thread_idx);
+            }
+            writer.writeEnd(hits.queryKey[q], thread_idx);
+        }
+    }
+    for (size_t i = 0; i < ctx.deletedQueryKey.size(); ++i) {
+        writer.writeStart(0);
+        writer.writeEnd(ctx.deletedQueryKey[i], 0);
+    }
+    for (size_t i = 0; i < ctx.emptyQueryKey.size(); ++i) {
+        writer.writeStart(0);
+        writer.writeEnd(ctx.emptyQueryKey[i], 0);
+    }
+    writer.close();
+    Debug(Debug::INFO) << "Filtered alignment DB: " << queryCount << " reads with hits, "
+                       << ctx.deletedQueryKey.size() << " deleted reads and " << ctx.emptyQueryKey.size()
+                       << " reads without a hit written as empty entries.\n";
+}
+
 // Expected reads assigned directly to each taxon, kept fractional.
-//
-// Rounding these to integers (the previous behaviour, floor(x + 0.5)) deleted every
-// taxon expected to hold less than half a read, and made the clade counts a sum of
-// rounded values so the reported percentages did not add up to 100. EM produces a
-// continuous abundance; there is no reason to quantise it on the way out.
+
 static std::unordered_map<TaxID, double> directCountsFromStats(const std::vector<TargetStats> &stats,
                                                                MappingReader &mapping,
                                                                size_t assignedReads) {
@@ -513,9 +829,81 @@ static std::unordered_map<TaxID, double> directCountsFromStats(const std::vector
     return directCounts;
 }
 
-// Clade counts in double precision. Mirrors NcbiTaxonomy::getCladeCounts, which is
-// hard-coded to `unsigned int` in TaxonCounts and so cannot carry fractional reads.
-// Kept local rather than templating the shared taxonomy code.
+
+static std::unordered_map<TaxID, double> directCountsByLca(const HitData &hits,
+                                                          MappingReader &mapping,
+                                                          NcbiTaxonomy *taxonomy,
+                                                          double threshold,
+                                                          int threads) {
+    const size_t queryCount = hits.queryCount();
+    const size_t blocks = std::min<size_t>(SCALAR_REDUCTION_BLOCKS, std::max<size_t>(1, queryCount));
+    std::vector<std::unordered_map<TaxID, double> > partial(blocks);
+    std::vector<size_t> bounds(blocks + 1, queryCount);
+    bounds[0] = 0;
+    for (size_t b = 1; b < blocks; ++b) {
+        bounds[b] = queryCount * b / blocks;
+    }
+
+#pragma omp parallel for schedule(dynamic, 1) num_threads(usableThreads(threads))
+    for (size_t b = 0; b < blocks; ++b) {
+        std::unordered_map<TaxID, double> &local = partial[b];
+        std::vector<std::pair<double, TaxID> > candidates;
+        std::vector<TaxID> chosen;
+        for (size_t q = bounds[b]; q < bounds[b + 1]; ++q) {
+            const size_t begin = hits.queryOffset[q];
+            const size_t end = hits.queryOffset[q + 1];
+            candidates.clear();
+            double total = 0.0;
+            for (size_t h = begin; h < end; ++h) {
+                const unsigned int t = hits.hitTarget[h];
+                const TaxID taxId = mapping.lookup(hits.targetKey[t]);
+                if (taxId == 0) {
+                    continue;
+                }
+                const double p = hits.hitPosterior[h];
+                if (p <= 0.0) {
+                    continue;
+                }
+                candidates.push_back(std::make_pair(p, taxId));
+                total += p;
+            }
+            if (candidates.empty() || total <= 0.0) {
+                continue;                           // falls through to the `U` row
+            }
+            // Descending posterior; ties broken by taxid so the output is reproducible.
+            SORT_SERIAL(candidates.begin(), candidates.end(),
+                        [](const std::pair<double, TaxID> &a, const std::pair<double, TaxID> &b) {
+                            return (a.first != b.first) ? (a.first > b.first) : (a.second < b.second);
+                        });
+            chosen.clear();
+            double cumulative = 0.0;
+            for (size_t i = 0; i < candidates.size(); ++i) {
+                chosen.push_back(candidates[i].second);
+                cumulative += candidates[i].first / total;
+                if (cumulative >= threshold) {
+                    break;
+                }
+            }
+            TaxID assigned = chosen[0];
+            if (chosen.size() > 1) {
+                const TaxonNode *node = taxonomy->LCA(chosen);
+                if (node != NULL) {
+                    assigned = node->taxId;
+                }
+            }
+            local[assigned] += 1.0;
+        }
+    }
+
+    std::unordered_map<TaxID, double> directCounts;
+    for (size_t b = 0; b < blocks; ++b) {
+        for (std::unordered_map<TaxID, double>::const_iterator it = partial[b].begin(); it != partial[b].end(); ++it) {
+            directCounts[it->first] += it->second;
+        }
+    }
+    return directCounts;
+}
+
 static std::unordered_map<TaxID, double> cladeCountsFromDirect(const std::unordered_map<TaxID, double> &directCounts,
                                                               NcbiTaxonomy *taxonomy) {
     std::unordered_map<TaxID, double> cladeCounts;
@@ -550,9 +938,6 @@ static double lookupCount(const std::unordered_map<TaxID, double> &counts, TaxID
     return (it != counts.end()) ? it->second : 0.0;
 }
 
-// `totalReads` is every read in the query DB, not just the reads that got a hit, so the
-// percentages are on the same basis Kraken2 uses and the `U` row accounts for the rest
-// (reads with no hit, plus mass that went to targets dropped by --drop).
 static void writeKrakenReport(const std::unordered_map<TaxID, double> &directCounts,
                              const std::unordered_map<TaxID, double> &cladeCounts,
                              const std::unordered_map<TaxID, std::vector<TaxID> > &parentToChildren,
@@ -594,9 +979,6 @@ static void writeKrakenReport(const std::unordered_map<TaxID, double> &directCou
                 100.0 * cladeCount / denom, cladeCount, directCount,
                 rankCodeOf(taxonomy, node), static_cast<unsigned int>(taxId), name);
 
-        // Kraken orders siblings by descending clade count. Sort ascending and push in
-        // that order so the stack pops them descending; ties break on taxId so the
-        // output is byte-stable across runs.
         std::unordered_map<TaxID, std::vector<TaxID> >::const_iterator childIt = parentToChildren.find(taxId);
         if (childIt == parentToChildren.end()) {
             continue;
@@ -659,7 +1041,6 @@ static void writeBrackenReport(const std::unordered_map<TaxID, double> &directCo
         const double directCount = lookupCount(directCounts, taxId);
         const TaxonNode *node = taxonomy->taxonNode(taxId, false);
         const char *name = (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified";
-        // Bracken's taxonomy_lvl is a single-letter rank code, not the full rank name.
         fprintf(handle, "%s\t%u\t%c\t%.2f\t%.2f\t%.2f\t%.12g\n",
                 name,
                 static_cast<unsigned int>(taxId),
@@ -683,6 +1064,27 @@ int emabundance(int argc, const char **argv, const Command &command) {
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     const bool withTaxonomy = (par.reclassifyTaxonomy == 1);
+    if (withTaxonomy) {
+        // fail before loading the alignments: without these files openTaxonomy / MappingReader stop with a bare
+        // "file not found" that does not say how to make them
+        std::vector<std::string> missing;
+        if (!FileUtil::fileExists((par.db2 + "_mapping").c_str())) {
+            missing.push_back(par.db2 + "_mapping");
+        }
+        if (!FileUtil::fileExists((par.db2 + "_taxonomy").c_str())
+            && !(FileUtil::fileExists((par.db2 + "_nodes.dmp").c_str())
+                 && FileUtil::fileExists((par.db2 + "_names.dmp").c_str())
+                 && FileUtil::fileExists((par.db2 + "_merged.dmp").c_str()))) {
+            missing.push_back(par.db2 + "_taxonomy");
+        }
+        if (!missing.empty()) {
+            Debug(Debug::ERROR) << "--taxonomy 1 needs the taxonomy of the target DB, but " << missing[0]
+                                << (missing.size() > 1 ? " and " + missing[1] + " are" : " is") << " missing.\n"
+                                << "You need to run 'mmseqs createtaxdb " << par.db2 << " tmp' before you run em-abundance "
+                                << "(or use --taxonomy 0 for the per-target table, which needs no taxonomy).\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
     NcbiTaxonomy *taxonomy = NULL;
     MappingReader *mapping = NULL;
     if (withTaxonomy) {
@@ -691,53 +1093,81 @@ int emabundance(int argc, const char **argv, const Command &command) {
     }
 
     ReclassTaxContext ctx;
-    loadAlignmentDb(reader, ctx);
-    Debug(Debug::INFO) << "Loaded " << ctx.queryCount << " queries with hits and " << ctx.targetSet.size() << " unique targets.\n";
+    loadAlignmentDb(reader, ctx, par.threads);
+    Debug(Debug::INFO) << "Loaded " << ctx.hits.queryCount() << " queries with hits and "
+                       << ctx.hits.targetCount() << " unique targets.\n";
     reportInputDiagnostics(ctx);
 
+    const int minReads = std::max(0, par.abundanceMinReads);
+    if (minReads > 0) {
+        Debug(Debug::INFO) << "Removing targets that are the top hit of < " << minReads
+                           << " reads, together with those reads...\n";
+    }
+    filterTargets(ctx, minReads, par.threads);
+    const size_t queryCount = ctx.hits.queryCount();
+
     Debug(Debug::INFO) << "Computing abundance from posterior...\n";
-    computeAbundanceFromPosterior(ctx.mappingTable, ctx.targetSet, ctx.queryCount);
+    const TargetHitIndex byTarget = groupHitsByTarget(ctx.hits);
+    computeAbundanceFromPosterior(ctx.hits, byTarget, par.threads);
 
     Debug(Debug::INFO) << "Collecting per-target statistics...\n";
-    std::vector<TargetStats> allTargetStats = collectTargetStats(ctx, par.threads);
-    const std::unordered_set<unsigned int> dropped = selectDroppedTargets(allTargetStats,
-                                                                          par.reclassifyMaxDropPercentage);
-    markDroppedTargets(allTargetStats, dropped);
+    std::vector<TargetStats> allTargetStats = collectTargetStats(ctx, byTarget, par.threads);
     convertAbundanceToPercent(allTargetStats);
-    Debug(Debug::INFO) << "Writing output...\n";
 
+    Debug(Debug::INFO) << "Writing the filtered alignment DB...\n";
+    writeFilteredDb(ctx, reader.getDbtype(), par.db4, par.db4Index, par.threads, par.compressed);
+
+    Debug(Debug::INFO) << "Writing output...\n";
     if (withTaxonomy) {
         // The percentage basis is every read in the query DB, not just the reads that got a
-        // hit (ctx.queryCount). Reads with no hit at all have to be counted somewhere for the
-        // report to be comparable with Kraken2/Bracken, and they land in the `U` row.
+        // hit (queryCount). Reads with no hit at all (and the reads deleted by the filter) have
+        // to be counted somewhere for the report to be comparable with Kraken2/Bracken, and
+        // they land in the `U` row.
         DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads,
                                            DBReader<unsigned int>::USE_INDEX);
         queryReader.open(DBReader<unsigned int>::NOSORT);
         const size_t totalReads = queryReader.getSize();
         queryReader.close();
-        Debug(Debug::INFO) << totalReads << " reads in the query DB, " << ctx.queryCount
-                           << " with at least one hit.\n";
+        Debug(Debug::INFO) << totalReads << " reads in the query DB, " << queryCount
+                           << " with at least one hit after the filter.\n";
 
         std::vector<TargetStats> targetStats = allTargetStats;
         targetStats.erase(std::remove_if(targetStats.begin(), targetStats.end(), [](const TargetStats &entry) {
             return entry.dropped;
         }), targetStats.end());
 
-        // Built once and shared by both writers; getParentToChildren() walks the whole
-        // taxonomy, so calling it per writer was pure duplicated work.
-        const std::unordered_map<TaxID, double> directCounts =
-                directCountsFromStats(targetStats, *mapping, ctx.queryCount);
+        const double lcaThreshold = std::max(0.0, std::min(1.0, par.abundanceLcaThreshold));
+        if (lcaThreshold != par.abundanceLcaThreshold) {
+            Debug(Debug::WARNING) << "--lca-threshold " << par.abundanceLcaThreshold
+                                  << " is outside [0, 1] and was clamped to " << lcaThreshold
+                                  << ". It is a cumulative posterior, not a percentage.\n";
+        }
+        std::unordered_map<TaxID, double> directCounts;
+        if (lcaThreshold > 0.0) {
+            Debug(Debug::INFO) << "LCA fallback: --lca-threshold " << lcaThreshold
+                               << ", assigning each read to the LCA of its top hits.\n";
+            directCounts = directCountsByLca(ctx.hits, *mapping, taxonomy, lcaThreshold, par.threads);
+        } else {
+            directCounts = directCountsFromStats(targetStats, *mapping, queryCount);
+        }
         const std::unordered_map<TaxID, double> cladeCounts =
                 cladeCountsFromDirect(directCounts, taxonomy);
         const std::unordered_map<TaxID, std::vector<TaxID> > parentToChildren = taxonomy->getParentToChildren();
 
-        writeKrakenReport(directCounts, cladeCounts, parentToChildren, taxonomy, totalReads, par.db4);
-        writeBrackenReport(directCounts, cladeCounts, taxonomy, totalReads, par.db4 + ".bracken");
+        writeKrakenReport(directCounts, cladeCounts, parentToChildren, taxonomy, totalReads, par.db5);
+        writeBrackenReport(directCounts, cladeCounts, taxonomy, totalReads, par.db5 + ".bracken");
     } else {
         DBReader<unsigned int> targetHeaderReader((par.db2 + "_h").c_str(), (par.db2 + "_h.index").c_str(), par.threads,
                                                   DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         targetHeaderReader.open(DBReader<unsigned int>::NOSORT);
-        writeProteinStats(allTargetStats, targetHeaderReader, par.db4);
+        writeProteinStats(allTargetStats, targetHeaderReader, par.db5);
+        targetHeaderReader.close();
+    }
+    if (par.emRefGroup) {
+        DBReader<unsigned int> targetHeaderReader((par.db2 + "_h").c_str(), (par.db2 + "_h.index").c_str(), par.threads,
+                                                  DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        targetHeaderReader.open(DBReader<unsigned int>::NOSORT);
+        writeGroupStats(allTargetStats, par.db2, par.emTargetGroups, targetHeaderReader, par.db5 + ".groups.tsv");
         targetHeaderReader.close();
     }
 

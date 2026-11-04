@@ -5,831 +5,640 @@
 #include "Util.h"
 #include "Matcher.h"
 #include "FastSort.h"
-#include "EMCoverage.h"
+#include "Timer.h"
+#include "EMTargetGroups.h"
 
 #include <algorithm>
 #include <cmath>
-#include <iomanip>
 #include <limits>
-#include <numeric>
-#include <sstream>
+#include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
 namespace {
-struct ReclassTaxEntry {
-    Matcher::result_t result;
-    double abundance;
-    double posterior;
-    double coverageConfidence;
-};
 
-typedef std::unordered_map<unsigned int, std::vector<ReclassTaxEntry> > MappingTable;
+const double LOG_COMPATIBILITY_MIN = -60.0;
+const double LOG_FRAGMENT_MIN = -120.0;
+const double STEP_LENGTH_MIN = 1.0;
+const double STEP_LENGTH_CAP = 1.0e4;
+const double STEP_LENGTH_GROWTH = 4.0;
+const int MIN_ITERATIONS = 6;
+const unsigned int NONE = EMTargetGroups::NONE;
 
-struct TargetStats {
-    unsigned int key;
-    unsigned int targetLength;
-    double abundance;
-    bool dropped;
-};
+int usableThreads(int threads) {
+#ifdef OPENMP
+    return std::max(1, threads);
+#else
+    (void)threads;
+    return 1;
+#endif
+}
 
-struct ReclassTaxContext {
-    MappingTable mappingTable;
-    std::vector<unsigned int> queryOrder;
-    std::unordered_set<unsigned int> targetSet;
-    size_t queryCount;
-    bool hasBacktrace;
-    bool hasOrfPosition;
-
-    ReclassTaxContext() : queryCount(0), hasBacktrace(false), hasOrfPosition(false) {}
-};
-
-// SQUAREM step length. The accelerated step is
-//     x_new = x0 - 2*alpha*r + alpha^2*v,   alpha = -||r|| / ||v||
-// and Varadhan & Roland's global-convergence argument requires alpha <= -1, i.e. |alpha| >= 1:
-// alpha == -1 reproduces the plain EM double step (x_new == x2) and |alpha| > 1 is the actual
-// acceleration. Clamping |alpha| to <= 1 instead would remove the acceleration entirely, and
-// letting alpha approach 0 would make x_new == x0, i.e. stall the iteration.
-// The magnitude bound is adaptive: it grows while the cap keeps binding and the accelerated step
-// is accepted, and shrinks whenever the step is rejected.
-static const double STEP_LENGTH_MIN = 1.0;
-static const double STEP_LENGTH_INIT = 1.0;
-static const double STEP_LENGTH_CAP = 1.0e4;
-static const double STEP_LENGTH_GROWTH = 4.0;
-static const double LOG_COMPATIBILITY_MIN = -60.0;
-static const double LOG_COMPATIBILITY_MAX = 60.0;
-static const double ABUNDANCE_SMOOTH_EPS = 1e-8;
-
-// Alpha annealing. alpha is ramped in over the first iterations instead of starting at alpha_max:
-//
-//     alpha_k = alpha_max * (1 - exp(-(k+1)/tau)),   tau = `--alpha-tau`
-//
-// Rationale: theta^(0) is a crude score-share estimate, and letting a bad theta drive the E-step at
-// full strength from iteration 1 can lock in a self-reinforcing (rich-get-richer) misassignment.
-// alpha ~ 0 makes the first E-step almost pure alignment score, which is the more trustworthy
-// signal, and abundance is phased in as theta improves. This is deterministic annealing.
-//
-// The cost is that the objective changes every iteration, so this is not EM on a fixed objective:
-// there is no monotone-ascent guarantee, and SQUAREM's convergence argument assumes a fixed
-// fixed-point map. squarem() already works around the first point by scoring the accelerated step
-// against x2 under the *same* alpha_k rather than across iterations.
-//
-// Whether annealing actually helps has never been measured -- there was no control arm while tau
-// was hard-coded. `--alpha-tau 0` is that control: it disables annealing entirely (alpha_k =
-// alpha_max for every k) so the two can be swept against each other.
-static double annealedAbundanceExponent(double alphaMax, double tau, int iter) {
-    if (tau <= 0.0) {
-        return alphaMax;
+size_t countRecords(const char *data) {
+    size_t records = 0;
+    char *cursor = const_cast<char *>(data);
+    while (*cursor != '\0') {
+        ++records;
+        cursor = Util::skipLine(cursor);
     }
-    return alphaMax * (1.0 - std::exp(-static_cast<double>(iter + 1) / tau));
-}
-// The coverage-prior weight w is `--cov-prior` (par.reclassifyCoveragePrior). It is a scale-free
-// prior strength: the prior's share of the abundance mass is w/(1+w), independent of read and
-// target count. See the kappa derivation in emUpdate().
-
-static double clamp01(double value);
-
-static std::vector<unsigned int> targetListFromSet(const std::unordered_set<unsigned int> &targets) {
-    std::vector<unsigned int> out(targets.begin(), targets.end());
-    SORT_SERIAL(out.begin(), out.end());
-    return out;
+    return records;
 }
 
-static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &ctx) {
-    Debug::Progress progress(reader.getSize());
-    const char *entry[255];
+// read name -> fragment name: the mate suffix /1 or /2 is removed, so 'x/1' and 'x/2' (and two reads both named
+// 'x', as createdb names Illumina 1.8+ mates) form one fragment
+std::string fragmentOfReadName(const std::string &name) {
+    const size_t n = name.size();
+    if (n > 2 && name[n - 2] == '/' && (name[n - 1] == '1' || name[n - 1] == '2')) {
+        return name.substr(0, n - 2);
+    }
+    return name;
+}
 
+struct Model {
+    // reads (DB entries with hits) and their hits
+    std::vector<unsigned int> queryKey;
+    std::vector<size_t> queryOffset;
+    std::vector<int> hitScore;
+    std::vector<unsigned int> hitGroup;
+    std::vector<double> hitPhi;              // phi_qp
+    std::vector<double> hitPhiQG;            // sum of phi over the read's hits in the same group
+    std::vector<Matcher::result_t> hitResult;
+    bool hasBacktrace = false;
+    bool hasOrfPosition = false;
+
+    // fragments: queries of a fragment, CSR
+    std::vector<size_t> unitOffset;
+    std::vector<unsigned int> unitQuery;
+    std::vector<unsigned int> unitOfQuery;
+    // fragment x group compatibilities, CSR over fragments
+    std::vector<size_t> ugOffset;
+    std::vector<unsigned int> ugGroup;
+    std::vector<double> ugPhi;
+
+    std::vector<double> groupLength;
+
+    size_t units() const { return unitOffset.size() - 1; }
+    size_t groupCount() const { return groupLength.size(); }
+};
+
+// ------------------------------------------------------------------------------------------- loading
+void loadHits(DBReader<unsigned int> &reader, Model &m, int threads) {
+    const int nThreads = usableThreads(threads);
+    std::vector<size_t> entryIds;
     for (size_t i = 0; i < reader.getSize(); ++i) {
-        progress.updateProgress();
-        const unsigned int queryKey = reader.getDbKey(i);
-        char *data = reader.getData(i, 0);
-
-        if (reader.getEntryLen(i) <= 1) {
-            continue;
+        if (reader.getEntryLen(i) > 1) {
+            entryIds.push_back(i);
         }
-
-        std::vector<ReclassTaxEntry> &records = ctx.mappingTable[queryKey];
-        if (records.empty()) {
-            ctx.queryOrder.push_back(queryKey);
-        }
-        while (*data != '\0') {
-            const size_t columns = Util::getWordsOfLine(data, entry, 255);
-            if (columns < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
-                Debug(Debug::ERROR) << "Invalid alignment result record in query " << queryKey << ".\n";
-                EXIT(EXIT_FAILURE);
+    }
+    std::vector<size_t> records(entryIds.size(), 0);
+#pragma omp parallel for schedule(dynamic, 64) num_threads(nThreads)
+    for (size_t q = 0; q < entryIds.size(); ++q) {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        records[q] = countRecords(reader.getData(entryIds[q], thread_idx));
+    }
+    m.queryKey.resize(entryIds.size());
+    m.queryOffset.assign(entryIds.size() + 1, 0);
+    for (size_t q = 0; q < entryIds.size(); ++q) {
+        m.queryKey[q] = reader.getDbKey(entryIds[q]);
+        m.queryOffset[q + 1] = m.queryOffset[q] + records[q];
+    }
+    const size_t hitCount = m.queryOffset.back();
+    m.hitScore.resize(hitCount);
+    m.hitGroup.resize(hitCount);
+    m.hitResult.resize(hitCount);
+    m.hitPhi.resize(hitCount);
+    m.hitPhiQG.resize(hitCount);
+    std::vector<char> sawBt(nThreads, 0), sawOrf(nThreads, 0);
+#pragma omp parallel num_threads(nThreads)
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        const char *entry[255];
+#pragma omp for schedule(dynamic, 64)
+        for (size_t q = 0; q < entryIds.size(); ++q) {
+            char *data = reader.getData(entryIds[q], thread_idx);
+            size_t h = m.queryOffset[q];
+            while (*data != '\0') {
+                const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                if (columns < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                    Debug(Debug::ERROR) << "Invalid alignment result record in query " << m.queryKey[q] << ".\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
+                    sawBt[thread_idx] = 1;
+                }
+                if (columns == Matcher::ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
+                    sawOrf[thread_idx] = 1;
+                }
+                Matcher::result_t r = Matcher::parseAlignmentRecord(data, true);
+                m.hitScore[h] = r.score;
+                m.hitResult[h] = std::move(r);
+                ++h;
+                data = Util::skipLine(data);
             }
-
-            // No `+ 1` variants: parseAlignmentRecord() has no case for 12 or 16 columns
-            // and exits before these flags could be consulted.
-            if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT
-                || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
-                ctx.hasBacktrace = true;
-            }
-            if (columns == Matcher::ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT
-                || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
-                ctx.hasOrfPosition = true;
-            }
-
-            Matcher::result_t result = Matcher::parseAlignmentRecord(data, true);
-            records.push_back(ReclassTaxEntry{result, 0.0, static_cast<double>(result.seqId), 0.0});
-            ctx.targetSet.insert(result.dbKey);
-            data = Util::skipLine(data);
         }
     }
-
-    ctx.queryCount = ctx.mappingTable.size();
-}
-
-static void initAbundance(MappingTable &mappingTable, const std::unordered_set<unsigned int> &targetSet, size_t queryCount) {
-    std::unordered_map<unsigned int, double> initAbundance;
-    initAbundance.reserve(targetSet.size());
-    for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
-        initAbundance[*it] = 0.0;
-    }
-
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        double scoreSum = 0.0;
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            scoreSum += std::max(static_cast<double>(it->second[j].result.score), 0.0);
-        }
-        if (scoreSum <= 0.0) {
-            continue;
-        }
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const double nonNegativeScore = std::max(static_cast<double>(it->second[j].result.score), 0.0);
-            initAbundance[it->second[j].result.dbKey] += nonNegativeScore / scoreSum;
-        }
-    }
-
-    if (queryCount > 0) {
-        const double denom = static_cast<double>(queryCount);
-        for (std::unordered_map<unsigned int, double>::iterator it = initAbundance.begin(); it != initAbundance.end(); ++it) {
-            it->second /= denom;
-        }
-    }
-    double totalAbundance = 0.0;
-    for (std::unordered_map<unsigned int, double>::const_iterator it = initAbundance.begin(); it != initAbundance.end(); ++it) {
-        totalAbundance += it->second;
-    }
-    if (totalAbundance > 0.0) {
-        for (std::unordered_map<unsigned int, double>::iterator it = initAbundance.begin(); it != initAbundance.end(); ++it) {
-            it->second /= totalAbundance;
-        }
-    }
-
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            it->second[j].abundance = initAbundance[it->second[j].result.dbKey];
-        }
+    for (int t = 0; t < nThreads; ++t) {
+        m.hasBacktrace = m.hasBacktrace || sawBt[t];
+        m.hasOrfPosition = m.hasOrfPosition || sawOrf[t];
     }
 }
 
-struct TargetHitRef {
-    const ReclassTaxEntry *entry;
-    double weight;
+// hit -> group.  Genomes (genomeOfKey, --ref-group 1) come first with their summed length over the whole target DB;
+// every other hit target is a group of its own, numbered after them, with its own length.  Targets without a hit
+// get no group, so a large target DB costs nothing without --ref-group.
+void assignGroups(Model &m, const std::vector<unsigned int> &genomeOfKey, const std::vector<double> &genomeLength,
+                  int threads) {
+    const size_t H = m.hitResult.size();
+    unsigned int maxKey = 0;
+#pragma omp parallel for schedule(static) reduction(max:maxKey) num_threads(usableThreads(threads))
+    for (size_t h = 0; h < H; ++h) {
+        maxKey = std::max(maxKey, m.hitResult[h].dbKey);
+    }
+    m.groupLength = genomeLength;
+    std::vector<unsigned int> ownGroup(H > 0 ? static_cast<size_t>(maxKey) + 1 : 0, NONE);
+    for (size_t h = 0; h < H; ++h) {
+        const unsigned int key = m.hitResult[h].dbKey;
+        if (key < genomeOfKey.size() && genomeOfKey[key] != NONE) {
+            m.hitGroup[h] = genomeOfKey[key];
+            continue;
+        }
+        if (ownGroup[key] == NONE) {
+            ownGroup[key] = static_cast<unsigned int>(m.groupLength.size());
+            m.groupLength.push_back(static_cast<double>(std::max(1u, m.hitResult[h].dbLen)));
+        }
+        m.hitGroup[h] = ownGroup[key];
+    }
+}
+
+// fragments: every read alone, or (--mate-pair 1) the reads whose .lookup names agree up to a trailing /1 or /2
+void buildFragments(Model &m, const std::string &queryDb, bool matePair) {
+    const size_t Q = m.queryKey.size();
+    m.unitOfQuery.resize(Q);
+    for (size_t q = 0; q < Q; ++q) {
+        m.unitOfQuery[q] = static_cast<unsigned int>(q);
+    }
+    size_t U = Q;
+    if (matePair) {
+        std::unordered_map<unsigned int, unsigned int> qOfKey;
+        qOfKey.reserve(Q);
+        for (size_t q = 0; q < Q; ++q) {
+            qOfKey[m.queryKey[q]] = static_cast<unsigned int>(q);
+        }
+        std::unordered_map<std::string, unsigned int> fragOfName;
+        fragOfName.reserve(Q);
+        std::vector<char> named(Q, 0);
+        U = 0;
+        const bool hasLookup = EMTargetGroups::forEachLookup(queryDb, [&](unsigned int key, const std::string &name, unsigned int) {
+            std::unordered_map<unsigned int, unsigned int>::const_iterator q = qOfKey.find(key);
+            if (q == qOfKey.end()) {
+                return;
+            }
+            std::pair<std::unordered_map<std::string, unsigned int>::iterator, bool> it =
+                    fragOfName.emplace(fragmentOfReadName(name), static_cast<unsigned int>(U));
+            U += it.second ? 1 : 0;
+            m.unitOfQuery[q->second] = it.first->second;
+            named[q->second] = 1;
+        });
+        if (!hasLookup) {
+            Debug(Debug::ERROR) << queryDb << ".lookup is missing: --mate-pair 1 needs the read names.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        for (size_t q = 0; q < Q; ++q) {
+            if (!named[q]) {
+                m.unitOfQuery[q] = static_cast<unsigned int>(U++);     // not in the .lookup: a fragment of its own
+            }
+        }
+    }
+    m.unitOffset.assign(U + 1, 0);
+    for (size_t q = 0; q < Q; ++q) {
+        m.unitOffset[m.unitOfQuery[q] + 1]++;
+    }
+    for (size_t u = 0; u < U; ++u) {
+        m.unitOffset[u + 1] += m.unitOffset[u];
+    }
+    m.unitQuery.resize(Q);
+    std::vector<size_t> fill(m.unitOffset.begin(), m.unitOffset.end() - 1);
+    for (size_t q = 0; q < Q; ++q) {
+        m.unitQuery[fill[m.unitOfQuery[q]]++] = static_cast<unsigned int>(q);
+    }
+}
+
+// phi_qp, phi_qg and the fragment x group compatibilities
+void buildCompatibilities(Model &m, double lambda, int threads) {
+    const size_t Q = m.queryKey.size();
+#pragma omp parallel for schedule(dynamic, 256) num_threads(usableThreads(threads))
+    for (size_t q = 0; q < Q; ++q) {
+        const size_t b = m.queryOffset[q], e = m.queryOffset[q + 1];
+        int smax = std::numeric_limits<int>::min();
+        for (size_t h = b; h < e; ++h) {
+            smax = std::max(smax, m.hitScore[h]);
+        }
+        for (size_t h = b; h < e; ++h) {
+            m.hitPhi[h] = std::exp(std::max(LOG_COMPATIBILITY_MIN, -lambda * static_cast<double>(smax - m.hitScore[h])));
+        }
+        // phi_qg: hits of one read are few, a quadratic pass is cheaper than a map
+        for (size_t h = b; h < e; ++h) {
+            double s = 0.0;
+            for (size_t k = b; k < e; ++k) {
+                if (m.hitGroup[k] == m.hitGroup[h]) {
+                    s += m.hitPhi[k];
+                }
+            }
+            m.hitPhiQG[h] = s;
+        }
+    }
+
+    const size_t U = m.units();
+    std::vector<std::vector<std::pair<unsigned int, double> > > perUnit(U);
+    size_t keptLenient = 0, withCommon = 0;
+#pragma omp parallel num_threads(usableThreads(threads))
+    {
+        std::vector<std::pair<unsigned int, double> > logPhi;   // (group, log phi_qg) over the unit's reads
+        std::vector<std::pair<unsigned int, std::pair<double, unsigned int> > > merged;
+#pragma omp for schedule(dynamic, 256) reduction(+:keptLenient, withCommon)
+        for (size_t u = 0; u < U; ++u) {
+            logPhi.clear();
+            unsigned int matesHit = 0;
+            for (size_t j = m.unitOffset[u]; j < m.unitOffset[u + 1]; ++j) {
+                const unsigned int q = m.unitQuery[j];
+                const size_t b = m.queryOffset[q], e = m.queryOffset[q + 1];
+                if (b == e) {
+                    continue;
+                }
+                ++matesHit;
+                for (size_t h = b; h < e; ++h) {
+                    bool first = true;
+                    for (size_t k = b; k < h; ++k) {
+                        if (m.hitGroup[k] == m.hitGroup[h]) {
+                            first = false;
+                            break;
+                        }
+                    }
+                    if (first) {
+                        logPhi.emplace_back(m.hitGroup[h], std::log(m.hitPhiQG[h]));
+                    }
+                }
+            }
+            std::sort(logPhi.begin(), logPhi.end());
+            merged.clear();
+            for (size_t i = 0; i < logPhi.size(); ++i) {
+                if (!merged.empty() && merged.back().first == logPhi[i].first) {
+                    merged.back().second.first += logPhi[i].second;
+                    merged.back().second.second += 1;
+                } else {
+                    merged.emplace_back(logPhi[i].first, std::make_pair(logPhi[i].second, 1u));
+                }
+            }
+            bool anyFull = false;
+            for (size_t i = 0; i < merged.size(); ++i) {
+                anyFull = anyFull || merged[i].second.second == matesHit;
+            }
+            if (anyFull && matesHit > 1) {
+                ++withCommon;
+            } else if (matesHit > 1) {
+                ++keptLenient;
+            }
+            double mx = -std::numeric_limits<double>::infinity();
+            for (size_t i = 0; i < merged.size(); ++i) {
+                if (!anyFull || merged[i].second.second == matesHit) {
+                    mx = std::max(mx, merged[i].second.first);
+                }
+            }
+            std::vector<std::pair<unsigned int, double> > &out = perUnit[u];
+            for (size_t i = 0; i < merged.size(); ++i) {
+                if (anyFull && merged[i].second.second != matesHit) {
+                    continue;
+                }
+                out.emplace_back(merged[i].first, std::exp(std::max(LOG_FRAGMENT_MIN, merged[i].second.first - mx)));
+            }
+        }
+    }
+    m.ugOffset.assign(U + 1, 0);
+    for (size_t u = 0; u < U; ++u) {
+        m.ugOffset[u + 1] = m.ugOffset[u] + perUnit[u].size();
+    }
+    m.ugGroup.resize(m.ugOffset.back());
+    m.ugPhi.resize(m.ugOffset.back());
+    for (size_t u = 0; u < U; ++u) {
+        for (size_t i = 0; i < perUnit[u].size(); ++i) {
+            m.ugGroup[m.ugOffset[u] + i] = perUnit[u][i].first;
+            m.ugPhi[m.ugOffset[u] + i] = perUnit[u][i].second;
+        }
+    }
+    Debug(Debug::INFO) << U << " fragments, " << m.ugOffset.back() << " fragment x group candidates";
+    if (withCommon + keptLenient > 0) {
+        Debug(Debug::INFO) << "; " << withCommon << " mate pairs with a group common to both mates, "
+                           << keptLenient << " without (their mates' candidates are kept)";
+    }
+    Debug(Debug::INFO) << ".\n";
+}
+
+// ------------------------------------------------------------------------------------------- EM
+struct EmState {
+    std::vector<double> theta;
+    std::vector<double> gamma;        // per fragment x group candidate
+    std::vector<char> active;         // per group: has a candidate
 };
 
-// Coverage confidence C_t: how broadly and how evenly a target is covered by its hits. C_t = F_t *
-// E_t, both in [0, 1] and both defined over the full target length L_t (see EMCoverage.h for the
-// formulas and for why each denominator is L_t rather than the hit span or the covered-position
-// count):
-//
-//   F_t = breadth of the *score-share-weighted* depth -- how much of the target is covered, and how
-//         confidently, since a hit contributes its within-query bit-score share w_qt rather than 1.
-//   E_t = evenness of the *raw read* depth -- how uniformly that coverage is spread, so a repeat
-//         pileup on a small part of the target is penalised.
-//
-// The two factors read different depth arrays on purpose. Weighting the evenness term as well made
-// it respond to hit ambiguity instead of to depth raggedness, double-counting something F_t already
-// prices in. Feeding the evenness a covered-positions denominator made it score a pure repeat
-// pileup *above* an end-to-end-covered target; both regressions are documented with numbers at
-static void initCoverageConfidence(MappingTable &mappingTable,
-                                   const std::unordered_set<unsigned int> &targetSet,
-                                   int threads) {
-    (void)threads;  // only read by the num_threads() clause, which vanishes without OPENMP
-    std::unordered_map<unsigned int, unsigned int> targetLength;
-    std::unordered_map<unsigned int, std::vector<TargetHitRef> > hitsByTarget;
-    targetLength.reserve(targetSet.size());
-    hitsByTarget.reserve(targetSet.size());
-
-    for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
-        targetLength[*it] = 0;
-        hitsByTarget.emplace(*it, std::vector<TargetHitRef>());
+// one EM map x -> M(x); also fills gamma
+std::vector<double> emMap(const Model &m, EmState &s, const std::vector<double> &x, const std::vector<double> &invLen,
+                          double priorTerm, int threads) {
+    const size_t U = m.units(), G = m.groupCount();
+    std::vector<double> dens(G);
+    for (size_t g = 0; g < G; ++g) {
+        dens[g] = s.active[g] ? x[g] * invLen[g] : 0.0;
     }
-
-    for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        // Clamp at 0 to match initAbundance: a negative score must not make the share negative or
-        // cancel other hits out of the denominator.
-        double scoreSum = 0.0;
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            scoreSum += std::max(static_cast<double>(it->second[j].result.score), 0.0);
-        }
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const unsigned int target = it->second[j].result.dbKey;
-            targetLength[target] = it->second[j].result.dbLen;
-            const double score = std::max(static_cast<double>(it->second[j].result.score), 0.0);
-            const double weight = (scoreSum > 0.0) ? (score / scoreSum) : 0.0;
-            hitsByTarget[target].push_back(TargetHitRef{&it->second[j], weight});
+    const int nThreads = usableThreads(threads);
+    std::vector<std::vector<double> > partial(nThreads, std::vector<double>(G, 0.0));
+#pragma omp parallel num_threads(nThreads)
+    {
+        int t = 0;
+#ifdef OPENMP
+        t = omp_get_thread_num();
+#endif
+        std::vector<double> &acc = partial[t];
+#pragma omp for schedule(static)
+        for (size_t u = 0; u < U; ++u) {
+            double den = 0.0;
+            for (size_t i = m.ugOffset[u]; i < m.ugOffset[u + 1]; ++i) {
+                const double w = m.ugPhi[i] * dens[m.ugGroup[i]];
+                s.gamma[i] = w;
+                den += w;
+            }
+            for (size_t i = m.ugOffset[u]; i < m.ugOffset[u + 1]; ++i) {
+                s.gamma[i] = den > 0.0 ? s.gamma[i] / den : 0.0;
+                acc[m.ugGroup[i]] += s.gamma[i];
+            }
         }
     }
-
-    std::unordered_map<unsigned int, double> coverageFraction;
-    coverageFraction.reserve(targetSet.size());
-    const std::vector<unsigned int> targetList = targetListFromSet(targetSet);
-    std::vector<double> coverageFractionByIndex(targetList.size(), 0.0);
-
-#pragma omp parallel for num_threads(threads) schedule(dynamic, 1)
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        const unsigned int target = targetList[i];
-        // find() rather than operator[]: this runs inside a parallel region, where an accidental
-        // insertion would rehash the map under the other threads.
-        std::unordered_map<unsigned int, unsigned int>::const_iterator lenIt = targetLength.find(target);
-        const int len = (lenIt != targetLength.end()) ? static_cast<int>(lenIt->second) : 0;
-        if (len <= 0) {
-            coverageFractionByIndex[i] = 0.0;
+    std::vector<double> next(G, 0.0);
+    double sum = 0.0;
+    for (size_t g = 0; g < G; ++g) {
+        if (!s.active[g]) {
             continue;
         }
-        // weightedDepth carries the score-share weights (breadth), readDepth the raw hit counts
-        // (evenness). See the C_t comment above for why the two terms must not share an array.
-        std::vector<double> weightedDepth(static_cast<size_t>(len), 0.0);
-        std::vector<double> readDepth(static_cast<size_t>(len), 0.0);
-
-        std::unordered_map<unsigned int, std::vector<TargetHitRef> >::const_iterator hitIt = hitsByTarget.find(target);
-        if (hitIt != hitsByTarget.end()) {
-            const std::vector<TargetHitRef> &hits = hitIt->second;
-            for (size_t h = 0; h < hits.size(); ++h) {
-                const Matcher::result_t &result = hits[h].entry->result;
-                // Coverage confidence uses the full aligned span (it is not CIGAR-aware); only the
-                // breadth/depth columns in `abundance` refine this to M columns. paintSpanWeighted
-                // clips to [0, L) and is strand-safe.
-                EMCoverage::paintSpanWeighted(weightedDepth, readDepth,
-                                              result.dbStartPos, result.dbEndPos, hits[h].weight);
-            }
+        double r = priorTerm;
+        for (int t = 0; t < nThreads; ++t) {
+            r += partial[t][g];
         }
-
-        coverageFractionByIndex[i] = clamp01(EMCoverage::breadth(weightedDepth)
-                                             * EMCoverage::evenness(readDepth));
+        next[g] = r;
+        sum += r;
     }
-
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        coverageFraction[targetList[i]] = coverageFractionByIndex[i];
-    }
-
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const unsigned int target = it->second[j].result.dbKey;
-            std::unordered_map<unsigned int, double>::const_iterator cf = coverageFraction.find(target);
-            it->second[j].coverageConfidence = (cf != coverageFraction.end()) ? cf->second : 0.0;
-        }
-    }
-}
-
-static double maxQueryBitScore(const std::vector<ReclassTaxEntry> &entries) {
-    double maxScore = std::numeric_limits<double>::lowest();
-    for (size_t i = 0; i < entries.size(); ++i) {
-        maxScore = std::max(maxScore, static_cast<double>(entries[i].result.score));
-    }
-    return maxScore;
-}
-
-// phi_qt = exp(beta_bit * (score - maxScore)). The bit score is the only alignment evidence
-// the E-step uses.
-//
-// A `+ beta_seqid * seqId` term was removed on 2026-08-04, following the same fate as the
-// earlier `+ beta_cov * cov` term. Swept over beta_seqid in {0, 0.25, 0.5, 1, 2, 4} at three
-// taxonomic levels x three read lengths, the whole 16x range moved Spearman by 0.0003-0.0023
-// and Bray-Curtis by <=0.0005 -- against 0.0132 for merely doubling alpha_max -- and the
-// optimum pointed in opposite directions per level (family preferred 0, order preferred 4).
-// Deleting the term (beta_seqid = 0) changed every metric by <=0.0007 with mixed sign, so it
-// costs nothing measurable. The one place the term did measurably act was family L80 at
-// beta_seqid = 4, where it *degraded* Spearman by 0.0086 by letting a bounded [0,1] feature
-// override 16 bits of alignment score.
-//
-// Removing it also drops two hazards: seqId is quantised to 1e-3 by the aligner's
-// fastSeqIdToBuffer, and if `reclassify` were ever run on its own output, column 3 holds a
-// posterior rather than a sequence identity, which would have silently changed the model.
-static double compatibilityLogTerm(const ReclassTaxEntry &entry,
-                                   double queryMaxScore,
-                                   double betaBit) {
-    const double r = betaBit * (static_cast<double>(entry.result.score) - queryMaxScore);
-    return std::max(LOG_COMPATIBILITY_MIN, std::min(LOG_COMPATIBILITY_MAX, r));
-}
-
-static void computePosterior(MappingTable &mappingTable,
-                             double betaBit,
-                             double abundanceExponent) {
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        const double queryMaxScore = maxQueryBitScore(it->second);
-        std::vector<double> numerators(it->second.size(), 0.0);
-        double denom = 0.0;
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const double phi = std::exp(compatibilityLogTerm(it->second[j], queryMaxScore, betaBit));
-            const double abundance = std::max(it->second[j].abundance, ABUNDANCE_SMOOTH_EPS);
-            const double weighted = phi * std::pow(abundance, abundanceExponent);
-            numerators[j] = weighted;
-            denom += weighted;
-        }
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            it->second[j].posterior = (denom > 0.0) ? (numerators[j] / denom) : 0.0;
-        }
-    }
-}
-
-static double logLikelihood(const MappingTable &mappingTable,
-                            double betaBit,
-                            double abundanceExponent,
-                            size_t queryCount) {
-    if (queryCount == 0) {
-        return 0.0;
-    }
-
-    double ll = 0.0;
-    for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        const double queryMaxScore = maxQueryBitScore(it->second);
-        double mixture = 0.0;
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const double phi = std::exp(compatibilityLogTerm(it->second[j], queryMaxScore, betaBit));
-            const double abundance = std::max(it->second[j].abundance, ABUNDANCE_SMOOTH_EPS);
-            mixture += phi * std::pow(abundance, abundanceExponent);
-        }
-        ll += std::log(mixture > 0.0 ? mixture : 1e-300);
-    }
-    return ll / static_cast<double>(queryCount);
-}
-
-static std::vector<double> abundanceVectorFromTable(const MappingTable &mappingTable, const std::vector<unsigned int> &targetList) {
-    std::unordered_map<unsigned int, double> abundance;
-    abundance.reserve(targetList.size());
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        abundance[targetList[i]] = 0.0;
-    }
-
-    for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            abundance[it->second[j].result.dbKey] = it->second[j].abundance;
-        }
-    }
-
-    std::vector<double> out;
-    out.reserve(targetList.size());
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        out.push_back(abundance[targetList[i]]);
-    }
-    return out;
-}
-
-static void setAbundance(MappingTable &mappingTable, const std::vector<unsigned int> &targetList, const std::vector<double> &abundanceVector) {
-    std::unordered_map<unsigned int, double> abundance;
-    abundance.reserve(targetList.size());
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        abundance[targetList[i]] = abundanceVector[i];
-    }
-
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            it->second[j].abundance = abundance[it->second[j].result.dbKey];
-        }
-    }
-}
-
-static std::vector<double> emUpdate(MappingTable &mappingTable,
-                                    double betaBit,
-                                    const std::unordered_map<unsigned int, double> &fixedCoverageConfidence,
-                                    double confidenceSum,
-                                    double coveragePriorWeight,
-                                    const std::vector<unsigned int> &targetList,
-                                    size_t queryCount,
-                                    double abundanceExponent) {
-    computePosterior(mappingTable, betaBit, abundanceExponent);
-
-    std::unordered_map<unsigned int, double> nextAbundance;
-    nextAbundance.reserve(targetList.size());
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        nextAbundance[targetList[i]] = 0.0;
-    }
-
-    for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            nextAbundance[it->second[j].result.dbKey] += it->second[j].posterior;
-        }
-    }
-
-    // Dirichlet-style coverage prior with a scale-free strength. The data term sums to the number of
-    // queries (sum_t R_t = N_q) while the raw confidences sum to O(|T|), so adding C_t directly made
-    // the prior's influence depend on the read-to-target ratio: on a small run (few hundred reads,
-    // thousands of targets) the prior outweighed the likelihood by an order of magnitude, and on a
-    // deep run it was negligible. Normalising C_t to a distribution and scaling the total pseudo-count
-    // mass to kappa = w * N_q pins the prior's share of the posterior mass at exactly w/(1+w),
-    // independent of N_q and |T|.
-    const double kappa = coveragePriorWeight * static_cast<double>(queryCount);
-    double denom = 0.0;
-    for (std::unordered_map<unsigned int, double>::iterator it = nextAbundance.begin(); it != nextAbundance.end(); ++it) {
-        const std::unordered_map<unsigned int, double>::const_iterator fixed = fixedCoverageConfidence.find(it->first);
-        const double confidence = (fixed != fixedCoverageConfidence.end()) ? fixed->second : 0.0;
-        // No constant floor is added here on purpose. A per-target epsilon can never be zeroed out,
-        // which destroys the sparsity EM is supposed to produce; log(0) is already guarded by the
-        // max(pi, ABUNDANCE_SMOOTH_EPS) inside computePosterior()/logLikelihood().
-        if (confidenceSum > 0.0) {
-            it->second += kappa * (confidence / confidenceSum);
-        }
-        denom += it->second;
-    }
-    if (denom > 0.0) {
-        for (std::unordered_map<unsigned int, double>::iterator it = nextAbundance.begin(); it != nextAbundance.end(); ++it) {
-            it->second /= denom;
-        }
-    }
-
-    for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            it->second[j].abundance = nextAbundance[it->second[j].result.dbKey];
-        }
-    }
-
-    std::vector<double> out;
-    out.reserve(targetList.size());
-    for (size_t i = 0; i < targetList.size(); ++i) {
-        out.push_back(nextAbundance[targetList[i]]);
-    }
-    return out;
-}
-
-static std::vector<double> projectSimplex(const std::vector<double> &x) {
-    std::vector<double> projected = x;
-    for (size_t i = 0; i < projected.size(); ++i) {
-        if (projected[i] < 0.0) {
-            projected[i] = 0.0;
-        }
-    }
-
-    const double sum = std::accumulate(projected.begin(), projected.end(), 0.0);
     if (sum > 0.0) {
-        for (size_t i = 0; i < projected.size(); ++i) {
-            projected[i] /= sum;
+        for (size_t g = 0; g < G; ++g) {
+            next[g] /= sum;
         }
     }
-    return projected;
+    return next;
 }
 
-static void squarem(ReclassTaxContext &ctx,
-                    double betaBit,
-                    int maxIter,
-                    double tol,
-                    double alphaMax,
-                    double alphaTau,
-                    double coveragePriorWeight,
-                    int threads) {
-    if (ctx.queryCount == 0 || ctx.targetSet.empty()) {
-        return;
-    }
-
-    initAbundance(ctx.mappingTable, ctx.targetSet, ctx.queryCount);
-
-    std::unordered_map<unsigned int, double> fixedCoverageConfidence;
-    double confidenceSum = 0.0;
-    if (coveragePriorWeight > 0.0) {
-        initCoverageConfidence(ctx.mappingTable, ctx.targetSet, threads);
-        fixedCoverageConfidence.reserve(ctx.targetSet.size());
-        for (MappingTable::const_iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end(); ++it) {
-            for (size_t j = 0; j < it->second.size(); ++j) {
-                fixedCoverageConfidence[it->second[j].result.dbKey] = it->second[j].coverageConfidence;
+double logLikelihood(const Model &m, const EmState &s, const std::vector<double> &x, const std::vector<double> &invLen,
+                     int threads) {
+    const size_t U = m.units();
+    double ll = 0.0;
+    size_t n = 0;
+#pragma omp parallel for schedule(static) reduction(+:ll, n) num_threads(usableThreads(threads))
+    for (size_t u = 0; u < U; ++u) {
+        double mix = 0.0;
+        for (size_t i = m.ugOffset[u]; i < m.ugOffset[u + 1]; ++i) {
+            const unsigned int g = m.ugGroup[i];
+            if (s.active[g]) {
+                mix += m.ugPhi[i] * x[g] * invLen[g];
             }
         }
-        // fixedCoverageConfidence never changes during EM, so the normaliser is computed once.
-        for (std::unordered_map<unsigned int, double>::const_iterator it = fixedCoverageConfidence.begin();
-             it != fixedCoverageConfidence.end(); ++it) {
-            confidenceSum += it->second;
+        if (mix > 0.0) {
+            ll += std::log(mix);
+            ++n;
         }
-        // Report the balance the prior scaling exists to control. The data term contributes N_q of mass
-        // per M-step and the prior contributes w*N_q, so the prior's share is w/(1+w) regardless of the
-        // read-to-target ratio. Before the rescaling the prior added a raw sum(C_t) of mass against the
-        // data's N_q, which meant its influence silently tracked N_q/|T|: ~0.05% on a 1M-read run over a
-        // few hundred targets, but dominant on a few-hundred-read run over thousands of targets.
-        Debug(Debug::INFO) << "Coverage prior: weight=" << coveragePriorWeight
-                           << " sum(C_t)=" << confidenceSum
-                           << " over " << ctx.targetSet.size() << " targets, "
-                           << ctx.queryCount << " queries -> prior mass share "
-                           << (coveragePriorWeight / (1.0 + coveragePriorWeight)) << "\n";
-    } else {
-        // confidenceSum stays 0, which makes emUpdate() skip the prior term entirely. Skipping
-        // initCoverageConfidence() also skips the most memory-hungry phase of reclassify.
-        Debug(Debug::INFO) << "Coverage prior disabled (--cov-prior 0); skipping coverage confidence.\n";
     }
+    return n > 0 ? ll / static_cast<double>(n) : 0.0;
+}
 
-    const std::vector<unsigned int> targetList = targetListFromSet(ctx.targetSet);
-    std::vector<double> x0 = abundanceVectorFromTable(ctx.mappingTable, targetList);
+void projectSimplex(std::vector<double> &x, const std::vector<char> &active) {
+    double sum = 0.0;
+    for (size_t g = 0; g < x.size(); ++g) {
+        if (!active[g] || x[g] < 0.0) {
+            x[g] = 0.0;
+        }
+        sum += x[g];
+    }
+    if (sum > 0.0) {
+        for (size_t g = 0; g < x.size(); ++g) {
+            x[g] /= sum;
+        }
+    }
+}
 
-    // abundanceExponent is annealed over the first iterations, so the parameter-change test must
-    // not be allowed to declare convergence while the exponent is still moving. After 4*tau
-    // iterations the exponent is within 2% of alphaMax (1 - e^-4 = 0.9817). With annealing off
-    // (--alpha-tau 0) there is nothing to wait for and this falls back to the plain floor of 6.
-    const int minIterations = std::max(6, static_cast<int>(std::ceil(4.0 * std::max(0.0, alphaTau))));
-    double stepLengthMax = STEP_LENGTH_INIT;
-    double acceptedLl = 0.0;
+void runEm(const Model &m, EmState &s, const std::vector<double> &invLen, double priorMass, int maxIter, double tol,
+           int threads) {
+    const size_t U = m.units(), G = m.groupCount();
+    size_t activeGroups = 0;
+    for (size_t g = 0; g < G; ++g) {
+        activeGroups += s.active[g] ? 1 : 0;
+    }
+    const double priorTerm = activeGroups > 0 ? std::max(0.0, priorMass) * static_cast<double>(U) / static_cast<double>(activeGroups) : 0.0;
+
+    // start: every fragment split over its candidates in proportion to phi
+    std::vector<double> x0(G, 0.0);
+    for (size_t u = 0; u < U; ++u) {
+        double den = 0.0;
+        for (size_t i = m.ugOffset[u]; i < m.ugOffset[u + 1]; ++i) {
+            den += s.active[m.ugGroup[i]] ? m.ugPhi[i] : 0.0;
+        }
+        for (size_t i = m.ugOffset[u]; den > 0.0 && i < m.ugOffset[u + 1]; ++i) {
+            if (s.active[m.ugGroup[i]]) {
+                x0[m.ugGroup[i]] += m.ugPhi[i] / den;
+            }
+        }
+    }
+    projectSimplex(x0, s.active);
+
+    double stepMax = STEP_LENGTH_MIN;
+    int iter = 0;
     bool converged = false;
-    int lastIter = 0;
-
-    for (int iter = 0; iter < maxIter; ++iter) {
-        lastIter = iter;
-        const double abundanceExponent = annealedAbundanceExponent(alphaMax, alphaTau, iter);
-        const std::vector<double> x1 = emUpdate(ctx.mappingTable,
-                                                betaBit,
-                                                fixedCoverageConfidence,
-                                                confidenceSum,
-                                                coveragePriorWeight,
-                                                targetList,
-                                                ctx.queryCount,
-                                                abundanceExponent);
-        const std::vector<double> x2 = emUpdate(ctx.mappingTable,
-                                                betaBit,
-                                                fixedCoverageConfidence,
-                                                confidenceSum,
-                                                coveragePriorWeight,
-                                                targetList,
-                                                ctx.queryCount,
-                                                abundanceExponent);
-
-        std::vector<double> r(x0.size(), 0.0);
-        std::vector<double> v(x0.size(), 0.0);
-        for (size_t i = 0; i < x0.size(); ++i) {
-            r[i] = x1[i] - x0[i];
-            v[i] = x2[i] - x1[i] - r[i];
+    for (; iter < maxIter; ++iter) {
+        const std::vector<double> x1 = emMap(m, s, x0, invLen, priorTerm, threads);
+        const std::vector<double> x2 = emMap(m, s, x1, invLen, priorTerm, threads);
+        double nr = 0.0, nv = 0.0;
+        for (size_t g = 0; g < G; ++g) {
+            const double r = x1[g] - x0[g];
+            const double v = x2[g] - 2.0 * x1[g] + x0[g];
+            nr += r * r;
+            nv += v * v;
         }
-
-        double normR = 0.0;
-        double normV = 0.0;
-        for (size_t i = 0; i < x0.size(); ++i) {
-            normR += r[i] * r[i];
-            normV += v[i] * v[i];
+        double a = nv > 0.0 ? -std::sqrt(nr / nv) : -STEP_LENGTH_MIN;
+        if (!std::isfinite(a)) {
+            a = -STEP_LENGTH_MIN;
         }
-        normR = std::sqrt(normR);
-        normV = std::sqrt(normV);
-
-        // alpha is confined to [-stepLengthMax, -1] (see the STEP_LENGTH_* comment): |alpha| >= 1
-        // guarantees at least the plain EM double step, and the upper magnitude bound is what keeps
-        // the extrapolation from leaving the neighbourhood where the local linear model holds.
-        double accel = (normV <= 0.0) ? -STEP_LENGTH_MIN : -(normR / normV);
-        if (std::isfinite(accel) == false) {
-            accel = -STEP_LENGTH_MIN;
+        a = std::max(-stepMax, std::min(-STEP_LENGTH_MIN, a));
+        const bool capBinding = a <= -stepMax + 1e-12;
+        std::vector<double> xn(G);
+        for (size_t g = 0; g < G; ++g) {
+            const double r = x1[g] - x0[g];
+            const double v = x2[g] - 2.0 * x1[g] + x0[g];
+            xn[g] = x0[g] - 2.0 * a * r + a * a * v;
         }
-        accel = std::max(-stepLengthMax, std::min(-STEP_LENGTH_MIN, accel));
-        const bool stepCapBinding = (accel <= (-stepLengthMax + 1e-12));
-
-        std::vector<double> xNew(x0.size(), 0.0);
-        for (size_t i = 0; i < x0.size(); ++i) {
-            xNew[i] = x0[i] - 2.0 * accel * r[i] + accel * accel * v[i];
-        }
-        xNew = projectSimplex(xNew);
-
-        // Score the accelerated point against its own fallback candidate x2 (the plain EM double
-        // step) under the *same* abundanceExponent. Comparing against the previous iteration's
-        // log-likelihood would be meaningless: the objective is sum_q log sum_t phi_qt*theta_t^alpha,
-        // alpha is annealed upward every iteration, and theta_t^alpha decreases monotonically in
-        // alpha for theta_t < 1. The objective therefore drifts downward on its own -- for 1e5
-        // targets an alpha step of 0.11 costs about 1.3 nats per query, dwarfing any 1e-9 tolerance
-        // -- so a cross-iteration test would reject essentially every accelerated step.
-        // logLikelihood() reads only `abundance`, so no computePosterior() is needed to evaluate it.
-        setAbundance(ctx.mappingTable, targetList, x2);
-        const double emLl = logLikelihood(ctx.mappingTable, betaBit, abundanceExponent, ctx.queryCount);
-        setAbundance(ctx.mappingTable, targetList, xNew);
-        const double accelLl = logLikelihood(ctx.mappingTable, betaBit, abundanceExponent, ctx.queryCount);
-
-        // A NaN accelLl fails this test, so a degenerate extrapolation falls back to x2.
-        const bool accelAccepted = std::isfinite(accelLl) && (accelLl >= (emLl - 1e-12));
-        if (accelAccepted) {
-            acceptedLl = accelLl;
-            if (stepCapBinding) {
-                stepLengthMax = std::min(STEP_LENGTH_CAP, stepLengthMax * STEP_LENGTH_GROWTH);
+        projectSimplex(xn, s.active);
+        const double llEm = logLikelihood(m, s, x2, invLen, threads);
+        const double llAcc = logLikelihood(m, s, xn, invLen, threads);
+        if (std::isfinite(llAcc) && llAcc >= llEm - 1e-12) {
+            if (capBinding) {
+                stepMax = std::min(STEP_LENGTH_CAP, stepMax * STEP_LENGTH_GROWTH);
             }
         } else {
-            xNew = x2;
-            setAbundance(ctx.mappingTable, targetList, x2);
-            acceptedLl = emLl;
-            stepLengthMax = std::max(STEP_LENGTH_INIT, stepLengthMax / STEP_LENGTH_GROWTH);
+            xn = x2;
+            stepMax = std::max(STEP_LENGTH_MIN, stepMax / STEP_LENGTH_GROWTH);
         }
-        // The posteriors that get written out have to match the accepted abundance vector.
-        computePosterior(ctx.mappingTable, betaBit, abundanceExponent);
-
-        double parameterChange = 0.0;
-        for (size_t i = 0; i < x0.size(); ++i) {
-            parameterChange = std::max(parameterChange, std::fabs(xNew[i] - x0[i]));
+        double change = 0.0;
+        for (size_t g = 0; g < G; ++g) {
+            change = std::max(change, std::fabs(xn[g] - x0[g]));
         }
-
-        // '-' the accelerated step was accepted, '.' it fell back to the plain EM double step.
-        Debug(Debug::INFO) << (accelAccepted ? "-" : ".");
-        std::cout << std::flush;
-        x0 = xNew;
-        if (parameterChange < tol && (iter + 1) >= minIterations) {
+        x0.swap(xn);
+        if (change < tol && iter + 1 >= MIN_ITERATIONS) {
             converged = true;
+            ++iter;
             break;
         }
     }
-
-    Debug(Debug::INFO) << "\n";
-    if (converged) {
-        Debug(Debug::INFO) << "Converged after " << (lastIter + 1) << " iterations (logLikelihood="
-                           << acceptedLl << ").\n";
-    } else {
-        Debug(Debug::INFO) << "Reached the iteration limit (" << maxIter << ") without meeting tol="
-                           << tol << " (logLikelihood=" << acceptedLl << ").\n";
-    }
+    s.theta = x0;
+    // posteriors at the final theta (the M-step output is not needed)
+    emMap(m, s, s.theta, invLen, priorTerm, threads);
+    Debug(Debug::INFO) << "EM over " << U << " fragments and " << activeGroups << " groups: "
+                       << (converged ? "converged after " : "stopped at the iteration limit, ") << iter << " SQUAREM iterations.\n";
 }
 
-static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx) {
-    std::unordered_map<unsigned int, TargetStats> statsByTarget;
-
-    for (MappingTable::const_iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const ReclassTaxEntry &entry = it->second[j];
-            TargetStats &stats = statsByTarget[entry.result.dbKey];
-            stats.key = entry.result.dbKey;
-            stats.targetLength = entry.result.dbLen;
-            stats.abundance = entry.abundance;
-            stats.dropped = false;
+// gamma of the (fragment of read q, group of hit h) candidate, 0 if the pair rule removed it
+double fragmentGroupPosterior(const Model &m, const EmState &s, unsigned int q, size_t h) {
+    const unsigned int u = m.unitOfQuery[q];
+    for (size_t i = m.ugOffset[u]; i < m.ugOffset[u + 1]; ++i) {
+        if (m.ugGroup[i] == m.hitGroup[h]) {
+            return s.gamma[i];
         }
     }
-
-    std::vector<TargetStats> out;
-    out.reserve(statsByTarget.size());
-    for (std::unordered_map<unsigned int, TargetStats>::const_iterator it = statsByTarget.begin(); it != statsByTarget.end(); ++it) {
-        out.push_back(it->second);
-    }
-
-    std::sort(out.begin(), out.end(), [](const TargetStats &lhs, const TargetStats &rhs) {
-        if (lhs.abundance != rhs.abundance) {
-            return lhs.abundance > rhs.abundance;
-        }
-        return lhs.key < rhs.key;
-    });
-    return out;
+    return 0.0;
 }
 
-static void printAbundanceDistribution(const std::vector<TargetStats> &stats) {
-    if (stats.empty()) {
-        Debug(Debug::INFO) << "Abundance distribution: no targets.\n";
-        return;
-    }
+} // namespace
 
-    std::vector<double> values;
-    values.reserve(stats.size());
-    for (size_t i = 0; i < stats.size(); ++i) {
-        values.push_back(stats[i].abundance);
-    }
-    std::sort(values.begin(), values.end());
+int emreclassify(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, true, 0, 0);
+    Timer timer;
 
-    const auto quantile = [&values](double q) -> double {
-        const size_t idx = static_cast<size_t>(q * static_cast<double>(values.size() - 1));
-        return values[idx];
-    };
-
-    const double totalMass = std::accumulate(values.begin(), values.end(), 0.0);
-    const auto cumulativeCountAtMassFraction = [&values, totalMass](double massFraction, size_t &count, double &countFrac) {
-        count = 0;
-        countFrac = 0.0;
-        if (values.empty() || totalMass <= 0.0 || massFraction <= 0.0) {
-            return;
+    // ---- genomes (--ref-group 1): groups and their lengths over the WHOLE target DB (hit or not)
+    std::vector<unsigned int> genomeOfKey;
+    std::vector<double> genomeLength;
+    if (par.emRefGroup) {
+        DBReader<unsigned int> tdb(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
+        tdb.open(DBReader<unsigned int>::NOSORT);
+        unsigned int maxKey = 0;
+        for (size_t i = 0; i < tdb.getSize(); ++i) {
+            maxKey = std::max(maxKey, tdb.getDbKey(i));
         }
-
-        const double targetMass = massFraction * totalMass;
-        double cumulativeMass = 0.0;
-        for (size_t i = 0; i < values.size(); ++i) {
-            if ((cumulativeMass + values[i]) <= targetMass) {
-                cumulativeMass += values[i];
-                ++count;
-            } else {
-                break;
+        EMTargetGroups::Groups groups = EMTargetGroups::load(par.db2, par.emTargetGroups, maxKey);
+        genomeLength.assign(groups.names.size(), 0.0);
+        for (size_t i = 0; i < tdb.getSize(); ++i) {
+            const unsigned int g = groups.groupOfKey[tdb.getDbKey(i)];
+            if (g != NONE) {
+                genomeLength[g] += static_cast<double>(std::max<size_t>(1, tdb.getSeqLen(i)));
             }
         }
-        countFrac = static_cast<double>(count) / static_cast<double>(values.size());
-    };
-
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(8);
-    oss << "Abundance distribution (targets=" << values.size() << "):"
-        << " min=" << values.front()
-        << " p25=" << quantile(0.25)
-        << " p50=" << quantile(0.50)
-        << " p75=" << quantile(0.75)
-        << " p90=" << quantile(0.90)
-        << " p95=" << quantile(0.95)
-        << " p99=" << quantile(0.99)
-        << " max=" << values.back();
-    Debug(Debug::INFO) << oss.str() << "\n";
-
-    const double cutoffs[] = {0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99};
-    std::ostringstream cumulativeOss;
-    cumulativeOss << std::fixed << std::setprecision(8);
-    cumulativeOss << "Abundance cumulative:";
-    for (size_t i = 0; i < sizeof(cutoffs) / sizeof(cutoffs[0]); ++i) {
-        size_t count = 0;
-        double countFrac = 0.0;
-        cumulativeCountAtMassFraction(cutoffs[i], count, countFrac);
-        cumulativeOss << " <=" << cutoffs[i]
-                      << "[count=" << count
-                      << ",countFrac=" << countFrac << "]";
+        Debug(Debug::INFO) << "Genomes from " << groups.how << ": " << groups.mapped << " of " << tdb.getSize()
+                           << " targets in " << groups.names.size() << " genomes, the others each on their own.\n";
+        tdb.close();
+        genomeOfKey.swap(groups.groupOfKey);
     }
-    Debug(Debug::INFO) << cumulativeOss.str() << "\n";
-}
 
-static double clamp01(double value) {
-    return std::max(0.0, std::min(1.0, value));
-}
+    // ---- hits, fragments, compatibilities
+    Model m;
+    DBReader<unsigned int> reader(par.db3.c_str(), par.db3Index.c_str(), par.threads,
+                                  DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    loadHits(reader, m, par.threads);
+    assignGroups(m, genomeOfKey, genomeLength, par.threads);
+    std::vector<unsigned int>().swap(genomeOfKey);
+    Debug(Debug::INFO) << "Loaded " << m.queryKey.size() << " reads with " << m.queryOffset.back() << " hits.\n";
+    buildFragments(m, par.db1, par.emMatePair != 0);
+    buildCompatibilities(m, par.reclassifyLambda, par.threads);
 
-static bool compareByPosteriorThenBitScore(const ReclassTaxEntry &a, const ReclassTaxEntry &b) {
-    if (a.posterior != b.posterior) {
-        return a.posterior > b.posterior;
+    // ---- EM
+    const size_t Q = m.queryKey.size(), G = m.groupCount();
+    std::vector<double> invLen(G);
+    for (size_t g = 0; g < G; ++g) {
+        invLen[g] = 1.0 / std::max(1.0, m.groupLength[g]);
     }
-    if (a.result.score != b.result.score) {
-        return a.result.score > b.result.score;
+    EmState s;
+    s.gamma.assign(m.ugOffset.back(), 0.0);
+    s.active.assign(G, 0);
+    for (size_t i = 0; i < m.ugGroup.size(); ++i) {
+        s.active[m.ugGroup[i]] = 1;               // genomes without a candidate stay out of the EM
     }
-    return Matcher::compareHits(a.result, b.result);
-}
+    runEm(m, s, invLen, par.reclassifyPriorMass, par.reclassifyMaxIterations, par.reclassifyTolerance, par.threads);
 
-static void writeReclassifiedDb(const ReclassTaxContext &ctx,
-                                int dbType,
-                                const std::string &outDb,
-                                const std::string &outIndex,
-                                int threads,
-                                bool compress) {
-    DBWriter writer(outDb.c_str(), outIndex.c_str(), threads, compress, dbType);
+    // ---- read-level posteriors and output
+    std::vector<double> hitPost(m.queryOffset.back(), 0.0);
+#pragma omp parallel for schedule(dynamic, 256) num_threads(usableThreads(par.threads))
+    for (size_t q = 0; q < Q; ++q) {
+        double sum = 0.0;
+        for (size_t h = m.queryOffset[q]; h < m.queryOffset[q + 1]; ++h) {
+            hitPost[h] = fragmentGroupPosterior(m, s, static_cast<unsigned int>(q), h) * m.hitPhi[h] / m.hitPhiQG[h];
+            sum += hitPost[h];
+        }
+        for (size_t h = m.queryOffset[q]; h < m.queryOffset[q + 1]; ++h) {
+            hitPost[h] = sum > 0.0 ? hitPost[h] / sum : 0.0;
+        }
+    }
+
+    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
-
-    Debug::Progress progress(ctx.queryOrder.size());
-#pragma omp parallel
+    size_t assigned = 0;
+#pragma omp parallel num_threads(usableThreads(par.threads)) reduction(+:assigned)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
         char buffer[1024 + 32768 * 4];
-
-#pragma omp for schedule(dynamic, 5)
-        for (size_t i = 0; i < ctx.queryOrder.size(); ++i) {
-            progress.updateProgress();
-            const unsigned int queryKey = ctx.queryOrder[i];
-            MappingTable::const_iterator recordsIt = ctx.mappingTable.find(queryKey);
-            if (recordsIt == ctx.mappingTable.end()) {
-                continue;
+        std::vector<size_t> order;
+#pragma omp for schedule(dynamic, 16)
+        for (size_t q = 0; q < Q; ++q) {
+            order.clear();
+            for (size_t h = m.queryOffset[q]; h < m.queryOffset[q + 1]; ++h) {
+                if (hitPost[h] > 0.0) {
+                    order.push_back(h);
+                }
             }
-
-            std::vector<ReclassTaxEntry> records = recordsIt->second;
-            SORT_SERIAL(records.begin(), records.end(), compareByPosteriorThenBitScore);
-
+            SORT_SERIAL(order.begin(), order.end(), [&](size_t a, size_t b) {
+                if (hitPost[a] != hitPost[b]) {
+                    return hitPost[a] > hitPost[b];
+                }
+                if (m.hitScore[a] != m.hitScore[b]) {
+                    return m.hitScore[a] > m.hitScore[b];
+                }
+                return Matcher::compareHits(m.hitResult[a], m.hitResult[b]);
+            });
+            assigned += order.empty() ? 0 : 1;
             writer.writeStart(thread_idx);
-            for (size_t j = 0; j < records.size(); ++j) {
-                Matcher::result_t res = records[j].result;
-                res.seqId = static_cast<float>(records[j].posterior);
-                // The backtrace was parsed with readCompressed=true, so res.backtrace already holds
-                // the compressed CIGAR (e.g. "55M"). resultToBuffer(..., compress, addOrfPosition):
-                // write it verbatim (compress=false) instead of re-compressing it into garbage
-                // (e.g. "46M" -> "0M14161M"), and forward hasOrfPosition to the addOrfPosition slot.
-                // highPrecisionSeqId=true is required: column 3 carries the EM posterior here, and
-                // the default writer is a 3-decimal fixed-point encoder that truncates. With it,
-                // every gamma < 0.001 would become exactly 0 and the per-read posteriors would no
-                // longer sum to 1 -- with an error proportional to the read's hit count, which
-                // biases abundance toward reads that map uniquely.
-                size_t len = Matcher::resultToBuffer(buffer, res, ctx.hasBacktrace, false, ctx.hasOrfPosition, true);
+            for (size_t j = 0; j < order.size(); ++j) {
+                Matcher::result_t r = m.hitResult[order[j]];
+                r.seqId = static_cast<float>(hitPost[order[j]]);
+                const size_t len = Matcher::resultToBuffer(buffer, r, m.hasBacktrace, false, m.hasOrfPosition, true);
                 writer.writeAdd(buffer, len, thread_idx);
             }
-            writer.writeEnd(queryKey, thread_idx);
+            writer.writeEnd(m.queryKey[q], thread_idx);
         }
     }
-
     writer.close();
-}
-}
-
-int emreclassify(int argc, const char **argv, const Command &command) {
-    Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, true, 0, 0);
-
-    DBReader<unsigned int> reader(par.db3.c_str(), par.db3Index.c_str(), par.threads,
-                                  DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-    ReclassTaxContext ctx;
-    loadAlignmentDb(reader, ctx);
-    Debug(Debug::INFO) << "Loaded " << ctx.queryCount << " queries with hits and " << ctx.targetSet.size() << " unique targets.\n";
-
-    squarem(ctx,
-            par.reclassifyLambda,
-            par.reclassifyMaxIterations,
-            par.reclassifyTolerance,
-            par.reclassifyAlpha,
-            par.reclassifyAlphaTau,
-            par.reclassifyCoveragePrior,
-            par.threads);
-
-    // reclassify only runs EM; low-abundance target dropping is handled by `mmseqs abundance --drop`.
-    std::vector<TargetStats> allTargetStats = collectTargetStats(ctx);
-    printAbundanceDistribution(allTargetStats);
-
-    writeReclassifiedDb(ctx, reader.getDbtype(), par.db4, par.db4Index, par.threads, par.compressed);
-
     reader.close();
+    Debug(Debug::INFO) << assigned << " of " << Q << " reads assigned. Time: " << timer.lap() << "\n";
     return EXIT_SUCCESS;
 }

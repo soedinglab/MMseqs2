@@ -308,15 +308,17 @@ Parameters::Parameters():
         // unpackdb
         PARAM_UNPACK_SUFFIX(PARAM_UNPACK_SUFFIX_ID, "--unpack-suffix", "Unpack suffix", "File suffix for unpacked files.\nAdd .gz suffix to write compressed files.", typeid(std::string), (void *) &unpackSuffix, "^.*$"),
         PARAM_UNPACK_NAME_MODE(PARAM_UNPACK_NAME_MODE_ID, "--unpack-name-mode", "Unpack name mode", "Name unpacked files by 0: DB key, 1: accession (through .lookup)", typeid(int), (void *) &unpackNameMode, "^[0-1]{1}$"),
-        // reclassify / abundance (lambda..tol shared; taxonomy and drop are abundance-only)
-        PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification bit score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_ALPHA(PARAM_RECLASSIFY_ALPHA_ID, "--alpha", "Reclassify alpha", "Exponent applied to abundance during reclassification", typeid(double), (void *) &reclassifyAlpha, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_ALPHA_TAU(PARAM_RECLASSIFY_ALPHA_TAU_ID, "--alpha-tau", "Alpha annealing time constant", "Time constant tau of the alpha annealing schedule alpha_k = alpha * (1 - exp(-(k+1)/tau)), so alpha ramps in from ~0 over the first iterations instead of starting at its full value. 0 disables annealing (alpha is at its full value from iteration 1)", typeid(double), (void *) &reclassifyAlphaTau, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_COV_PRIOR(PARAM_RECLASSIFY_COV_PRIOR_ID, "--cov-prior", "Coverage prior weight", "Weight of the coverage-confidence prior in the abundance update, as a fraction of the read mass: the prior contributes w/(1+w) of the total. Scale-free, so it does not depend on read or target count (0 disables the prior)", typeid(double), (void *) &reclassifyCoveragePrior, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--max-iter", "Reclassify max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
-        PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--tol", "Reclassify tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Abundance taxonomy output", "0: write alignment and protein abundance only; taxonomy files are not required. 1: also write taxonomy_abundance.tsv and taxonomic columns in protein_abundance.tsv; requires targetDB_mapping and targetDB_taxonomy", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
-        PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE_ID, "--drop", "Drop percentage", "Drop the lowest-abundance targets accounting for up to this cumulative percentage of total abundance mass (range 0.0-100.0, 0 disables dropping)", typeid(double), (void *) &reclassifyMaxDropPercentage, "^100(\\.0+)?$|^([0-9]|[1-9][0-9])(\\.[0-9]+)?$"),
+        // EM: em & em-abundance (lambda..tol: em only; taxonomy and drop: em-abundance only; ref-group / target-groups: both)
+        PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--lambda", "Bit score scale", "Inverse temperature of the bit-score term: a hit scoring d bits below the best hit of its read is weighted exp(-lambda*d). Larger values trust the best hit more; scale it to the score unit (e.g. lower for scores larger than MMseqs2 bit scores)", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_PRIOR_MASS(PARAM_RECLASSIFY_PRIOR_MASS_ID, "--prior-mass", "Uniform prior mass", "Uniform Dirichlet pseudo-count added to every target in the abundance update, as a fraction phi of the read mass (0 disables the prior, giving plain EM)", typeid(double), (void *) &reclassifyPriorMass, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--max-iter", "EM max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
+        PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--tol", "EM tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_ABUNDANCE_MIN_READS(PARAM_ABUNDANCE_MIN_READS_ID, "--min-reads", "Min reads per target", "Remove every target that is the top hit (highest posterior) of fewer than this many reads, TOGETHER WITH those reads: a read whose top hit is removed is deleted, not re-assigned to its second-best target. Repeated until no target falls below the threshold. 0 disables the filter", typeid(int), (void *) &abundanceMinReads, "^[0-9]+$"),
+        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Abundance taxonomy output", "0: write the per-target abundance table to abundanceFile; taxonomy files are not required. 1: write a Kraken-style report to abundanceFile and a Bracken-style table to abundanceFile.bracken instead of the per-target table; requires targetDB_mapping and targetDB_taxonomy (you need to run 'mmseqs createtaxdb targetDB tmp' before you run it)", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
+        PARAM_ABUNDANCE_LCA_THRESHOLD(PARAM_ABUNDANCE_LCA_THRESHOLD_ID, "--lca-threshold", "LCA cumulative posterior", "Only with --taxonomy 1. Per read, walk its hits best-posterior-first until their normalised posteriors sum to this much, then assign the read to the LCA of that set instead of to its single best hit. 1.0 always takes the LCA of every hit (range 0.0-1.0)", typeid(double), (void *) &abundanceLcaThreshold, "^0(\\.[0-9]+)?$|^1(\\.0+)?$"),
+        PARAM_EM_REF_GROUP(PARAM_EM_REF_GROUP_ID, "--ref-group", "Group targets by genome", "0: every target has its own abundance. 1: the targets of one genome (--target-groups) share one abundance; em-abundance then also writes the per-genome table abundanceFile.groups.tsv (you need to run 'mmseqs em' with --ref-group 1 and the same --target-groups before you run it)", typeid(int), (void *) &emRefGroup, "^[0-1]{1}$"),
+        PARAM_EM_TARGET_GROUPS(PARAM_EM_TARGET_GROUPS_ID, "--target-groups", "Target groups", "With --ref-group 1: which targets belong to one genome. 'source': every input file of 'createdb' is one genome (createdb genomes/*.fna targetDB); a directory of genome FASTA files, or a text file listing their paths: every file is one genome, its sequences are matched to the targets by identifier; 'field:SEP:N': the first N SEP-separated fields of the target identifier name the genome (e.g. field:|:1); 'taxid': the taxon of targetDB_mapping (createtaxdb; only if a taxon is one genome); otherwise a TSV target-identifier -> genome. Unassigned targets form their own group", typeid(std::string), (void *) &emTargetGroups, "^.*$"),
+        PARAM_EM_MATE_PAIR(PARAM_EM_MATE_PAIR_ID, "--mate-pair", "Paired-end reads", "1: reads whose .lookup names are equal after removing a trailing /1 or /2 are the two mates of one fragment and are assigned jointly (createdb R1.fq R2.fq queryDB, or interleaved reads); 0: every read on its own", typeid(int), (void *) &emMatePair, "^[0-1]{1}$"),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -344,11 +346,12 @@ Parameters::Parameters():
     threadsandcompression.push_back(&PARAM_COMPRESSED);
     threadsandcompression.push_back(&PARAM_V);
 
-    // reclassify
+    // em
+    reclassify.push_back(&PARAM_EM_REF_GROUP);
+    reclassify.push_back(&PARAM_EM_TARGET_GROUPS);
+    reclassify.push_back(&PARAM_EM_MATE_PAIR);
     reclassify.push_back(&PARAM_RECLASSIFY_LAMBDA);
-    reclassify.push_back(&PARAM_RECLASSIFY_ALPHA);
-    reclassify.push_back(&PARAM_RECLASSIFY_ALPHA_TAU);
-    reclassify.push_back(&PARAM_RECLASSIFY_COV_PRIOR);
+    reclassify.push_back(&PARAM_RECLASSIFY_PRIOR_MASS);
     reclassify.push_back(&PARAM_RECLASSIFY_MAX_ITER);
     reclassify.push_back(&PARAM_RECLASSIFY_TOL);
     reclassify.push_back(&PARAM_THREADS);
@@ -357,9 +360,12 @@ Parameters::Parameters():
 
     // abundance
     // abundance reads the posterior already computed by reclassify; it does not run EM, so the
-    // EM parameters (--lambda/--alpha/--max-iter/--tol) are intentionally not registered here.
+    // EM parameters (--lambda/--prior-mass/--max-iter/--tol) are intentionally not registered here.
+    abundance.push_back(&PARAM_EM_REF_GROUP);
+    abundance.push_back(&PARAM_EM_TARGET_GROUPS);
     abundance.push_back(&PARAM_RECLASSIFY_TAXONOMY);
-    abundance.push_back(&PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE);
+    abundance.push_back(&PARAM_ABUNDANCE_MIN_READS);
+    abundance.push_back(&PARAM_ABUNDANCE_LCA_THRESHOLD);
     abundance.push_back(&PARAM_THREADS);
     abundance.push_back(&PARAM_COMPRESSED);
     abundance.push_back(&PARAM_V);
@@ -2666,17 +2672,32 @@ void Parameters::setDefaults() {
     unpackSuffix = "";
     unpackNameMode = Parameters::UNPACK_NAME_ACCESSION;
 
-    // reclassify
-    reclassifyLambda = 0.25;
-    reclassifyAlpha = 1.0;
-    // 3.0 reproduces the schedule that was hard-coded before this became a parameter.
-    // Set --alpha-tau 0 for the no-annealing control.
-    reclassifyAlphaTau = 3.0;
-    reclassifyCoveragePrior = 0.0;
+    // em
+    // 1 beat 0.25 (the former default) or tied in every row of the antiSMASH-DB benchmark
+    // (EM_improved/lambda/RESULTS.md); tuned for MMseqs2 bit scores.
+    reclassifyLambda = 1.0;
+    // 0.01 gives the prior 0.01/1.01 = 0.99% of the total mass. Unswept (see MMseqs_EM.md
+    // section 3.4); 0 restores plain EM.
+    reclassifyPriorMass = 0.01;
     reclassifyMaxIterations = 100;
     reclassifyTolerance = 1e-5;
+    // `em-abundance --min-reads` (moved out of `em` on 2026-09-28): 0 = off.  A target that is the
+    // top hit of fewer than N reads is removed together with those reads; `em` itself always writes
+    // the complete EM result.
+    abundanceMinReads = 0;
     reclassifyTaxonomy = 0;
-    reclassifyMaxDropPercentage = 0.0;
+    // Per-read LCA fallback is ON by default: without it every read is forced onto a
+    // single target, which piles mass onto species the sample does not contain (24.9% of
+    // the predicted species mass on comm1, against Kraken2's 18.3%). 0.7 follows
+    // Metabuli's equivalent knob, whose optimum sat at 0.55-0.85 and moved lower the
+    // further the queries were from the database. Set 0 for the old best-hit-only
+    // behaviour.
+    abundanceLcaThreshold = 0.7;
+
+    // em --ref-group / --target-groups / --mate-pair (em-abundance: --ref-group / --target-groups)
+    emRefGroup = 0;
+    emTargetGroups = "source";
+    emMatePair = 0;
 
     lcaRanks = "";
     showTaxLineage = 0;
