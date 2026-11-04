@@ -53,6 +53,701 @@ inline simd_float simdf32_prefixsum(simd_float a) {
 #endif
 }
 
+const int ALL_LANES = (1 << VECSIZE_FLOAT) - 1;
+
+// 2^e: 0 below 2^-126, clamped at 2^127
+inline float pow2f(int e) {
+    e = std::max(-127, std::min(e, 127));
+    const uint32_t bits = (uint32_t)(e + 127) << 23;
+    float f;
+    memcpy(&f, &bits, sizeof(f));
+    return f;
+}
+
+// 2^e: 0 below 2^-1022, clamped at 2^1023
+inline double pow2d(int e) {
+    if (e < -1022) {
+        return 0.0;
+    }
+    e = std::min(e, 1023);
+    const uint64_t bits = (uint64_t)(e + 1023) << 52;
+    double d;
+    memcpy(&d, &bits, sizeof(d));
+    return d;
+}
+
+// row[p, p + VECSIZE_FLOAT), lanes at or after cols set to pad
+inline simd_float loadCols(const float *row, int p, int cols, float pad) {
+    if (p + VECSIZE_FLOAT <= cols) {
+        return simdf32_loadu(row + p);
+    }
+    if (p >= cols) {
+        return simdf32_set(pad);
+    }
+    // 0 < cols - p < VECSIZE_FLOAT lanes are read
+#if defined(AVX512)
+    return _mm512_mask_loadu_ps(simdf32_set(pad), (__mmask16)((1u << (cols - p)) - 1u), row + p);
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    return _mm256_mask_loadu_ps(simdf32_set(pad), (__mmask8)((1u << (cols - p)) - 1u), row + p);
+#else
+    float t[VECSIZE_FLOAT];
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        t[k] = (p + k < cols) ? row[p + k] : pad;
+    }
+    return simdf32_loadu(t);
+#endif
+}
+
+inline void storeCols(float *row, int p, int cols, simd_float a) {
+    if (p + VECSIZE_FLOAT <= cols) {
+        simdf32_storeu(row + p, a);
+        return;
+    }
+    if (p >= cols) {
+        return;
+    }
+#if defined(AVX512)
+    _mm512_mask_storeu_ps(row + p, (__mmask16)((1u << (cols - p)) - 1u), a);
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    _mm256_mask_storeu_ps(row + p, (__mmask8)((1u << (cols - p)) - 1u), a);
+#else
+    float t[VECSIZE_FLOAT];
+    simdf32_storeu(t, a);
+    // one test per lane, a copy loop would become a memcpy call
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        if (p + k < cols) {
+            row[p + k] = t[k];
+        }
+    }
+#endif
+}
+
+// Forward-backward with float mantissas and one power-of-two scale per (row, BLOCK_COLS-column block):
+//   ZM_ij = (ZM_i-1,j-1 + ZE_i-1,j-1 + ZF_i-1,j-1 + 1) * exp(S_ij)
+//   ZE_ij = ZM_i,j-1 * exp_go + ZE_i,j-1 * exp_ge
+//   ZF_ij = ZM_i-1,j * exp_go + ZF_i-1,j * exp_ge
+//   P_ij = ZM_ij * ZMb_ij / (exp(S_ij) * Z)
+// ZMb is the same recurrence on the reversed matrix. A call whose check fails is run again with double
+// mantissas, and then in log space.
+template<int BLOCK_COLS>
+class ScaledFwBw {
+public:
+    // with expScores, expScore holds exp(score / temperature) rows and score the score rows,
+    // otherwise both are the score rows
+    template<bool expScores>
+    void run(FwBwAligner::ScaledMode mode, float **score, float **expScore, int rows, int cols, float temperature,
+             float exp_go, float exp_ge, float **prob, float &maxP) {
+        this->temperature = temperature;
+        const bool checkZ = (mode != FwBwAligner::SCALED_FAST);
+        bool valid;
+        // without a gap extension penalty the powers of exp_ge are 1 and their products are left out
+        if (exp_ge == 1.0f) {
+            valid = checkZ ? runScaledFloat<true, expScores, true>(expScore, rows, cols, exp_go, exp_ge, prob, maxP)
+                           : runScaledFloat<false, expScores, true>(expScore, rows, cols, exp_go, exp_ge, prob, maxP);
+        } else {
+            valid = checkZ ? runScaledFloat<true, expScores, false>(expScore, rows, cols, exp_go, exp_ge, prob, maxP)
+                           : runScaledFloat<false, expScores, false>(expScore, rows, cols, exp_go, exp_ge, prob, maxP);
+        }
+        if (valid) {
+            return;
+        }
+        if (runScaledDouble(score, rows, cols, exp_go, exp_ge, prob, maxP) == false) {
+            runLogDouble(score, rows, cols, exp_go, exp_ge, prob, maxP);
+        }
+        // rows x cols doubles, only needed by the rare calls that fall back
+        std::vector<double>().swap(dM);
+        std::vector<double>().swap(dExpScore);
+        std::vector<double>().swap(dPred);
+        for (int k = 0; k < 6; ++k) {
+            std::vector<double>().swap(dRow[k]);
+        }
+        std::vector<int>().swap(dFwdScale);
+        std::vector<int>().swap(dPrevScale);
+        std::vector<int>().swap(dCurrScale);
+    }
+
+private:
+    static const int BLOCK_VECS = BLOCK_COLS / VECSIZE_FLOAT;
+    static const int DOUBLE_BLOCK_COLS = 16;
+
+    // Z = value * 2^exp, summed per block in float at the block's scale
+    struct ZSum {
+        std::vector<float> blockSum;
+        std::vector<int> blockScale;
+        double value = 0;
+        int exp = 0;
+
+        void reset(int blocks) {
+            if (blockScale.size() < (size_t)blocks) {
+                blockScale.resize(blocks);
+                blockSum.resize((size_t)blocks * VECSIZE_FLOAT);
+            }
+            std::fill(blockSum.begin(), blockSum.begin() + (size_t)blocks * VECSIZE_FLOAT, 0.0f);
+            std::fill(blockScale.begin(), blockScale.begin() + blocks, 0);
+            value = 0;
+            exp = 0;
+        }
+
+        // total * 2^totalExp += v * 2^s
+        static void add(double v, int s, double &total, int &totalExp) {
+            if (v == 0) {
+                return;
+            }
+            if (total == 0) {
+                total = v;
+                totalExp = s;
+            } else if (s > totalExp) {
+                total = total * pow2d(totalExp - s) + v;
+                totalExp = s;
+            } else {
+                total += v * pow2d(s - totalExp);
+            }
+        }
+
+        static void addBlock(float *sums, int *scales, int b, simd_float m, int scale, double &total, int &totalExp) {
+            float *sum = sums + (size_t)b * VECSIZE_FLOAT;
+            if (scale != scales[b]) {
+                add(simdf32_hadd_double(simdf32_loadu(sum)), scales[b], total, totalExp);
+                simdf32_storeu(sum, simdf32_setzero());
+                scales[b] = scale;
+            }
+            simdf32_storeu(sum, simdf32_add(simdf32_loadu(sum), m));
+        }
+
+        void finish(int blocks) {
+            for (int b = 0; b < blocks; ++b) {
+                add(simdf32_hadd_double(simdf32_loadu(blockSum.data() + (size_t)b * VECSIZE_FLOAT)), blockScale[b], value, exp);
+            }
+        }
+    };
+
+    template<bool checkZ, bool expScores, bool zeroGapExtend>
+    bool runScaledFloat(float **score, int rows, int cols, float exp_go, float exp_ge, float **prob, float &maxP) {
+        // denormals cost 10-27% of the run time
+        SimdFlushDenormals ftz;
+        const int blocks = (cols + BLOCK_COLS - 1) / BLOCK_COLS;
+        const int colsPadded = blocks * BLOCK_COLS;
+        if (prevScale.size() < (size_t)blocks) {
+            prevM.resize(colsPadded);
+            prevF.resize(colsPadded);
+            diagRow[0].resize(colsPadded + 1);
+            diagRow[1].resize(colsPadded + 1);
+            prevScale.resize(blocks);
+        }
+        if (fwdScale.size() < (size_t)rows * blocks) {
+            fwdScale.resize((size_t)rows * blocks);
+        }
+        if (!expScores && expScore.size() < (size_t)rows * colsPadded) {
+            expScore.resize((size_t)rows * colsPadded);
+        }
+        float unused = 0.0f;
+        if (pass<false, checkZ, expScores, zeroGapExtend>(score, rows, cols, exp_go, exp_ge, prob, 0, 1.0f, unused) == false) {
+            return false;
+        }
+        int e = 0;
+        const double m = std::frexp(zFwd.value, &e);
+        bool valid = pass<true, checkZ, expScores, zeroGapExtend>(score, rows, cols, exp_go, exp_ge, prob, zFwd.exp + e, (float)(1.0 / m), maxP);
+        if (checkZ) {
+            const double ratio = (zBwd.value / zFwd.value) * std::ldexp(1.0, zBwd.exp - zFwd.exp);
+            if (!(std::fabs(ratio - 1.0) <= 1e-4)) {
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    // a path next to a much stronger one can underflow in runScaledFloat, double mantissas keep it
+    bool runScaledDouble(float **score, int rows, int cols, float exp_go, float exp_ge, float **prob, float &maxP) {
+        const int blocks = (cols + DOUBLE_BLOCK_COLS - 1) / DOUBLE_BLOCK_COLS;
+        if (dM.size() < (size_t)rows * cols) {
+            dM.resize((size_t)rows * cols);
+        }
+        if (dExpScore.size() < (size_t)rows * cols) {
+            dExpScore.resize((size_t)rows * cols);
+        }
+        if (dFwdScale.size() < (size_t)rows * blocks) {
+            dFwdScale.resize((size_t)rows * blocks);
+        }
+        double unused = 0.0;
+        if (passDouble<false>(score, rows, cols, exp_go, exp_ge, prob, 0, 1.0, unused) == false) {
+            return false;
+        }
+        if (!(zFwd.value > 0) || !std::isfinite(zFwd.value)) {
+            return false;
+        }
+        int e = 0;
+        const double m = std::frexp(zFwd.value, &e);
+        double maxPd = 0.0;
+        bool valid = passDouble<true>(score, rows, cols, exp_go, exp_ge, prob, zFwd.exp + e, 1.0 / m, maxPd);
+        const double ratio = (zBwd.value / zFwd.value) * std::ldexp(1.0, zBwd.exp - zFwd.exp);
+        if (!(std::fabs(ratio - 1.0) <= 1e-6)) {
+            valid = false;
+        }
+        if (!(maxPd <= 1.0 + 1e-3)) {
+            valid = false;
+        }
+        maxP = (float)maxPd;
+        return valid;
+    }
+
+    // log space, nothing shares a scale; Z = 0 gives P = 0
+    void runLogDouble(float **score, int rows, int cols, float exp_go, float exp_ge, float **prob, float &maxP) {
+        const double negInf = -std::numeric_limits<double>::infinity();
+        const double logGo = std::log((double)exp_go);
+        const double logGe = std::log((double)exp_ge);
+        if (dM.size() < (size_t)rows * cols) {
+            dM.resize((size_t)rows * cols);
+        }
+        double *M = dM.data();
+        std::vector<double> &prevE = dRow[0], &currE = dRow[1], &prevF = dRow[2], &currF = dRow[3];
+        prevE.assign(cols, negInf);
+        currE.assign(cols, negInf);
+        prevF.assign(cols, negInf);
+        currF.assign(cols, negInf);
+        double logZ = negInf;
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < cols; ++j) {
+                const double s = score[i][j] / temperature;
+                const double pred = (i > 0 && j > 0) ? logSumExp(M[(size_t)(i - 1) * cols + j - 1], prevE[j - 1], prevF[j - 1]) : negInf;
+                const double m = (s == negInf) ? negInf : s + logSumExp(pred, 0.0);
+                M[(size_t)i * cols + j] = m;
+                currF[j] = (i > 0) ? logSumExp(M[(size_t)(i - 1) * cols + j] + logGo, prevF[j] + logGe) : negInf;
+                currE[j] = (j > 0) ? logSumExp(M[(size_t)i * cols + j - 1] + logGo, currE[j - 1] + logGe) : negInf;
+                logZ = logSumExp(logZ, m);
+            }
+            std::swap(prevE, currE);
+            std::swap(prevF, currF);
+        }
+        maxP = 0.0f;
+        if (logZ == negInf) {
+            for (int i = 0; i < rows; ++i) {
+                std::fill(prob[i], prob[i] + cols, 0.0f);
+            }
+            return;
+        }
+        std::vector<double> &nextBM = dRow[0], &nextBE = dRow[1], &nextBF = dRow[2];
+        std::vector<double> &currBM = dRow[3], &currBE = dRow[4], &currBF = dRow[5];
+        for (int k = 0; k < 6; ++k) {
+            dRow[k].assign(cols, negInf);
+        }
+        double maxPd = 0.0;
+        for (int i = rows - 1; i >= 0; --i) {
+            for (int j = cols - 1; j >= 0; --j) {
+                const double s = score[i][j] / temperature;
+                const double pred = (i < rows - 1 && j < cols - 1) ? logSumExp(nextBM[j + 1], nextBE[j + 1], nextBF[j + 1]) : negInf;
+                const double bm = (s == negInf) ? negInf : s + logSumExp(pred, 0.0);
+                currBM[j] = bm;
+                currBF[j] = (i < rows - 1) ? logSumExp(nextBM[j] + logGo, nextBF[j] + logGe) : negInf;
+                currBE[j] = (j < cols - 1) ? logSumExp(currBM[j + 1] + logGo, currBE[j + 1] + logGe) : negInf;
+                const double p = (s == negInf) ? 0.0 : std::exp(M[(size_t)i * cols + j] + bm - s - logZ);
+                prob[i][j] = (float)p;
+                maxPd = std::max(maxPd, p);
+            }
+            std::swap(nextBM, currBM);
+            std::swap(nextBE, currBE);
+            std::swap(nextBF, currBF);
+        }
+        maxP = (float)maxPd;
+    }
+
+    // Forward stores the ZM mantissas in prob and their scales in fwdScale. Backward runs on the reversed
+    // matrix (backward block b is forward block blocks - 1 - b) and overwrites prob with P.
+    template<bool backward, bool checkZ, bool expScores, bool zeroGapExtend>
+    bool pass(float **score, int rows, int cols, float exp_go, float exp_ge, float **prob,
+              int zExp, float zInvMant, float &maxP) {
+        const int blocks = (cols + BLOCK_COLS - 1) / BLOCK_COLS;
+        const int colsPadded = blocks * BLOCK_COLS;
+        std::fill(prevM.begin(), prevM.begin() + colsPadded, 0.0f);
+        std::fill(prevF.begin(), prevF.begin() + colsPadded, 0.0f);
+        std::fill(diagRow[0].begin(), diagRow[0].begin() + colsPadded + 1, 0.0f);
+        std::fill(diagRow[1].begin(), diagRow[1].begin() + colsPadded + 1, 0.0f);
+        std::fill(prevScale.begin(), prevScale.begin() + blocks, 0);
+        if (!backward) {
+            zFwd.reset(blocks);
+        } else if (checkZ) {
+            zBwd.reset(blocks);
+        }
+        // local pointers, GCC reloads the vector members after every SIMD store otherwise
+        float *const prevMPtr = prevM.data();
+        float *const prevFPtr = prevF.data();
+        int *const prevScalePtr = prevScale.data();
+        float *const diagRowPtr[2] = {diagRow[0].data(), diagRow[1].data()};
+        ZSum &z = backward ? zBwd : zFwd;
+        float *const zBlockSum = z.blockSum.data();
+        int *const zBlockScale = z.blockScale.data();
+        double zTotal = 0.0;
+        int zTotalExp = 0;
+        // the block with padding columns, last forward and first backward
+        const int edgeBlock = (colsPadded == cols) ? -1 : (backward ? 0 : blocks - 1);
+        float gePow[BLOCK_COLS + 1];
+        gePow[0] = 1.0f;
+        for (int k = 1; k <= BLOCK_COLS; ++k) {
+            gePow[k] = gePow[k - 1] * exp_ge;
+        }
+        const simd_float vTemperature = simdf32_set(temperature);
+        const simd_float vGo = simdf32_set(exp_go);
+        const simd_float vGe = simdf32_set(exp_ge);
+        const simd_float geStep[4] = {simdf32_set(gePow[1]), simdf32_set(gePow[2]), simdf32_set(gePow[4]),
+                                      simdf32_set(gePow[8])};
+        const simd_float vGeLast = simdf32_set(gePow[VECSIZE_FLOAT - 1]);
+        const simd_float vGeLanes = simdf32_loadu(gePow);
+        simd_float vGeVec[BLOCK_VECS];
+        for (int v = 0; v < BLOCK_VECS; ++v) {
+            vGeVec[v] = simdf32_set(gePow[v * VECSIZE_FLOAT]);
+        }
+        // a block is rescaled when its values leave [2^-32, 2^32]
+        const simd_float vHi = simdf32_set(pow2f(32));
+        const simd_float vLo = simdf32_set(pow2f(-32));
+        const simd_float lane0 = simdi_i2fcast(simdi32_insert(simdi_setzero(), -1, 0));
+        simd_float nan = simdf32_setzero();
+        simd_float vMaxP = simdf32_setzero();
+        bool valid = true;
+
+        simd_float expS[BLOCK_VECS], pred[BLOCK_VECS], M[BLOCK_VECS], E[BLOCK_VECS], F[BLOCK_VECS], diag[BLOCK_VECS];
+        for (int row = 0; row < rows; ++row) {
+            const int i = backward ? rows - 1 - row : row;
+            float *expRow = expScores ? nullptr : expScore.data() + (size_t)i * colsPadded;
+            int *fwdScaleRow = fwdScale.data() + (size_t)i * blocks;
+            const float *scoreRow = score[i];
+            float *probRow = prob[i];
+            // M + E + F of the previous and of this row, column j at [j + 1]
+            const float *diagAbove = diagRowPtr[row & 1];
+            float *diagCurr = diagRowPtr[(row + 1) & 1];
+            if (!backward && !expScores) {
+                // the exp of the whole row first, outside the dependency chain of the blocks
+                const float negInf = -std::numeric_limits<float>::infinity();
+                for (int j = 0; j < colsPadded; j += VECSIZE_FLOAT) {
+                    simdf32_storeu(expRow + j, simdf32_exp(simdf32_div(loadCols(scoreRow, j, cols, negInf), vTemperature)));
+                }
+            }
+            float carryE = 0.0f;
+            int carryScale = 0;
+            int diagLeftScale = 0;
+            // inlined into both calls below, so that the row and pass state stay in registers
+            const auto processBlock = [&](const int b, const bool edge) __attribute__((__always_inline__)) {
+                const int j0 = b * BLOCK_COLS;
+                const int scaleAbove = prevScalePtr[b];
+                int scale = std::max(scaleAbove, diagLeftScale);
+                const simd_float fromAbove = simdf32_set(pow2f(scaleAbove - scale));
+                // a product with 1 is exact and can be left out
+                const bool sameScale = (scaleAbove == scale);
+                const simd_float localStart = simdf32_set(pow2f(-scale));
+                const simd_float carryDiag = simdf32_set(diagAbove[j0] * pow2f(diagLeftScale - scale));
+                for (int v = 0; v < BLOCK_VECS; ++v) {
+                    const int j = j0 + v * VECSIZE_FLOAT;
+                    if (backward) {
+                        const int p = colsPadded - j - VECSIZE_FLOAT;
+                        if (expScores) {
+                            expS[v] = simdf32_reverse(edge ? loadCols(scoreRow, p, cols, 0.0f) : simdf32_loadu(scoreRow + p));
+                        } else {
+                            expS[v] = simdf32_reverse(simdf32_loadu(expRow + p));
+                        }
+                    } else if (expScores) {
+                        expS[v] = edge ? loadCols(scoreRow, j, cols, 0.0f) : simdf32_loadu(scoreRow + j);
+                    } else {
+                        expS[v] = simdf32_loadu(expRow + j);
+                    }
+                    const simd_float mAbove = simdf32_loadu(prevMPtr + j);
+                    const simd_float fAbove = simdf32_loadu(prevFPtr + j);
+                    const simd_float dAbove = simdf32_loadu(diagAbove + j);
+                    const simd_float diagScaled = sameScale ? dAbove : simdf32_no_contract(simdf32_mul(dAbove, fromAbove));
+                    pred[v] = simdf32_add((v == 0) ? simdf32_blendv_ps(diagScaled, carryDiag, lane0) : diagScaled, localStart);
+                    M[v] = simdf32_mul(pred[v], expS[v]);
+                    // the sum written out in both branches, so that both fuse the same product
+                    F[v] = sameScale ? simdf32_fmadd(mAbove, vGo, simdf32_mul(fAbove, vGe))
+                                     : simdf32_mul(simdf32_fmadd(mAbove, vGo, simdf32_mul(fAbove, vGe)), fromAbove);
+                }
+                const int predScale = scale;
+                if (carryScale > scale) {
+                    const simd_float f = simdf32_set(pow2f(scale - carryScale));
+                    for (int v = 0; v < BLOCK_VECS; ++v) {
+                        M[v] = simdf32_mul(M[v], f);
+                        F[v] = simdf32_mul(F[v], f);
+                    }
+                    scale = carryScale;
+                }
+                // E along the row: prefix sums of M * exp_go decayed by exp_ge, plus the carry from the left
+                const float eIn = carryE * pow2f(carryScale - scale);
+                const simd_float vEIn = simdf32_set(eIn);
+                simd_float eRun = simdf32_setzero();
+                for (int v = 0; v < BLOCK_VECS; ++v) {
+                    const simd_float x = simdf32_mul(M[v], vGo);
+                    simd_float y = simdf32_shiftl_lanes<1>(x);
+                    if (zeroGapExtend) {
+                        y = simdf32_add(simdf32_shiftl_lanes<1>(y), y);
+                        y = simdf32_add(simdf32_shiftl_lanes<2>(y), y);
+#if VECSIZE_FLOAT >= 8
+                        y = simdf32_add(simdf32_shiftl_lanes<4>(y), y);
+#endif
+#if VECSIZE_FLOAT == 16
+                        y = simdf32_add(simdf32_shiftl_lanes<8>(y), y);
+#endif
+                        E[v] = simdf32_add(simdf32_add(vEIn, eRun), y);
+                        eRun = simdf32_add(simdf32_add(eRun, simdf32_broadcast_last(y)), simdf32_broadcast_last(x));
+                    } else {
+                        y = simdf32_fmadd(simdf32_shiftl_lanes<1>(y), geStep[0], y);
+                        y = simdf32_fmadd(simdf32_shiftl_lanes<2>(y), geStep[1], y);
+#if VECSIZE_FLOAT >= 8
+                        y = simdf32_fmadd(simdf32_shiftl_lanes<4>(y), geStep[2], y);
+#endif
+#if VECSIZE_FLOAT == 16
+                        y = simdf32_fmadd(simdf32_shiftl_lanes<8>(y), geStep[3], y);
+#endif
+                        E[v] = simdf32_fmadd(simdf32_fmadd(vEIn, vGeVec[v], eRun), vGeLanes, y);
+                        eRun = simdf32_fmadd(simdf32_fmadd(eRun, vGeLast, simdf32_broadcast_last(y)), vGe,
+                                             simdf32_broadcast_last(x));
+                    }
+                }
+                const float eOut = eRun[0] + eIn * gePow[BLOCK_COLS];
+                diagLeftScale = scaleAbove;
+
+                simd_float diagMax = simdf32_setzero();
+                simd_float diagSum = simdf32_setzero();
+                for (int v = 0; v < BLOCK_VECS; ++v) {
+                    diag[v] = simdf32_add(simdf32_add(M[v], E[v]), F[v]);
+                    diagMax = (v == 0) ? diag[v] : simdf32_max(diagMax, diag[v]);
+                    diagSum = (v == 0) ? diag[v] : simdf32_add(diagSum, diag[v]);
+                }
+                // max drops a NaN, the sum keeps it
+                nan = simdf32_or(nan, simdf32_cmp(diagSum, diagSum, _CMP_UNORD_Q));
+                int newScale = scale;
+                if (simdf32_movemask_ps(simdf32_gt(diagMax, vHi)) != 0 ||
+                    (scale > 0 && simdf32_movemask_ps(simdf32_lt(diagMax, vLo)) == ALL_LANES)) {
+                    const float m = simdf32_hmax(diagMax);
+                    if (!(m < 1.0e38f)) {
+                        valid = false;
+                    } else if (m > 0.0f) {
+                        uint32_t bits;
+                        memcpy(&bits, &m, sizeof(bits));
+                        newScale = std::max(0, scale + (int)((bits >> 23) & 0xff) - 127);
+                    } else {
+                        newScale = 0;
+                    }
+                }
+                if (newScale != scale) {
+                    const simd_float f = simdf32_set(pow2f(scale - newScale));
+                    for (int v = 0; v < BLOCK_VECS; ++v) {
+                        M[v] = simdf32_no_contract(simdf32_mul(M[v], f));
+                        E[v] = simdf32_no_contract(simdf32_mul(E[v], f));
+                        F[v] = simdf32_no_contract(simdf32_mul(F[v], f));
+                        diag[v] = simdf32_add(simdf32_add(M[v], E[v]), F[v]);
+                    }
+                }
+                simd_float sumM = M[0];
+                for (int v = 0; v < BLOCK_VECS; ++v) {
+                    const int j = j0 + v * VECSIZE_FLOAT;
+                    simdf32_storeu(prevMPtr + j, M[v]);
+                    simdf32_storeu(prevFPtr + j, F[v]);
+                    simdf32_storeu(diagCurr + j + 1, diag[v]);
+                    if (v > 0) {
+                        sumM = simdf32_add(sumM, M[v]);
+                    }
+                }
+                prevScalePtr[b] = newScale;
+                carryE = eOut;
+                carryScale = (eOut == 0.0f) ? 0 : scale;
+
+                if (!backward) {
+                    for (int v = 0; v < BLOCK_VECS; ++v) {
+                        const int j = j0 + v * VECSIZE_FLOAT;
+                        if (edge) {
+                            storeCols(probRow, j, cols, M[v]);
+                        } else {
+                            simdf32_storeu(probRow + j, M[v]);
+                        }
+                    }
+                    fwdScaleRow[b] = newScale;
+                    ZSum::addBlock(zBlockSum, zBlockScale, b, sumM, newScale, zTotal, zTotalExp);
+                } else {
+                    // 2^pExp in two factors so that neither overflows
+                    const int pExp = fwdScaleRow[blocks - 1 - b] + predScale - zExp;
+                    const simd_float pFactor = simdf32_set(pow2f(pExp / 2) * pow2f(pExp - pExp / 2) * zInvMant);
+                    simd_float pSum = simdf32_setzero();
+                    for (int v = 0; v < BLOCK_VECS; ++v) {
+                        const int p = colsPadded - j0 - (v + 1) * VECSIZE_FLOAT;
+                        const simd_float mFwd = simdf32_reverse(edge ? loadCols(probRow, p, cols, 0.0f) : simdf32_loadu(probRow + p));
+                        const simd_float P = simdf32_mul(simdf32_mul(mFwd, pred[v]), pFactor);
+                        if (edge) {
+                            storeCols(probRow, p, cols, simdf32_reverse(P));
+                        } else {
+                            simdf32_storeu(probRow + p, simdf32_reverse(P));
+                        }
+                        vMaxP = simdf32_max(vMaxP, P);
+                        pSum = simdf32_add(pSum, P);
+                    }
+                    nan = simdf32_or(nan, simdf32_cmp(pSum, pSum, _CMP_UNORD_Q));
+                    if (checkZ) {
+                        ZSum::addBlock(zBlockSum, zBlockScale, b, sumM, newScale, zTotal, zTotalExp);
+                    }
+                }
+            };
+            for (int b = 0; b < blocks; ++b) {
+                if (b == edgeBlock) {
+                    processBlock(b, true);
+                } else {
+                    processBlock(b, false);
+                }
+            }
+        }
+        if (simdf32_movemask_ps(nan) != 0) {
+            valid = false;
+        }
+        z.value = zTotal;
+        z.exp = zTotalExp;
+        if (!backward) {
+            z.finish(blocks);
+            if (!(zFwd.value > 0) || !std::isfinite(zFwd.value)) {
+                valid = false;
+            }
+        } else {
+            if (checkZ) {
+                z.finish(blocks);
+            }
+            maxP = simdf32_hmax(vMaxP);
+            if (!(maxP <= 1.0f + 1e-3f)) {
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    // the recurrence of pass() cell by cell, rescaled in every block
+    template<bool backward>
+    bool passDouble(float **score, int rows, int cols, double exp_go, double exp_ge, float **prob,
+                    int zExp, double zInvMant, double &maxPd) {
+        const int blocks = (cols + DOUBLE_BLOCK_COLS - 1) / DOUBLE_BLOCK_COLS;
+        // M, F at [c], M + E + F at [c + 1]
+        std::vector<double> &mPrev = dRow[0], &fPrev = dRow[1], &diagPrev = dRow[2];
+        std::vector<double> &mCurr = dRow[3], &fCurr = dRow[4], &diagCurr = dRow[5];
+        for (int k = 0; k < 6; ++k) {
+            dRow[k].assign(cols + 1, 0.0);
+        }
+        dPred.resize(cols);
+        dPrevScale.assign(blocks, 0);
+        dCurrScale.assign(blocks, 0);
+        ZSum &z = backward ? zBwd : zFwd;
+        z.reset(0);
+        bool valid = true;
+        for (int row = 0; row < rows; ++row) {
+            const int i = backward ? rows - 1 - row : row;
+            double *expRow = dExpScore.data() + (size_t)i * cols;
+            double *mFwdRow = dM.data() + (size_t)i * cols;
+            int *fwdScaleRow = dFwdScale.data() + (size_t)i * blocks;
+            double mLeft = 0.0, eLeft = 0.0;
+            int leftScale = 0;
+            for (int b = 0; b < blocks; ++b) {
+                const int c0 = b * DOUBLE_BLOCK_COLS;
+                const int c1 = std::min(cols, c0 + DOUBLE_BLOCK_COLS);
+                int scale = dPrevScale[b];
+                if (b > 0 && diagPrev[c0] != 0.0) {
+                    scale = std::max(scale, dPrevScale[b - 1]);
+                }
+                if (mLeft != 0.0 || eLeft != 0.0) {
+                    scale = std::max(scale, leftScale);
+                }
+                const double fromAbove = pow2d(dPrevScale[b] - scale);
+                const double fromDiagLeft = (b > 0) ? pow2d(dPrevScale[b - 1] - scale) : 0.0;
+                const double fromLeft = pow2d(leftScale - scale);
+                // 2^-scale in two factors, a scale above 1022 gives a denormal instead of 0
+                const int halfScale = scale / 2;
+                const double localStart = pow2d(-halfScale) * pow2d(halfScale - scale);
+                double m = mLeft * fromLeft;
+                double e = eLeft * fromLeft;
+                double diagMax = 0.0;
+                // c: column in pass order, j: column in the matrix
+                for (int c = c0; c < c1; ++c) {
+                    const int j = backward ? cols - 1 - c : c;
+                    double expS;
+                    if (!backward) {
+                        expS = std::exp((double)(score[i][j] / temperature));
+                        expRow[j] = expS;
+                    } else {
+                        expS = expRow[j];
+                    }
+                    const double pred = diagPrev[c] * ((c == c0) ? fromDiagLeft : fromAbove) + localStart;
+                    const double f = (mPrev[c] * exp_go + fPrev[c] * exp_ge) * fromAbove;
+                    e = m * exp_go + e * exp_ge;
+                    m = pred * expS;
+                    const double diag = m + e + f;
+                    mCurr[c] = m;
+                    fCurr[c] = f;
+                    diagCurr[c + 1] = diag;
+                    dPred[c] = pred;
+                    diagMax = std::max(diagMax, diag);
+                }
+                const int newScale = (diagMax > 0.0) ? scale + std::ilogb(diagMax) : 0;
+                const double rescale = pow2d(scale - newScale);
+                double sumM = 0.0;
+                for (int c = c0; c < c1; ++c) {
+                    mCurr[c] *= rescale;
+                    fCurr[c] *= rescale;
+                    diagCurr[c + 1] *= rescale;
+                    sumM += mCurr[c];
+                }
+                if (!(diagMax < std::numeric_limits<double>::infinity()) || std::isnan(sumM)) {
+                    valid = false;
+                }
+                mLeft = m * rescale;
+                eLeft = e * rescale;
+                leftScale = newScale;
+                dCurrScale[b] = newScale;
+                if (!backward) {
+                    for (int c = c0; c < c1; ++c) {
+                        mFwdRow[c] = mCurr[c];
+                    }
+                    fwdScaleRow[b] = newScale;
+                } else {
+                    for (int c = c0; c < c1; ++c) {
+                        const int j = cols - 1 - c;
+                        const int pExp = fwdScaleRow[j / DOUBLE_BLOCK_COLS] + scale - zExp;
+                        const double p = mFwdRow[j] * dPred[c] * zInvMant * pow2d(pExp / 2) * pow2d(pExp - pExp / 2);
+                        prob[i][j] = (float)p;
+                        if (std::isnan(p)) {
+                            valid = false;
+                        }
+                        maxPd = std::max(maxPd, p);
+                    }
+                }
+                ZSum::add(sumM, newScale, z.value, z.exp);
+            }
+            std::swap(mPrev, mCurr);
+            std::swap(fPrev, fCurr);
+            std::swap(diagPrev, diagCurr);
+            std::swap(dPrevScale, dCurrScale);
+        }
+        return valid;
+    }
+
+    static double logSumExp(double a, double b) {
+        const double m = std::max(a, b);
+        if (m == -std::numeric_limits<double>::infinity()) {
+            return m;
+        }
+        return m + std::log(std::exp(a - m) + std::exp(b - m));
+    }
+
+    static double logSumExp(double a, double b, double c) {
+        const double m = std::max(a, std::max(b, c));
+        if (m == -std::numeric_limits<double>::infinity()) {
+            return m;
+        }
+        return m + std::log(std::exp(a - m) + std::exp(b - m) + std::exp(c - m));
+    }
+
+    float temperature;
+    std::vector<float> prevM, prevF;
+    std::vector<float> diagRow[2];
+    std::vector<int> prevScale;
+    std::vector<int> fwdScale;
+    std::vector<float> expScore;
+    ZSum zFwd, zBwd;
+    // runScaledDouble and runLogDouble
+    std::vector<double> dM, dRow[6];
+    std::vector<double> dExpScore, dPred;
+    std::vector<int> dFwdScale;
+    std::vector<int> dPrevScale, dCurrScale;
+};
+
 // FwBwAligner Constructor for general case: use profile scoring matrix
 
 class Impl final : public FwBwAligner::Impl {
@@ -69,6 +764,7 @@ public:
     void resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, size_t newColsCapacity);
     void resetParams(float newGapOpen, float newGapExtend, float newTemperature);
     void setTemperature(float newTemperature) { temperature = newTemperature; }
+    void setScaledMode(FwBwAligner::ScaledMode mode) { scaledMode = mode; }
     void initProfile(unsigned char* colAANum, size_t colAALen);
     void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen);
     void initScoreMatrix(float** inputScoreMatrix, int* gaps);
@@ -101,6 +797,9 @@ private:
 
     template<int backtrace>
     void computeBacktrace();
+
+    template<int backtrace>
+    bool computeBacktraceSimd(size_t &maxI, size_t &maxJ, float &score);
 
     unsigned char* colSeqAANum = nullptr;
     unsigned char* rowSeqAANum = nullptr;
@@ -157,6 +856,13 @@ private:
     size_t colSeqLen_padding;
 
     FwBwAligner::s_align alignResult;
+
+    FwBwAligner::ScaledMode scaledMode = FwBwAligner::SCALED_OFF;
+    ScaledFwBw<16> scaledFwBw;
+    ScaledFwBw<32> scaledFwBwProfile;
+    std::vector<float*> scaledProfileRows;
+    std::vector<float*> scoreMatrixRows;
+    std::vector<float> macRow[2];
 };
 
 Impl::Impl(SubstitutionMatrix &subMat, float gapOpen, float gapExtend, float temperature, float mact, size_t rowsCapacity, size_t colsCapacity, size_t length, int backtrace)
@@ -211,9 +917,6 @@ Impl::Impl(SubstitutionMatrix &subMat, float gapOpen, float gapExtend, float tem
 // FwBwAligner Constructor for user-defined scoring matrix
 Impl::Impl(float gapOpen, float gapExtend, float temperature, float mact, size_t rowsCapacity, size_t colsCapacity, size_t length, int backtrace)
                     : temperature(temperature), length(length), gapOpen(gapOpen), gapExtend(gapExtend), mact(mact), rowsCapacity(rowsCapacity), colsCapacity(colsCapacity) {
-    
-    // scoreForward
-    scoreForward = malloc_matrix<float>(rowsCapacity, colsCapacity);
     // ZM
     zm = malloc_matrix<float>(rowsCapacity, colsCapacity);
     // Block
@@ -385,7 +1088,7 @@ void Impl::resizeMatrix<false,true>(size_t newRowLen, size_t newColLen) {
     free(zfFirst); zfFirst = (float *) malloc_simd_float((rowsCapacity+1) * sizeof(float));
     free(zInit); zInit = malloc_matrix<float>(3, rowsCapacity);
     //profile
-    free(scoreForward); scoreForward = malloc_matrix<float>(rowsCapacity, colsCapacity);
+    free(scoreForward); scoreForward = nullptr;
     //backtrace
     free(S_prev); S_prev = (float *) malloc_simd_float((colsCapacity+1) * sizeof(float));
     free(S_curr); S_curr = (float *) malloc_simd_float((colsCapacity+1) * sizeof(float));
@@ -418,7 +1121,7 @@ void Impl::resizeMatrix<false,false>(size_t newRowLen, size_t newColLen) {
     free(zfFirst); zfFirst = (float *) malloc_simd_float((rowsCapacity+1) * sizeof(float));
     free(zInit); zInit = malloc_matrix<float>(3, rowsCapacity);
     //profile
-    free(scoreForward); scoreForward = malloc_matrix<float>(rowsCapacity, colsCapacity);
+    free(scoreForward); scoreForward = nullptr;
 }
 
 void Impl::resetParams(float newGapOpen, float newGapExtend, float newTemperature) {
@@ -448,26 +1151,10 @@ void Impl::initScoreMatrix(float** inputScoreMatrix, int* gaps) {
     rowSeqLen = gaps[1]-gaps[0]; colSeqLen = gaps[3]-gaps[2]; //row=tlen, col=qlen
     colSeqLen_padding = ((colSeqLen + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT) * VECSIZE_FLOAT; //colpadding
     blocks = (colSeqLen / length) + (colSeqLen % length != 0);
-    simd_float vTemp = simdf32_set(temperature);
-    if (colSeqLen > colsCapacity) {
-        size_t newColsCapacity = ((colSeqLen + length-1)/length)* length;
-        free(scoreForward); scoreForward = malloc_matrix<float>(rowsCapacity, newColsCapacity);
-    }
-    size_t colLoopCount = colSeqLen/VECSIZE_FLOAT;
-    size_t colEndPos = colLoopCount*VECSIZE_FLOAT;
-    for (size_t i = 0; i < rowSeqLen; ++i){
-        for (size_t j = 0; j < colEndPos; j+=VECSIZE_FLOAT) {
-            simd_float vScoreForward = simdf32_loadu(&inputScoreMatrix[i+gaps[0]][j+gaps[2]]);
-            vScoreForward = simdf32_div(vScoreForward, vTemp);
-            simdf32_store(&scoreForward[i][j], vScoreForward);
-        }
-        for(size_t j = colEndPos; j < colSeqLen; ++j){
-            scoreForward[i][j] = inputScoreMatrix[i+gaps[0]][j+gaps[2]] / temperature;
-
-        }
-        for (size_t j = colSeqLen; j < colSeqLen_padding; ++j){
-            scoreForward[i][j] = FLT_MIN_EXP;
-        } 
+    // no copy, runFwBw divides by the temperature
+    scoreMatrixRows.resize(rowSeqLen);
+    for (size_t i = 0; i < rowSeqLen; ++i) {
+        scoreMatrixRows[i] = inputScoreMatrix[i + gaps[0]] + gaps[2];
     }
 }
 
@@ -1043,6 +1730,164 @@ void Impl::computeProbabilityMatrix() {
 
 }
 
+// a - h, n times, each step rounded as in the cell-by-cell loop
+inline simd_float subRepeat(simd_float a, simd_float h, int n) {
+    for (int k = 0; k < n; ++k) {
+        a = simdf32_sub(a, h);
+    }
+    return a;
+}
+
+// The S and btMatrix fill of computeBacktrace VECSIZE_FLOAT cells at a time, with the floats, states and end
+// cell of its loop. S_j = max(T_j, S_j-1 - mact/2) is a running maximum, computed as a log-step scan plus a
+// carry from the left. Returns false if P holds a NaN or mact/2 is not exact.
+template<int backtrace>
+bool Impl::computeBacktraceSimd(size_t &maxI, size_t &maxJ, float &score) {
+    if (0.5f * mact * 2.0f != mact) {
+        return false;
+    }
+    const int rows = (int)rowSeqLen;
+    const int cols = (int)colSeqLen;
+    const float negInf = -std::numeric_limits<float>::infinity();
+    const float floatMax = std::numeric_limits<float>::max();
+    const int colsVec = (cols + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT * VECSIZE_FLOAT;
+    for (int r = 0; r < 2; ++r) {
+        if (macRow[r].size() < (size_t)colsVec + VECSIZE_FLOAT + 1) {
+            macRow[r].resize(colsVec + VECSIZE_FLOAT + 1);
+        }
+    }
+    float *prev = macRow[0].data();
+    float *curr = macRow[1].data();
+    std::fill(prev, prev + colsVec + VECSIZE_FLOAT + 1, negInf);
+    std::fill(curr, curr + colsVec + VECSIZE_FLOAT + 1, negInf);
+    prev[0] = 0.0f;
+    std::fill(prev + 1, prev + cols + 1, (backtrace == 3) ? -floatMax : 0.0f);
+
+    float laneIdx[VECSIZE_FLOAT];
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        laneIdx[k] = (float)k;
+    }
+    const simd_float vLane = simdf32_loadu(laneIdx);
+    const simd_float vZero = simdf32_setzero();
+    const simd_float vNegInf = simdf32_set(negInf);
+    const simd_float vMact = simdf32_set(mact);
+    const simd_float vH = simdf32_set(0.5f * mact);
+    const simd_float lt1 = simdf32_lt(vLane, simdf32_set(1.0f));
+    const simd_float lt2 = simdf32_lt(vLane, simdf32_set(2.0f));
+#if VECSIZE_FLOAT >= 8
+    const simd_float lt4 = simdf32_lt(vLane, simdf32_set(4.0f));
+#endif
+#if VECSIZE_FLOAT == 16
+    const simd_float lt8 = simdf32_lt(vLane, simdf32_set(8.0f));
+#endif
+    // hFrom[k]: h in lanes >= k, 0 below
+    simd_float hFrom[VECSIZE_FLOAT];
+    for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+        hFrom[k] = simdf32_blendv_ps(vH, vZero, simdf32_lt(vLane, simdf32_set((float)k)));
+    }
+    const simd_float vStop = simdf32_set((float)States::STOP);
+    const simd_float vM = simdf32_set((float)States::M);
+    const simd_float vI = simdf32_set((float)States::I);
+    const simd_float vD = simdf32_set((float)States::D);
+
+    float best = -floatMax;
+    size_t bestI = 0;
+    size_t bestJ = 0;
+    float lastColAbove = (backtrace == 3) ? -floatMax : 0.0f;
+    float states[VECSIZE_FLOAT];
+    for (int i = 1; i <= rows; ++i) {
+        const float left = (backtrace == 3 && (i & 1)) ? -floatMax : 0.0f;
+        curr[0] = left;
+        float carry = left;
+        simd_float rowMax = vNegInf;
+        simd_float nan = vZero;
+        const float *pRow = P[i - 1];
+        uint8_t *btRow = btMatrix[i];
+        for (int j0 = 1; j0 <= cols; j0 += VECSIZE_FLOAT) {
+            const simd_float p = loadCols(pRow, j0 - 1, cols, 0.0f);
+            nan = simdf32_or(nan, simdf32_cmp(p, p, _CMP_UNORD_Q));
+            const simd_float term1 = simdf32_sub(p, vMact);
+            const simd_float term2 = simdf32_sub(simdf32_add(simdf32_loadu(prev + j0 - 1), p), vMact);
+            const simd_float term4 = simdf32_sub(simdf32_loadu(prev + j0), vH);
+            simd_float y = simdf32_max(simdf32_max(term1, term2), term4);
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<1>(y), vNegInf, lt1), vH, 1));
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<2>(y), vNegInf, lt2), vH, 2));
+#if VECSIZE_FLOAT >= 8
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<4>(y), vNegInf, lt4), vH, 4));
+#endif
+#if VECSIZE_FLOAT == 16
+            y = simdf32_max(y, subRepeat(simdf32_blendv_ps(simdf32_shiftl_lanes<8>(y), vNegInf, lt8), vH, 8));
+#endif
+            // the serial carry chain rounds by less than 2^-19 (|carry| + hSpan), skip it if y is above it by twice that
+            // the carry from the left, h subtracted once per column as in the cell-by-cell loop
+            simd_float carryLanes = simdf32_set(carry);
+            for (int k = 0; k < VECSIZE_FLOAT; ++k) {
+                carryLanes = simdf32_sub(carryLanes, hFrom[k]);
+            }
+            simd_float S = simdf32_max(y, carryLanes);
+            if (j0 + VECSIZE_FLOAT - 1 > cols) {
+                S = simdf32_blendv_ps(vNegInf, S, simdf32_lt(vLane, simdf32_set((float)(cols + 1 - j0))));
+            }
+            simdf32_storeu(curr + j0, S);
+            const simd_float term3 = simdf32_sub(simdf32_blendv_ps(simdf32_shiftl_lanes<1>(S), simdf32_set(carry), lt1), vH);
+            // the order of calculate_max4, simdf32_max(a, b) is a > b ? a : b
+            simd_float mx = simdf32_max(term1, term2);
+            simd_float state = simdf32_blendv_ps(vM, vStop, simdf32_gt(term1, term2));
+            const simd_float c3 = simdf32_gt(term3, mx);
+            mx = simdf32_max(term3, mx);
+            state = simdf32_blendv_ps(state, vI, c3);
+            state = simdf32_blendv_ps(state, vD, simdf32_gt(term4, mx));
+            if (j0 + VECSIZE_FLOAT - 1 <= cols) {
+                simdf32_storeu_u8(btRow + j0, state);
+            } else {
+                simdf32_storeu(states, state);
+                for (int k = 0; j0 + k <= cols; ++k) {
+                    btRow[j0 + k] = (uint8_t)states[k];
+                }
+            }
+            rowMax = simdf32_max(rowMax, S);
+            carry = S[VECSIZE_FLOAT - 1];
+        }
+        if (simdf32_movemask_ps(nan) != 0) {
+            return false;
+        }
+        // the first strict improvement in row-major order
+        if (backtrace == 1) {
+            const float m = simdf32_hmax(rowMax);
+            if (m > best) {
+                int j = 1;
+                while (curr[j] != m) {
+                    ++j;
+                }
+                best = m;
+                bestI = i;
+                bestJ = j;
+            }
+        } else if (backtrace == 2) {
+            for (int j = (i == rows) ? 1 : cols; j <= cols; ++j) {
+                if (curr[j] > best) {
+                    best = curr[j];
+                    bestI = i;
+                    bestJ = j;
+                }
+            }
+        } else if (i < rows) {
+            lastColAbove = curr[cols];
+        }
+        std::swap(prev, curr);
+    }
+    if (backtrace == 3) {
+        // computeBacktrace reads the row buffer that holds row rows - 1 after its last swap
+        bestI = rows;
+        bestJ = cols;
+        best = lastColAbove;
+    }
+    maxI = bestI;
+    maxJ = bestJ;
+    score = best;
+    return true;
+}
+
 template<int backtrace>
 void Impl::computeBacktrace() {
     // MAC algorithm from HH-suite
@@ -1076,7 +1921,8 @@ void Impl::computeBacktrace() {
         btMatrix[0][j] = States::STOP;
     }
 
-    for (size_t i = 1; i <= rowSeqLen; ++i) {
+    const bool simdFill = rowSeqLen > 0 && colSeqLen > 0 && computeBacktraceSimd<backtrace>(max_i, max_j, score_MAC);
+    for (size_t i = 1; i <= rowSeqLen && !simdFill; ++i) {
         for (size_t j = 1; j <= colSeqLen; ++j) {
             term1 = P[i - 1][j - 1] - mact; // STOP
             term2 = S_prev[j - 1] + P[i - 1][j - 1] - mact; // M
@@ -1110,7 +1956,7 @@ void Impl::computeBacktrace() {
         }
     }
     // Set max_i and max_j for global alignment
-    if (backtrace == 3) {
+    if (backtrace == 3 && !simdFill) {
         max_i = rowSeqLen;
         max_j = colSeqLen;
         score_MAC = S_curr[colSeqLen];
@@ -1186,6 +2032,50 @@ void Impl::resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, si
 }
 
 void Impl::runFwBw(bool profile, int backtraceMode) {
+    if (scaledMode != FwBwAligner::SCALED_OFF) {
+        P = zm;
+        const int rows = (int)rowSeqLen;
+        const int cols = (int)colSeqLen;
+        if (profile) {
+            // score and exp(score) rows of the query profile, one per target residue
+            scaledProfileRows.resize(2 * rowSeqLen);
+            for (size_t i = 0; i < rowSeqLen; ++i) {
+                scaledProfileRows[i] = scoreForwardProfile[rowSeqAANum[i]];
+                scaledProfileRows[rowSeqLen + i] = scoreForwardProfile_exp[rowSeqAANum[i]];
+            }
+            scaledFwBwProfile.run<true>(scaledMode, scaledProfileRows.data(), scaledProfileRows.data() + rowSeqLen,
+                                        rows, cols, 1.0f, exp_go, exp_ge, zm, maxP);
+        } else {
+            scaledFwBw.run<false>(scaledMode, scoreMatrixRows.data(), scoreMatrixRows.data(), rows, cols, temperature, exp_go, exp_ge, zm, maxP);
+        }
+        switch (backtraceMode) {
+            case 0: break;
+            case 2: computeBacktrace<2>(); break;
+            case 3: computeBacktrace<3>(); break;
+            default: computeBacktrace<1>(); break;
+        }
+        return;
+    }
+    if (profile == false) {
+        // the log kernel reads a copy of the score rows divided by the temperature, allocated on first use
+        if (scoreForward == nullptr || colSeqLen > colsCapacity) {
+            const size_t newColsCapacity = std::max(colsCapacity, ((colSeqLen + length - 1) / length) * length);
+            free(scoreForward); scoreForward = malloc_matrix<float>(rowsCapacity, newColsCapacity);
+        }
+        const simd_float vTemp = simdf32_set(temperature);
+        const size_t colEndPos = (colSeqLen / VECSIZE_FLOAT) * VECSIZE_FLOAT;
+        for (size_t i = 0; i < rowSeqLen; ++i) {
+            for (size_t j = 0; j < colEndPos; j += VECSIZE_FLOAT) {
+                simdf32_store(&scoreForward[i][j], simdf32_div(simdf32_loadu(&scoreMatrixRows[i][j]), vTemp));
+            }
+            for (size_t j = colEndPos; j < colSeqLen; ++j) {
+                scoreForward[i][j] = scoreMatrixRows[i][j] / temperature;
+            }
+            for (size_t j = colSeqLen; j < colSeqLen_padding; ++j) {
+                scoreForward[i][j] = FLT_MIN_EXP;
+            }
+        }
+    }
     if (profile) {
         switch (backtraceMode) {
             case 0: runFwBw<true, 0>(); break;
