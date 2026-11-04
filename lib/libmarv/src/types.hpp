@@ -6,12 +6,16 @@
 #include <array>
 #include <string>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 enum ScanType{
     Gapless,
+    SW,
+    Gapless_Endpos,
     SW_Endpos,
-    GaplessPlusSW_Endpos
+    GaplessPlusSW_Endpos,
+    Foldseek
 };
 
 
@@ -399,47 +403,50 @@ struct BLOSUM80{
 
 
 __inline__
-std::string to_string(cudasw4::ScanType type){
+std::string to_string(libmarv::ScanType type){
     switch(type){
-        case cudasw4::ScanType::Gapless: return "Gapless"; break;
-        case cudasw4::ScanType::SW_Endpos: return "SW with end positions"; break;
-        case cudasw4::ScanType::GaplessPlusSW_Endpos: return "Gapless + SW with end positions"; break;
+        case libmarv::ScanType::Gapless: return "Gapless"; break;
+        case libmarv::ScanType::SW: return "SW"; break;
+        case libmarv::ScanType::Gapless_Endpos: return "Gapless with end positions"; break;
+        case libmarv::ScanType::SW_Endpos: return "SW with end positions"; break;
+        case libmarv::ScanType::GaplessPlusSW_Endpos: return "Gapless + SW with end positions"; break;
+        case libmarv::ScanType::Foldseek: return "Foldseek"; break;
         default: return "Missing name for ScanType";
     }
 }
 
 
 __inline__
-std::string to_string(cudasw4::BlosumType type){
+std::string to_string(libmarv::BlosumType type){
     switch(type){
-        case cudasw4::BlosumType::BLOSUM45: return "BLOSUM45";
-        case cudasw4::BlosumType::BLOSUM50: return "BLOSUM50";
-        case cudasw4::BlosumType::BLOSUM62: return "BLOSUM62";
-        case cudasw4::BlosumType::BLOSUM80: return "BLOSUM80";
-        case cudasw4::BlosumType::BLOSUM45_20: return "BLOSUM45 (20)";
-        case cudasw4::BlosumType::BLOSUM50_20: return "BLOSUM50 (20)";
-        case cudasw4::BlosumType::BLOSUM62_20: return "BLOSUM62 (20)";
-        case cudasw4::BlosumType::BLOSUM80_20: return "BLOSUM80 (20)";
+        case libmarv::BlosumType::BLOSUM45: return "BLOSUM45";
+        case libmarv::BlosumType::BLOSUM50: return "BLOSUM50";
+        case libmarv::BlosumType::BLOSUM62: return "BLOSUM62";
+        case libmarv::BlosumType::BLOSUM80: return "BLOSUM80";
+        case libmarv::BlosumType::BLOSUM45_20: return "BLOSUM45 (20)";
+        case libmarv::BlosumType::BLOSUM50_20: return "BLOSUM50 (20)";
+        case libmarv::BlosumType::BLOSUM62_20: return "BLOSUM62 (20)";
+        case libmarv::BlosumType::BLOSUM80_20: return "BLOSUM80 (20)";
         default: return "FORGOT TO NAME THIS BLOSUM TYPE";
     }
 }
 
 __inline__
-std::string to_string_nodim(cudasw4::BlosumType type){
+std::string to_string_nodim(libmarv::BlosumType type){
     switch(type){
-        case cudasw4::BlosumType::BLOSUM45: return "BLOSUM45";
-        case cudasw4::BlosumType::BLOSUM50: return "BLOSUM50";
-        case cudasw4::BlosumType::BLOSUM62: return "BLOSUM62";
-        case cudasw4::BlosumType::BLOSUM80: return "BLOSUM80";
-        case cudasw4::BlosumType::BLOSUM45_20: return "BLOSUM45";
-        case cudasw4::BlosumType::BLOSUM50_20: return "BLOSUM50";
-        case cudasw4::BlosumType::BLOSUM62_20: return "BLOSUM62";
-        case cudasw4::BlosumType::BLOSUM80_20: return "BLOSUM80";
+        case libmarv::BlosumType::BLOSUM45: return "BLOSUM45";
+        case libmarv::BlosumType::BLOSUM50: return "BLOSUM50";
+        case libmarv::BlosumType::BLOSUM62: return "BLOSUM62";
+        case libmarv::BlosumType::BLOSUM80: return "BLOSUM80";
+        case libmarv::BlosumType::BLOSUM45_20: return "BLOSUM45";
+        case libmarv::BlosumType::BLOSUM50_20: return "BLOSUM50";
+        case libmarv::BlosumType::BLOSUM62_20: return "BLOSUM62";
+        case libmarv::BlosumType::BLOSUM80_20: return "BLOSUM80";
         default: return "FORGOT TO NAME THIS BLOSUM TYPE";
     }
 }
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END
 
 
 #endif

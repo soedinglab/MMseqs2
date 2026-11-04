@@ -16,7 +16,8 @@
 #include <vector>
 #include <iostream>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 struct DBdataIoConfig{
     static const std::string metadatafilename(){ return "metadata"; }
@@ -802,6 +803,6 @@ std::vector<DBdataView> partitionDBdata_by_numberOfChars(const DBdataView& paren
 
 void assertValidPartitioning(const std::vector<DBdataView>& views, const DBdataView& parent);
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END
 
 #endif
