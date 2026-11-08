@@ -6,6 +6,18 @@
 #include <cstddef>
 #include "marv.h"
 
+// Ungapped GPU scan; gapped also rescores the top hits with Smith-Waterman end positions.
+// gop/gex -11/-1 are the penalties the former Marv GAPLESS_SMITH_WATERMAN mode used.
+inline Marv::Stats marvSearch(Marv& marv, bool gapped, const char* query, int queryLength,
+                              int8_t* profile, int topN, Marv::Result* results) {
+    if (gapped) {
+        return marv.search_scoreOnly_then_scoreEndpos_for_tops(results, query, queryLength, profile, topN, -11, -1,
+                                                               Marv::GAPLESS, true, true,
+                                                               Marv::SMITH_WATERMAN_ENDPOS, true, true);
+    }
+    return marv.search_scoreOnly(results, query, queryLength, profile, topN, Marv::GAPLESS, 0, 0, true, true);
+}
+
 struct GPUSharedMemory {
     enum State {
         IDLE,

@@ -22,6 +22,7 @@ set(USE_SYSTEM_ZSTD 0 CACHE BOOL "Use zstd provided by system instead of bundled
 set(IGNORE_RUST_VERSION 0 CACHE BOOL "Ignore Rust version check")
 set(ENABLE_HIP 0 CACHE BOOL "Enable HIP")
 set(ENABLE_CUDA 0 CACHE BOOL "Enable CUDA")
+set(ENABLE_METAL 0 CACHE BOOL "Enable Metal (macOS, Apple GPUs) for the ungapped prefilter")
 set(AVX512_DISPATCH "AUTO" CACHE STRING "Runtime-dispatched AVX512 kernels: AUTO, ON, OFF")
 set_property(CACHE AVX512_DISPATCH PROPERTY STRINGS "AUTO" "ON" "OFF")
 set(FORCE_STATIC_DEPS 0 CACHE BOOL "Force static linking of deps")
@@ -30,6 +31,9 @@ set(MMSEQS_INT64_IDS 0 CACHE BOOL "Use 64-bit internal sequence/database IDs")
 
 if(ENABLE_HIP)
     set(ENABLE_CUDA 1)
+endif()
+if(ENABLE_METAL AND ENABLE_CUDA)
+    message(FATAL_ERROR "ENABLE_METAL cannot be combined with ENABLE_CUDA or ENABLE_HIP")
 endif()
 
 if(FORCE_STATIC_DEPS)
@@ -375,7 +379,7 @@ if (NOT DISABLE_IPS4O)
 endif ()
 
 # libmarv
-if (ENABLE_CUDA)
+if (ENABLE_CUDA OR ENABLE_METAL)
     set(LIBRARY_ONLY 1 CACHE INTERNAL "" FORCE)
     include_directories(lib/libmarv/src)
     add_subdirectory(lib/libmarv/src EXCLUDE_FROM_ALL)

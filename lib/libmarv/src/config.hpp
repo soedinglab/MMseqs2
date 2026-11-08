@@ -4,7 +4,8 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 //MODIFY AT OWN RISK
 
@@ -36,26 +37,44 @@ struct MaxNumberOfResults{
 };
 
 struct alignas(8) AlignmentEndPosition{
-    int x;
-    int y;
+    int queryEndExclusive;
+    int subjectEndExclusive;
+
+    AlignmentEndPosition() = default;
+    AlignmentEndPosition(int subjectEndExcl, int queryEndExcl)
+        : queryEndExclusive(queryEndExcl), subjectEndExclusive(subjectEndExcl){}
 
     #ifdef __CUDACC__
     __host__ __device__
     #endif
     int getQueryEndInclusive() const{
-        return x;
+        return queryEndExclusive-1;
     }
 
     #ifdef __CUDACC__
     __host__ __device__
     #endif
     int getSubjectEndInclusive() const{
-        return y;
+        return subjectEndExclusive-1;
+    }
+
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    int getQueryEndExclusive() const{
+        return queryEndExclusive;
+    }
+
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    int getSubjectEndExclusive() const{
+        return subjectEndExclusive;
     }
 };
 
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END
 
 
 #endif

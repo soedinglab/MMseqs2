@@ -9,7 +9,8 @@
 #include <algorithm>
 #include <numeric>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
     //write vector to file, overwrites existing file
     template<class T>
@@ -350,4 +351,4 @@ void assertValidPartitioning(const std::vector<DBdataView>& views, const DBdataV
     }
 }
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END

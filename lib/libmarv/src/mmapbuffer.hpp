@@ -15,7 +15,8 @@
 
 #include <type_traits>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 class FileBackedMMapBuffer{    
 private:
@@ -501,7 +502,7 @@ public:
     }
 };
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END
 
 
 
