@@ -58,14 +58,14 @@ void BandedNucleotideAligner::initQuery(Sequence * query){
         queryRevCompSeqRev = static_cast<uint8_t *>(realloc(queryRevCompSeqRev, query->L+1));
         querySeqRevDataLen=query->L;
     }
-    SmithWaterman::seq_reverse((int8_t *)querySeqRev, (int8_t *)querySeq, query->L);
+    SmithWaterman::seq_reverse((int8_t *)querySeqRev, (int8_t *)querySeq, query->L-1);
     // needed for rev. complement
     for (int pos = query->L - 1; pos > -1; pos--) {
         int res = query->numSequence[pos];
         queryRevCompSeq[(query->L - 1) - pos] = subMat->reverseResidue(res);
         queryRevCompCharSeq[(query->L - 1) - pos] = subMat->num2aa[subMat->reverseResidue(res)];
     }
-    SmithWaterman::seq_reverse((int8_t *)queryRevCompSeqRev, (int8_t *)queryRevCompSeq, query->L);
+    SmithWaterman::seq_reverse((int8_t *)queryRevCompSeqRev, (int8_t *)queryRevCompSeq, query->L-1);
 }
 
 
@@ -90,7 +90,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         targetSeqRev = static_cast<uint8_t *>(realloc(targetSeqRev, targetSeqObj->L+1));
         targetSeqRevDataLen=targetSeqObj->L;
     }
-    SmithWaterman::seq_reverse((int8_t *)targetSeqRev, (int8_t *)targetSeq, targetSeqObj->L);
+    SmithWaterman::seq_reverse((int8_t *)targetSeqRev, (int8_t *)targetSeq, targetSeqObj->L-1);
 
     int qUngappedStartPos, qUngappedEndPos, dbUngappedStartPos, dbUngappedEndPos;
 
