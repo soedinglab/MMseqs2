@@ -151,6 +151,19 @@ case "${SELECTION}" in
         push_back "${TMP_PATH}/nr_cluster_seq"
         INPUT_TYPE="BLASTDB"
     ;;
+    "Logan-human"|"Logan-nonhuman"|"Logan50-human"|"Logan50-nonhuman")
+        hasCommand zstd || fail "zstd is required to decompress ${SELECTION}. Please install zstd."
+        case "${SELECTION}" in
+            Logan-*)   LOGAN_FILE="logan_c1.0_${SELECTION#Logan-}_proteins.fasta.zst" ;;
+            Logan50-*) LOGAN_FILE="logan50_c1.0_${SELECTION#Logan50-}_complete.fa.zst" ;;
+        esac
+        if notExists "${TMP_PATH}/${LOGAN_FILE}"; then
+            printf "c1.0 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
+            downloadFile "https://s3.amazonaws.com/logan-pub/p/${LOGAN_FILE}" "${TMP_PATH}/${LOGAN_FILE}"
+        fi
+        push_back "${TMP_PATH}/${LOGAN_FILE}"
+        INPUT_TYPE="FASTA_ZSTD_LIST"
+    ;;
     "NT")
         if notExists "${TMP_PATH}/nt.nal"; then
             downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/nt-nucl-metadata.json" "${TMP_PATH}"
@@ -338,6 +351,33 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${@}" "${OUTDB}" ${COMP_PAR} --gpu ${GPU_ENABLED} \
             || fail "createdb died"
+        for i in "${@}"; do
+            rm -f -- "$i"
+        done
+    ;;
+    "FASTA_ZSTD_LIST")
+        eval "set -- $ARR"
+        # createdb cannot read zstd, so stream the decompressed FASTA through stdin
+        # POSIX sh has no pipefail, so record a failed decompression in a marker file
+        rm -f -- "${TMP_PATH}/zstd.failed"
+        CREATEDB_FAILED=""
+        # shellcheck disable=SC2086
+        if ! { zstd -dcq -- "${@}" || touch "${TMP_PATH}/zstd.failed"; } \
+            | "${MMSEQS}" createdb stdin "${OUTDB}" ${COMP_PAR} --gpu ${GPU_ENABLED}; then
+            CREATEDB_FAILED="TRUE"
+        fi
+        if [ -f "${TMP_PATH}/zstd.failed" ] || [ -n "${CREATEDB_FAILED}" ]; then
+            # remove the partial database, otherwise a rerun would skip createdb
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${OUTDB}" ${VERB_PAR}
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${OUTDB}_h" ${VERB_PAR}
+            if [ -f "${TMP_PATH}/zstd.failed" ]; then
+                rm -f -- "${TMP_PATH}/zstd.failed"
+                fail "zstd decompression failed, the downloaded files in ${TMP_PATH} might be corrupt. Delete them and try again."
+            fi
+            fail "createdb died"
+        fi
         for i in "${@}"; do
             rm -f -- "$i"
         done

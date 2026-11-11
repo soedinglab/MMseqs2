@@ -67,6 +67,34 @@ std::vector<DatabaseDownload> downloads = {{
                                                    true, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
                                                    { }
                                            }, {
+                                                   "Logan-human",
+                                                   "Prodigal-predicted proteins from all human-associated Logan v1.0 contigs assembled from the SRA (~283 GiB zstd-compressed download).",
+                                                   "Chikhi et al: Logan: Planetary-Scale Genome Assembly Surveys Life's Diversity. bioRxiv, doi:10.1101/2024.07.30.605881 (2025)",
+                                                   "https://github.com/IndexThePlanet/Logan",
+                                                   false, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+                                                   { }
+                                           }, {
+                                                   "Logan-nonhuman",
+                                                   "Prodigal-predicted proteins from all nonhuman-associated Logan v1.0 contigs assembled from the SRA (~1.8 TiB zstd-compressed download).",
+                                                   "Chikhi et al: Logan: Planetary-Scale Genome Assembly Surveys Life's Diversity. bioRxiv, doi:10.1101/2024.07.30.605881 (2025)",
+                                                   "https://github.com/IndexThePlanet/Logan",
+                                                   false, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+                                                   { }
+                                           }, {
+                                                   "Logan50-human",
+                                                   "Representatives of complete human-associated Logan proteins clustered at 50% sequence identity (~5.5 GiB zstd-compressed download).",
+                                                   "Chikhi et al: Logan: Planetary-Scale Genome Assembly Surveys Life's Diversity. bioRxiv, doi:10.1101/2024.07.30.605881 (2025)",
+                                                   "https://github.com/IndexThePlanet/Logan",
+                                                   false, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+                                                   { }
+                                           }, {
+                                                   "Logan50-nonhuman",
+                                                   "Representatives of complete nonhuman-associated Logan proteins clustered at 50% sequence identity (~253 GiB zstd-compressed download).",
+                                                   "Chikhi et al: Logan: Planetary-Scale Genome Assembly Surveys Life's Diversity. bioRxiv, doi:10.1101/2024.07.30.605881 (2025)",
+                                                   "https://github.com/IndexThePlanet/Logan",
+                                                   false, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+                                                   { }
+                                           }, {
                                                    "NT",
                                                    "Partially non-redundant nucleotide sequences from all traditional divisions of GenBank, EMBL, and DDBJ excluding GSS, STS, PAT, EST, HTG, and WGS.",
                                                    "NCBI Resource Coordinators: Database resources of the National Center for Biotechnology Information. Nucleic Acids Res 46(D1), D8-D13 (2018)",
