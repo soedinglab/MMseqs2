@@ -220,11 +220,18 @@ struct ClampToInvalid{
     __device__
     #endif
     unsigned int operator()(const unsigned int& packed4) {
-        #ifdef __CUDA_ARCH__
+        #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
 
         constexpr unsigned int mask20 = 0x14141414; // decimal 20 per byte
         #ifdef HAS_BLACKWELL_INT8_PTX
         return ptx_min_u8x4(packed4, mask20);
+        #elif defined(__HIP_DEVICE_COMPILE__)
+        // HIP has no __vminu4: per-byte unsigned min
+        unsigned int result = 0;
+        for(int shift = 0; shift < 32; shift += 8){
+            result |= min((packed4 >> shift) & 0xFFu, (mask20 >> shift) & 0xFFu) << shift;
+        }
+        return result;
         #else
         return __vminu4(packed4, mask20);
         #endif
