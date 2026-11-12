@@ -83,6 +83,8 @@ function(marv_resolve_hip_architectures out_var)
     else()
         set(archs "${MARV_SUPPORTED_HIP_ARCHS}")
     endif()
+    # native detection lists one entry per GPU
+    list(REMOVE_DUPLICATES archs)
     set(${out_var} "${archs}" PARENT_SCOPE)
 endfunction()
 

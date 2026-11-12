@@ -79,33 +79,34 @@ std::unique_ptr<MultiConfigScoreWithEndPosAlignerInterface> make_multiconfig_sw_
 
 #else
 
+    const std::string arch = getAmdGfxArchName(deviceId);
 
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_sw_endpos_aligner_amd_gfx900_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX942 
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_sw_endpos_aligner_amd_gfx942_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1100 
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_sw_endpos_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_sw_endpos_aligner_amd_gfx1150_32bit();
     }
 #endif
 
-    {
-        //return make_multiconfig_sw_endpos_aligner_default_amd_32bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_sw_endpos_aligner_default_amd_32bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
 
     
 
@@ -184,33 +185,34 @@ std::unique_ptr<MultiConfigScoreWithEndPosAlignerInterface> make_multiconfig_gap
 
 #else
 
+    const std::string arch = getAmdGfxArchName(deviceId);
 
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx900_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx942_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1150_32bit();
     }
 #endif
 
-    {
-        // return make_multiconfig_gapless_endpos_aligner_default_amd_32bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_gapless_endpos_aligner_default_amd_32bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
 
 #endif
 }
@@ -285,33 +287,34 @@ std::unique_ptr<MultiConfigScoreWithEndPosAlignerInterface> make_multiconfig_gap
 
 #else
 
+    const std::string arch = getAmdGfxArchName(deviceId);
 
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx900_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx942_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1150_32bit();
     }
 #endif
 
-    {
-        // return make_multiconfig_gapless_endpos_aligner_default_amd_32bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_gapless_endpos_aligner_default_amd_32bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
 
 #endif
 
