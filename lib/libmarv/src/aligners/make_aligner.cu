@@ -106,6 +106,11 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_a
         return make_multiconfig_gapless_aligner_amd_gfx942_16bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_gapless_aligner_amd_gfx950_16bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
     if(arch == "gfx1100"){
         return make_multiconfig_gapless_aligner_amd_gfx1100_16bit();
@@ -213,6 +218,11 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_a
 #ifdef MARV_HAVE_AMD_GFX942
     if(arch == "gfx942"){
         return make_multiconfig_gapless_aligner_amd_gfx942_16bit();
+    }
+#endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_gapless_aligner_amd_gfx950_16bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1100 
@@ -324,6 +334,11 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_a
         return make_multiconfig_gapless_aligner_amd_gfx942_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_gapless_aligner_amd_gfx950_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
     if(arch == "gfx1100"){
         return make_multiconfig_gapless_aligner_amd_gfx1100_32bit();
@@ -378,6 +393,11 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_sw_aligne
 #ifdef MARV_HAVE_AMD_GFX942
     if(arch == "gfx942"){
         return make_multiconfig_sw_aligner_amd_gfx942_32bit();
+    }
+#endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_sw_aligner_amd_gfx950_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1100
