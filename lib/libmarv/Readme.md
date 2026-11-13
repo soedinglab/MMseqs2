@@ -17,7 +17,7 @@ GPU-accelerated protein database scan.
 
 ## Hardware requirements
 * (NVIDIA) A modern CUDA-capable GPU of Turing generation or newer. We provide tunings up to the Blackwell architecture. By PTX forward compatibility, libmarv should run on newer GPUs although performance will be less than expected without dedicated tuning.
-* (AMD) A modern ROCm-capable GPU. Currently, we only provide tunings for gfx900, gfx942, gfx1100, and gfx1150, and do not offer a compatibility fallback for other architectures.
+* (AMD) A modern ROCm-capable GPU. We provide tunings for gfx900, gfx90a, gfx942, gfx950, gfx1100, and gfx1150. Other architectures listed in CMAKE_HIP_ARCHITECTURES use a generic, untuned kernel configuration.
 
 
 

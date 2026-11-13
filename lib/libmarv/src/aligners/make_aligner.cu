@@ -9,6 +9,15 @@
 #include "../namespace.hpp"
 LIBMARV_NAMESPACE_BEGIN
 
+#if !defined(__CUDACC__)
+std::string getAmdGfxArchName(int deviceId){
+    hipDeviceProp_t prop;
+    CUDACHECK(hipGetDeviceProperties(&prop, deviceId));
+    const std::string name = prop.gcnArchName;
+    return name.substr(0, name.find(':'));
+}
+#endif
+
 //Construct aligner with at least 8-bit computations. Could use higher precision if 8-bit is unavailable
 std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_aligner_8bit(){
     int deviceId = 0;
@@ -80,32 +89,44 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_a
 
 #else
 
+    const std::string arch = getAmdGfxArchName(deviceId);
+
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_gapless_aligner_amd_gfx900_16bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX90A
+    if(arch == "gfx90a"){
+        return make_multiconfig_gapless_aligner_amd_gfx90a_16bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_gapless_aligner_amd_gfx942_16bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_gapless_aligner_amd_gfx950_16bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_gapless_aligner_amd_gfx1100_16bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_gapless_aligner_amd_gfx1150_16bit();
     }
 #endif
 
-    {
-        // return make_multiconfig_gapless_aligner_default_amd_16bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_gapless_aligner_default_amd_16bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
 
 
 #endif
@@ -182,32 +203,44 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_a
 
 #else
 
+    const std::string arch = getAmdGfxArchName(deviceId);
+
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_gapless_aligner_amd_gfx900_16bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX90A
+    if(arch == "gfx90a"){
+        return make_multiconfig_gapless_aligner_amd_gfx90a_16bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_gapless_aligner_amd_gfx942_16bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_gapless_aligner_amd_gfx950_16bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100 
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_gapless_aligner_amd_gfx1100_16bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_gapless_aligner_amd_gfx1150_16bit();
     }
 #endif
     
-    {
-        // return make_multiconfig_gapless_aligner_default_amd_16bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_gapless_aligner_default_amd_16bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
 
 #endif
 }
@@ -284,34 +317,44 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_gapless_a
 
 #else
 
-
+    const std::string arch = getAmdGfxArchName(deviceId);
 
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_gapless_aligner_amd_gfx900_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX90A
+    if(arch == "gfx90a"){
+        return make_multiconfig_gapless_aligner_amd_gfx90a_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_gapless_aligner_amd_gfx942_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_gapless_aligner_amd_gfx950_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_gapless_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_gapless_aligner_amd_gfx1150_32bit();
     }
 #endif
    
-    {
-        // return make_multiconfig_gapless_aligner_default_amd_32bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_gapless_aligner_default_amd_32bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
 
 
 #endif
@@ -335,33 +378,44 @@ std::unique_ptr<MultiConfigScoreOnlyAlignerInterface> make_multiconfig_sw_aligne
 
 #else
 
+    const std::string arch = getAmdGfxArchName(deviceId);
 
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(arch == "gfx900"){
         return make_multiconfig_sw_aligner_amd_gfx900_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX90A
+    if(arch == "gfx90a"){
+        return make_multiconfig_sw_aligner_amd_gfx90a_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(arch == "gfx942"){
         return make_multiconfig_sw_aligner_amd_gfx942_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(arch == "gfx950"){
+        return make_multiconfig_sw_aligner_amd_gfx950_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(arch == "gfx1100"){
         return make_multiconfig_sw_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(arch == "gfx1150"){
         return make_multiconfig_sw_aligner_amd_gfx1150_32bit();
     }
 #endif
 
-    {
-        // return make_multiconfig_sw_aligner_default_amd_32bit();
-        throw std::runtime_error("No aligner found for detected AMD arch: major " 
-                        + std::to_string(ccMajor) + ", minor " + std::to_string(ccMinor));
-    }
+#ifdef MARV_HAVE_AMD_DEFAULT
+    return make_multiconfig_sw_aligner_default_amd_32bit();
+#else
+    throw std::runtime_error("No aligner compiled for detected AMD arch " + arch);
+#endif
     
 #endif
 }

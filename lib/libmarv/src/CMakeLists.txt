@@ -91,7 +91,12 @@ if (NOT ONLY_BUILD_TUNING)
         marv_resolve_hip_architectures(MARV_HIP_ARCHS)
         message(STATUS "marv: HIP architectures ${MARV_HIP_ARCHS}")
 
+        set(MARV_HIP_UNTUNED_ARCHS "")
         foreach(arch IN LISTS MARV_HIP_ARCHS)
+            if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/aligners/make_aligner_amd_${arch}.cu)
+                list(APPEND MARV_HIP_UNTUNED_ARCHS "${arch}")
+                continue()
+            endif()
 
             set(suffix "amd_${arch}")
             marv_hip_arch_object_gencode("${arch}" gencode_list)
@@ -116,6 +121,34 @@ if (NOT ONLY_BUILD_TUNING)
             configure_marv_gpu_target(marv_aligner_${suffix})
             list(APPEND MARV_ALIGNER_OBJECTS $<TARGET_OBJECTS:marv_aligner_${suffix}>)
         endforeach()
+
+        # architectures without a tuned aligner share the generic AMD configs
+        if(MARV_HIP_UNTUNED_ARCHS)
+            message(STATUS "marv: generic AMD aligner for ${MARV_HIP_UNTUNED_ARCHS}")
+            set(gencode_list "")
+            foreach(arch IN LISTS MARV_HIP_UNTUNED_ARCHS)
+                marv_hip_arch_object_gencode("${arch}" arch_gencode)
+                list(APPEND gencode_list "${arch_gencode}")
+            endforeach()
+            list(APPEND MARV_HAVE_ARCH_DEFINES "MARV_HAVE_AMD_DEFAULT")
+            string(APPEND MARV_AMD_FULL_INLINE_NAMESPACE_HELPER "DEFAULT_AMD_")
+
+            add_library(marv_aligner_default_amd OBJECT
+                aligners/make_aligner_default_amd.cu
+                aligners/make_aligner_endpos_default_amd.cu
+            )
+
+            set_source_files_properties(aligners/make_aligner_default_amd.cu aligners/make_aligner_endpos_default_amd.cu PROPERTIES LANGUAGE ${MARV_GPU_LANGUAGE})
+            set_target_properties(marv_aligner_default_amd PROPERTIES HIP_ARCHITECTURES OFF)
+            target_compile_definitions(marv_aligner_default_amd PRIVATE NO_NVTOOLSEXT)
+            target_compile_definitions(marv_aligner_default_amd PRIVATE AMD_INLINE_ARCH_NAMESPACE_NAME=DEFAULT_AMD_)
+
+            target_compile_options(marv_aligner_default_amd PRIVATE
+                $<$<COMPILE_LANGUAGE:HIP>:${gencode_list}>
+            )
+            configure_marv_gpu_target(marv_aligner_default_amd)
+            list(APPEND MARV_ALIGNER_OBJECTS $<TARGET_OBJECTS:marv_aligner_default_amd>)
+        endif()
     else()
         marv_resolve_cuda_architectures(MARV_CUDA_ARCHS)
         marv_core_architectures("${MARV_CUDA_ARCHS}" MARV_CORE_ARCHS)
