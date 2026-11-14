@@ -1,8 +1,7 @@
 #ifndef EM_TARGET_GROUPS_H
 #define EM_TARGET_GROUPS_H
 
-// --target-groups for `mmseqs em --ref-group 1` and `mmseqs em-abundance --ref-group 1`: which targets of a target
-// DB belong to one genome.  Shared so that both commands read the same groups from the same specification.
+// --target-groups for `mmseqs em --ref-group 1`: which targets of a target DB belong to one genome.
 #include "Debug.h"
 #include "FileUtil.h"
 #include "KSeqWrapper.h"

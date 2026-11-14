@@ -1073,7 +1073,7 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                           {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::resultDb }}},
         {"em",                   emreclassify,         &par.reclassify,           COMMAND_RESULT | COMMAND_FORMAT_CONVERSION,
-                "Run EM (SQUAREM) over an alignment DB (nucleotide, protein or translated search) and write a new alignment DB whose 3rd column holds the posterior probability (convertalis writes it into column 3 instead of seqId). A read's weight on a target is the target's abundance divided by its length (coverage density) times its bit-score compatibility exp(-lambda * (best bit score - bit score)), lambda = --lambda (default 1). --ref-group 1: the targets of one genome (--target-groups) share one abundance. --mate-pair 1: the two mates of a pair are assigned jointly. Every read with a hit is written; per-target and per-genome tables come from 'mmseqs em-abundance'.",
+                "Run EM (SQUAREM) over an alignment DB (nucleotide, protein or translated search) and write a new alignment DB whose 3rd column holds the posterior probability (convertalis writes it into column 3 instead of seqId). A read's weight on a target is the target's abundance divided by its length (coverage density) times its bit-score compatibility exp(-lambda * (best bit score - bit score)), lambda = --lambda (default 1). --ref-group 1: the targets of one genome (--target-groups) share one abundance. --mate-pair 1: the two mates of a pair are assigned jointly. Every read with a hit is written; the per-target table comes from 'mmseqs em-abundance'.",
                 "# reads against proteins (or any targets); every target has its own abundance\n"
                 "mmseqs createdb reads.fq.gz queryDB\n"
                 "mmseqs search queryDB targetDB alignmentDB tmp -a\n"
@@ -1083,7 +1083,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs createdb genomes/*.fna targetDB\n"
                 "mmseqs search queryDB targetDB alignmentDB tmp -a\n"
                 "mmseqs em queryDB targetDB alignmentDB emDB --ref-group 1 --mate-pair 1\n"
-                "mmseqs em-abundance queryDB targetDB emDB filtered-emDB abundance.tsv --ref-group 1   # also abundance.tsv.groups.tsv\n"
+                "mmseqs em-abundance queryDB targetDB emDB filtered-emDB abundance.tsv\n"
                 "# genome = the first '|'-separated field of the target identifier\n"
                 "mmseqs em queryDB targetDB alignmentDB emDB --ref-group 1 --target-groups 'field:|:1'\n",
                 "Yaeji Kim <yeahedge01@snu.ac.kr>",
@@ -1093,14 +1093,11 @@ std::vector<Command> baseCommands = {
                                           {"alignmentDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
                                           {"newDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
         {"em-abundance",         emabundance,          &par.abundance,            COMMAND_RESULT | COMMAND_FORMAT_CONVERSION,
-                "Per-target abundance (and breadth of coverage) from the alignment DB written by 'mmseqs em'. --min-reads N removes every target that is the top hit of fewer than N reads, and the reads whose top hit it was go with it (they are deleted, not re-assigned to their second-best target); the pass repeats until every remaining target has N or more. Writes the surviving reads and hits as an alignment DB (column 3 = posterior, renormalised) and the abundance table. --ref-group 1 also writes the per-genome table abundanceFile.groups.tsv (you need to run 'mmseqs em' with --ref-group 1 and the same --target-groups before you run it). --taxonomy 1 needs targetDB_mapping and targetDB_taxonomy from 'mmseqs createtaxdb'.",
+                "Per-target abundance (and breadth of coverage) from the alignment DB written by 'mmseqs em'. --min-reads N removes every target that is the top hit of fewer than N reads, and the reads whose top hit it was go with it (they are deleted, not re-assigned to their second-best target); the pass repeats until every remaining target has N or more. Writes the surviving reads and hits as an alignment DB (column 3 = posterior, renormalised) and the abundance table. --taxonomy 1 needs targetDB_mapping and targetDB_taxonomy from 'mmseqs createtaxdb'.",
                 "mmseqs em-abundance queryDB targetDB emDB filtered-emDB abundance.tsv\n"
                 "# remove targets that are the top hit of < 10 reads, and those reads\n"
                 "mmseqs em-abundance queryDB targetDB emDB filtered-emDB abundance.tsv --min-reads 10\n"
-                "# per-genome table: run em with the same --ref-group 1 / --target-groups first\n"
-                "mmseqs em queryDB targetDB alignmentDB emDB --ref-group 1 --target-groups 'field:|:1'\n"
-                "mmseqs em-abundance queryDB targetDB emDB filtered-emDB abundance.tsv --ref-group 1 --target-groups 'field:|:1'\n"
-                "# Kraken/Bracken reports: targetDB_mapping and targetDB_taxonomy are required (mmseqs createtaxdb targetDB tmp)\n"
+                "# Kraken/Bracken style reports: targetDB_mapping and targetDB_taxonomy are required (mmseqs createtaxdb targetDB tmp)\n"
                 "mmseqs em-abundance queryDB targetDB emDB filtered-emDB abundance.report --taxonomy 1\n",
                 "Yaeji Kim <yeahedge01@snu.ac.kr>",
                 "<i:queryDB> <i:targetDB> <i:alignmentDB> <o:filtered-emDB> <o:abundanceFile>",

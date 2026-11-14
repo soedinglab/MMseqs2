@@ -9,7 +9,6 @@
 #include "MappingReader.h"
 #include "FastSort.h"
 #include "EMCoverage.h"
-#include "EMTargetGroups.h"
 
 #include <algorithm>
 #include <cmath>
@@ -658,88 +657,6 @@ static void writeProteinStats(const std::vector<TargetStats> &stats,
     fclose(handle);
 }
 
-// --ref-group 1: the per-target rows summed per genome (--target-groups, as in `mmseqs em`); a target outside every
-// genome is a row of its own.  length = every target of the genome in targetDB (hit or not), the L_g of the EM.
-// abundance_pct = share of the reads (as per target); coverage_pct = share of reads_expected / length, i.e. the
-// genomes' relative coverage depth (cell abundance rather than read share).
-static void writeGroupStats(const std::vector<TargetStats> &stats,
-                            const std::string &targetDb,
-                            const std::string &spec,
-                            DBReader<unsigned int> &targetHeaderReader,
-                            const std::string &path) {
-    DBReader<unsigned int> tdb(targetDb.c_str(), (targetDb + ".index").c_str(), 1, DBReader<unsigned int>::USE_INDEX);
-    tdb.open(DBReader<unsigned int>::NOSORT);
-    unsigned int maxKey = 0;
-    for (size_t i = 0; i < tdb.getSize(); ++i) {
-        maxKey = std::max(maxKey, tdb.getDbKey(i));
-    }
-    EMTargetGroups::Groups groups = EMTargetGroups::load(targetDb, spec, maxKey);
-    struct Row {
-        std::string name;
-        double abundance = 0.0, readsExpected = 0.0, length = 0.0;
-        size_t readsTopHit = 0, targets = 0, targetsWithReads = 0;
-    };
-    std::vector<Row> rows(groups.names.size());
-    for (size_t g = 0; g < rows.size(); ++g) {
-        rows[g].name = groups.names[g];
-    }
-    for (size_t i = 0; i < tdb.getSize(); ++i) {
-        const unsigned int g = groups.groupOfKey[tdb.getDbKey(i)];
-        if (g != EMTargetGroups::NONE) {
-            rows[g].length += static_cast<double>(tdb.getSeqLen(i));
-            rows[g].targets += 1;
-        }
-    }
-    tdb.close();
-    Debug(Debug::INFO) << "Genomes from " << groups.how << ": " << groups.mapped << " targets in "
-                       << groups.names.size() << " genomes.\n";
-    for (size_t i = 0; i < stats.size(); ++i) {
-        if (stats[i].dropped) {
-            continue;
-        }
-        const unsigned int key = stats[i].key;
-        unsigned int g = key <= maxKey ? groups.groupOfKey[key] : EMTargetGroups::NONE;
-        if (g == EMTargetGroups::NONE) {
-            g = static_cast<unsigned int>(rows.size());
-            rows.push_back(Row());
-            rows[g].name = identifierForKey(targetHeaderReader, key, 0);
-            rows[g].length = stats[i].targetLength;
-            rows[g].targets = 1;
-        }
-        rows[g].abundance += stats[i].abundance;
-        rows[g].readsExpected += stats[i].expectedReads;
-        rows[g].readsTopHit += stats[i].topHitReads;
-        rows[g].targetsWithReads += 1;
-    }
-    double densitySum = 0.0;
-    for (size_t g = 0; g < rows.size(); ++g) {
-        densitySum += rows[g].length > 0.0 ? rows[g].readsExpected / rows[g].length : 0.0;
-    }
-    std::vector<size_t> order;
-    for (size_t g = 0; g < rows.size(); ++g) {
-        if (rows[g].targetsWithReads > 0) {
-            order.push_back(g);
-        }
-    }
-    std::sort(order.begin(), order.end(), [&rows](size_t a, size_t b) {
-        if (rows[a].abundance != rows[b].abundance) {
-            return rows[a].abundance > rows[b].abundance;
-        }
-        return rows[a].name < rows[b].name;
-    });
-    FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("genome\tabundance_pct\tcoverage_pct\treads_expected\treads_top_hit\tdensity\tlength\ttargets_with_reads\ttargets\n", handle);
-    for (size_t k = 0; k < order.size(); ++k) {
-        const Row &r = rows[order[k]];
-        const double density = r.length > 0.0 ? r.readsExpected / r.length : 0.0;
-        fprintf(handle, "%s\t%.12g\t%.12g\t%.12g\t%zu\t%.12g\t%.0f\t%zu\t%zu\n", r.name.c_str(), r.abundance,
-                densitySum > 0.0 ? 100.0 * density / densitySum : 0.0, r.readsExpected, r.readsTopHit, density,
-                r.length, r.targetsWithReads, r.targets);
-    }
-    fclose(handle);
-    Debug(Debug::INFO) << order.size() << " genomes (or lone targets) with reads written to " << path << ".\n";
-}
-
 // The surviving reads with their surviving hits, column 3 = renormalised posterior, best first.
 // Deleted reads and reads that had no hit are written as empty entries, so the output holds every
 // key of the input DB and `mmseqs convertalis` / `createsubdb` work on it unchanged.
@@ -1161,13 +1078,6 @@ int emabundance(int argc, const char **argv, const Command &command) {
                                                   DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         targetHeaderReader.open(DBReader<unsigned int>::NOSORT);
         writeProteinStats(allTargetStats, targetHeaderReader, par.db5);
-        targetHeaderReader.close();
-    }
-    if (par.emRefGroup) {
-        DBReader<unsigned int> targetHeaderReader((par.db2 + "_h").c_str(), (par.db2 + "_h.index").c_str(), par.threads,
-                                                  DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        targetHeaderReader.open(DBReader<unsigned int>::NOSORT);
-        writeGroupStats(allTargetStats, par.db2, par.emTargetGroups, targetHeaderReader, par.db5 + ".groups.tsv");
         targetHeaderReader.close();
     }
 
