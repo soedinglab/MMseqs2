@@ -1,5 +1,6 @@
 FROM quay.io/pypa/manylinux_2_28_x86_64
 ARG ROCM_VER="7.2"
+ARG LIBHIPCXX_COMMIT="12ecaca0d5c2c639b29aa804ba133371cdbb01d3"
 
 ENV PATH="/root/.cargo/bin:/opt/rocm/bin:/opt/rocm/lib/llvm/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH}"
@@ -47,7 +48,9 @@ RUN dnf install -y dnf-plugins-core && \
     rm -rf -- /deps/zlib-1.3.2.tar.gz /deps/zlib-1.3.2 && \
     cd /opt && \
     curl https://sh.rustup.rs -sSf | \
-        sh -s -- --default-toolchain stable -y
+        sh -s -- --default-toolchain stable -y && \
+    mkdir -p /deps/libhipcxx && \
+    curl -sSfL https://github.com/ROCm/libhipcxx/archive/${LIBHIPCXX_COMMIT}.tar.gz | tar -xz --strip-components=1 -C /deps/libhipcxx
 
 WORKDIR /work
 ADD . .
@@ -60,7 +63,7 @@ RUN mkdir -p /work/build && cd /work/build && \
         -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
         -DZLIB_ROOT=/deps -DBZIP2_ROOT=/deps \
-        -DFORCE_STATIC_DEPS=1 -DENABLE_HIP=1 -DCMAKE_HIP_ARCHITECTURES=gfx942 .. && \
+        -DFORCE_STATIC_DEPS=1 -DENABLE_HIP=1 -Dlibhipcxx_DIR=/deps/libhipcxx/lib/cmake/libhipcxx -DCMAKE_HIP_ARCHITECTURES=gfx942 .. && \
     cmake --build . -j"$(nproc --all)" -v
 
 RUN if readelf -Ws /work/build/src/mmseqs | grep -q GLIBC_PRIVATE; then \
