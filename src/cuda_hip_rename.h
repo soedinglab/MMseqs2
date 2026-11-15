@@ -16,6 +16,7 @@ using __nv_fp8x2_e4m3 = __hip_fp8x2_e4m3;
 #define cudaMemPool_t hipMemPool_t
 #define cudaIpcMemHandle_t hipIpcMemHandle_t
 #define cudaDeviceProp hipDeviceProp_t
+#define cudaGetDeviceProperties hipGetDeviceProperties
 
 #define cudaSuccess hipSuccess
 #define cudaMemcpyHostToDevice hipMemcpyHostToDevice

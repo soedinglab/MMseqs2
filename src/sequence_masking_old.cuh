@@ -4812,9 +4812,10 @@ void maskSequences_consecutive_segments(
     }
 
     const size_t bitarrayDataElements = cuda::ceil_div(totalInputElements, 32);
-    thrust::device_vector<char, thrust_async_allocator<char>> d_bitarray_as_char 
-        = allocateTempBuffer(sizeof(uint32_t) * bitarrayDataElements, stream);
-    uint32_t* d_bitarray = (uint32_t*)d_bitarray_as_char.data().get();
+    TempBuffer d_bitarray_as_char = allocateTempBuffer(sizeof(uint32_t) * bitarrayDataElements, stream);
+    uint32_t* d_bitarray = (uint32_t*)d_bitarray_as_char.data();
+    // bits are set with atomicOr, so the array has to start zeroed
+    CUDACHECK(cudaMemsetAsync(d_bitarray, 0, sizeof(uint32_t) * bitarrayDataElements, stream));
 
     int deviceId;
     int numSMs;

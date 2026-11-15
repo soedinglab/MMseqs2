@@ -312,7 +312,9 @@ std::vector<SearchResult> ScoreEndposSearch::execute(
     // for(int i = 0; i < 3; i++){
     //     std::cout << h_finalAlignmentScoresPerQuery[i] << " " << "referenceId " << h_finalReferenceIdsPerQuery[i] << "\n";
     // }
-    timer.print();
+    if(gpuDatabase->isVerbose()){
+        timer.print();
+    }
     return allResults;
 }
 
@@ -394,7 +396,9 @@ std::vector<SearchResult> ScoreEndposSearch::execute(
     // for(int i = 0; i < 3; i++){
     //     std::cout << h_finalAlignmentScoresPerQuery[i] << " " << "referenceId " << h_finalReferenceIdsPerQuery[i] << "\n";
     // }
-    timer.print();
+    if(gpuDatabase->isVerbose()){
+        timer.print();
+    }
     return allResults;
 }
 
@@ -474,10 +478,10 @@ void ScoreEndposSearch::forEachCallback(cuda::std::span<GpuDatabase::CallbackInp
                             stream
                         );
                     }else{
-                        thrust::device_vector<char, thrust_async_allocator<char>> d_tempStorage
+                        TempBuffer d_tempStorage
                             = allocateTempBuffer(8ull << 30, 256ull << 20, stream);
                         standardAlignerPerGpu[gpu]->scoreEndPos_multiTile(
-                            d_tempStorage.data().get(),
+                            d_tempStorage.data(),
                             d_tempStorage.size(),
                             ws.getKernelOutputArrayScores(queryIndex) + ws.kernelOutputArrayUsedSize[queryIndex],
                             ws.getKernelOutputArraySubjectEndPositionsExcl(queryIndex) + ws.kernelOutputArrayUsedSize[queryIndex],
@@ -551,10 +555,10 @@ void ScoreEndposSearch::forEachCallback(cuda::std::span<GpuDatabase::CallbackInp
                                     IsOverflowScore{overflowThreshold},
                                     stream
                                 ));
-                                thrust::device_vector<char, thrust_async_allocator<char>> d_tempStorage
+                                TempBuffer d_tempStorage
                                     = allocateTempBuffer(cubBytes, stream);
                                 CUDACHECK(cub::DeviceSelect::If(
-                                    d_tempStorage.data().get(), 
+                                    d_tempStorage.data(), 
                                     cubBytes, 
                                     ws.getKernelOutputArrayScores(queryIndex) + ws.kernelOutputArrayUsedSize[queryIndex], 
                                     thrust::make_discard_iterator(),
@@ -676,10 +680,10 @@ void ScoreEndposSearch::forEachCallback(cuda::std::span<GpuDatabase::CallbackInp
                                     size_t suggestedBytes = overflowSettings.overflowAlignersScoreWithEndpos[gpu]->getMinimumSuggestedTempBytes_multiTile(
                                         inputData
                                     );
-                                    thrust::device_vector<char, thrust_async_allocator<char>> d_tempStorage
+                                    TempBuffer d_tempStorage
                                         = allocateTempBuffer(suggestedBytes, 256ull << 20, stream);
                                     overflowSettings.overflowAlignersScoreWithEndpos[gpu]->scoreEndPos_multiTile(
-                                        d_tempStorage.data().get(),
+                                        d_tempStorage.data(),
                                         d_tempStorage.size(),
                                         d_correctedScores,
                                         d_correctedSubjectPos,

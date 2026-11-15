@@ -19,6 +19,7 @@ namespace compatibility{
 
 #if defined(__CUDACC__) || defined(__HIP_PLATFORM_NVIDIA__)
 
+template<bool ordered = true>
 __device__ __forceinline__
 half2 hmax2(half2 a, half2 b){
     return __hmax2(a,b);
@@ -31,12 +32,16 @@ half2 hmin2(half2 a, half2 b){
 
 #elif defined(__HIPCC__)
 
+// ordered keeps asm volatile; plain asm lets loads be hoisted (faster multi-tile, slower single-tile gapless)
+template<bool ordered = true>
 __device__
 half2 hmax2(half2 a, half2 b){
     half2 res;
-
-    asm volatile ("v_pk_max_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
-
+    if constexpr(ordered){
+        asm volatile ("v_pk_max_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
+    }else{
+        asm ("v_pk_max_f16 %0, %1, %2\n\t" : "=v" (res) : "v" (a) , "v" (b));
+    }
     return res;
 }
 

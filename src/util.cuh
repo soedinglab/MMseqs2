@@ -556,65 +556,63 @@ OutputT convert(InputT input){
 }
 
 
-//stream-ordered uninitialized allocation
-inline
-thrust::device_vector<char, thrust_async_allocator<char>> allocateTempBuffer(size_t bytes, size_t minimumBytesForRetry, cudaStream_t stream){
-
-    thrust::device_vector<char, thrust_async_allocator<char>> result{thrust_async_allocator<char>(stream)};
-
-    
-        // // cudaDeviceSynchronize();
-        // int deviceId;
-        // cudaGetDevice(&deviceId);
-        // cudaMemPool_t mempool;
-        // cudaDeviceGetDefaultMemPool(&mempool, deviceId);
-
-        // size_t reservedpoolmem = 0;
-        // cudaMemPoolGetAttribute(mempool, cudaMemPoolAttrReservedMemCurrent, &reservedpoolmem);
-        // size_t usedpoolmem = 0;
-        // cudaMemPoolGetAttribute(mempool, cudaMemPoolAttrUsedMemCurrent, &usedpoolmem);
-
-        // // std::cerr << "reservedpoolmem " << reservedpoolmem << ", usedpoolmem " << usedpoolmem << "\n";
-
-        // size_t free,total;
-        // cudaMemGetInfo(&free, &total);
-        
-        // if(free > (64 << 20)){
-        //     free -= (64 << 20);
-        // }
-        // std::cerr << "bytes " << bytes << ", free " << free << ", total " << total << ", updatesbytes " << std::min(free, bytes) << "\n";
-        // bytes = std::min(free, bytes);
-    
-
-    do{
-        // std::cerr << "try " << bytes << "\n";
-        try{
-            result.resize(bytes, thrust::no_init);
-            // cudaError_t status = cudaPeekAtLastError();
-            
-            // cudaMemPoolGetAttribute(mempool, cudaMemPoolAttrReservedMemCurrent, &reservedpoolmem);
-            // cudaMemPoolGetAttribute(mempool, cudaMemPoolAttrUsedMemCurrent, &usedpoolmem);
-            // cudaMemGetInfo(&free, &total);
-
-            // std::cerr << cudaGetErrorString(status) << ", reservedpoolmem " << reservedpoolmem << ", usedpoolmem " << usedpoolmem
-            //     << ", free " << free << ", total " << total << "\n";
-            // std::cerr << cudaGetErrorString(status) << "\n";
-            return result;
-        }catch(...){
-            bytes /= 1.5;
-            cudaGetLastError();
+// Uninitialized stream-ordered temp memory; device_vector resize zero-fills with the HIP/CCCL < 3.1 no_init shim
+class TempBuffer{
+public:
+    TempBuffer(cudaStream_t stream_) : stream(stream_) {}
+    TempBuffer(const TempBuffer&) = delete;
+    TempBuffer& operator=(const TempBuffer&) = delete;
+    TempBuffer(TempBuffer&& rhs) noexcept : ptr(rhs.ptr), bytes(rhs.bytes), stream(rhs.stream){
+        rhs.ptr = nullptr;
+        rhs.bytes = 0;
+    }
+    ~TempBuffer(){
+        if(ptr != nullptr){
+            helper_gpuFreeAsync(ptr, stream);
         }
+    }
+
+    // returns false (and clears the error) if the allocation failed
+    bool allocate(size_t numBytes){
+        if(helper_gpuMallocAsync((void**)&ptr, numBytes, stream) != cudaSuccess){
+            cudaGetLastError();
+            ptr = nullptr;
+            return false;
+        }
+        bytes = numBytes;
+        return true;
+    }
+
+    char* data() const{ return ptr; }
+    size_t size() const{ return bytes; }
+
+private:
+    char* ptr = nullptr;
+    size_t bytes = 0;
+    cudaStream_t stream;
+};
+
+// tries bytes, then smaller sizes down to minimumBytesForRetry
+inline
+TempBuffer allocateTempBuffer(size_t bytes, size_t minimumBytesForRetry, cudaStream_t stream){
+    TempBuffer result(stream);
+    do{
+        if(result.allocate(bytes)){
+            return result;
+        }
+        bytes /= 1.5;
     }
     while(bytes >= minimumBytesForRetry);
 
     throw std::bad_alloc();
 }
 
-//stream-ordered uninitialized allocation
 inline
-thrust::device_vector<char, thrust_async_allocator<char>> allocateTempBuffer(size_t bytes, cudaStream_t stream){
-    thrust::device_vector<char, thrust_async_allocator<char>> result{thrust_async_allocator<char>(stream)};
-    result.resize(bytes, thrust::no_init);
+TempBuffer allocateTempBuffer(size_t bytes, cudaStream_t stream){
+    TempBuffer result(stream);
+    if(!result.allocate(bytes)){
+        throw std::bad_alloc();
+    }
     return result;
 }
 

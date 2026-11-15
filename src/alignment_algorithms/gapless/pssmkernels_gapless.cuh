@@ -45,11 +45,12 @@ namespace hardcodedzero{
         class SharedPSSM, 
         class SmemIndexCalculator,
         int relaxChunkSize_,
-        class UpdateMaxOp
+        class UpdateMaxOp,
+        bool orderedMax = true
     >
     struct GaplessPSSMState{
         using Scalar = typename ScalarScoreType<ScoreType>::type;
-        using MathOps = MathOps<ScoreType>;
+        using MathOps = MathOps<ScoreType, orderedMax>;
 
         static constexpr int relaxChunkSize = 4; // 16-byte loads load 4 half2/short2 quantities
         static_assert(relaxChunkSize == 4);
@@ -415,7 +416,7 @@ namespace hardcodedzero{
         using SmemIndexCalculator = PssmSmemIndexCalculator<groupsize, pssmReplicationFactor, relaxChunkSize>;
 
         using UpdateMaxOp = UpdateMax_gapless_scoreOnly<ScoreType>;
-        using State = GaplessPSSMState<ScoreType, numRegs, decltype(group), SharedPSSM, SmemIndexCalculator, relaxChunkSize, UpdateMaxOp>;
+        using State = GaplessPSSMState<ScoreType, numRegs, decltype(group), SharedPSSM, SmemIndexCalculator, relaxChunkSize, UpdateMaxOp, false>;
 
         alignas(8) Scalar penalty_in[4];
         alignas(8) Scalar penalty_out[4];
@@ -1000,7 +1001,7 @@ namespace hardcodedzero{
             UpdateMax_gapless_vec2_endPos_multiTile<ScoreType>,
             UpdateMax_gapless_scoreOnly<ScoreType>
         >::type;
-        using State = GaplessPSSMState<ScoreType, numRegs, decltype(group), SharedPSSM, SmemIndexCalculator, relaxChunkSize, UpdateMaxOp>;
+        using State = GaplessPSSMState<ScoreType, numRegs, decltype(group), SharedPSSM, SmemIndexCalculator, relaxChunkSize, UpdateMaxOp, false>;
 
         alignas(8) Scalar penalty_in[4];
         alignas(8) Scalar penalty_out[4];
@@ -1335,11 +1336,12 @@ namespace kernelparamzero{
         class Group, 
         class SharedPSSM, 
         class SmemIndexCalculator,
-        int relaxChunkSize_
+        int relaxChunkSize_,
+        bool orderedMax = true
     >
     struct GaplessPSSMState{
         using Scalar = typename ScalarScoreType<ScoreType>::type;
-        using MathOps = MathOps<ScoreType>;
+        using MathOps = MathOps<ScoreType, orderedMax>;
 
         static constexpr int relaxChunkSize = 4; // 16-byte loads load 4 half2/short2 quantities
         static_assert(relaxChunkSize == 4);
@@ -1680,7 +1682,7 @@ namespace kernelparamzero{
 
         using SmemIndexCalculator = PssmSmemIndexCalculator<groupsize, pssmReplicationFactor, relaxChunkSize>;
 
-        using State = GaplessPSSMState<ScoreType, numRegs, decltype(group), SharedPSSM, SmemIndexCalculator, relaxChunkSize>;
+        using State = GaplessPSSMState<ScoreType, numRegs, decltype(group), SharedPSSM, SmemIndexCalculator, relaxChunkSize, false>;
 
         alignas(8) Scalar penalty_in[4];
         alignas(8) Scalar penalty_out[4];
