@@ -825,7 +825,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
             Debug(Debug::ERROR) << " - " << filenames[fileIdx] << "\n";
         }
-        Debug(Debug::ERROR) << "Please check your input files. Only files in fasta/fastq[.gz|bz2] are supported\n";
+        Debug(Debug::ERROR) << "Please check your input files. Only files in fasta/fastq[.gz|.bz2|.zst] are supported\n";
         EXIT(EXIT_FAILURE);
     }
 

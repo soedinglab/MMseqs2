@@ -262,7 +262,8 @@ KSeqWrapper* KSeqFactory(const char* file, size_t start, size_t end) {
         return kseq;
     }
 
-    if(Util::endsWith(".gz", file) == false && Util::endsWith(".bz2", file) == false && Util::endsWith(".zst", file) == false) {
+    if(Util::endsWith(".gz", file) == false && Util::endsWith(".bz2", file) == false
+       && Util::endsWith(".zst", file) == false && Util::endsWith(".zstd", file) == false) {
         kseq = new KSeqFile(file, start, end);
         return kseq;
     }
@@ -289,7 +290,7 @@ KSeqWrapper* KSeqFactory(const char* file, size_t start, size_t end) {
         EXIT(EXIT_FAILURE);
     }
 #endif
-    else if(Util::endsWith(".zst", file) == true) {
+    else if(Util::endsWith(".zst", file) == true || Util::endsWith(".zstd", file) == true) {
         kseq = new KSeqZstd(file, start, end);
         return kseq;
     }
