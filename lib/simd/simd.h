@@ -1004,9 +1004,10 @@ static inline simd_float simdf32_shiftl_lanes(const simd_float a) {
 // lanes holding whole numbers in [0, 127] as VECSIZE_FLOAT bytes
 static inline void simdf32_storeu_u8(uint8_t *dst, const simd_float a) {
 #if defined(AVX512)
-    _mm_storeu_si128((__m128i *)dst, _mm512_cvtepi32_epi8(_mm512_cvttps_epi32(a)));
+    // maskz conversions avoid _mm_undefined_si128, which GCC 12.2 flags with -Wmaybe-uninitialized
+    _mm_storeu_si128((__m128i *)dst, _mm512_maskz_cvtepi32_epi8(0xFFFF, _mm512_cvttps_epi32(a)));
 #elif defined(MMSEQS_AVX512VL_MASKS)
-    _mm_storel_epi64((__m128i *)dst, _mm256_cvtepi32_epi8(_mm256_cvttps_epi32(a)));
+    _mm_storel_epi64((__m128i *)dst, _mm256_maskz_cvtepi32_epi8(0xFF, _mm256_cvttps_epi32(a)));
 #elif defined(AVX2)
     const __m256i w = _mm256_cvttps_epi32(a);
     const __m128i h = _mm_packs_epi32(_mm256_castsi256_si128(w), _mm256_extracti128_si256(w, 1));
