@@ -5,6 +5,7 @@
 
 #include "make_aligner_headers.cuh"
 #include "../cuda_errorcheck.cuh"
+#include "amd_arch.cuh"
 
 #include "../namespace.hpp"
 LIBMARV_NAMESPACE_BEGIN
@@ -80,23 +81,35 @@ std::unique_ptr<MultiConfigScoreWithEndPosAlignerInterface> make_multiconfig_sw_
 #else
 
 
+    const AmdConfigTable table = amdConfigTable(deviceId);
+
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(table == AmdConfigTable::gfx900){
         return make_multiconfig_sw_endpos_aligner_amd_gfx900_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX942 
-    if(ccMajor == 9 && ccMinor == 4){
+    if(table == AmdConfigTable::gfx942){
         return make_multiconfig_sw_endpos_aligner_amd_gfx942_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950 
+    if(table == AmdConfigTable::gfx950){
+        return make_multiconfig_sw_endpos_aligner_amd_gfx950_32bit();
+    }
+#endif
+#ifdef MARV_HAVE_AMD_GFX90A 
+    if(table == AmdConfigTable::gfx90a){
+        return make_multiconfig_sw_endpos_aligner_amd_gfx90a_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100 
-    if(ccMajor == 11 && ccMinor == 0){
+    if(table == AmdConfigTable::gfx1100){
         return make_multiconfig_sw_endpos_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(table == AmdConfigTable::gfx1150){
         return make_multiconfig_sw_endpos_aligner_amd_gfx1150_32bit();
     }
 #endif
@@ -185,23 +198,35 @@ std::unique_ptr<MultiConfigScoreWithEndPosAlignerInterface> make_multiconfig_gap
 #else
 
 
+    const AmdConfigTable table = amdConfigTable(deviceId);
+
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(table == AmdConfigTable::gfx900){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx900_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(table == AmdConfigTable::gfx942){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx942_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(table == AmdConfigTable::gfx950){
+        return make_multiconfig_gapless_endpos_aligner_amd_gfx950_32bit();
+    }
+#endif
+#ifdef MARV_HAVE_AMD_GFX90A
+    if(table == AmdConfigTable::gfx90a){
+        return make_multiconfig_gapless_endpos_aligner_amd_gfx90a_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(table == AmdConfigTable::gfx1100){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(table == AmdConfigTable::gfx1150){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1150_32bit();
     }
 #endif
@@ -286,23 +311,35 @@ std::unique_ptr<MultiConfigScoreWithEndPosAlignerInterface> make_multiconfig_gap
 #else
 
 
+    const AmdConfigTable table = amdConfigTable(deviceId);
+
 #ifdef MARV_HAVE_AMD_GFX900
-    if(ccMajor == 9 && ccMinor == 0){
+    if(table == AmdConfigTable::gfx900){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx900_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX942
-    if(ccMajor == 9 && ccMinor == 4){
+    if(table == AmdConfigTable::gfx942){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx942_32bit();
     }
 #endif
+#ifdef MARV_HAVE_AMD_GFX950
+    if(table == AmdConfigTable::gfx950){
+        return make_multiconfig_gapless_endpos_aligner_amd_gfx950_32bit();
+    }
+#endif
+#ifdef MARV_HAVE_AMD_GFX90A
+    if(table == AmdConfigTable::gfx90a){
+        return make_multiconfig_gapless_endpos_aligner_amd_gfx90a_32bit();
+    }
+#endif
 #ifdef MARV_HAVE_AMD_GFX1100
-    if(ccMajor == 11 && ccMinor == 0){
+    if(table == AmdConfigTable::gfx1100){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1100_32bit();
     }
 #endif
 #ifdef MARV_HAVE_AMD_GFX1150
-    if(ccMajor == 11 && ccMinor == 5){
+    if(table == AmdConfigTable::gfx1150){
         return make_multiconfig_gapless_endpos_aligner_amd_gfx1150_32bit();
     }
 #endif

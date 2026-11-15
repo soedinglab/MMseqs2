@@ -110,6 +110,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         ~GpuDatabase();
 
         const std::vector<int>& getDeviceIds() const;
+        bool isVerbose() const{ return verbose; }
 
 
         void setDatabase(std::shared_ptr<DB> dbPtr);

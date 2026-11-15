@@ -20,11 +20,12 @@
 #include "namespace.hpp"
 LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 
-    template<class T>
+    // orderedMax: see compatibility::hmax2, only used by the half2 ops
+    template<class T, bool orderedMax = true>
     struct MathOps{};
 
-    template<>
-    struct MathOps<half2>{
+    template<bool orderedMax>
+    struct MathOps<half2, orderedMax>{
         using Type = half;
         using VecType = half2;
 
@@ -47,7 +48,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         //max(a,b)
         __device__
         static VecType max(const VecType& a, const VecType& b){
-            return compatibility::hmax2(a, b);
+            return compatibility::hmax2<orderedMax>(a, b);
         }
 
         //max(a,b)
@@ -91,13 +92,13 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         //max(a,b,c)
         __device__
         static VecType max3(const VecType& a, const VecType& b, const VecType& c){
-            return compatibility::hmax2(a, compatibility::hmax2(b,c));
+            return compatibility::hmax2<orderedMax>(a, compatibility::hmax2<orderedMax>(b,c));
         }
 
         //max(a+b,c)
         __device__
         static VecType add_max(const VecType& a, const VecType& b, const VecType& c){
-            return compatibility::hmax2(__hadd2(a,b), c);
+            return compatibility::hmax2<orderedMax>(__hadd2(a,b), c);
         }
 
         //max(a+b,c)
@@ -137,8 +138,8 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
     };
 
 #if defined(__CUDACC__)
-    template<>
-    struct MathOps<short2>{
+    template<bool orderedMax>
+    struct MathOps<short2, orderedMax>{
         using Type = short;
         using VecType = short2;
 
@@ -241,8 +242,8 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 #endif
 
 
-    template<>
-    struct MathOps<float>{
+    template<bool orderedMax>
+    struct MathOps<float, orderedMax>{
         using Type = float;
 
         __device__
@@ -322,8 +323,8 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
     };
 
 
-    template<>
-    struct MathOps<int>{
+    template<bool orderedMax>
+    struct MathOps<int, orderedMax>{
         using Type = int;
 
         __device__
@@ -403,8 +404,8 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         }
     };
 
-    template<>
-    struct MathOps<half>{
+    template<bool orderedMax>
+    struct MathOps<half, orderedMax>{
         using Type = half;
 
         //max(a,b)
@@ -444,8 +445,8 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         }
     };
 
-    template<>
-    struct MathOps<short>{
+    template<bool orderedMax>
+    struct MathOps<short, orderedMax>{
         using Type = short;
 
         //max(a,b)
@@ -487,8 +488,8 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 
 
 #if defined(__CUDACC__)
-    template<>
-    struct MathOps<ScoreType_u8x4>{
+    template<bool orderedMax>
+    struct MathOps<ScoreType_u8x4, orderedMax>{
         using Type = cuda::std::uint8_t;
         using VecType = ScoreType_u8x4;
 

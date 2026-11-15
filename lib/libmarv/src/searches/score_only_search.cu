@@ -308,7 +308,9 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         // for(int i = 0; i < 3; i++){
         //     std::cout << h_finalAlignmentScoresPerQuery[i] << " " << "referenceId " << h_finalReferenceIdsPerQuery[i] << "\n";
         // }
-        timer.print();
+        if(gpuDatabase->isVerbose()){
+            timer.print();
+        }
         return allResults;
     }
 
@@ -385,7 +387,9 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         // for(int i = 0; i < 3; i++){
         //     std::cout << h_finalAlignmentScoresPerQuery[i] << " " << "referenceId " << h_finalReferenceIdsPerQuery[i] << "\n";
         // }
-        timer.print();
+        if(gpuDatabase->isVerbose()){
+            timer.print();
+        }
         return allResults;
     }
 
@@ -519,11 +523,11 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
                             );
                         }else{
 
-                            thrust::device_vector<char, thrust_async_allocator<char>> d_tempStorage
+                            TempBuffer d_tempStorage
                                 = allocateTempBuffer(8ull << 30, 256ull << 20, stream);
 
                             standardAlignerPerGpu[gpu]->scoreOnly_multiTile(
-                                d_tempStorage.data().get(),
+                                d_tempStorage.data(),
                                 d_tempStorage.size(),
                                 ws.getKernelOutputArrayScores(queryIndex) + ws.kernelOutputArrayUsedSize[queryIndex],
                                 inputData,
@@ -570,10 +574,10 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
                                         IsOverflowScore{overflowThreshold},
                                         stream
                                     ));
-                                    thrust::device_vector<char, thrust_async_allocator<char>> d_tempStorage
+                                    TempBuffer d_tempStorage
                                         = allocateTempBuffer(cubBytes, stream);
                                     CUDACHECK(cub::DeviceSelect::If(
-                                        d_tempStorage.data().get(), 
+                                        d_tempStorage.data(), 
                                         cubBytes, 
                                         ws.getKernelOutputArrayScores(queryIndex) + ws.kernelOutputArrayUsedSize[queryIndex], 
                                         thrust::make_discard_iterator(),
@@ -699,10 +703,10 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
                                         size_t suggestedBytes = overflowSettings.overflowAlignersScoreOnly[gpu]->getMinimumSuggestedTempBytes_multiTile(
                                             inputData
                                         );
-                                        thrust::device_vector<char, thrust_async_allocator<char>> d_tempStorage
+                                        TempBuffer d_tempStorage
                                             = allocateTempBuffer(suggestedBytes, 256ull << 20, stream);
                                         overflowSettings.overflowAlignersScoreOnly[gpu]->scoreOnly_multiTile(
-                                            d_tempStorage.data().get(),
+                                            d_tempStorage.data(),
                                             d_tempStorage.size(),
                                             d_correctedScores,
                                             inputData,
