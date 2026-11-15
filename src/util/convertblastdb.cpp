@@ -7,6 +7,8 @@
 #include "FastSort.h"
 
 #include <dirent.h>
+#include <algorithm>
+#include <cstdlib>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -389,6 +391,8 @@ static bool parseAliasFileVolumes(
 
     std::string baseDir = FileUtil::dirName(aliasPath);
     const char *aliasExt = (dataExt[1] == 'p') ? ".pal" : ".nal";
+    std::string aliasName = FileUtil::baseName(aliasPath);
+    aliasName.resize(aliasName.size() - 4);
 
     for (size_t t = 0; t < entries.size(); ++t) {
         std::string cand = entries[t];
@@ -396,14 +400,14 @@ static bool parseAliasFileVolumes(
             cand = baseDir.empty() ? cand : (baseDir + "/" + cand);
         }
 
-        if (FileUtil::fileExists((cand + dataExt).c_str())) {
-            volumes.push_back(cand);
+        // like BLAST: an alias file wins over a volume, except for an entry naming the alias itself
+        if (entries[t] != aliasName && FileUtil::fileExists((cand + aliasExt).c_str())) {
+            parseAliasFileVolumes(cand + aliasExt, dataExt, volumes, depth + 1);
             continue;
         }
 
-        // a DBLIST entry may name another alias file rather than a volume
-        if (FileUtil::fileExists((cand + aliasExt).c_str())) {
-            parseAliasFileVolumes(cand + aliasExt, dataExt, volumes, depth + 1);
+        if (FileUtil::fileExists((cand + dataExt).c_str())) {
+            volumes.push_back(cand);
             continue;
         }
 
@@ -418,10 +422,56 @@ static bool parseAliasFileVolumes(
     return !volumes.empty();
 }
 
+// BLAST opens each volume once, ordered by file name and then path; matching that keeps keys equal to BLAST OIDs
+static bool compareVolumes(const std::string &a, const std::string &b) {
+    std::string an = FileUtil::baseName(a);
+    std::string bn = FileUtil::baseName(b);
+    if (an != bn) {
+        return an < bn;
+    }
+    return a < b;
+}
+
+static void uniqueSortVolumes(std::vector<std::string> &volumes, const char *dataExt) {
+    size_t extLen = std::strlen(dataExt);
+    for (size_t i = 0; i < volumes.size(); ++i) {
+        char *resolved = realpath((volumes[i] + dataExt).c_str(), NULL);
+        if (resolved != NULL) {
+            std::string path(resolved);
+            free(resolved);
+            volumes[i] = path.substr(0, path.size() - extLen);
+        }
+    }
+    std::sort(volumes.begin(), volumes.end(), compareVolumes);
+    volumes.erase(std::unique(volumes.begin(), volumes.end()), volumes.end());
+}
+
 static void findVolumes(
     const std::string &db,
     int &kind,
     std::vector<std::string> &volumes) {
+    // alias files, like BLAST before volumes of the same name
+    std::string palPath = db + ".pal";
+    std::string nalPath = db + ".nal";
+    bool tried = false;
+
+    if (FileUtil::fileExists(palPath.c_str())) {
+        tried = true;
+        if (parseAliasFileVolumes(palPath, ".psq", volumes, 0)) {
+            uniqueSortVolumes(volumes, ".psq");
+            kind = Parameters::DBTYPE_AMINO_ACIDS;
+            return;
+        }
+    }
+    if (FileUtil::fileExists(nalPath.c_str())) {
+        tried = true;
+        if (parseAliasFileVolumes(nalPath, ".nsq", volumes, 0)) {
+            uniqueSortVolumes(volumes, ".nsq");
+            kind = Parameters::DBTYPE_NUCLEOTIDES;
+            return;
+        }
+    }
+
     // direct data files
     if (FileUtil::fileExists((db + ".psq").c_str())) {
         kind = Parameters::DBTYPE_AMINO_ACIDS;
@@ -444,26 +494,6 @@ static void findVolumes(
     if (!volumes.empty()) {
         kind = Parameters::DBTYPE_NUCLEOTIDES;
         return;
-    }
-
-    // alias files
-    std::string palPath = db + ".pal";
-    std::string nalPath = db + ".nal";
-    bool tried = false;
-
-    if (FileUtil::fileExists(palPath.c_str())) {
-        tried = true;
-        if (parseAliasFileVolumes(palPath, ".psq", volumes, 0)) {
-            kind = Parameters::DBTYPE_AMINO_ACIDS;
-            return;
-        }
-    }
-    if (FileUtil::fileExists(nalPath.c_str())) {
-        tried = true;
-        if (parseAliasFileVolumes(nalPath, ".nsq", volumes, 0)) {
-            kind = Parameters::DBTYPE_NUCLEOTIDES;
-            return;
-        }
     }
 
     if (tried == false) {
