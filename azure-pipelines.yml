@@ -172,14 +172,9 @@ jobs:
       - checkout: self
         submodules: false
       - script: |
-          mkdir -p ${BUILD_SOURCESDIRECTORY}/output
-          docker build -t manylinux-builder \
+          docker build --output type=local,dest=${BUILD_SOURCESDIRECTORY}/output \
             -f ${DOCKER} .
-          docker run --rm \
-            -v ${BUILD_SOURCESDIRECTORY}/output:/output \
-            manylinux-builder \
-            /bin/bash -c "cp /work/build/src/mmseqs /output/"
-        displayName: Run Docker Container and Copy Binary
+        displayName: Build Binary in Docker
       - task: PublishPipelineArtifact@0
         inputs:
           targetPath: $(Build.SourcesDirectory)/output/mmseqs
