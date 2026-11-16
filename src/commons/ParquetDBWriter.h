@@ -119,6 +119,11 @@ public:
     // lookup table name: "_" prefix (skipped by Spark/Hive/Arrow datasets) and ".pq" extension
     // (not matched by *.parquet globs, e.g. in DuckDB)
     static std::string lookupParquetName(const std::string& output, const bool multiFile);
+    // keys of entries that produced no rows (e.g. queries without hits): <dir>/_empty.pq or _<name>.empty.pq;
+    // a reader needs them to know every key of the DB (ParquetDBReader)
+    static std::string emptyParquetName(const std::string& output, const bool multiFile);
+    // key-value metadata written by convert2parquet: the dbtype of the converted DB
+    static constexpr const char* DBTYPE_METADATA_KEY = "mmseqs.dbtype";
     // remove <dir>/<prefix>_<number>.parquet(.tmp) of an earlier run (convertalis file naming)
     static void removeNumberedParquet(const std::string& dir, const std::string& prefix);
     // codec, level and row group size of the next init*() call
@@ -149,6 +154,8 @@ public:
     void writeBatchToFile(const std::vector<int>& outcodes);
     // marks the end of a row; flushes the batch to carquet once it holds flush_bytes of data
     void endRow();
+    // rows ended so far (endRow calls), to see whether an entry produced rows
+    size_t getRowsWritten() const { return rowsWritten; }
     // writes all pending rows to carquet, also called by close()
     void flush();
     void setFlushBytes(const size_t bytes);
@@ -162,7 +169,9 @@ private:
     carquet_schema_t* schema;
     carquet_writer_options_t opts;
     carquet_writer_t* writer;
-    std::map<int, Record> record_batch;
+    // pending values per output column, indexed by column (sized by the init functions); a vector instead of a
+    // std::map: writeCell looks the column up for every value
+    std::vector<Record> record_batch;
     int record_counter;
     std::vector<int> fields;
     // data held in record_batch since the last flush
@@ -170,6 +179,9 @@ private:
     size_t pending_rows = 0;
     size_t flush_bytes = DEFAULT_FLUSH_BYTES;
     int dbtype = 0;
+    // dbtype written as DBTYPE_METADATA_KEY on close; -1 = none (layouts not based on a DB, e.g. convertalis)
+    int metadataDbtype = -1;
+    size_t rowsWritten = 0;
     WriterOptions writerOptions;
     // per output column, for parsing and error messages
     std::vector<std::string> columnNames;

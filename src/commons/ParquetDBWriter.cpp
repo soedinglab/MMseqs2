@@ -110,6 +110,7 @@ void ParquetDBWriter::init(const char* resultFile,const std::vector<int>& outcod
     err = CARQUET_ERROR_INIT;
     schema = carquet_schema_create(&err);
     record_counter = 0;
+    record_batch.assign(outcodes.size(), Record(NULL, CARQUET_PHYSICAL_INT32));
     
     if (!schema) {
         status = CARQUET_ERROR_INTERNAL;
@@ -126,6 +127,7 @@ void ParquetDBWriter::init(const char* resultFile,const std::vector<int>& outcod
 
 void ParquetDBWriter::initFromDbType(const char* resultFile, const int dbtype, const unsigned int optional){
     this->dbtype = dbtype;
+    metadataDbtype = dbtype;
     initFromFields(resultFile, dbTypeToFields(dbtype, optional));
 }
 
@@ -144,6 +146,7 @@ void ParquetDBWriter::initFromSpecs(const char* resultFile, const std::vector<Co
     err = CARQUET_ERROR_INIT;
     schema = carquet_schema_create(&err);
     record_counter = 0;
+    record_batch.assign(specs.size(), Record(NULL, CARQUET_PHYSICAL_INT32));
 
     if (!schema) {
         status = CARQUET_ERROR_INTERNAL;
@@ -220,6 +223,10 @@ void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCoun
     opts.compression_level = writerOptions.compressionLevel;
     opts.row_group_size = static_cast<int64_t>(writerOptions.rowGroupSize);
     opts.page_size = 1024 * 1024;
+    // at most 20000 rows per page (as Arrow/parquet-cpp): reading a row range starts decoding at the start of its
+    // page (offset index), so small pages make key lookups and short ranges cheap (1 MB pages hold up to 262144
+    // int32 values)
+    opts.max_rows_per_page = 20000;
     opts.write_statistics = true;
     opts.write_crc = true;
     opts.write_page_index = true;
@@ -227,6 +234,27 @@ void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCoun
     opts.dictionary_encoding = CARQUET_ENCODING_PLAIN; // might want to change, depends on performance
     opts.created_by = "MMseqs parquet writer";
 
+    // statistics (min/max per page and row group) cost ~10% of the conversion time; keep them only for columns that
+    // are typically filtered on (keys/ids and scores), not for coordinates, lengths, sequences, profile values
+    static const char* statsColumns[] = {"key", "query", "target", "representative", "member", "score", "seqId",
+                                         "evalue", "bits", "fident", "pident", "prefScore", "taxid", "accession"};
+    std::vector<bool> withStats(carquet_schema_num_columns(schema), false);
+    // bloom filters (hashing every value) cost ~25% of the conversion time when written for all columns; they only
+    // help equality lookups, which are typical for the query and target ids
+    std::vector<bool> withBloom(withStats.size(), false);
+    for (size_t c = 0; c < withStats.size(); c++) {
+        const char* name = carquet_schema_column_name(schema, static_cast<int32_t>(c));
+        for (size_t k = 0; name != NULL && k < sizeof(statsColumns) / sizeof(statsColumns[0]); k++) {
+            withStats[c] = withStats[c] || strcmp(name, statsColumns[k]) == 0;
+        }
+        withBloom[c] = name != NULL && (strcmp(name, "query") == 0 || strcmp(name, "target") == 0);
+    }
+    bool keyColumnDelta = false;
+    if (withStats.empty() == false && carquet_schema_column_type(schema, 0) == CARQUET_PHYSICAL_INT64) {
+        const char* name0 = carquet_schema_column_name(schema, 0);
+        keyColumnDelta = name0 != NULL && (strcmp(name0, "key") == 0 || strcmp(name0, "query") == 0
+                                           || strcmp(name0, "representative") == 0);
+    }
     writer = carquet_writer_create(resultFile, schema, &opts, &err);
     carquet_schema_free(schema); // writer copies schema, can be freed early
     if (!writer) {
@@ -234,9 +262,25 @@ void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCoun
         status = CARQUET_ERROR_INTERNAL;
         checkStatus("Writer initialisation error");
     }
+    for (size_t c = 0; c < withStats.size(); c++) {
+        if (withStats[c] == false) {
+            status = carquet_writer_set_column_statistics(writer, static_cast<int32_t>(c), false);
+            checkStatus("Disabling statistics failed");
+        }
+        // the _options setter switches carquet to per-column bloom control (the plain per-column setter is ignored
+        // while the global flag is on); ndv 0 / fpp 0 = carquet defaults
+        status = carquet_writer_set_column_bloom_filter_options(writer, static_cast<int32_t>(c), withBloom[c], 0, 0.0);
+        checkStatus("Setting the bloom filter of a column failed");
+    }
     for (size_t i = 0; i < columnCount; i++){
         status = carquet_writer_set_column_encoding(writer, i, CARQUET_ENCODING_PLAIN);
         checkStatus("Column encoding overwrite");
+    }
+    // the entry key (column 0, INT64) repeats for all rows of an entry and increases between entries: delta encoding
+    // stores it in a few bits per row instead of 8 bytes (PLAIN); after the PLAIN loop, which would overwrite it
+    if (keyColumnDelta) {
+        status = carquet_writer_set_column_encoding(writer, 0, CARQUET_ENCODING_DELTA_BINARY_PACKED);
+        checkStatus("Setting the key column encoding failed");
     }
     writer_close_status = CARQUET_OK;
 }
@@ -782,9 +826,9 @@ void ParquetDBWriter::addSeqBasedOnAln(const int record_num, const char *seq, un
 
 
 void ParquetDBWriter::clearRecordBatch(){
-    for (const auto& Record : record_batch) {
-        void* record_pointer = Record.second.first;
-        carquet_physical_type type = Record.second.second;
+    for (const Record& record : record_batch) {
+        void* record_pointer = record.first;
+        carquet_physical_type type = record.second;
         switch (type){
             case CARQUET_PHYSICAL_BYTE_ARRAY:{
                 StringColumn* carbyte_pointer_a = reinterpret_cast<StringColumn*>(record_pointer);
@@ -820,9 +864,9 @@ void ParquetDBWriter::clearRecordBatch(){
 }
 
 void ParquetDBWriter::freeRecordBatch(){
-    for (const auto& record : record_batch) {
-        void* record_pointer = record.second.first;
-        carquet_physical_type type = record.second.second;
+    for (const Record& record : record_batch) {
+        void* record_pointer = record.first;
+        carquet_physical_type type = record.second;
         switch (type){
             case CARQUET_PHYSICAL_BYTE_ARRAY:{
                 StringColumn* carbyte_pointer_a = reinterpret_cast<StringColumn*>(record_pointer);
@@ -855,6 +899,7 @@ void ParquetDBWriter::freeRecordBatch(){
                 break;
         }
     }
+    record_batch.clear();   // a second call (destructor after an error path) must not free again
 }
 
 
@@ -955,6 +1000,7 @@ void ParquetDBWriter::writeBatchToFile(const std::vector<int>& outcodes){
 
 void ParquetDBWriter::endRow(){
     pending_rows++;
+    rowsWritten++;
     if (pending_bytes >= flush_bytes) {
         flush();
     }
@@ -982,6 +1028,10 @@ void ParquetDBWriter::close(){
         return;
     }
     flush();
+    if (metadataDbtype >= 0) {
+        status = carquet_writer_add_metadata(writer, DBTYPE_METADATA_KEY, SSTR(metadataDbtype).c_str());
+        checkStatus("Adding the dbtype metadata failed");
+    }
     writer_close_status = carquet_writer_close(writer);
     if (writer_close_status != carquet_status_t::CARQUET_OK){
         carquet_writer_abort(writer);
@@ -1198,6 +1248,8 @@ void ParquetDBWriter::writeEntry(const DBKeyType key, const char* data, const si
         default: {
             // tab separated lines: alignment, prefilter, cluster, taxonomy, and generic DBs with a schema;
             // native column 0 is the entry key, column c the (c-1)-th field of the line
+            // fields are split byte by byte; memchr per field was measured slower on ARM (spark004, 20 GiB:
+            // 6.6 -> 8.6 s), the fields are only a few bytes long
             const char* p = data;
             const char* end = data + len;
             while (p < end && *p != '\0') {
@@ -1327,6 +1379,7 @@ bool ParquetDBWriter::parseSchema(const std::string& text, std::vector<ColumnSpe
 void ParquetDBWriter::initFromSchema(const char* resultFile, const int dbtype, const unsigned int optional,
                                      const std::vector<ColumnSpec>& schemaColumns){
     this->dbtype = dbtype;
+    metadataDbtype = dbtype;
     fields.clear();
     std::vector<ColumnSpec> out;
     if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_GENERIC_DB)) {
@@ -1430,11 +1483,23 @@ std::string ParquetDBWriter::lookupParquetName(const std::string& output, const 
     return dir + "_" + base + ".lookup.pq";
 }
 
-// remove an earlier result of the same name: <output> file or <output>/part-*.parquet, and its lookup
+std::string ParquetDBWriter::emptyParquetName(const std::string& output, const bool multiFile){
+    if (multiFile) {
+        return output + "/_empty.pq";
+    }
+    const size_t slash = output.find_last_of('/');
+    const std::string dir = (slash == std::string::npos) ? "" : output.substr(0, slash + 1);
+    const std::string base = (slash == std::string::npos) ? output : output.substr(slash + 1);
+    return dir + "_" + base + ".empty.pq";
+}
+
+// remove an earlier result of the same name: <output> file or <output>/part-*.parquet, its lookup and empty keys
 static void removeStaleParquet(const std::string& output){
-    const std::string singleLookup = ParquetDBWriter::lookupParquetName(output, false);
-    if (FileUtil::fileExists(singleLookup.c_str())) {
-        FileUtil::remove(singleLookup.c_str());
+    const std::string singles[] = {ParquetDBWriter::lookupParquetName(output, false), ParquetDBWriter::emptyParquetName(output, false)};
+    for (const std::string& single : singles) {
+        if (FileUtil::fileExists(single.c_str())) {
+            FileUtil::remove(single.c_str());
+        }
     }
     if (FileUtil::directoryExists(output.c_str())) {
         DIR* dir = opendir(output.c_str());
@@ -1443,7 +1508,7 @@ static void removeStaleParquet(const std::string& output){
             while ((ent = readdir(dir)) != NULL) {
                 const std::string name = ent->d_name;
                 if ((name.compare(0, 5, "part-") == 0 && name.find(".parquet") != std::string::npos)
-                    || name.compare(0, 10, "_lookup.pq") == 0) {
+                    || name.compare(0, 10, "_lookup.pq") == 0 || name.compare(0, 9, "_empty.pq") == 0) {
                     FileUtil::remove((output + "/" + name).c_str());
                 }
             }
@@ -1493,6 +1558,22 @@ static void writeLookupParquet(DBReader<DBKeyType>& reader, const std::string& n
         w.writeCell(static_cast<int64_t>(lookup[i].id), 0);
         w.writeCell(lookup[i].entryName, 1);
         w.writeCell(static_cast<int64_t>(lookup[i].fileNumber), 2);
+        w.endRow();
+    }
+    w.close();
+    FileUtil::move(tmp.c_str(), name.c_str());
+}
+
+// keys of the entries without rows, sorted (column key)
+static void writeEmptyKeysParquet(std::vector<DBKeyType>& keys, const std::string& name,
+                                  const ParquetDBWriter::WriterOptions& options){
+    std::sort(keys.begin(), keys.end());
+    const std::string tmp = name + ".tmp";
+    ParquetDBWriter w;
+    w.setWriterOptions(options);
+    w.initFromFields(tmp.c_str(), {ParquetDBWriter::DBFIELD_KEY});
+    for (size_t i = 0; i < keys.size(); i++) {
+        w.writeCell(static_cast<int64_t>(keys[i]), 0);
         w.endRow();
     }
     w.close();
@@ -1557,11 +1638,25 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
             w.initFromSchema((names[f] + ".tmp").c_str(), reader.getDbtype(), optional, schemaColumns);
         }
     };
+    // entries that produce no rows (empty alignment/cluster/... entries) are listed in emptyParquetName,
+    // so that a reader knows every key; not for the hooks (convertalis), whose output is not read back
+    std::vector<DBKeyType> emptyKeys;
+    std::mutex emptyLock;
     auto writeEntryRows = [&](ParquetDBWriter& w, DBKeyType key, char* data, size_t len, unsigned int thread_idx) {
         if (hooks.writeEntry) {
             hooks.writeEntry(w, key, data, len, thread_idx);
         } else {
+            const size_t rowsBefore = w.getRowsWritten();
             w.writeEntry(key, data, len);
+            if (w.getRowsWritten() == rowsBefore) {
+                std::lock_guard<std::mutex> guard(emptyLock);
+                emptyKeys.push_back(key);
+            }
+        }
+    };
+    auto writeEmptyKeys = [&]() {
+        if (!hooks.writeEntry) {
+            writeEmptyKeysParquet(emptyKeys, emptyParquetName(output, files > 1), options);
         }
     };
     auto closePart = [&](ParquetDBWriter& w, size_t f) {
@@ -1588,6 +1683,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
             }
             closePart(w, f);
         }
+        writeEmptyKeys();
         return;
     }
 
@@ -1618,6 +1714,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
             }
             closePart(w, f);
         }
+        writeEmptyKeys();
         return;
     }
 
@@ -1727,5 +1824,6 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
         closePart(w, f);
     }
     rmdir(spillDir.c_str());
+    writeEmptyKeys();
 }
 
