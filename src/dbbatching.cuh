@@ -23,8 +23,8 @@ LIBMARV_NAMESPACE_BEGIN
         struct CopyRange{
             int lengthPartitionId;
             int currentCopyPartition;
-            int currentCopySeqInPartition;
-            int numToCopy;
+            size_t currentCopySeqInPartition;
+            size_t numToCopy;
         };
         size_t usedBytes = 0;
         size_t usedSeq = 0;

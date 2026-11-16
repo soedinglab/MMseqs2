@@ -79,7 +79,7 @@ public:
         int gex,
         bool int8IsAllowed, // allow alignments in 8-bit precision. automatic fallback to greater precision if 8-bit is not available
         bool handleOverflows, // recompute overflows; use 32-bit retries when 16-bit cannot guarantee exact scores
-        std::vector<std::int32_t>* subsetIdsPtr_ = nullptr //. dont search full database, but only the db sequences with subsetids. nullptr if unused
+        std::vector<std::uint32_t>* subsetIdsPtr_ = nullptr //. dont search full database, but only the db sequences with subsetids. nullptr if unused
     );
 
     Marv::Stats search_scoreOnly(
@@ -93,7 +93,7 @@ public:
         int gex,
         bool int8IsAllowed,
         bool handleOverflows,
-        std::vector<std::int32_t>* subsetIdsPtr_ = nullptr //nullptr if unused
+        std::vector<std::uint32_t>* subsetIdsPtr_ = nullptr //nullptr if unused
     );
 
     /*
@@ -118,7 +118,7 @@ public:
         int gex,
         bool int8IsAllowed, // allow alignments in 8-bit precision. automatic fallback to greater precision if 8-bit is not available
         bool handleOverflows, // recompute overflows (currently this means retry 8-bit alignments with 16-bit)
-        std::vector<std::int32_t>* subsetIdsPtr_ = nullptr //. dont search full database, but only the db sequences with subsetids. nullptr if unused
+        std::vector<std::uint32_t>* subsetIdsPtr_ = nullptr //. dont search full database, but only the db sequences with subsetids. nullptr if unused
     );
 
     Marv::Stats search_scoreEndpos(
@@ -132,7 +132,7 @@ public:
         int gex,
         bool int8IsAllowed,
         bool handleOverflows,
-        std::vector<std::int32_t>* subsetIdsPtr_ = nullptr //nullptr if unused
+        std::vector<std::uint32_t>* subsetIdsPtr_ = nullptr //nullptr if unused
     );
 
     /*

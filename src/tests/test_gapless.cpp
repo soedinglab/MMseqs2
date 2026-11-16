@@ -123,8 +123,8 @@ static std::vector<Marv::Result> runCase(uint64_t seed, const Case& cs, bool int
 
     std::vector<const char*> qp; std::vector<int> ql; std::vector<int8_t*> pp;
     for (size_t i = 0; i < queries.size(); i++) { qp.push_back(queries[i].data()); ql.push_back((int) queries[i].size()); pp.push_back(pssms[i].data()); }
-    std::vector<int32_t> subsetIds;
-    if (cs.subset) { for (size_t s = 0; s < numSubjects; s++) if (rng.uniform(0, 2) == 0) subsetIds.push_back((int32_t) s); }
+    std::vector<uint32_t> subsetIds;
+    if (cs.subset) { for (size_t s = 0; s < numSubjects; s++) if (rng.uniform(0, 2) == 0) subsetIds.push_back((uint32_t) s); }
     const size_t universe = cs.subset ? subsetIds.size() : numSubjects;
     const int N = (int) std::min<size_t>(cs.topN > 0 ? (size_t) cs.topN : universe, universe);
 
