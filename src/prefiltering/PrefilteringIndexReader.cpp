@@ -103,7 +103,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.alignToPageSize(SPLIT_META);
     free(subData);
 
-    if (spacedKmerPattern.empty() != false) {
+    if (spacedKmerPattern.empty() == false) {
         Debug(Debug::INFO) << "Write SPACEDPATTERN (" << SPACEDPATTERN << ")\n";
         writer.writeData(spacedKmerPattern.c_str(), spacedKmerPattern.length(), SPACEDPATTERN, SPLIT_META);
         writer.alignToPageSize(SPLIT_META);
