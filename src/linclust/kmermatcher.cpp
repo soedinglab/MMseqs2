@@ -87,7 +87,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
     int querySeqType  =  seqDbr.getDbtype();
     size_t longestKmer = par.kmerSize;
     const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
-
+    if (TYPE == Parameters::DBTYPE_NUCLEOTIDES && par.spacedKmer && par.adjustKmerLength) {
+        Debug(Debug::ERROR) << "--adjust-kmer-len cannot be combined with spaced k-mers for nucleotide databases\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     ScoreMatrix two;
     ScoreMatrix three;
@@ -121,6 +124,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
             generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1,  par.kmerSize);
+        std::vector<unsigned char> revSequence;
         // Thread-local staging buffer: batches the atomic reservation into the shared
         // k-mer array. Only a contention/memory trade-off (not a correctness requirement);
         // a small batch already makes the atomic overhead negligible, so keep it small so
@@ -150,13 +154,29 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                 seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx), seqDbr.getSeqLen(id));
 
                 size_t seqHash =  SIZE_T_MAX;
-                //TODO, how to handle this in reverse?
                 if(hashWholeSequence){
                     seqHash = Util::hash(seq.numSequence, seq.L);
                     seqHash = hashUInt64(seqHash, par.hashShift);
+                    if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                        // use the smaller hash of both strands, so that reverse complements share it
+                        revSequence.resize(seq.L);
+                        for (int pos = 0; pos < seq.L; pos++) {
+                            revSequence[pos] = static_cast<NucleotideMatrix*>(subMat)->reverseResidue(seq.numSequence[(seq.L - 1) - pos]);
+                        }
+                        size_t revSeqHash = BIT_CLEAR(hashUInt64(Util::hash(revSequence.data(), seq.L), par.hashShift), 63);
+                        seqHash = BIT_CLEAR(seqHash, 63);
+                        seqHash = (revSeqHash < seqHash) ? revSeqHash : BIT_SET(seqHash, 63);
+                    }
                 }
                 if(masker != NULL){
                     masker->maskSequence(seq, par.maskMode,  par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
+                }
+                if (TYPE == Parameters::DBTYPE_NUCLEOTIDES && includeAdjacency) {
+                    // adjacent residues of reverse k-mers are read from the reverse complement
+                    revSequence.resize(seq.L);
+                    for (int pos = 0; pos < seq.L; pos++) {
+                        revSequence[pos] = static_cast<NucleotideMatrix*>(subMat)->reverseResidue(seq.numSequence[(seq.L - 1) - pos]);
+                    }
                 }
                 size_t seqKmerCount = 0;
                 DBKeyType seqId = seq.getDbKey();
@@ -169,7 +189,18 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                         NucleotideMatrix * nuclMatrix = (NucleotideMatrix*)subMat;
                         size_t kmerLen =  par.kmerSize;
                         size_t kmerIdx = Indexer::computeKmerIdx(kmer, kmerLen);
-                        size_t revkmerIdx = Util::revComplement(kmerIdx, kmerLen);
+                        size_t revkmerIdx = 0;
+                        const int span = seq.getEffectiveKmerSize();
+                        if (par.spacedKmer) {
+                            // the reverse strand reads the window backwards, so its k-mer uses the mirrored pattern
+                            const unsigned char *window = seq.numSequence + seq.getCurrentPosition();
+                            const unsigned char *patternPos = seq.getAAPosInSpacedPattern();
+                            for (size_t i = 0; i < kmerLen; i++) {
+                                revkmerIdx = (revkmerIdx << 2) | nuclMatrix->reverseResidue(window[span - 1 - patternPos[i]]);
+                            }
+                        } else {
+                            revkmerIdx = Util::revComplement(kmerIdx, kmerLen);
+                        }
                         // skip forward and rev. identical k-mers.
                         // We can not know how to align these afterwards
                         if(revkmerIdx == kmerIdx){
@@ -199,7 +230,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                         size_t kmerRev = (pickReverseKmer) ? BIT_CLEAR(kmerIdx, 63) : BIT_SET(kmerIdx, 63);
                         (kmers + seqKmerCount)->kmer = kmerRev;
                         int pos = seq.getCurrentPosition();
-                        (kmers + seqKmerCount)->pos = (pickReverseKmer) ? (seq.L) - pos - kmerLen : pos;
+                        (kmers + seqKmerCount)->pos = (pickReverseKmer) ? (seq.L) - pos - span : pos;
                         (kmers + seqKmerCount)->score = hash;
                         scoreDist[hash]++;
                         hierarchicalScoreDist[hash >> 9]++;
@@ -282,6 +313,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                     }else{
                         SORT_SERIAL(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                     }
+                } else if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                    // ties in the last bin are picked in order, and the sequence order depends on the strand
+                    size_t candidates = 0;
+                    for (size_t i = 0; i < seqKmerCount; i++) {
+                        if (kmers[i].score < threshold) {
+                            std::swap(kmers[candidates++], kmers[i]);
+                        }
+                    }
+                    SORT_SERIAL(kmers, kmers + candidates, SequencePosition::compareByScoreReverse);
                 }
                 size_t selectedKmer = 0;
                 for (size_t kmerIdx = 0; kmerIdx < seqKmerCount && selectedKmer < kmerConsidered; kmerIdx++) {
@@ -333,30 +373,33 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, includeAdjacency
                             if (includeAdjacency) {
                                 unsigned int startPos = (kmers + kmerIdx)->pos;
                                 unsigned int endPos = (kmers + kmerIdx)->pos + seq.getEffectiveKmerSize() - 1;
+                                // pos of a reverse k-mer is on the reverse strand
+                                const bool isReverse = (TYPE == Parameters::DBTYPE_NUCLEOTIDES) && BIT_CHECK((kmers + kmerIdx)->kmer, 63) == false;
+                                const unsigned char *adjacent = isReverse ? revSequence.data() : seq.numSequence;
                                 for (size_t i = 0; i < 6; i++) {
                                     threadKmerBuffer[bufferPos].setAdjacentSeq(i, xIndex);
                                 }
 
                                 if (startPos >= 3) {
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(0, seq.numSequence[startPos - 3]);
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(1, seq.numSequence[startPos - 2]);
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(2, seq.numSequence[startPos - 1]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(0, adjacent[startPos - 3]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(1, adjacent[startPos - 2]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(2, adjacent[startPos - 1]);
                                 } else if (startPos == 2) {
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(1, seq.numSequence[startPos - 2]);
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(2, seq.numSequence[startPos - 1]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(1, adjacent[startPos - 2]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(2, adjacent[startPos - 1]);
                                 } else if (startPos == 1) {
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(2, seq.numSequence[startPos - 1]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(2, adjacent[startPos - 1]);
                                 }
 
                                 if (endPos + 3 <= static_cast<unsigned int>(seq.L) - 1) {
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(3, seq.numSequence[endPos + 1]);
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(4, seq.numSequence[endPos + 2]);
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(5, seq.numSequence[endPos + 3]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(3, adjacent[endPos + 1]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(4, adjacent[endPos + 2]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(5, adjacent[endPos + 3]);
                                 } else if (endPos + 2 == static_cast<unsigned int>(seq.L) - 1) {
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(3, seq.numSequence[endPos + 1]);
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(4, seq.numSequence[endPos + 2]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(3, adjacent[endPos + 1]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(4, adjacent[endPos + 2]);
                                 } else if (endPos + 1 == static_cast<unsigned int>(seq.L) - 1) {
-                                    threadKmerBuffer[bufferPos].setAdjacentSeq(3, seq.numSequence[endPos + 1]);
+                                    threadKmerBuffer[bufferPos].setAdjacentSeq(3, adjacent[endPos + 1]);
                                 }
                             }
                             bufferPos++;
