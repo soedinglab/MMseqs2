@@ -678,7 +678,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
                                     // CUDACHECK(cudaEventRecord(ws.forkStreamEvent, stream));
                                     // CUDACHECK(cudaStreamWaitEvent(alignmentStream, ws.forkStreamEvent, 0));
 
-                                    PositionsIterator d_overflowPositionsIterator = PositionsIterator::fromPointer(d_overflowIndices_global);
+                                    PositionsIterator d_overflowPositionsIterator = PositionsIterator::fromPointer(reinterpret_cast<ReferenceIdT*>(d_overflowIndices_global));
 
                                     //sequence data is same as before, but we have to pass the indices to overflow alignments
                                     OneToAllInputDataPSSM inputData;

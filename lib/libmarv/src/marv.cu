@@ -316,7 +316,11 @@ std::vector<libmarv::SearchResult> do_search_scoreEndpos_impl(
         queryPssmViews.emplace_back(queryPssms[queryIndex], 21, queryLength);
     }
 
-    constexpr int kernelOutputArraySize = 10'000'000;
+    int kernelOutputArraySize = 10'000'000;
+    if(subsetIdsPtr != nullptr && !subsetIdsPtr->empty()){
+        // size to subset
+        kernelOutputArraySize = std::min(kernelOutputArraySize, int(subsetIdsPtr->size()));
+    }
     libmarv::ScoreEndposSearch scoreEndposSearch(gpuDatabase, kernelOutputArraySize, topNSize, numQueries);
 
 
@@ -747,12 +751,12 @@ std::vector<Marv::Stats> Marv::search_scoreOnly(
     int gex,
     bool int8IsAllowed,
     bool handleOverflows,
-    std::vector<std::int32_t>* subsetIdsPtr_ //nullptr if unused
+    std::vector<std::uint32_t>* subsetIdsPtr_ //nullptr if unused
 ){
     libmarv::GpuDatabase* const gpuDatabase = static_cast<libmarv::GpuDatabase*>(gpuDatabaseVoidPtr);
     libmarv::ScanType scanType = mapCswScanType(alignmentType);
     assert(queries.size() == queryPssms.size());
-    static_assert(std::is_same_v<libmarv::ReferenceIdT, std::int32_t>);
+    static_assert(std::is_same_v<libmarv::ReferenceIdT, std::uint32_t>);
     std::vector<libmarv::ReferenceIdT>* subsetIdsPtr = reinterpret_cast<std::vector<libmarv::ReferenceIdT>*>(subsetIdsPtr_);
     const int numQueries = queries.size();
 
@@ -800,7 +804,7 @@ Marv::Stats Marv::search_scoreOnly(
     int gex,
     bool int8IsAllowed,
     bool handleOverflows,
-    std::vector<std::int32_t>* subsetIdsPtr_ //nullptr if unused
+    std::vector<std::uint32_t>* subsetIdsPtr_ //nullptr if unused
 ){
     auto statsvector = search_scoreOnly(
         results,
@@ -825,12 +829,12 @@ std::vector<Marv::Stats> Marv::search_scoreEndpos(
     int gex,
     bool int8IsAllowed,
     bool handleOverflows,
-    std::vector<std::int32_t>* subsetIdsPtr_ //nullptr if unused
+    std::vector<std::uint32_t>* subsetIdsPtr_ //nullptr if unused
 ){
     libmarv::GpuDatabase* const gpuDatabase = static_cast<libmarv::GpuDatabase*>(gpuDatabaseVoidPtr);
     libmarv::ScanType scanType = mapCswScanType(alignmentType);
     assert(queries.size() == queryPssms.size());
-    static_assert(std::is_same_v<libmarv::ReferenceIdT, std::int32_t>);
+    static_assert(std::is_same_v<libmarv::ReferenceIdT, std::uint32_t>);
     std::vector<libmarv::ReferenceIdT>* subsetIdsPtr = reinterpret_cast<std::vector<libmarv::ReferenceIdT>*>(subsetIdsPtr_);
     const int numQueries = queries.size();
 
@@ -874,7 +878,7 @@ Marv::Stats Marv::search_scoreEndpos(
     int gex,
     bool int8IsAllowed,
     bool handleOverflows,
-    std::vector<std::int32_t>* subsetIdsPtr_ //nullptr if unused
+    std::vector<std::uint32_t>* subsetIdsPtr_ //nullptr if unused
 ){
     auto statsvector = search_scoreEndpos(
         results,

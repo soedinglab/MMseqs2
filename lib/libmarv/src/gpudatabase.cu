@@ -1247,7 +1247,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         }
 
         assert(std::is_sorted(sortedSubsetRefIds.begin(), sortedSubsetRefIds.end()));
-        if (sortedSubsetRefIds.front() < 0 || size_t(sortedSubsetRefIds.back()) >= getNumSequences())
+        if (size_t(sortedSubsetRefIds.back()) >= getNumSequences())
             throw std::invalid_argument("Subset reference ID is outside the database");
 
         //todo: for proper multi-gpu we need to find the correct gpu for each target subject to re-use the cached data

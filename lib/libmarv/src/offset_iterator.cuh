@@ -2,6 +2,7 @@
 #define LIBMARV_OFFSET_ITERATOR_CUH
 
 #include "namespace.hpp"
+#include <cstdint>
 #include <cuda/std/iterator>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -9,7 +10,7 @@
 LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 
 
-template<class BaseOffsetIterator, class IndexType = int>
+template<class BaseOffsetIterator, class IndexType = std::uint32_t>
 struct ReadOnlyCustomOffsetIteratorTransformOp{
     using value_type = typename cuda::std::iterator_traits<BaseOffsetIterator>::value_type;
 
@@ -26,13 +27,13 @@ struct ReadOnlyCustomOffsetIteratorTransformOp{
     }
 };
 
-template<class BaseOffsetIterator, class IndexType = int>
+template<class BaseOffsetIterator, class IndexType = std::uint32_t>
 using ReadOnlyCustomOffsetIterator = decltype(
     thrust::make_transform_iterator(
         thrust::make_counting_iterator<IndexType>(0), 
         ReadOnlyCustomOffsetIteratorTransformOp<BaseOffsetIterator, IndexType>{}));
 
-template<class BaseOffsetIterator, class IndexType = int>
+template<class BaseOffsetIterator, class IndexType = std::uint32_t>
 __host__ __device__ 
 auto makeCustomOffsetIterator(BaseOffsetIterator iter, bool convertToZeroBased){
     return thrust::make_transform_iterator(
