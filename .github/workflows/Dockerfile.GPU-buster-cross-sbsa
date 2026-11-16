@@ -1,9 +1,9 @@
-FROM ghcr.io/steineggerlab/build-containers:main-sbsa-cuda13
+FROM ghcr.io/steineggerlab/build-containers:main-sbsa-cuda13 AS builder
 WORKDIR /work
 ADD . .
 
 RUN mkdir -p /work/build && cd /work/build; \
-    /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_ARM8=1 \
+    /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DENABLE_WERROR=1 -DHAVE_ARM8=1 \
         -DCMAKE_TOOLCHAIN_FILE=/opt/toolchain.cmake \
         -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AARCH64}/libomp.a \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
@@ -27,3 +27,6 @@ RUN if readelf -a /work/build/src/mmseqs | grep -i "Shared library" | grep -P -v
         echo "Error: glibc too new"; \
         exit 1; \
     fi;
+
+FROM scratch
+COPY --from=builder /work/build/src/mmseqs /mmseqs
