@@ -21,6 +21,7 @@
 #include <time.h>
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 
 #define NUM_ROWS 100
 
@@ -298,7 +299,9 @@ static int read_typed_data(const char* filename) {
 }
 
 int main(int argc, char* argv[]) {
-    const char* filename = "/tmp/example_data_types.parquet";
+    char default_path[1024];
+    example_temp_path(default_path, sizeof(default_path), "example_data_types.parquet");
+    const char* filename = default_path;
 
     printf("=== Carquet Data Types Example ===\n");
     printf("Library version: %s\n\n", carquet_version());

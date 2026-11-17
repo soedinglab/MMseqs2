@@ -12,12 +12,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <carquet/carquet.h>
+#include "example_paths.h"
 
 #define NUM_ROWS 100
 
 int main(void) {
-    const char* in_path = "/tmp/example_arrow_in.parquet";
-    const char* out_path = "/tmp/example_arrow_out.parquet";
+    char in_path[1024];
+    example_temp_path(in_path, sizeof(in_path), "example_arrow_in.parquet");
+    char out_path[1024];
+    example_temp_path(out_path, sizeof(out_path), "example_arrow_out.parquet");
     carquet_error_t err = CARQUET_ERROR_INIT;
 
     /* ── Write a small source file (id REQUIRED, value OPTIONAL) ── */

@@ -14,6 +14,19 @@ Usage:
     python3 benchmark/run_benchmark.py --cooldown 5    # 5s cooldown between configs
     python3 benchmark/run_benchmark.py --no-pyarrow    # skip PyArrow
     python3 benchmark/run_benchmark.py --no-arrow-cpp  # skip Arrow C++
+    python3 benchmark/run_benchmark.py --fastparquet   # also compare fastparquet (opt-in)
+    python3 benchmark/run_benchmark.py --polars        # also compare polars' native Parquet (opt-in)
+    python3 benchmark/run_benchmark.py --nullable      # also run the <size>_nullable configs
+    python3 benchmark/run_benchmark.py --quick --nullable-only  # large_nullable only
+
+Every config also times a read with memory mapping off ("read_nommap_ms":
+carquet use_mmap = false, its C default; Arrow C++ / PyArrow memory_map=False),
+after the usual mmap read ("read_ms", unchanged).
+
+The "<size>_nullable" configs (opt-in) write and read the same three columns as
+OPTIONAL with ~7% nulls each (same deterministic pattern for every library) and
+dictionary encoding on `category` only, i.e. what pyarrow / Arrow defaults
+produce for real data rather than the REQUIRED, dictionary-free best case.
 """
 
 import argparse
@@ -57,6 +70,16 @@ def get_cpu_name():
             ).strip()
             if out:
                 return out
+        except Exception:
+            pass
+    if platform.system() == "Windows":
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                 r"HARDWARE\DESCRIPTION\System\CentralProcessor\0")
+            name = winreg.QueryValueEx(key, "ProcessorNameString")[0].strip()
+            if name:
+                return name
         except Exception:
             pass
     try:
@@ -139,6 +162,23 @@ for _dataset, _compression, _rows in CONFIGS:
     if _compression not in COMPRESSION_ORDER:
         COMPRESSION_ORDER.append(_compression)
 
+# Opt-in "<size>_nullable" variants (--nullable / --nullable-only): same rows
+# and codecs, OPTIONAL columns with NULL_PERCENT % nulls, dictionary on
+# `category`. Keep in sync with bench_common.py and the C/C++ benchmarks.
+NULLABLE_SUFFIX = "_nullable"
+NULL_PERCENT = 7
+NULLABLE_CONFIGS = [(d + NULLABLE_SUFFIX, c, r) for d, c, r in CONFIGS]
+DATASET_ORDER = [name for d in DATASET_ORDER for name in (d, d + NULLABLE_SUFFIX)]
+
+# Width of the "<dataset>/<codec>" column in the tables (widened in main()
+# when nullable configs are selected).
+LABEL_W = 15
+
+
+def base_dataset(name):
+    """Size name of a dataset ("large_nullable" -> "large")."""
+    return name[:-len(NULLABLE_SUFFIX)] if name.endswith(NULLABLE_SUFFIX) else name
+
 
 def get_benchmark_zstd_level():
     raw = os.getenv("CARQUET_BENCH_ZSTD_LEVEL", "1").strip()
@@ -154,7 +194,7 @@ def parse_csv_line(line):
     if not line.startswith("CSV:"):
         return None
     parts = line[4:].strip().split(",")
-    return {
+    parsed = {
         "library":     parts[0],
         "dataset":     parts[1],
         "compression": parts[2],
@@ -163,6 +203,10 @@ def parse_csv_line(line):
         "read_ms":     float(parts[5]),
         "file_bytes":  int(parts[6]),
     }
+    # Optional 8th field: read time with memory mapping off
+    if len(parts) > 7 and parts[7]:
+        parsed["read_nommap_ms"] = float(parts[7])
+    return parsed
 
 
 def result_is_valid(result):
@@ -226,6 +270,28 @@ sys.path.insert(0, os.path.dirname({script!r}))
 from benchmark_pyarrow import run_benchmark
 comp_map = {{"none": None, "snappy": "snappy", "zstd": "zstd", "lz4": "lz4"}}
 run_benchmark({dataset!r}, {rows}, comp_map[{compression!r}], {compression!r})
+"""
+    return run_benchmark_process([python, "-c", code], timeout_seconds)
+
+
+def run_fastparquet_single(python, script, dataset, compression, rows, timeout_seconds):
+    """Run fastparquet benchmark for a single config by invoking a helper snippet."""
+    code = f"""
+import sys, os
+sys.path.insert(0, os.path.dirname({script!r}))
+from benchmark_fastparquet import run_benchmark
+run_benchmark({dataset!r}, {rows}, {compression!r})
+"""
+    return run_benchmark_process([python, "-c", code], timeout_seconds)
+
+
+def run_polars_single(python, script, dataset, compression, rows, timeout_seconds):
+    """Run polars benchmark for a single config by invoking a helper snippet."""
+    code = f"""
+import sys, os
+sys.path.insert(0, os.path.dirname({script!r}))
+from benchmark_polars import run_benchmark
+run_benchmark({dataset!r}, {rows}, {compression!r})
 """
     return run_benchmark_process([python, "-c", code], timeout_seconds)
 
@@ -328,8 +394,8 @@ def print_library_table(results, library, label):
     """Print a single-library summary table."""
     print()
     print(f"  {BOLD}{label}{RST}")
-    print(f"  {BOLD}{'':15} {'Write':^18}{'':2}{'Read':^18}{'':2}{'Size':^10}{RST}")
-    print(f"  {'':15} {'time':>8} {'M r/s':>8}"
+    print(f"  {BOLD}{'':{LABEL_W}} {'Write':^18}{'':2}{'Read':^18}{'':2}{'Size':^10}{RST}")
+    print(f"  {'':{LABEL_W}} {'time':>8} {'M r/s':>8}"
           f"  {'time':>8} {'M r/s':>8}"
           f"  {'bytes':>8}")
     print(f"  {_bar()}")
@@ -345,7 +411,7 @@ def print_library_table(results, library, label):
             printed_dataset = True
             label = f"{dataset}/{compression}"
             rows = result["rows"]
-            line = f"  {BOLD}{label:<15}{RST}"
+            line = f"  {BOLD}{label:<{LABEL_W}}{RST}"
             def throughput(r, ms):
                 if ms and ms > 0:
                     return f"{(r/ms)*1000/1e6:>7.1f}M"
@@ -364,8 +430,8 @@ def print_comparison_table(results, competitor, competitor_label):
     """Print a Carquet-vs-competitor comparison table."""
     print()
     print(f"  {BOLD}Carquet vs {competitor_label}{RST}")
-    print(f"  {BOLD}{'':15} {'Write':^24}{'':2}{'Read':^24}{'':2}{'Size':^16}{RST}")
-    print(f"  {'':15} {'Carquet':>8} {competitor_label:>8} {'ratio':>6}"
+    print(f"  {BOLD}{'':{LABEL_W}} {'Write':^24}{'':2}{'Read':^24}{'':2}{'Size':^16}{RST}")
+    print(f"  {'':{LABEL_W}} {'Carquet':>8} {competitor_label:>8} {'ratio':>6}"
           f"  {'Carquet':>8} {competitor_label:>8} {'ratio':>6}"
           f"  {'Carquet':>7} {competitor_label:>7}")
     print(f"  {_bar()}")
@@ -388,7 +454,7 @@ def print_comparison_table(results, competitor, competitor_label):
             o_r = other["read_ms"] if other else None
             o_sz = other["file_bytes"] if other else None
 
-            line = f"  {BOLD}{label:<15}{RST}"
+            line = f"  {BOLD}{label:<{LABEL_W}}{RST}"
             line += f" {fmt_ms(c_w)} {fmt_ms(o_w)} {fmt_speedup(c_w, o_w)}"
             line += f"  {fmt_ms(c_r)} {fmt_ms(o_r)} {fmt_speedup(c_r, o_r)}"
             line += f"  {(fmt_size(c_sz) if c_sz else ''):>7}"
@@ -413,7 +479,7 @@ def print_crossread_table(crossread_results):
     print()
     print(f"  {BOLD}Same-file cross-read comparison{RST}")
     print(f"  {DIM}(both libraries read the SAME Parquet file){RST}")
-    print(f"  {BOLD}{'':15} {'Writer':>10} {'Carquet R':>10} {'Arrow R':>10} {'ratio':>7}{RST}")
+    print(f"  {BOLD}{'':{LABEL_W}} {'Writer':>10} {'Carquet R':>10} {'Arrow R':>10} {'ratio':>7}{RST}")
     print(f"  {_bar()}")
 
     for dataset_idx, dataset in enumerate(DATASET_ORDER):
@@ -431,7 +497,7 @@ def print_crossread_table(crossread_results):
                 label = f"{dataset}/{compression}"
                 c_r = cw.get("carquet_read_ms")
                 a_r = cw.get("arrow_read_ms")
-                line = f"  {BOLD}{label:<15}{RST}"
+                line = f"  {BOLD}{label:<{LABEL_W}}{RST}"
                 line += f" {'Carquet':>10}"
                 line += f" {fmt_ms(c_r)}"
                 line += f" {fmt_ms(a_r)}"
@@ -443,7 +509,7 @@ def print_crossread_table(crossread_results):
                 label = f"{dataset}/{compression}"
                 c_r = aw.get("carquet_read_ms")
                 a_r = aw.get("arrow_read_ms")
-                line = f"  {BOLD}{label:<15}{RST}"
+                line = f"  {BOLD}{label:<{LABEL_W}}{RST}"
                 line += f" {'Arrow':>10}"
                 line += f" {fmt_ms(c_r)}"
                 line += f" {fmt_ms(a_r)}"
@@ -473,24 +539,81 @@ def print_crossread_table(crossread_results):
     print(f"  {DIM}ratio = Arrow read time / Carquet read time (higher = Carquet faster){RST}")
 
 
+def print_nommap_table(results):
+    """Print read times with memory mapping off (carquet's C default)."""
+    libs = [(lib, label) for lib, label in [("carquet", "Carquet")] + COMPETITORS
+            if any(lib == l and "read_nommap_ms" in r for (l, _), r in results.items())]
+    if not libs:
+        return
+    has_carquet = libs[0][0] == "carquet"
+
+    print()
+    print(f"  {BOLD}Read without mmap{RST}")
+    print(f"  {DIM}(carquet use_mmap = false, its C default; Arrow memory_map = false;"
+          f" C. mmap = Carquet's mmap read for reference){RST}")
+    short = {"carquet": "Carquet", "arrow_cpp": "Arrow C++", "pyarrow": "PyArrow"}
+    header = f"  {BOLD}{'':{LABEL_W}}"
+    if has_carquet:
+        header += f" {'C. mmap':>9}"
+    for lib, label in libs:
+        header += f" {short.get(lib, label):>9}"
+    if has_carquet:
+        header += "".join(f" {'vs ' + short.get(lib, label).split()[0]:>10}" for lib, label in libs[1:])
+    print(header + RST)
+    print(f"  {_bar()}")
+
+    printed_any = False
+    for dataset in DATASET_ORDER:
+        printed_dataset = False
+        for compression in COMPRESSION_ORDER:
+            key = (dataset, compression)
+            row = {lib: results.get((lib, key)) for lib, _ in libs}
+            if not any(r and "read_nommap_ms" in r for r in row.values()):
+                continue
+            if printed_any and not printed_dataset:
+                print()
+            printed_any = printed_dataset = True
+            nommap = {lib: (r or {}).get("read_nommap_ms") for lib, r in row.items()}
+            line = f"  {BOLD}{dataset + '/' + compression:<{LABEL_W}}{RST}"
+            if has_carquet:
+                line += f" {fmt_ms(row['carquet']['read_ms'] if row['carquet'] else None):>9}"
+            for lib, _ in libs:
+                line += f" {fmt_ms(nommap[lib]):>9}"
+            if has_carquet:
+                for lib, _ in libs[1:]:
+                    line += f"     {fmt_speedup(nommap['carquet'], nommap[lib])}"
+            print(line)
+
+    if has_carquet and len(libs) > 1:
+        print()
+        print(f"  {DIM}ratio = other no-mmap read time / Carquet no-mmap read time "
+              f"(higher = Carquet faster){RST}")
+
+
+COMPETITORS = [
+    ("arrow_cpp", "Arrow C++"),
+    ("pyarrow", "PyArrow"),
+    ("fastparquet", "fastparquet"),
+    ("polars", "polars"),
+]
+
+
 def print_final_tables(results, crossread_results=None):
     """Print final summary tables for the libraries that ran."""
     has_carquet = have_results(results, "carquet")
-    has_arrow_cpp = have_results(results, "arrow_cpp")
-    has_pyarrow = have_results(results, "pyarrow")
+    competitors = [(lib, label) for lib, label in COMPETITORS
+                   if have_results(results, lib)]
 
     if has_carquet:
-        if has_arrow_cpp:
-            print_comparison_table(results, "arrow_cpp", "Arrow C++")
-        if has_pyarrow:
-            print_comparison_table(results, "pyarrow", "PyArrow")
-        if not has_arrow_cpp and not has_pyarrow:
+        for lib, label in competitors:
+            print_comparison_table(results, lib, label)
+        if not competitors:
             print_library_table(results, "carquet", "Carquet")
     else:
-        if has_arrow_cpp:
-            print_library_table(results, "arrow_cpp", "Arrow C++")
-        if has_pyarrow:
-            print_library_table(results, "pyarrow", "PyArrow")
+        for lib, label in competitors:
+            print_library_table(results, lib, label)
+
+    print_nommap_table(results)
 
     if crossread_results:
         print_crossread_table(crossread_results)
@@ -500,7 +623,7 @@ def print_final_tables(results, crossread_results=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Carquet benchmark runner with optional Arrow C++ and PyArrow comparisons"
+        description="Carquet benchmark runner with optional Arrow C++, PyArrow, fastparquet and polars comparisons"
     )
     parser.add_argument("--quick", action="store_true",
                         help="Run only large configs (10M rows, all codecs)")
@@ -522,12 +645,26 @@ def main():
                         help="Skip Arrow C++ benchmarks")
     parser.add_argument("--no-pyarrow", action="store_true",
                         help="Skip PyArrow benchmarks")
+    parser.add_argument("--fastparquet", action="store_true",
+                        help="Also benchmark fastparquet (needs fastparquet + pandas)")
+    parser.add_argument("--polars", action="store_true",
+                        help="Also benchmark polars' native (Rust) Parquet reader/writer")
     parser.add_argument("--no-carquet", action="store_true",
                         help="Skip Carquet benchmarks")
     parser.add_argument("--iterations", type=int, default=0,
                         help="Override iteration count for all sizes (default: auto)")
     parser.add_argument("--no-crossread", action="store_true",
                         help="Skip same-file cross-read benchmarks")
+    parser.add_argument("--build-dir",
+                        help="CMake build directory holding benchmark_carquet "
+                             "(default: <project>/build)")
+    parser.add_argument("--no-save", action="store_true",
+                        help="Do not write the bench_*.json report (smoke runs)")
+    parser.add_argument("--nullable", action="store_true",
+                        help="Also run the <size>_nullable configs: OPTIONAL columns with "
+                             f"~{NULL_PERCENT}%% nulls and dictionary encoding on `category`")
+    parser.add_argument("--nullable-only", action="store_true",
+                        help="Run only the <size>_nullable configs (size filters still apply)")
     args = parser.parse_args()
 
     if args.iterations > 0:
@@ -542,9 +679,11 @@ def main():
 
     # Locate binaries
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    build_dir = os.path.join(script_dir, "..", "build")
-    carquet_bin = os.path.join(build_dir, "benchmark_carquet")
-    arrow_cpp_bin = os.path.join(build_dir, "benchmark_arrow_cpp")
+    build_dir = (os.path.abspath(args.build_dir) if args.build_dir
+                 else os.path.join(script_dir, "..", "build"))
+    exe = ".exe" if os.name == "nt" else ""
+    carquet_bin = os.path.join(build_dir, "benchmark_carquet" + exe)
+    arrow_cpp_bin = os.path.join(build_dir, "benchmark_arrow_cpp" + exe)
 
     if not args.no_carquet and not os.path.isfile(carquet_bin):
         print(f"{RED}Error:{RST} {carquet_bin} not found. Build the benchmark first:")
@@ -583,6 +722,34 @@ def main():
             print(f"{YLW}Warning:{RST} PyArrow not available, skipping")
             has_pyarrow = False
 
+    has_fastparquet = args.fastparquet
+    fastparquet_script = os.path.join(script_dir, "benchmark_fastparquet.py")
+    fastparquet_version = None
+
+    if has_fastparquet:
+        try:
+            fastparquet_version = subprocess.check_output(
+                [python, "-c", "import fastparquet, pandas; print(fastparquet.__version__)"],
+                stderr=subprocess.DEVNULL, text=True
+            ).strip()
+        except Exception:
+            print(f"{YLW}Warning:{RST} fastparquet (or pandas) not available, skipping")
+            has_fastparquet = False
+
+    has_polars = args.polars
+    polars_script = os.path.join(script_dir, "benchmark_polars.py")
+    polars_version = None
+
+    if has_polars:
+        try:
+            polars_version = subprocess.check_output(
+                [python, "-c", "import polars; print(polars.__version__)"],
+                stderr=subprocess.DEVNULL, text=True
+            ).strip()
+        except Exception:
+            print(f"{YLW}Warning:{RST} polars not available, skipping")
+            has_polars = False
+
     benchmark_runners = []
     if not args.no_carquet:
         benchmark_runners.append((
@@ -605,15 +772,36 @@ def main():
             lambda dataset, compression, rows: run_pyarrow_single(
                 python, pyarrow_script, dataset, compression, rows, args.timeout)
         ))
+    if has_fastparquet:
+        benchmark_runners.append((
+            "fastparquet",
+            "fastparquet",
+            lambda dataset, compression, rows: run_fastparquet_single(
+                python, fastparquet_script, dataset, compression, rows, args.timeout)
+        ))
+    if has_polars:
+        benchmark_runners.append((
+            "polars",
+            "polars",
+            lambda dataset, compression, rows: run_polars_single(
+                python, polars_script, dataset, compression, rows, args.timeout)
+        ))
 
     if not benchmark_runners:
         print(f"{RED}Error:{RST} no benchmarks are available to run")
         sys.exit(1)
 
-    # Select configs
-    configs = CONFIGS
+    # Select configs: each size's required configs, then (opt-in) its
+    # nullable variants, largest size first.
+    if args.nullable_only:
+        configs = NULLABLE_CONFIGS
+    elif args.nullable:
+        configs = [c for size in DATASET_ORDER
+                   for c in CONFIGS + NULLABLE_CONFIGS if c[0] == size]
+    else:
+        configs = CONFIGS
     if args.quick:
-        configs = [c for c in configs if c[0] == "large"]
+        configs = [c for c in configs if base_dataset(c[0]) == "large"]
     else:
         skip = set()
         if args.skip_xlarge:
@@ -625,7 +813,11 @@ def main():
         if args.skip_small:
             skip.add("small")
         if skip:
-            configs = [c for c in configs if c[0] not in skip]
+            configs = [c for c in configs if base_dataset(c[0]) not in skip]
+
+    global LABEL_W
+    LABEL_W = max([LABEL_W] + [len(f"{d}/{c}") + 1 for d, c, _ in configs])
+    has_nullable = any(d.endswith(NULLABLE_SUFFIX) for d, _, _ in configs)
 
     # ── Header ──
     print()
@@ -636,11 +828,18 @@ def main():
         print(f"  {DIM}vs:{RST}   Arrow C++ {arrow_cpp_version}")
     if has_pyarrow:
         print(f"  {DIM}vs:{RST}   PyArrow {pyarrow_version}")
+    if has_fastparquet:
+        print(f"  {DIM}vs:{RST}   fastparquet {fastparquet_version}")
+    if has_polars:
+        print(f"  {DIM}vs:{RST}   polars {polars_version}")
     zstd_level = get_benchmark_zstd_level()
     iter_desc = f"{args.iterations} iters (override)" if args.iterations > 0 else "11-51 iters by size"
     print(f"  {DIM}cfg:{RST}  {len(configs)} configs, {args.cooldown}s cooldown, "
           f"trimmed median, cache purged, {iter_desc}")
     print(f"  {DIM}zstd:{RST} level {zstd_level}")
+    if has_nullable:
+        print(f"  {DIM}nullable:{RST} *_nullable = OPTIONAL columns, ~{NULL_PERCENT}% nulls, "
+              f"dictionary on category")
     print(f"  {DIM}timeout:{RST} {args.timeout}s per library/config")
     if args.temp_dir:
         print(f"  {DIM}tmp:{RST}  {os.environ['CARQUET_BENCH_TMPDIR']}")
@@ -681,11 +880,14 @@ def main():
                 config_results[lib_key] = result
                 mr = (rows / result["read_ms"]) * 1000 / 1e6
                 sz = fmt_size(result["file_bytes"])
-                print(f"       {lib_label:<9} W {fmt_ms(result['write_ms'])}  "
+                nommap = ""
+                if "read_nommap_ms" in result:
+                    nommap = f"  {DIM}no-mmap R {fmt_ms(result['read_nommap_ms'])}{RST}"
+                print(f"       {lib_label:<11} W {fmt_ms(result['write_ms'])}  "
                       f"R {fmt_ms(result['read_ms'])} "
-                      f"{DIM}({mr:.0f}M r/s, {sz}, {elapsed:.0f}s){RST}")
+                      f"{DIM}({mr:.0f}M r/s, {sz}, {elapsed:.0f}s){RST}{nommap}")
             else:
-                print(f"       {lib_label:<9} {RED}failed{RST}")
+                print(f"       {lib_label:<11} {RED}failed{RST}")
                 if error_detail:
                     print(f"       {DIM}{error_detail}{RST}")
 
@@ -694,15 +896,12 @@ def main():
 
         carquet_r = config_results.get("carquet")
         arrow_cpp_r = config_results.get("arrow_cpp")
-        pyarrow_r = config_results.get("pyarrow")
-        if carquet_r and arrow_cpp_r:
-            ws = fmt_speedup(carquet_r["write_ms"], arrow_cpp_r["write_ms"])
-            rs = fmt_speedup(carquet_r["read_ms"], arrow_cpp_r["read_ms"])
-            print(f"       {DIM}vs Arrow C++  W {ws}  R {rs}{RST}")
-        if carquet_r and pyarrow_r:
-            ws = fmt_speedup(carquet_r["write_ms"], pyarrow_r["write_ms"])
-            rs = fmt_speedup(carquet_r["read_ms"], pyarrow_r["read_ms"])
-            print(f"       {DIM}vs PyArrow    W {ws}  R {rs}{RST}")
+        for lib, label in COMPETITORS:
+            other_r = config_results.get(lib)
+            if carquet_r and other_r:
+                ws = fmt_speedup(carquet_r["write_ms"], other_r["write_ms"])
+                rs = fmt_speedup(carquet_r["read_ms"], other_r["read_ms"])
+                print(f"       {DIM}vs {label:<11} W {ws}  R {rs}{RST}")
 
         # ── Cross-read: each library reads the other's file ──
         carquet_file = os.path.join(
@@ -792,13 +991,28 @@ def main():
     }
     if args.temp_dir:
         report["config"]["temp_dir"] = os.environ["CARQUET_BENCH_TMPDIR"]
+    if any("read_nommap_ms" in r for r in results.values()):
+        report["config"]["read_nommap"] = (
+            "read_nommap_ms: same read protocol with memory mapping off "
+            "(carquet use_mmap=false, Arrow C++ / PyArrow memory_map=false)")
+    if has_nullable:
+        report["config"]["nullable_datasets"] = {
+            "suffix": NULLABLE_SUFFIX,
+            "repetition": "OPTIONAL",
+            "null_percent": NULL_PERCENT,
+            "dictionary_columns": ["category"],
+        }
     if arrow_cpp_version:
         report["arrow_cpp_version"] = arrow_cpp_version
     if pyarrow_version:
         report["pyarrow_version"] = pyarrow_version
+    if fastparquet_version:
+        report["fastparquet_version"] = fastparquet_version
+    if polars_version:
+        report["polars_version"] = polars_version
 
     for (lib, (ds, comp)), r in sorted(results.items()):
-        report["results"].append({
+        entry = {
             "library": lib,
             "dataset": ds,
             "compression": comp,
@@ -806,7 +1020,10 @@ def main():
             "write_ms": round(r["write_ms"], 2),
             "read_ms": round(r["read_ms"], 2),
             "file_bytes": r["file_bytes"],
-        })
+        }
+        if "read_nommap_ms" in r:
+            entry["read_nommap_ms"] = round(r["read_nommap_ms"], 2)
+        report["results"].append(entry)
 
     if crossread_results:
         report["crossread_results"] = []
@@ -821,6 +1038,10 @@ def main():
             if "arrow_read_ms" in cr:
                 entry["arrow_read_ms"] = round(cr["arrow_read_ms"], 2)
             report["crossread_results"].append(entry)
+
+    if args.no_save:
+        print()
+        return
 
     date_str = datetime.date.today().strftime("%Y%m%d")
     os_tag = f"{platform.system().lower()}_{platform.machine()}"

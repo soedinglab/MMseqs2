@@ -20,7 +20,7 @@ set(CARQUET_BUILD_CLI OFF CACHE BOOL "" FORCE)   # library only
 set(CARQUET_BUILD_DEV OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(carquet
     GIT_REPOSITORY https://github.com/Vitruves/carquet.git
-    GIT_TAG        v0.7.2)                      # pin a release tag
+    GIT_TAG        v0.8.0)                      # pin a release tag
 FetchContent_MakeAvailable(carquet)
 target_link_libraries(app PRIVATE carquet)
 ```

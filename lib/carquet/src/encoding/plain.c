@@ -46,6 +46,10 @@ int64_t carquet_decode_plain_int32(
         return -1;
     }
 
+    /* 32-bit size_t: count * width must not wrap past the size check */
+    if ((uint64_t)count > SIZE_MAX / 4) {
+        return -1;
+    }
     size_t bytes_needed = (size_t)count * 4;
     if (input_size < bytes_needed) {
         return -1;
@@ -73,6 +77,10 @@ int64_t carquet_decode_plain_int64(
         return -1;
     }
 
+    /* 32-bit size_t: count * width must not wrap past the size check */
+    if ((uint64_t)count > SIZE_MAX / 8) {
+        return -1;
+    }
     size_t bytes_needed = (size_t)count * 8;
     if (input_size < bytes_needed) {
         return -1;
@@ -99,6 +107,10 @@ int64_t carquet_decode_plain_int96(
         return -1;
     }
 
+    /* 32-bit size_t: count * width must not wrap past the size check */
+    if ((uint64_t)count > SIZE_MAX / 12) {
+        return -1;
+    }
     size_t bytes_needed = (size_t)count * 12;
     if (input_size < bytes_needed) {
         return -1;
@@ -124,6 +136,10 @@ int64_t carquet_decode_plain_float(
         return -1;
     }
 
+    /* 32-bit size_t: count * width must not wrap past the size check */
+    if ((uint64_t)count > SIZE_MAX / 4) {
+        return -1;
+    }
     size_t bytes_needed = (size_t)count * 4;
     if (input_size < bytes_needed) {
         return -1;
@@ -150,6 +166,10 @@ int64_t carquet_decode_plain_double(
         return -1;
     }
 
+    /* 32-bit size_t: count * width must not wrap past the size check */
+    if ((uint64_t)count > SIZE_MAX / 8) {
+        return -1;
+    }
     size_t bytes_needed = (size_t)count * 8;
     if (input_size < bytes_needed) {
         return -1;
@@ -210,6 +230,10 @@ int64_t carquet_decode_plain_fixed_byte_array(
         return -1;
     }
 
+    /* 32-bit size_t: count * width must not wrap past the size check */
+    if ((uint64_t)count > SIZE_MAX / (size_t)fixed_len) {
+        return -1;
+    }
     size_t bytes_needed = (size_t)count * (size_t)fixed_len;
     if (input_size < bytes_needed) {
         return -1;

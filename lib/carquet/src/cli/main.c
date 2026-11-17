@@ -8,6 +8,47 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <shellapi.h>
+
+/* Parquet strings are UTF-8. Switch the console output code page to UTF-8 for
+ * the life of the process (restored at exit: the code page belongs to the
+ * console, not to us), so `head`/`cat` show non-ASCII text instead of
+ * mojibake. Redirected output is unaffected (bytes are written as-is). */
+static UINT g_saved_output_cp = 0;
+static void restore_console_cp(void) {
+    if (g_saved_output_cp) SetConsoleOutputCP(g_saved_output_cp);
+}
+
+/* argv from the C runtime is in the ANSI code page, so a file name outside it
+ * arrives as '?'. Rebuild argv as UTF-8 from the wide command line; the
+ * library accepts UTF-8 paths on Windows (core/file_io.c). Leaked on
+ * purpose: argv lives for the whole process. Returns NULL on failure. */
+static char** utf8_argv(int* argc_out) {
+    int wargc = 0;
+    LPWSTR* wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
+    if (!wargv) return NULL;
+    char** argv = (char**)calloc((size_t)wargc + 1, sizeof(char*));
+    if (!argv) { LocalFree(wargv); return NULL; }
+    for (int i = 0; i < wargc; i++) {
+        int n = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL);
+        argv[i] = n > 0 ? (char*)malloc((size_t)n) : NULL;
+        if (!argv[i] ||
+            WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, argv[i], n, NULL, NULL) != n) {
+            LocalFree(wargv);
+            return NULL;
+        }
+    }
+    LocalFree(wargv);
+    *argc_out = wargc;
+    return argv;
+}
+#endif
+
 /* ── Help text ────────────────────────────────────────────────────────── */
 
 static void print_usage(void) {
@@ -262,6 +303,18 @@ static int parse_int64(const char* str, int64_t* out) {
 /* ── main ─────────────────────────────────────────────────────────────── */
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+    {
+        int uargc = 0;
+        char** uargv = utf8_argv(&uargc);
+        if (uargv) { argc = uargc; argv = uargv; }
+        UINT cp = GetConsoleOutputCP();
+        if (cp && cp != CP_UTF8 && SetConsoleOutputCP(CP_UTF8)) {
+            g_saved_output_cp = cp;
+            atexit(restore_console_cp);
+        }
+    }
+#endif
     if (argc < 2) {
         print_usage();
         return 1;

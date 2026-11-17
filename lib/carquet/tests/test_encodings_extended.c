@@ -17,6 +17,8 @@
 #include <carquet/error.h>
 #include <carquet/types.h>
 #include "core/buffer.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 #define TEST_PASS(name) printf("[PASS] %s\n", name)
 #define TEST_FAIL(name, msg) do { printf("[FAIL] %s: %s\n", name, msg); return 1; } while(0)
@@ -797,6 +799,245 @@ static int test_byte_stream_split_special_floats(void) {
     return 0;
 }
 
+/* ============================================================================
+ * Batch RLE encoders vs the per-value encoder
+ * ============================================================================
+ *
+ * carquet_rle_encode_levels / carquet_rle_encode_all locate long runs and
+ * emit whole stretches at once (1-bit levels through a bit array); their
+ * bytes must equal one carquet_rle_encoder_put() per value + flush(), which
+ * the serial and page-parallel writer paths rely on. */
+
+#include "encoding/rle.h"
+#include "core/allocator.h"
+
+static uint64_t rle_rng = 0x9E3779B97F4A7C15ULL;
+static uint32_t rle_rand(void) {
+    rle_rng ^= rle_rng << 13; rle_rng ^= rle_rng >> 7; rle_rng ^= rle_rng << 17;
+    return (uint32_t)(rle_rng >> 11);
+}
+
+static void rle_put_all(const uint32_t* v, int64_t n, int bw, carquet_buffer_t* out) {
+    carquet_rle_encoder_t enc;
+    carquet_rle_encoder_init(&enc, out, bw);
+    for (int64_t i = 0; i < n; i++) carquet_rle_encoder_put(&enc, v[i]);
+    carquet_rle_encoder_flush(&enc);
+}
+
+/* Value stream shapes: random, runs of mean length ~1/p, 0/1 "nulls" with
+ * density p, alternating, fixed-length runs, very long runs, values wider
+ * than bw. */
+static void rle_gen(uint32_t* v, int64_t n, int bw, int shape, uint32_t p1000) {
+    uint32_t maxv = bw >= 32 ? 0xFFFFFFFFu : ((1u << bw) - 1u);
+    uint32_t cur = 0;
+    for (int64_t i = 0; i < n; i++) {
+        switch (shape) {
+        case 0: cur = rle_rand() & maxv; break;
+        case 1: if (rle_rand() % 1000 < p1000) cur = rle_rand() & maxv; break;
+        case 2: cur = (rle_rand() % 1000 < p1000) ? 0 : (1u & maxv); break;
+        case 3: cur = (uint32_t)(i & 1) & maxv; break;
+        case 4: cur = (uint32_t)((i / (1 + p1000 % 23)) & 1) & maxv; break;
+        case 5: cur = (i % 4099 < 2000) ? (1u & maxv) : 0; break;
+        default: cur = rle_rand(); break;
+        }
+        v[i] = cur;
+    }
+}
+
+static int test_rle_batch_vs_put(void) {
+    enum { MAXN = 70000 };
+    uint32_t* v = malloc(MAXN * sizeof(uint32_t));
+    int16_t* lv = malloc(MAXN * sizeof(int16_t));
+    uint32_t* lu = malloc(MAXN * sizeof(uint32_t));
+    if (!v || !lv || !lu) { free(v); free(lv); free(lu); TEST_FAIL("rle_batch_vs_put", "alloc"); }
+    int bad = 0;
+    for (int it = 0; it < 3000 && !bad; it++) {
+        int64_t n;
+        switch (rle_rand() % 4) {
+        case 0: n = rle_rand() % 64; break;
+        case 1: n = rle_rand() % 2000; break;
+        case 2: n = 64 * (int64_t)(rle_rand() % 64) + (int64_t)(rle_rand() % 3) - 1; break;
+        default: n = rle_rand() % MAXN; break;
+        }
+        if (n < 0) n = 0;
+        int bw = (rle_rand() % 3) ? 1 : (int)(rle_rand() % 33);
+        int shape = (int)(rle_rand() % 7);
+        uint32_t p1000 = rle_rand() % 1000;
+        p1000 = p1000 * p1000 / 1000;   /* bias towards sparse changes / nulls */
+        rle_gen(v, n, bw, shape, p1000);
+        for (int64_t i = 0; i < n; i++) lv[i] = (int16_t)v[i];
+        if (bw == 1 && n > 0 && rle_rand() % 16 == 0) {
+            lv[rle_rand() % n] = (rle_rand() & 1) ? 2 : -1;   /* not a 0/1 level */
+        }
+        for (int64_t i = 0; i < n; i++) lu[i] = (uint32_t)lv[i];
+
+        carquet_buffer_t a, b;
+        carquet_buffer_init(&a);
+        carquet_buffer_init(&b);
+        /* Levels: several streams back to back in one buffer, as the page
+         * writer stores one stream per add_values call. */
+        if (bw <= 16) {
+            int64_t off = 0;
+            do {
+                int64_t chunk = (rle_rand() % 3 == 0) ? n - off
+                                                      : (int64_t)(rle_rand() % (uint64_t)(n - off + 1));
+                rle_put_all(lu + off, chunk, bw, &a);
+                int64_t ones = -2;
+                if (carquet_rle_encode_levels_counted(lv + off, chunk, bw, &b, &ones) != CARQUET_OK) bad = 1;
+                if (ones >= 0) {
+                    int64_t want = 0;
+                    for (int64_t i = 0; i < chunk; i++) want += lv[off + i] == 1;
+                    if (ones != want) bad = 2;
+                } else if (ones != -1) {
+                    bad = 3;
+                }
+                off += chunk;
+            } while (off < n);
+            if (a.size != b.size || (a.size && memcmp(a.data, b.data, a.size) != 0)) bad = 4;
+        }
+        carquet_buffer_clear(&a);
+        carquet_buffer_clear(&b);
+        rle_put_all(v, n, bw, &a);
+        if (carquet_rle_encode_all(v, n, bw, &b) != CARQUET_OK) bad = 5;
+        if (a.size != b.size || (a.size && memcmp(a.data, b.data, a.size) != 0)) bad = 6;
+        carquet_buffer_destroy(&a);
+        carquet_buffer_destroy(&b);
+        if (bad) printf("  it=%d n=%lld bw=%d shape=%d p=%u code=%d\n", it, (long long)n, bw, shape, p1000, bad);
+    }
+    free(v); free(lv); free(lu);
+    if (bad) TEST_FAIL("rle_batch_vs_put", "batch encoder bytes differ from per-value encoder");
+    TEST_PASS("rle_batch_vs_put");
+    return 0;
+}
+
+/* Long streams: runs and stretches far beyond one bit-packed run (63
+ * groups), and an all-equal stream. */
+static int test_rle_batch_long_streams(void) {
+    const int64_t n = 1500007;
+    uint32_t* v = malloc((size_t)n * sizeof(uint32_t));
+    int16_t* lv = malloc((size_t)n * sizeof(int16_t));
+    if (!v || !lv) { free(v); free(lv); TEST_FAIL("rle_batch_long_streams", "alloc"); }
+    int bad = 0;
+    for (int shape = 0; shape < 4 && !bad; shape++) {
+        for (int64_t i = 0; i < n; i++) {
+            uint32_t x;
+            switch (shape) {
+            case 0: x = 1; break;
+            case 1: x = i < n / 2 ? (rle_rand() & 1) : 1; break;
+            case 2: x = (i % 100000) < 99990; break;
+            default: x = (rle_rand() % 10) != 0; break;
+            }
+            v[i] = x;
+            lv[i] = (int16_t)x;
+        }
+        carquet_buffer_t a, b, c;
+        carquet_buffer_init(&a); carquet_buffer_init(&b); carquet_buffer_init(&c);
+        rle_put_all(v, n, 1, &a);
+        if (carquet_rle_encode_levels(lv, n, 1, &b) != CARQUET_OK) bad = 1;
+        if (carquet_rle_encode_all(v, n, 1, &c) != CARQUET_OK) bad = 1;
+        if (a.size != b.size || memcmp(a.data, b.data, a.size) != 0) bad = 2;
+        if (a.size != c.size || memcmp(a.data, c.data, a.size) != 0) bad = 3;
+        carquet_buffer_destroy(&a); carquet_buffer_destroy(&b); carquet_buffer_destroy(&c);
+    }
+    free(v); free(lv);
+    if (bad) TEST_FAIL("rle_batch_long_streams", "batch encoder bytes differ from per-value encoder");
+    TEST_PASS("rle_batch_long_streams");
+    return 0;
+}
+
+/* ============================================================================
+ * Capped dictionary build vs a first-occurrence reference
+ * ============================================================================ */
+
+extern carquet_status_t carquet_dictionary_build_capped(
+    carquet_physical_type_t type, int32_t type_length,
+    const void* fixed_values, const carquet_byte_array_t* ba_values,
+    int64_t count, size_t max_dict_bytes, carquet_buffer_t* dict_output,
+    uint32_t** indices_out, int32_t* num_entries, bool* abandoned);
+
+static int test_dictionary_build_capped_reference(void) {
+    enum { N = 8000 };
+    uint8_t* vals = malloc((size_t)N * 8);
+    uint8_t* ref_dict = malloc((size_t)N * 8);
+    uint32_t* ref_idx = malloc((size_t)N * sizeof(uint32_t));
+    if (!vals || !ref_dict || !ref_idx) { free(vals); free(ref_dict); free(ref_idx); TEST_FAIL("dictionary_build_capped_reference", "alloc"); }
+    const carquet_physical_type_t types[] = {
+        CARQUET_PHYSICAL_INT32, CARQUET_PHYSICAL_INT64, CARQUET_PHYSICAL_FLOAT,
+        CARQUET_PHYSICAL_DOUBLE, CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY,
+        CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY, CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY };
+    const size_t sizes[] = {4, 8, 4, 8, 4, 8, 3};
+    int bad = 0;
+    for (int it = 0; it < 140 && !bad; it++) {
+        int k = it % 7;
+        size_t size = sizes[k];
+        int64_t n = 1 + rle_rand() % N;
+        uint32_t card = 1 + rle_rand() % (it % 3 == 0 ? 20 : it % 3 == 1 ? 500 : 3000);
+        /* Pool of distinct-ish bit patterns: small ints, doubles/floats
+         * with integer values (only high bits vary), +-0.0, NaNs. */
+        for (int64_t i = 0; i < n; i++) {
+            uint32_t c = rle_rand() % card;
+            uint8_t* dst = vals + (size_t)i * size;
+            if (size == 8) {
+                uint64_t x;
+                switch (c % 4) {
+                case 0: x = c; break;
+                case 1: { double d = (double)c; memcpy(&x, &d, 8); break; }
+                case 2: { double d = c / 3.0; memcpy(&x, &d, 8); break; }
+                default: x = (c == 3) ? 0x8000000000000000ULL : (0x7FF8000000000000ULL | c); break;
+                }
+                memcpy(dst, &x, 8);
+            } else if (size == 4) {
+                uint32_t x;
+                switch (c % 3) {
+                case 0: x = c; break;
+                case 1: { float f = (float)c; memcpy(&x, &f, 4); break; }
+                default: x = 0x7FC00000u | c; break;
+                }
+                memcpy(dst, &x, 4);
+            } else {
+                dst[0] = (uint8_t)c; dst[1] = (uint8_t)(c >> 8); dst[2] = (uint8_t)(c >> 16);
+            }
+        }
+        if (it % 5 == 0 && n > 3) {   /* runs */
+            for (int64_t i = 1; i < n; i++) if (rle_rand() % 4) memcpy(vals + i * size, vals + (i - 1) * size, size);
+        }
+        /* Reference: first-occurrence numbering, PLAIN bytes in order. */
+        int64_t nref = 0;
+        for (int64_t i = 0; i < n; i++) {
+            int64_t e = 0;
+            while (e < nref && memcmp(ref_dict + (size_t)e * size, vals + (size_t)i * size, size) != 0) e++;
+            if (e == nref) { memcpy(ref_dict + (size_t)nref * size, vals + (size_t)i * size, size); nref++; }
+            ref_idx[i] = (uint32_t)e;
+        }
+        size_t cap = (it % 4 == 3) ? (size_t)(rle_rand() % (nref * size + 1)) : 0;
+        carquet_buffer_t dict;
+        carquet_buffer_init(&dict);
+        carquet_buffer_append_byte(&dict, 0xEE);   /* the payload is appended */
+        uint32_t* idx = NULL;
+        int32_t ne = -1;
+        bool ab = false;
+        carquet_status_t st = carquet_dictionary_build_capped(
+            types[k], (int32_t)size, vals, NULL, n, cap, &dict, &idx, &ne, &ab);
+        bool want_abandon = cap && (size_t)nref * size > cap;
+        if (st != CARQUET_OK) bad = 1;
+        else if (ab != want_abandon) bad = 2;
+        else if (ab) {
+            if (idx || dict.size != 1) bad = 3;
+        } else if (ne != nref || dict.size != 1 + (size_t)nref * size ||
+                   memcmp(dict.data + 1, ref_dict, (size_t)nref * size) != 0 ||
+                   memcmp(idx, ref_idx, (size_t)n * sizeof(uint32_t)) != 0) {
+            bad = 4;
+        }
+        if (bad) printf("  it=%d type=%d size=%zu n=%lld card=%u cap=%zu code=%d\n", it, (int)types[k], size, (long long)n, card, cap, bad);
+        carquet_mem_free(idx);
+        carquet_buffer_destroy(&dict);
+    }
+    free(vals); free(ref_dict); free(ref_idx);
+    if (bad) TEST_FAIL("dictionary_build_capped_reference", "dictionary or indices differ from reference");
+    TEST_PASS("dictionary_build_capped_reference");
+    return 0;
+}
+
 static int test_bool_pack_unpack_dispatch(void) {
     uint8_t packed[] = {0xA5, 0x3C, 0x81};
     uint8_t unpacked[24];
@@ -856,6 +1097,11 @@ int main(void) {
     failures += test_byte_stream_split_generic_32bit();
     failures += test_byte_stream_split_special_floats();
     failures += test_bool_pack_unpack_dispatch();
+
+    printf("\n--- Batch RLE / Dictionary Build Tests ---\n");
+    failures += test_rle_batch_vs_put();
+    failures += test_rle_batch_long_streams();
+    failures += test_dictionary_build_capped_reference();
 
     printf("\n");
     if (failures == 0) {

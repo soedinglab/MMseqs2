@@ -171,16 +171,28 @@ static void carquet_bitunpack8_general(const uint8_t* input, int bit_width,
                                        uint32_t* values) {
     uint64_t mask = (1ULL << bit_width) - 1;
 
+    /* Stage the group (bit_width <= 32 bytes) in a zero-padded buffer so every
+     * value is one fixed 8-byte little-endian load: compilers that do not merge
+     * byte loads (MSVC) otherwise emit up to 5 loads + shifts per value. Only
+     * the group's own bit_width bytes are read from input. */
+    uint8_t buf[40] = {0};
+    memcpy(buf, input, (size_t)bit_width);
+
     for (int i = 0; i < 8; i++) {
         int bit_off = i * bit_width;
         int byte_off = bit_off >> 3;
         int shift = bit_off & 7;
-        int nbytes = (shift + bit_width + 7) >> 3;   /* 1..5 */
 
-        uint64_t bits = 0;
-        for (int b = 0; b < nbytes; b++) {
-            bits |= (uint64_t)input[byte_off + b] << (b * 8);
-        }
+        const uint8_t* p = buf + byte_off;  /* byte_off + 8 <= 36 < sizeof buf */
+        uint64_t bits;
+#if (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || \
+    defined(_M_X64) || defined(_M_IX86) || defined(_M_ARM64)
+        memcpy(&bits, p, sizeof(bits));  /* one load; bits above shift+width masked off */
+#else
+        bits = (uint64_t)p[0] | ((uint64_t)p[1] << 8) |
+               ((uint64_t)p[2] << 16) | ((uint64_t)p[3] << 24) |
+               ((uint64_t)p[4] << 32);
+#endif
 
         values[i] = (uint32_t)((bits >> shift) & mask);
     }
@@ -240,10 +252,10 @@ size_t carquet_bitunpack_32(const uint8_t* input, size_t count,
     }
 
     /* Process groups of 8. Resolve the per-group kernel ONCE outside the loop
-     * instead of re-running SIMD dispatch on every group: for widths 1-8 that
-     * is the specialized/SIMD function; for 9-32 there is no kernel, so call the
-     * general unpack directly and skip the dispatch entirely. */
-    carquet_bitunpack8_fn fn8 = carquet_get_bitunpack8_fn(bit_width);  /* 1-8 only */
+     * instead of re-running SIMD dispatch on every group: the SIMD kernel for
+     * this width if the CPU has one, else the scalar specialization (1-8);
+     * otherwise call the general unpack directly. */
+    carquet_bitunpack8_fn fn8 = carquet_get_bitunpack8_fn(bit_width);  /* NULL: no kernel */
     if (fn8 != NULL) {
         for (; i + 8 <= count; i += 8) {
             fn8(input + bytes_consumed, values + i);
@@ -370,11 +382,17 @@ static carquet_bitunpack8_fn unpack_functions[33] = {
 };
 
 carquet_bitunpack8_fn carquet_get_bitunpack8_fn(int bit_width) {
-    if (bit_width < 1 || bit_width > 8) {
+    if (bit_width < 1 || bit_width > 32) {
         return NULL;
     }
+    /* SIMD kernels may exist for any width (e.g. AVX2 covers 1-25 and 32);
+     * the scalar specializations only cover 1-8. NULL for the rest means
+     * "use carquet_bitunpack8_32 / the general unpacker". */
     carquet_bitunpack8_fn simd_fn = carquet_dispatch_get_bitunpack8_fn(bit_width);
-    return simd_fn != NULL ? simd_fn : unpack_functions[bit_width];
+    if (simd_fn != NULL) {
+        return simd_fn;
+    }
+    return bit_width <= 8 ? unpack_functions[bit_width] : NULL;
 }
 
 carquet_bitpack8_fn carquet_get_bitpack8_fn(int bit_width) {

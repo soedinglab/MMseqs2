@@ -207,6 +207,23 @@ static bool deprecated_stats_usable(const carquet_reader_t* reader, int32_t colu
     int32_t schema_idx = reader->schema->leaf_indices[column_index];
     const parquet_schema_element_t* elem = &reader->schema->elements[schema_idx];
     if (!elem->has_type) return false;
+    /* UINT_8..UINT_64 sort UNSIGNED: the deprecated signed pair is wrong
+     * whenever a value has its top bit set (min 0x80000000, max 1). */
+    if (elem->has_logical_type && elem->logical_type.id == CARQUET_LOGICAL_INTEGER &&
+        !elem->logical_type.params.integer.is_signed) {
+        return false;
+    }
+    if (elem->has_converted_type) {
+        switch (elem->converted_type) {
+            case CARQUET_CONVERTED_UINT_8:
+            case CARQUET_CONVERTED_UINT_16:
+            case CARQUET_CONVERTED_UINT_32:
+            case CARQUET_CONVERTED_UINT_64:
+                return false;
+            default:
+                break;
+        }
+    }
     switch (elem->type) {
         case CARQUET_PHYSICAL_BOOLEAN:
         case CARQUET_PHYSICAL_INT32:

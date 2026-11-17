@@ -8,6 +8,7 @@
  */
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -120,7 +121,8 @@ static int verify(const char* path, int64_t expected_rows) {
 
 int main(void) {
     carquet_init();
-    const char* path = "/tmp/carquet_append_example.parquet";
+    char path[1024];
+    example_temp_path(path, sizeof(path), "carquet_append_example.parquet");
 
     printf("Writing initial file (1000 rows)...\n");
     if (write_initial(path, 0, 1000)) return 1;

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <math.h>
 
 #include "core/arena.h"
@@ -35,6 +36,12 @@ extern int64_t carquet_dispatch_count_non_nulls(const int16_t* def_levels, int64
 extern void carquet_dispatch_build_null_bitmap(const int16_t* def_levels, int64_t count,
                                                int16_t max_def_level, uint8_t* null_bitmap);
 extern void carquet_dispatch_fill_def_levels(int16_t* def_levels, int64_t count, int16_t value);
+extern bool carquet_dispatch_checked_gather_i32(const int32_t* dict, int32_t dict_count,
+                                                 const uint32_t* indices, int64_t count,
+                                                 int32_t* output);
+extern bool carquet_dispatch_checked_gather_i64(const int64_t* dict, int32_t dict_count,
+                                                 const uint32_t* indices, int64_t count,
+                                                 int64_t* output);
 
 #define TEST_PASS(name) printf("[PASS] %s\n", name)
 #define TEST_FAIL(name, msg) do { printf("[FAIL] %s: %s\n", name, msg); return 1; } while(0)
@@ -565,6 +572,60 @@ static int test_dispatch_minmax_nan(void) {
     return 0;
 }
 
+/* Dispatched checked gathers (fused bounds check on every arch): in-range
+ * indices must match a scalar reference, and one out-of-range index anywhere
+ * (SIMD block or scalar tail) must be rejected. The dictionary sits at an odd
+ * address, like dictionary values inside raw page bytes. */
+static int test_dispatch_checked_gather(void) {
+    static uint8_t dict_bytes[1 + 1000 * 8];
+    static uint32_t idx[300];
+    static int64_t out64[300];
+    static int32_t out32[300];
+    const int32_t* d32 = (const int32_t*)(dict_bytes + 1);
+    const int64_t* d64 = (const int64_t*)(dict_bytes + 1);
+    for (size_t i = 0; i < sizeof(dict_bytes); i++) dict_bytes[i] = (uint8_t)(i * 37 + 11);
+
+    const int32_t dict_counts[] = {1, 5, 8, 17, 1000};
+    const uint32_t bad[] = {0, 0x80000000u, 0xFFFFFFFFu}; /* 0 = dict_count itself */
+    uint32_t seed = 12345;
+    for (size_t dc = 0; dc < sizeof(dict_counts) / sizeof(dict_counts[0]); dc++) {
+        int32_t n = dict_counts[dc];
+        for (int64_t count = 0; count <= 300; count += (count < 40 ? 1 : 37)) {
+            for (int64_t i = 0; i < count; i++) {
+                seed = seed * 1103515245u + 12345u;
+                idx[i] = (seed >> 8) % (uint32_t)n;
+            }
+            if (!carquet_dispatch_checked_gather_i32(d32, n, idx, count, out32) ||
+                !carquet_dispatch_checked_gather_i64(d64, n, idx, count, out64))
+                TEST_FAIL("dispatch_checked_gather", "in-range indices rejected");
+            for (int64_t i = 0; i < count; i++) {
+                int32_t w32; int64_t w64;
+                memcpy(&w32, dict_bytes + 1 + (size_t)idx[i] * 4, 4);
+                memcpy(&w64, dict_bytes + 1 + (size_t)idx[i] * 8, 8);
+                if (out32[i] != w32 || out64[i] != w64)
+                    TEST_FAIL("dispatch_checked_gather", "gathered value mismatch");
+            }
+            for (int64_t p = 0; p < count; p++) {
+                for (size_t b = 0; b < sizeof(bad) / sizeof(bad[0]); b++) {
+                    uint32_t saved = idx[p];
+                    idx[p] = bad[b] ? bad[b] : (uint32_t)n;
+                    bool ok32 = carquet_dispatch_checked_gather_i32(d32, n, idx, count, out32);
+                    bool ok64 = carquet_dispatch_checked_gather_i64(d64, n, idx, count, out64);
+                    idx[p] = saved;
+                    if (ok32 || ok64)
+                        TEST_FAIL("dispatch_checked_gather", "out-of-range index accepted");
+                }
+            }
+        }
+    }
+    idx[0] = 0;
+    if (carquet_dispatch_checked_gather_i32(d32, 0, idx, 1, out32) ||
+        !carquet_dispatch_checked_gather_i32(d32, 0, idx, 0, out32))
+        TEST_FAIL("dispatch_checked_gather", "empty dictionary handling");
+    TEST_PASS("dispatch_checked_gather");
+    return 0;
+}
+
 static int test_dispatch_null_helpers(void) {
     int16_t levels[] = {1, 0, 1, 1, 0, 0, 1, 0, 1, 1};
     int16_t filled[10];
@@ -642,6 +703,7 @@ int main(void) {
     failures += test_dispatch_copy_minmax();
     failures += test_dispatch_minmax_nan();
     failures += test_dispatch_null_helpers();
+    failures += test_dispatch_checked_gather();
     failures += test_bit_reader();
 
     printf("\n");

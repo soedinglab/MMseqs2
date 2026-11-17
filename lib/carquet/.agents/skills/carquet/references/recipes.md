@@ -175,7 +175,7 @@ carquet_writer_t* m = carquet_writer_create_buffer(schema, NULL, &err);
 /* ... write_batch ... */
 carquet_writer_close(m);
 void* bytes; size_t size;
-carquet_writer_get_buffer(m, &bytes, &size);          /* only after close(); caller free()s */
+carquet_writer_get_buffer(m, &bytes, &size);          /* only after close(); release with carquet_free() */
 carquet_reader_t* rb = carquet_reader_open_buffer(bytes, size, NULL, &err);   /* bytes must outlive rb */
 
 /* footer key/value metadata and per-field labels */

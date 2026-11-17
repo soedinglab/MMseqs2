@@ -1,0 +1,13 @@
+# LeakSanitizer suppressions for the fuzz targets (LSAN_OPTIONS=suppressions=fuzz/lsan.supp).
+#
+# The ZSTD / zlib codecs cache one context per thread in pthread TSD
+# (src/compression/zstd.c, gzip.c) and free it from the key destructor when the
+# thread exits. OpenMP pool threads outlive a single fuzz input, and on macOS
+# LeakSanitizer does not scan the pthread TSD of live threads, so the first
+# input that decompresses on each worker thread is reported as a leak. The
+# contexts are bounded (one per thread) and still referenced; not a leak.
+leak:get_dctx
+leak:get_cctx
+leak:gzip_tls_get
+leak:inflateInit2_
+leak:deflateInit2_

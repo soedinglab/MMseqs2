@@ -276,6 +276,20 @@ static carquet_status_t validate_column_logical_type(
     }
 }
 
+/* Parquet stores the schema as a depth-first pre-order list, and so does
+ * carquet: elements are kept in insertion order. A new child keeps that order
+ * only when its parent's subtree ends the list, i.e. the parent is the root,
+ * the last element, or an ancestor of the last element. Adding to an earlier
+ * group (add a, add b, add x under a) would serialise x under b. */
+static bool schema_can_append_child(const carquet_schema_t* schema,
+                                    int32_t parent_index) {
+    int32_t e = schema->num_elements - 1;
+    while (e > 0 && e != parent_index) {
+        e = schema->parent_indices[e];
+    }
+    return e == parent_index;
+}
+
 carquet_status_t carquet_schema_add_column(
     carquet_schema_t* schema,
     const char* name,
@@ -302,6 +316,9 @@ carquet_status_t carquet_schema_add_column(
     }
     /* Parent must be root (index 0) or a group (no physical type) */
     if (parent_index != 0 && schema->elements[parent_index].has_type) {
+        return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+    if (!schema_can_append_child(schema, parent_index)) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
 
@@ -379,6 +396,9 @@ int32_t carquet_schema_add_group(
     }
     /* Parent must be root (index 0) or a group (no physical type) */
     if (parent_index != 0 && schema->elements[parent_index].has_type) {
+        return -1;
+    }
+    if (!schema_can_append_child(schema, parent_index)) {
         return -1;
     }
 
@@ -612,7 +632,10 @@ const char* carquet_schema_column_name(
         return NULL;
     }
     int32_t elem_idx = schema->leaf_indices[leaf_index];
-    return schema->elements[elem_idx].name;
+    /* A malformed footer can omit the (required) name; callers strlen() the
+     * result, so match carquet_schema_node_name() and return "". */
+    const char* name = schema->elements[elem_idx].name;
+    return name ? name : "";
 }
 
 carquet_physical_type_t carquet_schema_column_type(

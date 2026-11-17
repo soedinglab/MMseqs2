@@ -21,6 +21,20 @@ if(CARQUET_FUZZ_SANITIZERS)
     set(FUZZ_SANITIZER_FLAGS "-fsanitize=address" "-fsanitize=undefined" "-fno-omit-frame-pointer")
 endif()
 
+# Coverage-instrument the library itself. -fsanitize=fuzzer on the harness only
+# instruments the harness translation unit; without fuzzer-no-link on libcarquet
+# libFuzzer sees no edges inside the library and degenerates into blind random
+# input generation (cov stalls at a few dozen harness edges). AFL's compiler
+# wrapper instruments every TU on its own, so this is libFuzzer-only.
+if(CARQUET_FUZZ_ENGINE STREQUAL "libFuzzer")
+    target_compile_options(carquet PRIVATE -fsanitize=fuzzer-no-link)
+endif()
+# The sanitizers too: on the harness alone they only check the harness's own
+# loads and stores, and a use-after-free inside the library goes unnoticed.
+if(CARQUET_FUZZ_SANITIZERS)
+    target_compile_options(carquet PRIVATE ${FUZZ_SANITIZER_FLAGS})
+endif()
+
 # Function to add a fuzz target
 function(add_fuzz_target TARGET_NAME SOURCE_FILE)
     add_executable(${TARGET_NAME} ${SOURCE_FILE})
@@ -85,6 +99,16 @@ add_fuzz_target(fuzz_nested_write fuzz_nested_write.c)
 # reassembles each row group into a nested ArrowArray via carquet_reader_read_arrow.
 add_fuzz_target(fuzz_arrow_read fuzz_arrow_read.c)
 
+# Path / FILE* / mmap reader fuzzer: writes each input to a temp file so the
+# fread page-reader path (unreachable from open_buffer), validate_file,
+# get_file_info and the row-group statistics / predicate APIs are exercised.
+add_fuzz_target(fuzz_reader_file fuzz_reader_file.c)
+
+# Arrow write differential fuzzer: valid Arrow arrays built from fuzz bytes are
+# written via carquet_writer_write_arrow (fuzz-chosen codec / encodings / page
+# options), read back via carquet_reader_read_arrow and compared value by value.
+add_fuzz_target(fuzz_arrow_write fuzz_arrow_write.c)
+
 # Create corpus directories
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_reader)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_compression)
@@ -95,3 +119,9 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_writer)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_page_filter)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_append)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_arrow_c_data)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_reader_file)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus_arrow_write)
+
+# Arrow stream fuzzer: streams arbitrary files with the stored Arrow types
+# restored and an exact predicate, then re-exports batches through refs.
+add_fuzz_target(fuzz_arrow_stream fuzz_arrow_stream.c)

@@ -90,6 +90,13 @@ static void detect_x86_features(void) {
     bool has_osxsave = false;
     bool ymm_ok = false;     /* OS saves XMM (bit1) + YMM (bit2) state */
     bool zmm_ok = false;     /* OS additionally saves opmask/ZMM state */
+    /* has_avx2 gates the avx2_ops.c kernels, which are built with
+     * -mavx2 -mbmi2 (GCC/Clang) or /arch:AVX2 (MSVC; lets the compiler emit
+     * FMA/BMI1/BMI2/LZCNT anywhere in that TU). Report AVX2 only when the
+     * x86-64-v3 companions are present too, so a CPU or hypervisor that
+     * exposes AVX2 without them falls back to SSE instead of faulting with
+     * #UD. Every shipping AVX2 CPU has them. */
+    bool cpu_fma = false;
 
 #if defined(_MSC_VER)
     int info[4];
@@ -103,6 +110,7 @@ static void detect_x86_features(void) {
         g_cpu_info.has_sse42 = (info[2] >> 20) & 1;
         has_osxsave = (info[2] >> 27) & 1;
         bool cpu_avx = (info[2] >> 28) & 1;
+        cpu_fma = (info[2] >> 12) & 1;
         if (has_osxsave) {
             uint64_t xcr0 = read_xcr0();
             ymm_ok = (xcr0 & 0x6) == 0x6;             /* XMM + YMM */
@@ -113,7 +121,12 @@ static void detect_x86_features(void) {
 
     if (max_leaf >= 7) {
         __cpuidex(info, 7, 0);
-        g_cpu_info.has_avx2 = ((info[1] >> 5) & 1) && ymm_ok;
+        bool cpu_bmi = ((info[1] >> 3) & 1) && ((info[1] >> 8) & 1);  /* BMI1 + BMI2 */
+        g_cpu_info.has_avx2 = ((info[1] >> 5) & 1) && cpu_bmi && cpu_fma && ymm_ok;
+        /* MSVC /arch:AVX512 targets F+CD+BW+DQ+VL; require CD and DQ too
+         * (present on every CPU with BW/VL) so that TU never meets a CPU
+         * lacking an extension the compiler was allowed to use. */
+        zmm_ok = zmm_ok && ((info[1] >> 28) & 1) && ((info[1] >> 17) & 1);
         g_cpu_info.has_avx512f = ((info[1] >> 16) & 1) && zmm_ok;
         g_cpu_info.has_avx512bw = ((info[1] >> 30) & 1) && zmm_ok;
         g_cpu_info.has_avx512vl = ((info[1] >> 31) & 1) && zmm_ok;
@@ -128,6 +141,7 @@ static void detect_x86_features(void) {
         g_cpu_info.has_sse42 = (ecx >> 20) & 1;
         has_osxsave = (ecx >> 27) & 1;
         bool cpu_avx = (ecx >> 28) & 1;
+        cpu_fma = (ecx >> 12) & 1;
         if (has_osxsave) {
             uint64_t xcr0 = read_xcr0();
             ymm_ok = (xcr0 & 0x6) == 0x6;             /* XMM + YMM */
@@ -137,7 +151,12 @@ static void detect_x86_features(void) {
     }
 
     if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
-        g_cpu_info.has_avx2 = ((ebx >> 5) & 1) && ymm_ok;
+        bool cpu_bmi = ((ebx >> 3) & 1) && ((ebx >> 8) & 1);  /* BMI1 + BMI2 */
+        g_cpu_info.has_avx2 = ((ebx >> 5) & 1) && cpu_bmi && cpu_fma && ymm_ok;
+        /* MSVC /arch:AVX512 targets F+CD+BW+DQ+VL; require CD and DQ too
+         * (present on every CPU with BW/VL) so that TU never meets a CPU
+         * lacking an extension the compiler was allowed to use. */
+        zmm_ok = zmm_ok && ((ebx >> 28) & 1) && ((ebx >> 17) & 1);
         g_cpu_info.has_avx512f = ((ebx >> 16) & 1) && zmm_ok;
         g_cpu_info.has_avx512bw = ((ebx >> 30) & 1) && zmm_ok;
         g_cpu_info.has_avx512vl = ((ebx >> 31) & 1) && zmm_ok;

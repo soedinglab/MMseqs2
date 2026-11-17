@@ -43,7 +43,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14,          plat: macos-arm64,   ext: tar.gz }
+          - { os: macos-15,          plat: macos-arm64,   ext: tar.gz }
           - { os: ubuntu-22.04,      plat: linux-x86_64,  ext: tar.gz }
           - { os: ubuntu-22.04-arm,  plat: linux-arm64,   ext: tar.gz }
           - { os: windows-latest,    plat: windows-x64,   ext: zip }

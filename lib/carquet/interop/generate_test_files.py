@@ -185,6 +185,108 @@ def generate_pyarrow_files(output_dir: Path):
     pq.write_table(delta_table, path, use_dictionary=False)
     files.append(('delta_encoded', str(path), 'pyarrow', 'NONE'))
 
+    files.extend(generate_pyarrow_feature_files(pa_dir))
+    return files
+
+
+def _pa_write_optional(name, pa_dir, table, files, label, **kwargs):
+    """Write one feature file; skip (with a note) if this PyArrow version
+    lacks a writer option rather than failing the whole generation."""
+    path = pa_dir / f"{name}.parquet"
+    try:
+        pq.write_table(table, path, **kwargs)
+    except (TypeError, ValueError, NotImplementedError, pa.ArrowException) as e:
+        print(f"  Skipping: {name}.parquet ({e})")
+        return
+    print(f"  Generating: {name}.parquet")
+    files.append((name, str(path), 'pyarrow', label))
+
+
+def generate_pyarrow_feature_files(pa_dir: Path):
+    """Encodings / page formats / codecs carquet must decode from PyArrow.
+
+    Values are deterministic and every file spans several pages (small
+    data_page_size) and row groups, so run_interop.py's full-value oracle
+    exercises page and row-group boundaries, not only the first page."""
+    files = []
+    n = 20000
+
+    def nullable(values, every):
+        return [None if i % every == 0 else v for i, v in enumerate(values)]
+
+    ints32 = nullable([(i * 7919) % 100003 - 50000 for i in range(n)], 11)
+    ints64 = nullable([i * 1000003 - 7 * 10**9 for i in range(n)], 13)
+    floats = nullable([i * 0.25 - 999.5 for i in range(n)], 7)
+    doubles = nullable([i * 1e-3 - 3.5 for i in range(n)], 9)
+    words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta']
+    strs = nullable([f"{words[i % 7]}_{i // 3}" for i in range(n)], 5)
+    bools = nullable([i % 3 == 0 for i in range(n)], 17)
+
+    flat = pa.table({
+        'i32': pa.array(ints32, type=pa.int32()),
+        'i64': pa.array(ints64, type=pa.int64()),
+        'f32': pa.array(floats, type=pa.float32()),
+        'f64': pa.array(doubles, type=pa.float64()),
+        'str': pa.array(strs, type=pa.string()),
+        'flag': pa.array(bools, type=pa.bool_()),
+    })
+    common = dict(row_group_size=7000, data_page_size=2048)
+
+    # DELTA_BINARY_PACKED / DELTA_LENGTH_BYTE_ARRAY / DELTA_BYTE_ARRAY
+    delta = flat.append_column('str_dba', pa.array(strs, type=pa.string()))
+    _pa_write_optional('enc_delta_all', pa_dir, delta, files, 'ZSTD',
+                       compression='ZSTD', use_dictionary=False,
+                       column_encoding={'i32': 'DELTA_BINARY_PACKED',
+                                        'i64': 'DELTA_BINARY_PACKED',
+                                        'str': 'DELTA_LENGTH_BYTE_ARRAY',
+                                        'str_dba': 'DELTA_BYTE_ARRAY'},
+                       **common)
+    # BYTE_STREAM_SPLIT on FLOAT / DOUBLE / INT32 / INT64
+    _pa_write_optional('enc_bss_all', pa_dir, flat.select(['i32', 'i64', 'f32', 'f64']),
+                       files, 'SNAPPY', compression='SNAPPY', use_dictionary=False,
+                       column_encoding={'i32': 'BYTE_STREAM_SPLIT',
+                                        'i64': 'BYTE_STREAM_SPLIT',
+                                        'f32': 'BYTE_STREAM_SPLIT',
+                                        'f64': 'BYTE_STREAM_SPLIT'},
+                       **common)
+    # Data Page V2 with dictionary + nulls, and V2 without dictionary
+    _pa_write_optional('pagev2_dict', pa_dir, flat, files, 'ZSTD',
+                       compression='ZSTD', data_page_version='2.0',
+                       use_dictionary=True, **common)
+    _pa_write_optional('pagev2_plain_gzip', pa_dir, flat, files, 'GZIP',
+                       compression='GZIP', data_page_version='2.0',
+                       use_dictionary=False, **common)
+    # Page index + page CRCs (carquet verifies CRCs when asked)
+    _pa_write_optional('page_index_crc_lz4raw', pa_dir, flat, files, 'LZ4_RAW',
+                       compression='LZ4', write_page_index=True,
+                       write_page_checksum=True, **common)
+    # BROTLI
+    _pa_write_optional('brotli', pa_dir, flat, files, 'BROTLI',
+                       compression='BROTLI', **common)
+    # Wider types: float16, large_string / large_binary, uint, fixed binary
+    wide = pa.table({
+        'f16': pa.array([float((i % 2048) - 1024) for i in range(n)], type=pa.float16()),
+        'lstr': pa.array(strs, type=pa.large_string()),
+        'lbin': pa.array([None if s is None else s.encode() for s in strs], type=pa.large_binary()),
+        'u16': pa.array([(i * 13) % 65536 for i in range(n)], type=pa.uint16()),
+        'u64': pa.array([(i * 11400714819323198485) % (1 << 64) for i in range(n)], type=pa.uint64()),
+        'i8': pa.array([(i % 256) - 128 for i in range(n)], type=pa.int8()),
+    })
+    _pa_write_optional('wide_types', pa_dir, wide, files, 'ZSTD',
+                       compression='ZSTD', **common)
+    # Nested (decode-checked by --dir; not value-comparable by the flat oracle)
+    nested = pa.table({
+        'id': pa.array(range(2000), type=pa.int32()),
+        'tags': pa.array([None if i % 9 == 0 else [i, i + 1][: i % 3]
+                          for i in range(2000)], type=pa.list_(pa.int32())),
+        'kv': pa.array([[('k%d' % (i % 5), i)] if i % 4 else []
+                        for i in range(2000)], type=pa.map_(pa.string(), pa.int64())),
+        'st': pa.array([None if i % 6 == 0 else {'a': i, 'b': str(i)}
+                        for i in range(2000)],
+                       type=pa.struct([('a', pa.int32()), ('b', pa.string())])),
+    })
+    _pa_write_optional('nested_list_map_struct', pa_dir, nested, files, 'SNAPPY',
+                       compression='SNAPPY', row_group_size=700, data_page_size=1024)
     return files
 
 

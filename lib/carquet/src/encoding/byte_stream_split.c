@@ -64,6 +64,9 @@ carquet_status_t carquet_byte_stream_split_decode_float(
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
 
+    if (count < 0 || (uint64_t)count > SIZE_MAX / sizeof(float)) {
+        return CARQUET_ERROR_DECODE;
+    }
     size_t required_size = (size_t)count * sizeof(float);
     if (data_size < required_size) {
         return CARQUET_ERROR_DECODE;
@@ -112,6 +115,9 @@ carquet_status_t carquet_byte_stream_split_decode_double(
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
 
+    if (count < 0 || (uint64_t)count > SIZE_MAX / sizeof(double)) {
+        return CARQUET_ERROR_DECODE;
+    }
     size_t required_size = (size_t)count * sizeof(double);
     if (data_size < required_size) {
         return CARQUET_ERROR_DECODE;
@@ -281,6 +287,9 @@ carquet_status_t carquet_byte_stream_split_decode(
         return CARQUET_ERROR_INVALID_ARGUMENT;
     }
 
+    if (count < 0 || (uint64_t)count > SIZE_MAX / (size_t)type_length) {
+        return CARQUET_ERROR_DECODE;
+    }
     size_t required_size = (size_t)count * (size_t)type_length;
     if (data_size < required_size) {
         return CARQUET_ERROR_DECODE;

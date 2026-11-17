@@ -7,6 +7,7 @@
  */
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -195,7 +196,7 @@ static void demo_buffer_writer(void) {
                    carquet_reader_num_columns(r));
             carquet_reader_close(r);
         }
-        free(buf);
+        carquet_free(buf);
     }
 done:
     carquet_schema_free(schema);
@@ -205,7 +206,8 @@ done:
 
 int main(void) {
     carquet_init();
-    const char* path = "/tmp/carquet_advanced_example.parquet";
+    char path[1024];
+    example_temp_path(path, sizeof(path), "carquet_advanced_example.parquet");
 
     printf("Writing test file with advanced features...\n");
     if (write_test_file(path)) return 1;

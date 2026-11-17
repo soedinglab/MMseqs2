@@ -145,7 +145,18 @@ int carquet_gzip_decompress(
     strm->avail_out = (uInt)dst_capacity;
 
     int ret = inflate(strm, Z_FINISH);
-    size_t output_size = strm->total_out;
+    /* RFC 1952 allows several gzip members back to back, and some writers
+     * emit them inside one page (parquet-testing's
+     * concatenated_gzip_members.parquet); zlib stops at the end of the first.
+     * Decode every member, as parquet-cpp does. Non-gzip trailing bytes are
+     * still ignored, as before. */
+    while (ret == Z_STREAM_END && strm->avail_in >= 2 &&
+           strm->next_in[0] == 0x1f && strm->next_in[1] == 0x8b) {
+        if (inflateReset(strm) != Z_OK) { ret = Z_DATA_ERROR; break; }
+        ret = inflate(strm, Z_FINISH);
+    }
+    /* inflateReset() zeroes total_out, so measure from the output cursor. */
+    size_t output_size = (size_t)(strm->next_out - dst);
     if (!cached) inflateEnd(strm);
 
     if (ret != Z_STREAM_END) {

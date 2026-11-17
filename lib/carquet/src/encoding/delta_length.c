@@ -93,9 +93,13 @@ carquet_status_t carquet_delta_length_decode(
     }
 
     /* Calculate total data size and validate */
+    /* Bound each length against the bytes still available so the running
+     * sum cannot wrap a 32-bit size_t and slip past the check below. */
     size_t total_data_size = 0;
+    size_t data_avail = lengths_consumed <= data_size ? data_size - lengths_consumed : 0;
     for (int32_t i = 0; i < num_values; i++) {
-        if (lengths[i] < 0) {
+        if (lengths[i] < 0 ||
+            (size_t)lengths[i] > data_avail - total_data_size) {
             carquet_mem_free(lengths);
             return CARQUET_ERROR_DECODE;
         }

@@ -5,12 +5,12 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "carquet"
 dynamic = ["version"]
-description = "Fast Apache Parquet reader/writer in pure C, exposed to Python through the Arrow C Data Interface"
+description = "Fast Apache Parquet reader/writer in pure C for Python: Arrow tables, pandas, filters with pushdown, metadata and statistics"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Johan H. G. Natter" }]
-keywords = ["parquet", "arrow", "columnar", "pyarrow", "zstd", "snappy"]
+keywords = ["parquet", "arrow", "columnar", "polars", "pandas", "zstd", "snappy"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -32,13 +32,15 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Typing :: Typed",
 ]
-# pyarrow is only needed by read_table / write_table / schema / open_reader;
-# info(), validate() and the version helpers work without it.
+# No dependencies: reads return carquet.Table (Arrow C Data arrays held by the C
+# library, exported to polars / DuckDB / PyArrow... through the Arrow PyCapsule
+# interface). NumPy and pandas are used, lazily, by the conversions to and from them.
 dependencies = []
 
 [project.optional-dependencies]
-arrow = ["pyarrow>=14"]
-test = ["pytest", "pyarrow>=14"]
+pandas = ["pandas", "numpy"]
+# PyArrow, DuckDB and polars are oracles in the tests (each skips when absent).
+test = ["pytest", "numpy", "pandas", "pyarrow>=14"]
 
 [project.urls]
 Homepage = "https://github.com/Vitruves/carquet"
@@ -123,7 +125,7 @@ build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 # not run there; PyPy is untested.
 skip = ["*-musllinux_*", "*_i686", "*-win32", "pp*"]
 build-verbosity = 1
-test-requires = ["pytest", "pyarrow"]
+test-requires = ["pytest", "pyarrow", "numpy"]
 test-command = "pytest {project}/python/tests"
 
 [tool.pytest.ini_options]

@@ -69,7 +69,14 @@
 #define SNAPPY_PREDICT_FALSE(x) (x)
 #define SNAPPY_PREFETCH(addr)   ((void)0)
 static inline int snappy_ctz64(uint64_t x) {
-    unsigned long idx; _BitScanForward64(&idx, x); return (int)idx;
+    unsigned long idx;
+#if defined(_M_X64) || defined(_M_ARM64)
+    _BitScanForward64(&idx, x); return (int)idx;
+#else
+    /* _BitScanForward64 only exists on 64-bit targets: scan each half */
+    if (_BitScanForward(&idx, (unsigned long)x)) return (int)idx;
+    _BitScanForward(&idx, (unsigned long)(x >> 32)); return 32 + (int)idx;
+#endif
 }
 #define SNAPPY_CTZ64(x) snappy_ctz64(x)
 static inline int snappy_clz32(uint32_t x) {
@@ -599,16 +606,18 @@ carquet_status_t carquet_snappy_decompress_diag(
                 copy_offset = trailer;
             }
 
-            if (SNAPPY_PREDICT_FALSE(copy_offset == 0))
-                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_ZERO, 0);
-            if (SNAPPY_PREDICT_FALSE(copy_offset > (size_t)(op - dst)))
+            /* One unsigned compare covers offset 0 (wraps) and offsets
+             * reaching before the output start; split only on failure. */
+            if (SNAPPY_PREDICT_FALSE(copy_offset - 1 >= (size_t)(op - dst))) {
+                if (copy_offset == 0)
+                    SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_ZERO, 0);
                 SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OFFSET_RANGE, copy_offset);
-            if (SNAPPY_PREDICT_FALSE(length > (size_t)(op_end - op)))
-                SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OUTPUT, length);
+            }
 
             const uint8_t* match_src = op - copy_offset;
 
-            /* Fast path: offset >= 16, just copy non-overlapping blocks */
+            /* Fast paths end at op_limit_min_slop < op_end, so they need no
+             * separate output-length check. */
             if (SNAPPY_PREDICT_TRUE(copy_offset >= 16 && op + length <= op_limit_min_slop)) {
                 copy128(match_src, op);
                 if (length > 16) copy128(match_src + 16, op + 16);
@@ -622,6 +631,8 @@ carquet_status_t carquet_snappy_decompress_diag(
                 memmove(op, match_src, SNAPPY_SLOP_BYTES);
                 op += length;
             } else {
+                if (SNAPPY_PREDICT_FALSE(length > (size_t)(op_end - op)))
+                    SNAPPY_FAIL(CARQUET_SNAPPY_ERR_COPY_OUTPUT, length);
                 (void)incremental_copy(match_src, op, op + length, op_end);
                 op += length;
             }
@@ -724,6 +735,26 @@ static uint8_t* snappy_emit_literal(uint8_t* op, const uint8_t* literal, size_t 
     }
     memcpy(op, literal, len);
     return op + len;
+}
+
+/* Literal that is followed by a copy: the match starts at least 15 bytes
+ * before the end of the block, so reading up to 15 bytes past the literal
+ * stays inside the input, and the output always has more than 15 bytes of
+ * headroom before compress_bound. Short literals are then copied with
+ * whole 16-byte moves instead of a variable-length memcpy call. */
+static inline uint8_t* snappy_emit_literal_fast(uint8_t* op, const uint8_t* literal,
+                                                size_t len) {
+    if (SNAPPY_PREDICT_TRUE(len <= 16)) {
+        *op++ = (uint8_t)((len - 1) << 2);
+        copy128(literal, op);
+        return op + len;
+    }
+    if (len <= 60) {
+        *op++ = (uint8_t)((len - 1) << 2);
+        for (size_t i = 0; i < len; i += 16) copy128(literal + i, op + i);
+        return op + len;
+    }
+    return snappy_emit_literal(op, literal, len);
 }
 
 static inline uint8_t* snappy_emit_copy(uint8_t* op, size_t offset, size_t len) {
@@ -835,27 +866,52 @@ static uint8_t* snappy_compress_block(
 
     /* Emit pending literal */
     if (ip > anchor)
-        op = snappy_emit_literal(op, anchor, (size_t)(ip - anchor));
+        op = snappy_emit_literal_fast(op, anchor, (size_t)(ip - anchor));
 
 emit_match:
-    do {
-        size_t match_len = 4 + fast_match_length(ip + 4, candidate + 4, iend);
-        size_t offset = (size_t)(ip - candidate);
-        ip += match_len;
-        op = snappy_emit_copy(op, offset, match_len);
+    {
+        uint32_t next_dword;
+        do {
+            size_t offset = (size_t)(ip - candidate);
+            const uint8_t* s2 = ip + 4;  /* ip < ilimit: iend - s2 > 11 */
+            uint64_t a2 = 0, x = 0;
+            if (SNAPPY_PREDICT_TRUE((size_t)(iend - s2) >= 16)) {
+                a2 = load64(s2);
+                x = load64(candidate + 4) ^ a2;
+            }
+            if (SNAPPY_PREDICT_TRUE(x != 0)) {
+                /* Match shorter than 12 bytes (the common case): the
+                 * bytes at the new ip come from the words just compared
+                 * (or the overlapping one 4 bytes on), so the next hash
+                 * lookup does not wait on another load of ip. */
+                int shift = SNAPPY_CTZ64(x);
+                uint64_t a3 = load64(s2 + 4);
+                size_t match_len = 4 + ((size_t)shift >> 3);
+                a2 = ((uint32_t)x == 0) ? a3 : a2;
+                next_dword = (uint32_t)(a2 >> (shift & 24));
+                ip += match_len;
+                op = snappy_emit_copy(op, offset, match_len);
+            } else {
+                size_t match_len = 4 + fast_match_length(s2, candidate + 4, iend);
+                ip += match_len;
+                op = snappy_emit_copy(op, offset, match_len);
+                next_dword = 0;  /* loaded below once ip is known to be in range */
+                if (SNAPPY_PREDICT_TRUE(ip < ilimit)) next_dword = load32(ip);
+            }
 
-        if (SNAPPY_PREDICT_FALSE(ip >= ilimit)) {
-            anchor = ip;
-            goto emit_remainder;
-        }
+            if (SNAPPY_PREDICT_FALSE(ip >= ilimit)) {
+                anchor = ip;
+                goto emit_remainder;
+            }
 
-        /* Insert hash entries near match end */
-        hash_table[snappy_hash(load32(ip - 1))] = (uint16_t)(ip - 1 - src);
-        uint32_t h = snappy_hash(load32(ip));
-        candidate = src + hash_table[h];
-        hash_table[h] = (uint16_t)(ip - src);
-    } while (load32(ip) == load32(candidate) &&
-             (size_t)(ip - candidate) <= SNAPPY_MAX_OFFSET);
+            /* Insert hash entries near match end */
+            hash_table[snappy_hash(load32(ip - 1))] = (uint16_t)(ip - 1 - src);
+            uint32_t h = snappy_hash(next_dword);
+            candidate = src + hash_table[h];
+            hash_table[h] = (uint16_t)(ip - src);
+        } while (next_dword == load32(candidate) &&
+                 (size_t)(ip - candidate) <= SNAPPY_MAX_OFFSET);
+    }
 
     anchor = ip++;
     {
@@ -874,7 +930,7 @@ emit_match:
 
             if (SNAPPY_PREDICT_FALSE(load32(ip) == load32(candidate))) {
                 if (ip > anchor)
-                    op = snappy_emit_literal(op, anchor, (size_t)(ip - anchor));
+                    op = snappy_emit_literal_fast(op, anchor, (size_t)(ip - anchor));
                 goto emit_match;
             }
 

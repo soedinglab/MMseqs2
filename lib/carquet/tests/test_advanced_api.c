@@ -674,6 +674,145 @@ static int test_type_mismatch_rejected(void) {
  * Main
  * ====================================================================== */
 
+/* ======================================================================
+ * Test: carquet_column_reader_reset() + prebuffer reuse across row groups
+ *
+ * Issue #38: a column-reader scan allocated fresh decode buffers and a fresh
+ * prebuffer per row group. One column reader per column is now moved from
+ * row group to row group with carquet_column_reader_reset(), and the
+ * prebuffer keeps its allocation. Each row group has its own dictionary, so a
+ * reset that kept a stale dictionary or reading state would show up here.
+ * ====================================================================== */
+
+#define RESET_RGS 3
+static int32_t reset_rows(int rg) { return rg == RESET_RGS - 1 ? 700 : 3000; }
+static int32_t reset_i32(int rg, int i) { return rg * 1000 + i % 7; }
+
+static int check_reset_rg(carquet_column_reader_t* c0, carquet_column_reader_t* c1,
+                          int rg) {
+    int32_t rows = reset_rows(rg);
+    int32_t got = 0;
+    int32_t v0[256];
+    carquet_byte_array_t v1[256];
+    int16_t def[256];
+    while (got < rows) {
+        int64_t n0 = carquet_column_read_batch(c0, v0, 256, NULL, NULL);
+        int64_t n1 = carquet_column_read_batch(c1, v1, 256, def, NULL);
+        if (n0 <= 0 || n0 != n1) return 1;
+        int64_t k = 0;
+        for (int64_t i = 0; i < n0; i++) {
+            int row = got + (int)i;
+            if (v0[i] != reset_i32(rg, row)) return 1;
+            if (def[i] != (row % 3 != 0)) return 1;
+            if (def[i]) {
+                char want[32];
+                int len = snprintf(want, sizeof(want), "rg%d-%d", rg, row % 5);
+                if (v1[k].length != len || memcmp(v1[k].data, want, (size_t)len) != 0)
+                    return 1;
+                k++;
+            }
+        }
+        got += (int32_t)n0;
+    }
+    return carquet_column_has_next(c0) || carquet_column_has_next(c1);
+}
+
+static int test_column_reader_reset(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_schema_t* schema = carquet_schema_create(NULL);
+    carquet_schema_add_column(schema, "k", CARQUET_PHYSICAL_INT32, NULL,
+                              CARQUET_REPETITION_REQUIRED, 0, 0);
+    carquet_schema_add_column(schema, "s", CARQUET_PHYSICAL_BYTE_ARRAY, NULL,
+                              CARQUET_REPETITION_OPTIONAL, 0, 0);
+    carquet_writer_options_t opts;
+    carquet_writer_options_init(&opts);
+    opts.compression = CARQUET_COMPRESSION_ZSTD;
+    carquet_writer_t* w = carquet_writer_create(TEMP_FILE, schema, &opts, &err);
+    if (!w) TEST_FAIL("column_reader_reset", err.message);
+
+    static int32_t ks[3000];
+    static carquet_byte_array_t ss[3000];
+    static int16_t defs[3000];
+    static char strs[3000][32];
+    for (int rg = 0; rg < RESET_RGS; rg++) {
+        int32_t rows = reset_rows(rg);
+        int nn = 0;
+        for (int i = 0; i < rows; i++) {
+            ks[i] = reset_i32(rg, i);
+            defs[i] = (int16_t)(i % 3 != 0);
+            if (defs[i]) {
+                int len = snprintf(strs[nn], sizeof(strs[nn]), "rg%d-%d", rg, i % 5);
+                ss[nn].data = (uint8_t*)strs[nn];
+                ss[nn].length = len;
+                nn++;
+            }
+        }
+        if (rg > 0 && carquet_writer_new_row_group(w) != CARQUET_OK)
+            TEST_FAIL("column_reader_reset", "new_row_group failed");
+        if (carquet_writer_write_batch(w, 0, ks, rows, NULL, NULL) != CARQUET_OK ||
+            carquet_writer_write_batch(w, 1, ss, rows, defs, NULL) != CARQUET_OK)
+            TEST_FAIL("column_reader_reset", "write_batch failed");
+    }
+    if (carquet_writer_close(w) != CARQUET_OK)
+        TEST_FAIL("column_reader_reset", "close failed");
+    carquet_schema_free(schema);
+
+    carquet_reader_options_t ropts;
+    carquet_reader_options_init(&ropts);
+    ropts.use_mmap = false;
+    carquet_reader_t* r = carquet_reader_open(TEMP_FILE, &ropts, &err);
+    if (!r) TEST_FAIL("column_reader_reset", err.message);
+    if (carquet_reader_num_row_groups(r) != RESET_RGS)
+        TEST_FAIL("column_reader_reset", "unexpected row group count");
+
+    int32_t cols[] = {0, 1};
+    carquet_column_reader_t* c0 = NULL;
+    carquet_column_reader_t* c1 = NULL;
+    /* Forward scan, then back to row group 0 to check a backward reset. */
+    int order[] = {0, 1, 2, 0};
+    for (int step = 0; step < 4; step++) {
+        int rg = order[step];
+        if (carquet_reader_prebuffer(r, rg, cols, 2, &err) != CARQUET_OK)
+            TEST_FAIL("column_reader_reset", "prebuffer failed");
+        if (!c0) {
+            c0 = carquet_reader_get_column(r, rg, 0, &err);
+            c1 = carquet_reader_get_column(r, rg, 1, &err);
+            if (!c0 || !c1) TEST_FAIL("column_reader_reset", "get_column failed");
+        } else if (carquet_column_reader_reset(c0, rg, &err) != CARQUET_OK ||
+                   carquet_column_reader_reset(c1, rg, &err) != CARQUET_OK) {
+            TEST_FAIL("column_reader_reset", "reset failed");
+        }
+        if (check_reset_rg(c0, c1, rg))
+            TEST_FAIL("column_reader_reset", "row group contents mismatch after reset");
+    }
+
+    /* Reset in the middle of a page restarts the chunk. */
+    int32_t tmp[10];
+    if (carquet_column_reader_reset(c0, 1, &err) != CARQUET_OK ||
+        carquet_column_read_batch(c0, tmp, 10, NULL, NULL) != 10 ||
+        carquet_column_reader_reset(c0, 1, &err) != CARQUET_OK ||
+        carquet_column_reader_reset(c1, 1, &err) != CARQUET_OK ||
+        check_reset_rg(c0, c1, 1))
+        TEST_FAIL("column_reader_reset", "mid-chunk reset mismatch");
+
+    /* Invalid row group: error, reader untouched. */
+    if (carquet_column_reader_reset(c0, 2, &err) != CARQUET_OK)
+        TEST_FAIL("column_reader_reset", "reset failed");
+    carquet_error_t e = CARQUET_ERROR_INIT;
+    if (carquet_column_reader_reset(c0, RESET_RGS, &e) != CARQUET_ERROR_ROW_GROUP_NOT_FOUND ||
+        carquet_column_reader_reset(c0, -1, NULL) != CARQUET_ERROR_ROW_GROUP_NOT_FOUND)
+        TEST_FAIL("column_reader_reset", "invalid row group accepted");
+    if (carquet_column_remaining(c0) != reset_rows(2))
+        TEST_FAIL("column_reader_reset", "failed reset modified the reader");
+
+    carquet_column_reader_free(c0);
+    carquet_column_reader_free(c1);
+    carquet_reader_release_prebuffer(r);
+    carquet_reader_close(r);
+    TEST_PASS("column_reader_reset");
+    return 0;
+}
+
 int main(void) {
     carquet_init();
     int failures = 0;
@@ -687,6 +826,7 @@ int main(void) {
     failures += test_lz4_codecs();
     failures += test_read_batch_ex();
     failures += test_type_mismatch_rejected();
+    failures += test_column_reader_reset();
 
     remove(TEMP_FILE);
 

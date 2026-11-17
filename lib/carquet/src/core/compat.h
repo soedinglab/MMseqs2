@@ -7,8 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <io.h>
+#else
 #include <sys/types.h>
+#include <unistd.h>
 #endif
 
 static inline char* carquet_heap_strdup(const char* str) {
@@ -51,6 +54,22 @@ static inline int64_t carquet_ftell64(FILE* file) {
     return (int64_t)ftello(file);
 #else
     return (int64_t)ftell(file);
+#endif
+}
+
+/* Flush `file` and cut it to `size` bytes. Returns 0 on success. Used when
+ * an append rewrites a footer that can be shorter than the one it replaces. */
+static inline int carquet_ftruncate64(FILE* file, int64_t size) {
+    if (size < 0 || fflush(file) != 0) {
+        return -1;
+    }
+#if defined(_WIN32)
+    return _chsize_s(_fileno(file), (__int64)size) == 0 ? 0 : -1;
+#else
+    if ((int64_t)(off_t)size != size) {
+        return -1;
+    }
+    return ftruncate(fileno(file), (off_t)size);
 #endif
 }
 

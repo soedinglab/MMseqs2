@@ -41,22 +41,6 @@ static inline uint32_t avx2_read_le24(const uint8_t* p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16);
 }
 
-static inline uint64_t avx2_read_le40(const uint8_t* p) {
-    return (uint64_t)p[0] | ((uint64_t)p[1] << 8) | ((uint64_t)p[2] << 16) |
-           ((uint64_t)p[3] << 24) | ((uint64_t)p[4] << 32);
-}
-
-static inline uint64_t avx2_read_le48(const uint8_t* p) {
-    return (uint64_t)p[0] | ((uint64_t)p[1] << 8) | ((uint64_t)p[2] << 16) |
-           ((uint64_t)p[3] << 24) | ((uint64_t)p[4] << 32) | ((uint64_t)p[5] << 40);
-}
-
-static inline uint64_t avx2_read_le56(const uint8_t* p) {
-    return (uint64_t)p[0] | ((uint64_t)p[1] << 8) | ((uint64_t)p[2] << 16) |
-           ((uint64_t)p[3] << 24) | ((uint64_t)p[4] << 32) | ((uint64_t)p[5] << 40) |
-           ((uint64_t)p[6] << 48);
-}
-
 /* ============================================================================
  * Bit Unpacking - AVX2 Optimized
  * ============================================================================
@@ -104,7 +88,9 @@ void carquet_avx2_bitunpack8_3bit(const uint8_t* input, uint32_t* values) {
  * Unpack 8 4-bit values using AVX2.
  */
 void carquet_avx2_bitunpack8_4bit(const uint8_t* input, uint32_t* values) {
-    __m128i bytes = _mm_cvtsi32_si128(*(const int32_t*)input);
+    int32_t in32;
+    memcpy(&in32, input, sizeof(in32));  /* input is byte-aligned */
+    __m128i bytes = _mm_cvtsi32_si128(in32);
     __m128i lo_nibbles = _mm_and_si128(bytes, _mm_set1_epi8(0x0F));
     __m128i hi_nibbles = _mm_and_si128(_mm_srli_epi16(bytes, 4), _mm_set1_epi8(0x0F));
     __m128i interleaved = _mm_unpacklo_epi8(lo_nibbles, hi_nibbles);
@@ -112,35 +98,8 @@ void carquet_avx2_bitunpack8_4bit(const uint8_t* input, uint32_t* values) {
     _mm256_storeu_si256((__m256i*)values, result);
 }
 
-void carquet_avx2_bitunpack8_5bit(const uint8_t* input, uint32_t* values) {
-    uint64_t v = avx2_read_le40(input);
-    __m256i result = _mm256_setr_epi32(
-        (int)((v >> 0) & 0x1F), (int)((v >> 5) & 0x1F),
-        (int)((v >> 10) & 0x1F), (int)((v >> 15) & 0x1F),
-        (int)((v >> 20) & 0x1F), (int)((v >> 25) & 0x1F),
-        (int)((v >> 30) & 0x1F), (int)((v >> 35) & 0x1F));
-    _mm256_storeu_si256((__m256i*)values, result);
-}
 
-void carquet_avx2_bitunpack8_6bit(const uint8_t* input, uint32_t* values) {
-    uint64_t v = avx2_read_le48(input);
-    __m256i result = _mm256_setr_epi32(
-        (int)((v >> 0) & 0x3F), (int)((v >> 6) & 0x3F),
-        (int)((v >> 12) & 0x3F), (int)((v >> 18) & 0x3F),
-        (int)((v >> 24) & 0x3F), (int)((v >> 30) & 0x3F),
-        (int)((v >> 36) & 0x3F), (int)((v >> 42) & 0x3F));
-    _mm256_storeu_si256((__m256i*)values, result);
-}
 
-void carquet_avx2_bitunpack8_7bit(const uint8_t* input, uint32_t* values) {
-    uint64_t v = avx2_read_le56(input);
-    __m256i result = _mm256_setr_epi32(
-        (int)((v >> 0) & 0x7F), (int)((v >> 7) & 0x7F),
-        (int)((v >> 14) & 0x7F), (int)((v >> 21) & 0x7F),
-        (int)((v >> 28) & 0x7F), (int)((v >> 35) & 0x7F),
-        (int)((v >> 42) & 0x7F), (int)((v >> 49) & 0x7F));
-    _mm256_storeu_si256((__m256i*)values, result);
-}
 
 /**
  * Unpack 16 4-bit values using AVX2.
@@ -200,6 +159,132 @@ void carquet_avx2_bitunpack8_16bit(const uint8_t* input, uint32_t* values) {
     __m128i words = _mm_loadu_si128((const __m128i*)input);
     __m256i result = _mm256_cvtepu16_epi32(words);
     _mm256_storeu_si256((__m256i*)values, result);
+}
+
+/* ----------------------------------------------------------------------------
+ * Generic shuffle + variable-shift unpack for bit widths 5..25.
+ *
+ * Without these, every width outside {1..8, 16} fell back to the scalar
+ * byte-at-a-time unpacker (~250 Mval/s on MSVC, which also does not merge
+ * byte loads), although dictionary indices for dictionaries of 512..32M
+ * entries and DELTA_BINARY_PACKED miniblocks routinely use widths 9..25.
+ *
+ * A group of 8 values of width W occupies exactly W bytes. The kernel never
+ * reads outside those W bytes (callers only guarantee W bytes): the group is
+ * loaded as two overlapping pieces anchored at the start and at the end:
+ *   W >= 16 : 16 bytes at 0 -> lane 0 (values 0-3), 16 bytes at W-16 -> lane 1
+ *   W >= 8  : 8 bytes at 0 and 8 bytes at W-8, packed into one xmm, both lanes
+ *   W >= 4  : 4 bytes at 0 and 4 bytes at W-4, packed into one xmm, both lanes
+ * Each 32-bit lane then gathers (pshufb) the 4 bytes starting at the value's
+ * first byte, shifts right by its bit offset (vpsrlvd) and masks. W <= 25
+ * keeps bit offset (<= 7) + W within the 32-bit window. Bytes past the
+ * value's last byte are zeroed (index 0x80), so they are never needed and
+ * never mapped outside the loaded pieces.
+ *
+ * The shuffle/shift tables are compile-time constant expressions.
+ * ----------------------------------------------------------------------------
+ */
+#define CQ_BU_B(W, i, k)    ((((i) * (W)) >> 3) + (k))
+#define CQ_BU_NEED(W, i, k) (CQ_BU_B(W, i, k) <= ((((i) * (W)) + (W) - 1) >> 3))
+#define CQ_BU_POS(W, i, k)                                                        \
+    ((W) >= 16 ? ((i) < 4 ? CQ_BU_B(W, i, k) : CQ_BU_B(W, i, k) - ((W) - 16))      \
+   : (W) >= 8  ? (CQ_BU_B(W, i, k) < 8 ? CQ_BU_B(W, i, k) : CQ_BU_B(W, i, k) - (W) + 16) \
+               : (CQ_BU_B(W, i, k) < 4 ? CQ_BU_B(W, i, k) : CQ_BU_B(W, i, k) - (W) + 8))
+#define CQ_BU_IDX(W, i, k)  (CQ_BU_NEED(W, i, k) ? CQ_BU_POS(W, i, k) : 0x80)
+#define CQ_BU_VAL(W, i)     CQ_BU_IDX(W, i, 0), CQ_BU_IDX(W, i, 1), CQ_BU_IDX(W, i, 2), CQ_BU_IDX(W, i, 3)
+#define CQ_BU_SHUF(W)       { CQ_BU_VAL(W, 0), CQ_BU_VAL(W, 1), CQ_BU_VAL(W, 2), CQ_BU_VAL(W, 3), \
+                              CQ_BU_VAL(W, 4), CQ_BU_VAL(W, 5), CQ_BU_VAL(W, 6), CQ_BU_VAL(W, 7) }
+#define CQ_BU_SHIFT(W)      { (0 * (W)) & 7, (1 * (W)) & 7, (2 * (W)) & 7, (3 * (W)) & 7, \
+                              (4 * (W)) & 7, (5 * (W)) & 7, (6 * (W)) & 7, (7 * (W)) & 7 }
+
+#define CQ_BU_MIN_W 5
+#define CQ_BU_MAX_W 25
+
+typedef struct {
+    uint8_t shuf[32];
+    uint32_t shift[8];
+} cq_bu_table_t;
+
+#if defined(_MSC_VER) && !defined(__clang__)
+__declspec(align(32))
+#endif
+static const cq_bu_table_t cq_bu_tables[CQ_BU_MAX_W - CQ_BU_MIN_W + 1]
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((aligned(32)))
+#endif
+    = {
+#define CQ_BU_ENTRY(W) { CQ_BU_SHUF(W), CQ_BU_SHIFT(W) }
+    CQ_BU_ENTRY(5),  CQ_BU_ENTRY(6),  CQ_BU_ENTRY(7),  CQ_BU_ENTRY(8),
+    CQ_BU_ENTRY(9),  CQ_BU_ENTRY(10), CQ_BU_ENTRY(11), CQ_BU_ENTRY(12),
+    CQ_BU_ENTRY(13), CQ_BU_ENTRY(14), CQ_BU_ENTRY(15), CQ_BU_ENTRY(16),
+    CQ_BU_ENTRY(17), CQ_BU_ENTRY(18), CQ_BU_ENTRY(19), CQ_BU_ENTRY(20),
+    CQ_BU_ENTRY(21), CQ_BU_ENTRY(22), CQ_BU_ENTRY(23), CQ_BU_ENTRY(24),
+    CQ_BU_ENTRY(25),
+#undef CQ_BU_ENTRY
+};
+
+static inline uint32_t avx2_load_u32(const uint8_t* p) {
+    uint32_t v;
+    memcpy(&v, p, sizeof(v));
+    return v;
+}
+
+/* W must be a compile-time constant in [CQ_BU_MIN_W, CQ_BU_MAX_W] at every
+ * call site so the piece selection and the table address fold away. */
+static inline void avx2_bitunpack8_generic(const uint8_t* input, uint32_t* values,
+                                           const int W) {
+    const cq_bu_table_t* t = &cq_bu_tables[W - CQ_BU_MIN_W];
+    __m256i data;
+    if (W >= 16) {
+        __m128i lo = _mm_loadu_si128((const __m128i*)input);
+        __m128i hi = _mm_loadu_si128((const __m128i*)(input + W - 16));
+        data = _mm256_inserti128_si256(_mm256_castsi128_si256(lo), hi, 1);
+    } else {
+        __m128i x;
+        if (W >= 8) {
+            x = _mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i*)input),
+                                   _mm_loadl_epi64((const __m128i*)(input + W - 8)));
+        } else {
+            x = _mm_unpacklo_epi32(_mm_cvtsi32_si128((int)avx2_load_u32(input)),
+                                   _mm_cvtsi32_si128((int)avx2_load_u32(input + W - 4)));
+        }
+        data = _mm256_inserti128_si256(_mm256_castsi128_si256(x), x, 1);
+    }
+    __m256i v = _mm256_shuffle_epi8(data, _mm256_load_si256((const __m256i*)t->shuf));
+    v = _mm256_srlv_epi32(v, _mm256_load_si256((const __m256i*)t->shift));
+    v = _mm256_and_si256(v, _mm256_set1_epi32((int)((1u << W) - 1u)));
+    _mm256_storeu_si256((__m256i*)values, v);
+}
+
+/* Per-width entry points: 8 values per call (bitunpack8_u32 slot) and
+ * 32 values per call (wide slot; 4 independent groups, 4*W bytes). */
+#define CQ_DEFINE_BU8(W)                                                                 void carquet_avx2_bitunpack8_##W##bit(const uint8_t* input, uint32_t* values) {          avx2_bitunpack8_generic(input, values, W);                                       }
+#define CQ_DEFINE_BU32(W)                                                                void carquet_avx2_bitunpack32_##W##bit(const uint8_t* input, uint32_t* values) {         avx2_bitunpack8_generic(input,         values,      W);                              avx2_bitunpack8_generic(input + W,     values + 8,  W);                              avx2_bitunpack8_generic(input + 2 * W, values + 16, W);                              avx2_bitunpack8_generic(input + 3 * W, values + 24, W);                          }
+#define CQ_DEFINE_BU(W) CQ_DEFINE_BU8(W) CQ_DEFINE_BU32(W)
+
+/* 5-7 replace the former scalar read_le40/48/56 kernels (MSVC emitted one
+ * load per byte for those); 8 keeps its cvtepu8 kernel for the 8-value slot. */
+CQ_DEFINE_BU(5)  CQ_DEFINE_BU(6)  CQ_DEFINE_BU(7)
+CQ_DEFINE_BU(9)  CQ_DEFINE_BU(10) CQ_DEFINE_BU(11) CQ_DEFINE_BU(12)
+CQ_DEFINE_BU(13) CQ_DEFINE_BU(14) CQ_DEFINE_BU(15)
+CQ_DEFINE_BU(17) CQ_DEFINE_BU(18) CQ_DEFINE_BU(19) CQ_DEFINE_BU(20)
+CQ_DEFINE_BU(21) CQ_DEFINE_BU(22) CQ_DEFINE_BU(23) CQ_DEFINE_BU(24)
+CQ_DEFINE_BU(25)
+#undef CQ_DEFINE_BU
+#undef CQ_DEFINE_BU32
+#undef CQ_DEFINE_BU8
+
+/* 16-bit: 32 values per call (pure zero-extension, 64 bytes). */
+void carquet_avx2_bitunpack32_16bit(const uint8_t* input, uint32_t* values) {
+    for (int j = 0; j < 4; j++) {
+        __m128i words = _mm_loadu_si128((const __m128i*)(input + 16 * j));
+        _mm256_storeu_si256((__m256i*)(values + 8 * j), _mm256_cvtepu16_epi32(words));
+    }
+}
+
+/* 32-bit: values are stored verbatim (little-endian u32). */
+void carquet_avx2_bitunpack8_32bit(const uint8_t* input, uint32_t* values) {
+    _mm256_storeu_si256((__m256i*)values, _mm256_loadu_si256((const __m256i*)input));
 }
 
 /* ============================================================================
@@ -316,15 +401,11 @@ void carquet_avx2_byte_stream_split_decode_float(
 
     /* 8-float fallback using 128-bit ops */
     for (; i + 8 <= count; i += 8) {
-        uint64_t t0, t1, t2, t3;
-        memcpy(&t0, data + 0 * count + i, sizeof(uint64_t));
-        memcpy(&t1, data + 1 * count + i, sizeof(uint64_t));
-        memcpy(&t2, data + 2 * count + i, sizeof(uint64_t));
-        memcpy(&t3, data + 3 * count + i, sizeof(uint64_t));
-        __m128i b0 = _mm_cvtsi64_si128((long long)t0);
-        __m128i b1 = _mm_cvtsi64_si128((long long)t1);
-        __m128i b2 = _mm_cvtsi64_si128((long long)t2);
-        __m128i b3 = _mm_cvtsi64_si128((long long)t3);
+        /* movq loads (unaligned-safe, also available on 32-bit x86) */
+        __m128i b0 = _mm_loadl_epi64((const __m128i*)(data + 0 * count + i));
+        __m128i b1 = _mm_loadl_epi64((const __m128i*)(data + 1 * count + i));
+        __m128i b2 = _mm_loadl_epi64((const __m128i*)(data + 2 * count + i));
+        __m128i b3 = _mm_loadl_epi64((const __m128i*)(data + 3 * count + i));
 
         __m128i lo01 = _mm_unpacklo_epi8(b0, b1);
         __m128i lo23 = _mm_unpacklo_epi8(b2, b3);
@@ -638,8 +719,13 @@ void carquet_avx2_prefix_sum_i64(int64_t* values, int64_t count, int64_t initial
         v = _mm256_add_epi64(v, sums);
         _mm256_storeu_si256((__m256i*)(values + i), v);
 
-        /* Update running sum */
+        /* Update running sum (_mm256_extract_epi64 is x86-64 only) */
+#if defined(__x86_64__) || defined(_M_X64)
         sum = (uint64_t)_mm256_extract_epi64(v, 3);
+#else
+        _mm_storel_epi64((__m128i*)&sum,
+                         _mm_srli_si128(_mm256_extracti128_si256(v, 1), 8));
+#endif
     }
 
     /* Handle remaining values */

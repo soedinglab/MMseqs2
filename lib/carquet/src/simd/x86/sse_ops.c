@@ -11,6 +11,7 @@
 
 #include <carquet/error.h>
 #include "simd/simd_unaligned.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -123,7 +124,9 @@ void carquet_sse_bitunpack8_3bit(const uint8_t* input, uint32_t* values) {
  */
 void carquet_sse_bitunpack32_1bit(const uint8_t* input, uint32_t* values) {
     /* Load 4 bytes and expand */
-    __m128i bytes = _mm_cvtsi32_si128(*(const int32_t*)input);
+    int32_t in32;
+    memcpy(&in32, input, sizeof(in32));  /* input is byte-aligned */
+    __m128i bytes = _mm_cvtsi32_si128(in32);
 
     /* Shuffle to repeat each byte 8 times for masking */
     static const int8_t shuffle_mask[16] = {
@@ -186,7 +189,9 @@ void carquet_sse_bitunpack32_1bit(const uint8_t* input, uint32_t* values) {
  */
 void carquet_sse_bitunpack8_4bit(const uint8_t* input, uint32_t* values) {
     /* Load 4 bytes containing 8 x 4-bit values */
-    __m128i bytes = _mm_cvtsi32_si128(*(const int32_t*)input);
+    int32_t in32;
+    memcpy(&in32, input, sizeof(in32));  /* input is byte-aligned */
+    __m128i bytes = _mm_cvtsi32_si128(in32);
 
     /* Split into low and high nibbles */
     __m128i lo_nibbles = _mm_and_si128(bytes, _mm_set1_epi8(0x0F));
@@ -540,8 +545,13 @@ void carquet_sse_prefix_sum_i64(int64_t* values, int64_t count, int64_t initial)
         v = _mm_add_epi64(v, sums);
         _mm_storeu_si128((__m128i*)(values + i), v);
 
-        /* Update running sum without spilling the whole vector */
+        /* Update running sum without spilling the whole vector
+         * (_mm_extract_epi64 is x86-64 only) */
+#if defined(__x86_64__) || defined(_M_X64)
         sum = (uint64_t)_mm_extract_epi64(v, 1);
+#else
+        _mm_storel_epi64((__m128i*)&sum, _mm_unpackhi_epi64(v, v));
+#endif
     }
 
     /* Handle remaining values */
@@ -1139,6 +1149,43 @@ int64_t carquet_sse_count_non_nulls(const int16_t* def_levels, int64_t count, in
  * Build null bitmap from definition levels using SIMD.
  * Sets bit to 1 if def_levels[i] == max_def_level (present).
  */
+/**
+ * Pack 0/1 levels into a bit array (level i at bit i % 64 of word i / 64),
+ * 16 levels per movemask. Returns false when a level is not 0 or 1; the
+ * words are then unspecified.
+ */
+bool carquet_sse_levels_to_bits(const int16_t* levels, int64_t count, uint64_t* bits) {
+    const __m128i one8 = _mm_set1_epi8(1);
+    const __m128i not_one16 = _mm_set1_epi16((short)0xFFFE);
+    __m128i bad = _mm_setzero_si128();
+    int64_t i = 0;
+    int64_t w = 0;
+    for (; i + 64 <= count; i += 64, w++) {
+        uint64_t word = 0;
+        for (int k = 0; k < 4; k++) {
+            __m128i v0 = _mm_loadu_si128((const __m128i*)(levels + i + 16 * k));
+            __m128i v1 = _mm_loadu_si128((const __m128i*)(levels + i + 16 * k + 8));
+            bad = _mm_or_si128(bad, _mm_and_si128(_mm_or_si128(v0, v1), not_one16));
+            __m128i b = _mm_packs_epi16(v0, v1);
+            uint32_t m = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(b, one8));
+            word |= (uint64_t)m << (16 * k);
+        }
+        bits[w] = word;
+    }
+    uint64_t bad_tail = 0;
+    if (i < count) {
+        uint64_t word = 0;
+        for (int64_t j = 0; i + j < count; j++) {
+            uint16_t v = (uint16_t)levels[i + j];
+            bad_tail |= v & ~1u;
+            word |= (uint64_t)(v & 1u) << j;
+        }
+        bits[w] = word;
+    }
+    return _mm_movemask_epi8(_mm_cmpeq_epi8(bad, _mm_setzero_si128())) == 0xFFFF &&
+           bad_tail == 0;
+}
+
 void carquet_sse_build_null_bitmap(const int16_t* def_levels, int64_t count,
                                     int16_t max_def_level, uint8_t* null_bitmap) {
     int64_t i = 0;

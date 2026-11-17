@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "encoding/plain.h"
 #include "encoding/rle.h"
@@ -24,6 +25,166 @@ extern carquet_status_t carquet_byte_stream_split_decode(
 
 #define TEST_PASS(name) printf("[PASS] %s\n", name)
 #define TEST_FAIL(name, msg) do { printf("[FAIL] %s: %s\n", name, msg); return 1; } while(0)
+
+/* ============================================================================
+ * Level stream differential tests (1-bit levels to a bitmap vs int16)
+ * ============================================================================
+ */
+
+static uint64_t lv_rng_state = 0x9E3779B97F4A7C15ull;
+static uint32_t lv_rand(void) {
+    lv_rng_state ^= lv_rng_state << 13;
+    lv_rng_state ^= lv_rng_state >> 7;
+    lv_rng_state ^= lv_rng_state << 17;
+    return (uint32_t)(lv_rng_state >> 11);
+}
+
+static size_t lv_put_varint(uint8_t* out, size_t pos, uint32_t v) {
+    while (v >= 0x80) {
+        out[pos++] = (uint8_t)(v | 0x80);
+        v >>= 7;
+    }
+    out[pos++] = (uint8_t)v;
+    return pos;
+}
+
+/* A random RLE/bit-packed hybrid stream of `bit_width`-bit values: RLE runs
+ * of 0..300 values (zero-length ones included, long ones with multi-byte
+ * headers) and bit-packed runs of 0..70 groups, with random values. Returns
+ * the byte length; *nvals = values it encodes. Decoders skip a zero-length
+ * RLE run without reading a value: with `malformed`, such a run still gets a
+ * value byte, which the decoders then read as a header (garbage). */
+static size_t lv_make_stream(uint8_t* out, size_t cap, int bit_width, int64_t* nvals,
+                             int dense_bias, bool malformed) {
+    size_t pos = 0;
+    int64_t n = 0;
+    int runs = 1 + (int)(lv_rand() % 40);
+    uint32_t vmask = (1u << bit_width) - 1;
+    for (int r = 0; r < runs; r++) {
+        if (pos + 600 > cap) break;
+        uint32_t kind = lv_rand() % 8;
+        if (kind < 4) {
+            uint32_t len = kind == 0 ? lv_rand() % 3 : (kind == 1 ? 64 + lv_rand() % 240
+                                                                  : 1 + lv_rand() % 63);
+            pos = lv_put_varint(out, pos, len << 1);
+            if (len == 0 && !malformed) continue;
+            uint32_t v = (lv_rand() % 100 < (uint32_t)dense_bias) ? vmask : (lv_rand() & vmask);
+            for (int b = 0; b < (bit_width + 7) / 8; b++) out[pos++] = (uint8_t)(v >> (8 * b));
+            n += len;
+        } else {
+            uint32_t groups = kind == 4 ? lv_rand() % 2 : (kind == 5 ? 64 + lv_rand() % 7
+                                                                     : 1 + lv_rand() % 6);
+            pos = lv_put_varint(out, pos, (groups << 1) | 1);
+            for (uint32_t g = 0; g < groups * (uint32_t)bit_width; g++) {
+                uint8_t byte = (uint8_t)lv_rand();
+                if (bit_width == 1 && (int)(lv_rand() % 100) < dense_bias) byte |= (uint8_t)lv_rand();
+                out[pos++] = byte;
+            }
+            n += (int64_t)groups * 8;
+        }
+    }
+    *nvals = n;
+    return pos;
+}
+
+/* carquet_rle_decode_to_bitmap must agree with carquet_rle_decode_levels at
+ * bit width 1 on every stream: whole, truncated at any byte, and capped at
+ * a max_values below, at or above what the stream holds (counts, bits, the
+ * non-null count, and zero bits past the decoded count). */
+static int test_rle_bitmap_differential(void) {
+    enum { CAP = 32768 };
+    uint8_t* stream = malloc(CAP);
+    int16_t* levels = malloc(CAP * 8 * sizeof(int16_t));
+    uint8_t* bitmap = malloc(CAP + 16);
+    if (!stream || !levels || !bitmap) {
+        free(stream); free(levels); free(bitmap);
+        TEST_FAIL("rle_bitmap_differential", "alloc");
+    }
+    for (int iter = 0; iter < 3000; iter++) {
+        int64_t nvals = 0;
+        size_t len = lv_make_stream(stream, CAP, 1, &nvals, (int)(lv_rand() % 101),
+                                    (iter & 1) != 0);
+        for (int trial = 0; trial < 4; trial++) {
+            size_t in_len = len;
+            if (trial == 1 && len > 0) in_len = lv_rand() % len;   /* truncated */
+            int64_t maxv = nvals;
+            if (trial == 2) maxv = nvals > 0 ? 1 + (int64_t)(lv_rand() % (uint64_t)nvals) : 1;
+            if (trial == 3) maxv = nvals + 1 + (int64_t)(lv_rand() % 17);
+            if (maxv <= 0) maxv = 1;
+            if (maxv > (int64_t)CAP * 8) maxv = (int64_t)CAP * 8;
+
+            int64_t want = carquet_rle_decode_levels(stream, in_len, 1, levels, maxv);
+            /* Garbage in the bitmap: the decoder must clear what it covers. */
+            memset(bitmap, 0xA5, (size_t)(maxv + 7) / 8 + 8);
+            int64_t nn = -1;
+            int64_t got = carquet_rle_decode_to_bitmap(stream, in_len, bitmap, maxv, &nn);
+            if (got != want) {
+                free(stream); free(levels); free(bitmap);
+                TEST_FAIL("rle_bitmap_differential", "decoded count differs");
+            }
+            int64_t ref_nn = 0;
+            for (int64_t i = 0; i < got; i++) {
+                int b = (bitmap[i >> 3] >> (i & 7)) & 1;
+                if (b != levels[i]) {
+                    free(stream); free(levels); free(bitmap);
+                    TEST_FAIL("rle_bitmap_differential", "bit differs from level");
+                }
+                ref_nn += levels[i];
+            }
+            if (got > 0 && nn != ref_nn) {
+                free(stream); free(levels); free(bitmap);
+                TEST_FAIL("rle_bitmap_differential", "non-null count differs");
+            }
+            for (int64_t i = got; i < ((got + 7) & ~(int64_t)7); i++) {
+                if ((bitmap[i >> 3] >> (i & 7)) & 1) {
+                    free(stream); free(levels); free(bitmap);
+                    TEST_FAIL("rle_bitmap_differential", "bit set past the decoded count");
+                }
+            }
+        }
+    }
+    free(stream); free(levels); free(bitmap);
+    TEST_PASS("rle_bitmap_differential");
+    return 0;
+}
+
+/* carquet_rle_decode_levels (int16, with its 1-bit expansion and inline
+ * short-run fill) against the generic uint32 decoder, widths 1..4, on
+ * well-formed streams (the two parse malformed headers differently), whole
+ * or capped by max_values. */
+static int test_rle_levels_vs_generic(void) {
+    enum { CAP = 32768 };
+    uint8_t* stream = malloc(CAP);
+    int16_t* levels = malloc(CAP * 8 * sizeof(int16_t));
+    uint32_t* ref = malloc(CAP * 8 * sizeof(uint32_t));
+    if (!stream || !levels || !ref) {
+        free(stream); free(levels); free(ref);
+        TEST_FAIL("rle_levels_vs_generic", "alloc");
+    }
+    for (int iter = 0; iter < 2000; iter++) {
+        int bw = 1 + iter % 4;
+        int64_t nvals = 0;
+        size_t in_len = lv_make_stream(stream, CAP / 2, bw, &nvals, (int)(lv_rand() % 101),
+                                       false);
+        int64_t maxv = nvals > 0 ? nvals : 1;
+        if (iter % 3 == 0 && nvals > 1) maxv = 1 + (int64_t)(lv_rand() % (uint64_t)nvals);
+        int64_t got = carquet_rle_decode_levels(stream, in_len, bw, levels, maxv);
+        int64_t want = carquet_rle_decode_all(stream, in_len, bw, ref, maxv);
+        if (got != want) {
+            free(stream); free(levels); free(ref);
+            TEST_FAIL("rle_levels_vs_generic", "decoded count differs");
+        }
+        for (int64_t i = 0; i < got; i++) {
+            if ((uint32_t)levels[i] != ref[i]) {
+                free(stream); free(levels); free(ref);
+                TEST_FAIL("rle_levels_vs_generic", "level differs");
+            }
+        }
+    }
+    free(stream); free(levels); free(ref);
+    TEST_PASS("rle_levels_vs_generic");
+    return 0;
+}
 
 /* ============================================================================
  * PLAIN Encoding Tests
@@ -440,6 +601,8 @@ int main(void) {
     failures += test_rle_alternating();
     failures += test_rle_decoder_skip();
     failures += test_rle_levels();
+    failures += test_rle_bitmap_differential();
+    failures += test_rle_levels_vs_generic();
 
     /* BYTE_STREAM_SPLIT FLBA alignment regression */
     failures += test_bss_flba_misaligned();

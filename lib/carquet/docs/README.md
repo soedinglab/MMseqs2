@@ -30,13 +30,14 @@ For runnable code, start with:
 - `carquet_writer_create()`, `carquet_writer_create_file()`, and `carquet_writer_create_buffer()` copy the schema. You can free the schema after writer creation.
 - `carquet_reader_schema()` returns a pointer owned by the reader. It stays valid until `carquet_reader_close()`.
 - `carquet_reader_open_buffer()` does not copy the source buffer. The buffer must stay alive and unchanged for the full reader lifetime.
-- `carquet_writer_get_buffer()` transfers a heap buffer to the caller after `carquet_writer_close()`. Free it with `free()`.
+- `carquet_writer_get_buffer()` transfers a heap buffer to the caller after `carquet_writer_close()` and releases the writer (do not call `carquet_writer_abort()` on it afterwards). Free the buffer with `carquet_free()`: plain `free()` breaks across C runtime heaps on Windows DLL builds and with a custom allocator.
 - For nullable writes, `num_values` is the logical row count, but the `values` array contains only present values packed contiguously.
 - Batch column pointers returned by `carquet_row_batch_column()` and `carquet_row_batch_column_dictionary()` should be treated as valid only until `carquet_row_batch_free()`.
 - All columns in a writer must advance by the same logical row count before `carquet_writer_new_row_group()` or `carquet_writer_close()`.
 
 ## Manual Pages
 
+- [`building.md`](./building.md): `make` targets, CMake and xmake options, Windows toolchains, linking your own codecs, tests and API docs
 - [`reading.md`](./reading.md): opening files, batch reads, low-level column reads, statistics, metadata inspection
 - [`writing.md`](./writing.md): schema creation, required and nullable writes, row groups, metadata, buffer-backed output
 - [`nested-data.md`](./nested-data.md): lists, maps, groups, definition levels, repetition levels, schema introspection

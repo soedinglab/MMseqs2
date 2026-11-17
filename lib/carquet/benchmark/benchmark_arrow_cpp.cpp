@@ -11,8 +11,16 @@
 #include <vector>
 
 #ifdef _WIN32
+/* windows.h's min/max macros break Arrow's std::numeric_limits<>::max() calls. */
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <sys/stat.h>
+#include "bench_purge_win32.h"
 #else
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -36,9 +44,15 @@
 #define BENCH_ITERATIONS_LARGE 11
 #define MAX_BENCH_ITERATIONS 201
 
+/* Null pattern of the nullable datasets. Must match benchmark_carquet.c and
+ * bench_common.null_masks(): lowbias32 hash of (row ^ per-column seed). */
+#define NULL_PERCENT 7
+#define NUM_COLUMNS 3
+
 typedef struct {
     const char* name;
     int rows;
+    bool nullable;
 } dataset_t;
 
 typedef struct {
@@ -48,8 +62,20 @@ typedef struct {
 
 typedef struct {
     int num_rows;
+    bool nullable;
+    int64_t null_counts[NUM_COLUMNS];
     std::shared_ptr<arrow::Table> table;
 } test_data_t;
+
+static bool bench_is_null(uint32_t row, int col) {
+    uint32_t x = row ^ (0x9E3779B9u * static_cast<uint32_t>(col + 1));
+    x ^= x >> 16;
+    x *= 0x7FEB352Du;
+    x ^= x >> 15;
+    x *= 0x846CA68Bu;
+    x ^= x >> 16;
+    return (x % 100u) < NULL_PERCENT;
+}
 
 static int get_benchmark_zstd_level(void) {
     const char* env = std::getenv("CARQUET_BENCH_ZSTD_LEVEL");
@@ -147,6 +173,8 @@ static void purge_file_cache(const char* filename) {
         posix_fadvise(fd, 0, st.st_size, POSIX_FADV_DONTNEED);
     }
     close(fd);
+#elif defined(_WIN32)
+    bench_purge_file_cache_win32(filename);
 #else
     (void)filename;
 #endif
@@ -211,7 +239,7 @@ static bool build_file_reader(const char* filename, bool use_threads,
     return true;
 }
 
-static std::unique_ptr<test_data_t> test_data_create(int num_rows) {
+static std::unique_ptr<test_data_t> test_data_create(int num_rows, bool nullable) {
     std::unique_ptr<arrow::Buffer> ids_buf_tmp;
     std::unique_ptr<arrow::Buffer> values_buf_tmp;
     std::unique_ptr<arrow::Buffer> categories_buf_tmp;
@@ -247,17 +275,47 @@ static std::unique_ptr<test_data_t> test_data_create(int num_rows) {
         categories[i] = static_cast<int32_t>(lcg_rand() % 100u);
     }
 
-    auto ids_array = std::make_shared<arrow::Int64Array>(num_rows, ids_buf);
-    auto values_array = std::make_shared<arrow::DoubleArray>(num_rows, values_buf);
-    auto categories_array = std::make_shared<arrow::Int32Array>(num_rows, categories_buf);
-
     auto td = std::make_unique<test_data_t>();
     td->num_rows = num_rows;
+    td->nullable = nullable;
+
+    /* Nullable datasets: same values plus an Arrow validity bitmap per column
+     * (Arrow's native input; the values under null slots are ignored). */
+    std::shared_ptr<arrow::Buffer> validity[NUM_COLUMNS];
+    for (int c = 0; c < NUM_COLUMNS; ++c) {
+        td->null_counts[c] = 0;
+        if (!nullable) {
+            continue;
+        }
+        std::shared_ptr<arrow::Buffer> bitmap;
+        if (!take_result("Allocate validity bitmap", arrow::AllocateBitmap(num_rows),
+                         &bitmap)) {
+            return nullptr;
+        }
+        uint8_t* bits = bitmap->mutable_data();
+        std::memset(bits, 0, static_cast<size_t>(bitmap->size()));
+        for (int i = 0; i < num_rows; ++i) {
+            if (bench_is_null(static_cast<uint32_t>(i), c)) {
+                td->null_counts[c]++;
+            } else {
+                bits[i >> 3] = static_cast<uint8_t>(bits[i >> 3] | (1u << (i & 7)));
+            }
+        }
+        validity[c] = std::move(bitmap);
+    }
+
+    auto ids_array = std::make_shared<arrow::Int64Array>(
+        num_rows, ids_buf, validity[0], td->null_counts[0]);
+    auto values_array = std::make_shared<arrow::DoubleArray>(
+        num_rows, values_buf, validity[1], td->null_counts[1]);
+    auto categories_array = std::make_shared<arrow::Int32Array>(
+        num_rows, categories_buf, validity[2], td->null_counts[2]);
+
     td->table = arrow::Table::Make(
         arrow::schema({
-            arrow::field("id", arrow::int64(), false),
-            arrow::field("value", arrow::float64(), false),
-            arrow::field("category", arrow::int32(), false),
+            arrow::field("id", arrow::int64(), nullable),
+            arrow::field("value", arrow::float64(), nullable),
+            arrow::field("category", arrow::int32(), nullable),
         }),
         {ids_array, values_array, categories_array},
         num_rows);
@@ -304,6 +362,11 @@ static double benchmark_write(const char* filename, const test_data_t* td,
 
     parquet::WriterProperties::Builder props_builder;
     props_builder.disable_dictionary();
+    if (td->nullable) {
+        /* Nullable datasets: dictionary on `category` only, like carquet's
+         * carquet_writer_set_column_encoding(w, 2, RLE_DICTIONARY). */
+        props_builder.enable_dictionary("category");
+    }
     props_builder.enable_page_checksum();
     props_builder.compression(codec);
 
@@ -352,12 +415,19 @@ static double benchmark_write(const char* filename, const test_data_t* td,
 struct rg_read_result_t {
     int64_t rows;
     int64_t checksum;
+    int64_t nulls[NUM_COLUMNS];
 };
 
+/* OPTIONAL columns (max_definition_level > 0) are read with a def-level
+ * buffer: ReadBatch then returns dense non-null values plus one level per
+ * row, and the nulls are counted from the levels (Arrow's cheapest
+ * low-level form; carquet additionally spaces values and builds a bitmap).
+ * REQUIRED columns take the exact same path as before. */
 static rg_read_result_t read_row_group_lowlevel(
-    const char* filename, int rg_index, int64_t rg_rows, int num_columns) {
+    const char* filename, int rg_index, int64_t rg_rows, int num_columns,
+    bool use_mmap) {
 
-    rg_read_result_t result = {0, 0};
+    rg_read_result_t result = {0, 0, {0, 0, 0}};
 
     parquet::ReaderProperties props = parquet::default_reader_properties();
     props.set_page_checksum_verification(false);
@@ -366,7 +436,7 @@ static rg_read_result_t read_row_group_lowlevel(
 
     std::unique_ptr<parquet::ParquetFileReader> reader;
     try {
-        reader = parquet::ParquetFileReader::OpenFile(filename, true, props);
+        reader = parquet::ParquetFileReader::OpenFile(filename, use_mmap, props);
     } catch (...) {
         return result;
     }
@@ -376,44 +446,68 @@ static rg_read_result_t read_row_group_lowlevel(
     std::vector<int64_t> col0_buf(rg_rows);
     std::vector<double>  col1_buf(rg_rows);
     std::vector<int32_t> col2_buf(rg_rows);
+    std::vector<int16_t> def_buf;
+    int64_t values_total[NUM_COLUMNS] = {0, 0, 0};
 
     for (int col = 0; col < num_columns && col < 3; col++) {
         auto col_reader = rg_reader->Column(col);
+        int16_t max_def = col_reader->descr()->max_definition_level();
+        int16_t* def_levels = nullptr;
+        if (max_def > 0) {
+            def_buf.resize(static_cast<size_t>(rg_rows));
+            def_levels = def_buf.data();
+        }
         int64_t values_read = 0;
         int64_t rows_remaining = rg_rows;
+        int64_t values_offset = 0;
 
         while (col_reader->HasNext() && rows_remaining > 0) {
             int64_t batch;
+            int16_t* defs = def_levels ? def_levels + (rg_rows - rows_remaining) : nullptr;
             if (col == 0) {
                 batch = static_cast<parquet::Int64Reader*>(col_reader.get())
-                    ->ReadBatch(rows_remaining, nullptr, nullptr,
-                                col0_buf.data() + (rg_rows - rows_remaining),
+                    ->ReadBatch(rows_remaining, defs, nullptr,
+                                col0_buf.data() + values_offset,
                                 &values_read);
             } else if (col == 1) {
                 batch = static_cast<parquet::DoubleReader*>(col_reader.get())
-                    ->ReadBatch(rows_remaining, nullptr, nullptr,
-                                col1_buf.data() + (rg_rows - rows_remaining),
+                    ->ReadBatch(rows_remaining, defs, nullptr,
+                                col1_buf.data() + values_offset,
                                 &values_read);
             } else {
                 batch = static_cast<parquet::Int32Reader*>(col_reader.get())
-                    ->ReadBatch(rows_remaining, nullptr, nullptr,
-                                col2_buf.data() + (rg_rows - rows_remaining),
+                    ->ReadBatch(rows_remaining, defs, nullptr,
+                                col2_buf.data() + values_offset,
                                 &values_read);
             }
             rows_remaining -= batch;
+            values_offset += values_read;
+        }
+        values_total[col] = values_offset;
+
+        if (def_levels) {
+            int64_t rows_read = rg_rows - rows_remaining;
+            int64_t nulls = 0;
+            for (int64_t i = 0; i < rows_read; i++) {
+                nulls += def_levels[i] < max_def;
+            }
+            result.nulls[col] = nulls;
         }
     }
 
-    if (rg_rows > 0) {
-        result.checksum += col0_buf[0] + col0_buf[rg_rows - 1];
-        result.checksum += static_cast<int64_t>(col1_buf[0] + col1_buf[rg_rows - 1]);
-        result.checksum += col2_buf[0] + col2_buf[rg_rows - 1];
+    if (values_total[0] > 0) result.checksum += col0_buf[0] + col0_buf[values_total[0] - 1];
+    if (values_total[1] > 0) {
+        result.checksum += static_cast<int64_t>(col1_buf[0] + col1_buf[values_total[1] - 1]);
     }
+    if (values_total[2] > 0) result.checksum += col2_buf[0] + col2_buf[values_total[2] - 1];
     result.rows = rg_rows;
     return result;
 }
 
-static double benchmark_read(const char* filename, int expected_rows) {
+/* Returns the elapsed ms, or -1.0 on failure (including a null count that
+ * does not match expected_nulls when it is given). */
+static double benchmark_read(const char* filename, int expected_rows, bool use_mmap,
+                             const int64_t* expected_nulls) {
     double start = get_time_ms();
 
     /* Open once to read metadata */
@@ -422,7 +516,7 @@ static double benchmark_read(const char* filename, int expected_rows) {
 
     std::unique_ptr<parquet::ParquetFileReader> reader;
     try {
-        reader = parquet::ParquetFileReader::OpenFile(filename, true, props);
+        reader = parquet::ParquetFileReader::OpenFile(filename, use_mmap, props);
     } catch (const std::exception& e) {
         std::fprintf(stderr, "Failed to open %s: %s\n", filename, e.what());
         return -1.0;
@@ -441,6 +535,7 @@ static double benchmark_read(const char* filename, int expected_rows) {
     /* Read row groups in parallel — each opens its own file reader
      * (independent mmap/buffered I/O, matching Carquet's per-slot mmap). */
     int64_t total_rows = 0;
+    int64_t total_nulls[NUM_COLUMNS] = {0, 0, 0};
     volatile int64_t checksum = 0;
 
     if (num_row_groups > 1) {
@@ -454,18 +549,21 @@ static double benchmark_read(const char* filename, int expected_rows) {
         for (int rg = 0; rg < num_row_groups; rg++) {
             futures.push_back(std::async(
                 std::launch::async,
-                read_row_group_lowlevel, filename, rg, rg_sizes[rg], num_columns));
+                read_row_group_lowlevel, filename, rg, rg_sizes[rg], num_columns,
+                use_mmap));
         }
         for (auto& f : futures) {
             auto r = f.get();
             total_rows += r.rows;
             checksum += r.checksum;
+            for (int c = 0; c < NUM_COLUMNS; c++) total_nulls[c] += r.nulls[c];
         }
     } else {
         /* Single row group — read directly, no async overhead */
-        auto r = read_row_group_lowlevel(filename, 0, rg_sizes[0], num_columns);
+        auto r = read_row_group_lowlevel(filename, 0, rg_sizes[0], num_columns, use_mmap);
         total_rows = r.rows;
         checksum = r.checksum;
+        for (int c = 0; c < NUM_COLUMNS; c++) total_nulls[c] = r.nulls[c];
     }
     (void)checksum;
 
@@ -474,10 +572,21 @@ static double benchmark_read(const char* filename, int expected_rows) {
                      static_cast<long long>(total_rows), expected_rows);
     }
 
-    return get_time_ms() - start;
+    double elapsed = get_time_ms() - start;
+    if (expected_nulls) {
+        for (int c = 0; c < NUM_COLUMNS; c++) {
+            if (total_nulls[c] != expected_nulls[c]) {
+                std::fprintf(stderr, "Null count mismatch in column %d of %s: %lld vs %lld\n",
+                             c, filename, static_cast<long long>(total_nulls[c]),
+                             static_cast<long long>(expected_nulls[c]));
+                return -1.0;
+            }
+        }
+    }
+    return elapsed;
 }
 
-static bool run_benchmark(const char* dataset_name, int num_rows,
+static bool run_benchmark(const char* dataset_name, int num_rows, bool nullable,
                           parquet::Compression::type codec,
                           const char* compression_name) {
     char filename[256];
@@ -486,7 +595,7 @@ static bool run_benchmark(const char* dataset_name, int num_rows,
 
     std::printf("\n=== %s (%d rows, %s) ===\n", dataset_name, num_rows, compression_name);
 
-    std::unique_ptr<test_data_t> td = test_data_create(num_rows);
+    std::unique_ptr<test_data_t> td = test_data_create(num_rows, nullable);
     if (!td) {
         std::fprintf(stderr, "Failed to create test data\n");
         return false;
@@ -527,10 +636,11 @@ static bool run_benchmark(const char* dataset_name, int num_rows,
         std::remove(filename);
         return false;
     }
+    const int64_t* expected_nulls = nullable ? td->null_counts : nullptr;
     purge_file_cache(filename);
 
     for (int i = 0; i < WARMUP_ITERATIONS; ++i) {
-        if (benchmark_read(filename, num_rows) <= 0.0) {
+        if (benchmark_read(filename, num_rows, true, expected_nulls) <= 0.0) {
             std::remove(filename);
             return false;
         }
@@ -538,8 +648,28 @@ static bool run_benchmark(const char* dataset_name, int num_rows,
 
     double read_times[MAX_BENCH_ITERATIONS];
     for (int i = 0; i < iters; ++i) {
-        read_times[i] = benchmark_read(filename, num_rows);
+        read_times[i] = benchmark_read(filename, num_rows, true, expected_nulls);
         if (read_times[i] <= 0.0) {
+            std::remove(filename);
+            return false;
+        }
+    }
+
+    /* Same protocol without memory mapping (Arrow's default), after the mmap
+     * pass so that one is unchanged. */
+    purge_file_cache(filename);
+
+    for (int i = 0; i < WARMUP_ITERATIONS; ++i) {
+        if (benchmark_read(filename, num_rows, false, expected_nulls) <= 0.0) {
+            std::remove(filename);
+            return false;
+        }
+    }
+
+    double read_nommap_times[MAX_BENCH_ITERATIONS];
+    for (int i = 0; i < iters; ++i) {
+        read_nommap_times[i] = benchmark_read(filename, num_rows, false, expected_nulls);
+        if (read_nommap_times[i] <= 0.0) {
             std::remove(filename);
             return false;
         }
@@ -547,6 +677,7 @@ static bool run_benchmark(const char* dataset_name, int num_rows,
 
     double write_med = trimmed_median(write_times, iters);
     double read_med = trimmed_median(read_times, iters);
+    double read_nommap_med = trimmed_median(read_nommap_times, iters);
     double rows_per_sec_write = (num_rows / write_med) * 1000.0;
     double rows_per_sec_read = (num_rows / read_med) * 1000.0;
 
@@ -554,11 +685,15 @@ static bool run_benchmark(const char* dataset_name, int num_rows,
                 write_med, rows_per_sec_write / 1e6);
     std::printf("  Read:  %.2f ms (%.2f M rows/sec)\n",
                 read_med, rows_per_sec_read / 1e6);
+    std::printf("  Read (no mmap): %.2f ms (%.2f M rows/sec)\n",
+                read_nommap_med, (num_rows / read_nommap_med) * 1000.0 / 1e6);
     std::printf("  File:  %.2f MB (%.2f bytes/row)\n",
                 file_size / (1024.0 * 1024.0), static_cast<double>(file_size) / num_rows);
 
-    std::printf("CSV:arrow_cpp,%s,%s,%d,%.2f,%.2f,%ld\n",
-                dataset_name, compression_name, num_rows, write_med, read_med, file_size);
+    /* 8th field (read_nommap) is optional for the orchestrator's parser. */
+    std::printf("CSV:arrow_cpp,%s,%s,%d,%.2f,%.2f,%ld,%.2f\n",
+                dataset_name, compression_name, num_rows, write_med, read_med, file_size,
+                read_nommap_med);
 
     /* File is NOT removed here — the orchestrator handles cleanup
      * after cross-read benchmarking is done. */
@@ -621,7 +756,7 @@ static int run_crossread(const char* filename) {
 
     /* Warmup reads */
     for (int i = 0; i < WARMUP_ITERATIONS; ++i) {
-        double t = benchmark_read(filename, expected_rows);
+        double t = benchmark_read(filename, expected_rows, true, nullptr);
         if (t <= 0.0) {
             std::fprintf(stderr, "Warmup read failed for %s\n", filename);
             return 1;
@@ -631,7 +766,7 @@ static int run_crossread(const char* filename) {
     /* Measured reads */
     double read_times[MAX_BENCH_ITERATIONS];
     for (int i = 0; i < iters; ++i) {
-        read_times[i] = benchmark_read(filename, expected_rows);
+        read_times[i] = benchmark_read(filename, expected_rows, true, nullptr);
         if (read_times[i] <= 0.0) {
             std::fprintf(stderr, "Benchmark read failed for %s\n", filename);
             return 1;
@@ -664,10 +799,15 @@ int main(int argc, char* argv[]) {
     }
 
     dataset_t datasets[] = {
-        {"small", 100000},
-        {"medium", 1000000},
-        {"large", 10000000},
-        {"xlarge", 100000000}
+        {"small", 100000, false},
+        {"medium", 1000000, false},
+        {"large", 10000000, false},
+        {"xlarge", 100000000, false},
+        /* OPTIONAL columns, ~NULL_PERCENT % nulls, dictionary on category */
+        {"small_nullable", 100000, true},
+        {"medium_nullable", 1000000, true},
+        {"large_nullable", 10000000, true},
+        {"xlarge_nullable", 100000000, true}
     };
     int num_datasets = sizeof(datasets) / sizeof(datasets[0]);
 
@@ -684,19 +824,20 @@ int main(int argc, char* argv[]) {
         int c = find_compression(argv[2], compressions, num_compressions);
         if (d < 0 || c < 0) {
             std::fprintf(stderr, "Usage: %s [dataset] [compression]\n", argv[0]);
-            std::fprintf(stderr, "  datasets:     small, medium, large, xlarge\n");
+            std::fprintf(stderr, "  datasets:     small, medium, large, xlarge (+ _nullable)\n");
             std::fprintf(stderr, "  compressions: none, snappy, zstd, lz4\n");
             return 1;
         }
-        return run_benchmark(datasets[d].name, datasets[d].rows,
+        return run_benchmark(datasets[d].name, datasets[d].rows, datasets[d].nullable,
                              compressions[c].codec, compressions[c].name) ? 0 : 1;
     }
 
     std::printf("Arrow C++ Benchmark\n");
 
     for (int d = 0; d < num_datasets; ++d) {
+        if (datasets[d].nullable) continue;  /* opt-in: pass "<size>_nullable <codec>" */
         for (int c = 0; c < num_compressions; ++c) {
-            if (!run_benchmark(datasets[d].name, datasets[d].rows,
+            if (!run_benchmark(datasets[d].name, datasets[d].rows, datasets[d].nullable,
                                compressions[c].codec, compressions[c].name)) {
                 return 1;
             }

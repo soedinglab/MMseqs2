@@ -5,6 +5,7 @@
 
 #include "core/allocator.h"
 #include "core/compat.h"
+#include "core/file_io.h"
 #include <carquet/carquet.h>
 #include "reader_internal.h"
 #include "thrift/parquet_types.h"
@@ -181,8 +182,12 @@ static bool compute_levels(
     int16_t* max_def,
     int16_t* max_rep,
     int32_t* leaf_indices,
-    int32_t* parent_indices) {
+    int32_t* parent_indices,
+    int32_t* leaves_visited,
+    int32_t* elements_visited) {
 
+    *leaves_visited = 0;
+    *elements_visited = num_elements;
     if (num_elements <= 1) {
         return true;  /* Empty or root-only schema */
     }
@@ -220,6 +225,8 @@ static bool compute_levels(
         next_idx = traverse_schema_recursive(&ctx, next_idx, 0, 0, 0, 1);
     }
 
+    *leaves_visited = ctx.leaf_idx;
+    *elements_visited = next_idx;
     return !ctx.depth_exceeded;
 }
 
@@ -250,13 +257,53 @@ carquet_schema_t* build_schema(
         return NULL;
     }
 
+    int32_t leaves_visited = 0;
+    int32_t elements_visited = 0;
     if (!compute_levels(schema->elements, schema->num_elements,
                         schema->max_def_levels, schema->max_rep_levels,
-                        schema->leaf_indices, schema->parent_indices)) {
+                        schema->leaf_indices, schema->parent_indices,
+                        &leaves_visited, &elements_visited)) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_SCHEMA,
                           "Schema nesting exceeds maximum depth of %d",
                           CARQUET_MAX_SCHEMA_DEPTH);
         return NULL;
+    }
+
+    /* The num_children counts must describe exactly the flat element list.
+     * Otherwise some leaves are never reached by the walk and keep a zeroed
+     * leaf_indices slot, i.e. they alias the root element with levels 0. */
+    if (schema->num_elements > 1 &&
+        (leaves_visited != schema->num_leaves ||
+         elements_visited != schema->num_elements)) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_SCHEMA,
+                          "Schema tree is inconsistent: num_children covers %d "
+                          "of %d elements (%d of %d leaves)",
+                          elements_visited, schema->num_elements,
+                          leaves_visited, schema->num_leaves);
+        return NULL;
+    }
+
+    /* Leaf type sanity: an FLBA width drives every value-size computation,
+     * and FLOAT16 consumers read exactly 2 bytes per value. */
+    for (int32_t c = 0; c < schema->num_leaves; c++) {
+        const parquet_schema_element_t* leaf =
+            &schema->elements[schema->leaf_indices[c]];
+        bool is_flba = leaf->has_type &&
+                       leaf->type == CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY;
+        if (is_flba && leaf->type_length <= 0) {
+            CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_SCHEMA,
+                              "Column %d: FIXED_LEN_BYTE_ARRAY with invalid "
+                              "type_length %d", c, leaf->type_length);
+            return NULL;
+        }
+        if (leaf->has_logical_type &&
+            leaf->logical_type.id == CARQUET_LOGICAL_FLOAT16 &&
+            !(is_flba && leaf->type_length == 2)) {
+            CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_SCHEMA,
+                              "Column %d: FLOAT16 requires "
+                              "FIXED_LEN_BYTE_ARRAY(2)", c);
+            return NULL;
+        }
     }
 
     /* Recover Arrow per-field custom_metadata (variable labels/descriptions)
@@ -306,6 +353,15 @@ static carquet_status_t read_footer(carquet_reader_t* reader, carquet_error_t* e
     int64_t file_size = carquet_ftell64(reader->file);
     if (file_size < 0) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to get file size");
+        return CARQUET_ERROR_FILE_READ;
+    }
+    /* file_size and every bounds check against it are size_t. On a 32-bit
+     * build a file over SIZE_MAX would be truncated here, so the footer would
+     * be looked for at the wrong offset and chunk offsets beyond 4 GiB could
+     * alias into the checked range. Refuse it instead. */
+    if ((uint64_t)file_size > (uint64_t)SIZE_MAX) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ,
+            "File too large for this platform (%lld bytes)", (long long)file_size);
         return CARQUET_ERROR_FILE_READ;
     }
     reader->file_size = (size_t)file_size;
@@ -501,6 +557,7 @@ carquet_reader_t* carquet_reader_open(
     }
 
     reader->prebuffer.row_group = -1;
+    reader->prebuffer.file_offset = -1;
 
     carquet_status_t status;
 
@@ -533,7 +590,7 @@ carquet_reader_t* carquet_reader_open(
     }
 
     /* Standard fread path */
-    FILE* file = fopen(path, "rb");
+    FILE* file = carquet_fopen(path, "rb");
     if (!file) {
         carquet_arena_destroy(&reader->arena);
         carquet_mem_free(reader);
@@ -543,6 +600,7 @@ carquet_reader_t* carquet_reader_open(
 
     reader->file = file;
     reader->owns_file = true;
+    reader->positional_io = carquet_file_supports_pread(file);
 
     /* Read and parse footer */
     status = read_footer(reader, error);
@@ -584,6 +642,7 @@ carquet_reader_t* carquet_reader_open_file(
     }
 
     reader->prebuffer.row_group = -1;
+    reader->prebuffer.file_offset = -1;
     reader->file = file;
     reader->owns_file = false;  /* Caller retains ownership of the FILE handle */
 
@@ -635,6 +694,21 @@ carquet_status_t carquet_get_file_info(
     return CARQUET_OK;
 }
 
+/* Read exactly `size` bytes at `offset` from the reader's file. A reader
+ * with positional I/O must never go through fseek + fread once it is open:
+ * column readers load pages with positional reads from other threads, and on
+ * Windows those move the handle's file pointer (ReadFile with an offset on a
+ * synchronous handle) behind the C stream's back, so a later fread would
+ * return bytes from the wrong place. */
+static bool reader_file_read_at(carquet_reader_t* reader, void* buf, size_t size,
+                                int64_t offset) {
+    if (reader->positional_io) {
+        return carquet_file_pread(reader->file, buf, size, offset) == size;
+    }
+    return carquet_fseek64(reader->file, offset, SEEK_SET) == 0 &&
+           fread(buf, 1, size, reader->file) == size;
+}
+
 carquet_status_t carquet_validate_file(
     const char* path,
     carquet_error_t* error) {
@@ -657,6 +731,26 @@ carquet_status_t carquet_validate_file(
     if (!reader) {
         if (error) *error = local;
         return local.code;
+    }
+
+    /* The fread open path reads only the file tail (a single speculative
+     * I/O), so it never sees the leading magic; the buffer and mmap paths do
+     * check it. A validator must not accept a file without "PAR1" up front. */
+    {
+        uint8_t head[PARQUET_MAGIC_LEN] = {0};
+        bool have_head = false;
+        if (reader->mmap_data) {
+            memcpy(head, reader->mmap_data, PARQUET_MAGIC_LEN);  /* size >= 12 */
+            have_head = true;
+        } else if (reader->file) {
+            have_head = reader_file_read_at(reader, head, PARQUET_MAGIC_LEN, 0);
+        }
+        if (!have_head || memcmp(head, PARQUET_MAGIC, PARQUET_MAGIC_LEN) != 0) {
+            CARQUET_SET_ERROR(&local, CARQUET_ERROR_INVALID_MAGIC, "Invalid header magic");
+            if (error) *error = local;
+            carquet_reader_close(reader);
+            return CARQUET_ERROR_INVALID_MAGIC;
+        }
     }
 
     carquet_status_t result = CARQUET_OK;
@@ -841,32 +935,33 @@ carquet_status_t carquet_reader_prebuffer(
 
     size_t total_size = (size_t)(max_end - min_offset);
 
-    /* Release previous prebuffer if any */
-    carquet_reader_release_prebuffer(reader);
-
-    /* Allocate and read the coalesced range */
-    uint8_t* buf = carquet_mem_malloc(total_size);
-    if (!buf) {
-        CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY,
-            /* %llu, not %zu: the MinGW/msvcrt printf has no z length modifier. */
-            "Failed to allocate prebuffer (%llu bytes)",
-            (unsigned long long)total_size);
-        return CARQUET_ERROR_OUT_OF_MEMORY;
+    /* Reuse the previous buffer when the new range fits: a row-group-by-row-
+     * group scan then allocates (and page-faults in) the buffer once instead
+     * of once per row group. The old range is invalidated first so a failed
+     * read below never leaves a stale cache behind. */
+    reader->prebuffer.file_offset = -1;
+    reader->prebuffer.size = 0;
+    reader->prebuffer.row_group = -1;
+    if (total_size > reader->prebuffer.capacity) {
+        /* free + malloc, not realloc: the old contents are not needed. */
+        carquet_mem_free(reader->prebuffer.data);
+        reader->prebuffer.capacity = 0;
+        reader->prebuffer.data = carquet_mem_malloc(total_size);
+        if (!reader->prebuffer.data) {
+            CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY,
+                /* %llu, not %zu: the MinGW/msvcrt printf has no z length modifier. */
+                "Failed to allocate prebuffer (%llu bytes)",
+                (unsigned long long)total_size);
+            return CARQUET_ERROR_OUT_OF_MEMORY;
+        }
+        reader->prebuffer.capacity = total_size;
     }
 
-    if (carquet_fseek64(reader->file, (int64_t)min_offset, SEEK_SET) != 0) {
-        carquet_mem_free(buf);
-        CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_SEEK, "Failed to seek for prebuffer");
-        return CARQUET_ERROR_FILE_SEEK;
-    }
-
-    if (fread(buf, 1, total_size, reader->file) != total_size) {
-        carquet_mem_free(buf);
+    if (!reader_file_read_at(reader, reader->prebuffer.data, total_size, (int64_t)min_offset)) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to read prebuffer data");
         return CARQUET_ERROR_FILE_READ;
     }
 
-    reader->prebuffer.data = buf;
     reader->prebuffer.file_offset = min_offset;
     reader->prebuffer.size = total_size;
     reader->prebuffer.row_group = row_group_index;
@@ -875,13 +970,12 @@ carquet_status_t carquet_reader_prebuffer(
 }
 
 void carquet_reader_release_prebuffer(carquet_reader_t* reader) {
-    if (reader->prebuffer.data) {
-        carquet_mem_free(reader->prebuffer.data);
-        reader->prebuffer.data = NULL;
-        reader->prebuffer.file_offset = 0;
-        reader->prebuffer.size = 0;
-        reader->prebuffer.row_group = -1;
-    }
+    carquet_mem_free(reader->prebuffer.data);
+    reader->prebuffer.data = NULL;
+    reader->prebuffer.capacity = 0;
+    reader->prebuffer.file_offset = -1;
+    reader->prebuffer.size = 0;
+    reader->prebuffer.row_group = -1;
 }
 
 /* ============================================================================
@@ -991,11 +1085,146 @@ void carquet_column_reader_free(carquet_column_reader_t* reader) {
 
     /* Levels are always owned (decoded from RLE) */
     carquet_mem_free(reader->decoded_def_levels);
+    carquet_mem_free(reader->decoded_def_bits);
     carquet_mem_free(reader->decoded_rep_levels);
     carquet_mem_free(reader->indices_buffer);
     carquet_mem_free(reader->decompress_buffer);
     carquet_mem_free(reader->scratch_def_levels);
     carquet_mem_free(reader);
+}
+
+/* ============================================================================
+ * Column Reader Reset (reuse across row groups)
+ * ============================================================================
+ */
+
+void carquet_column_reader_rebind(
+    carquet_column_reader_t* col_reader,
+    carquet_reader_t* file_reader,
+    int32_t row_group_index,
+    int32_t column_index,
+    bool preserve_dictionaries) {
+
+    const parquet_row_group_t* rg = &file_reader->metadata.row_groups[row_group_index];
+
+    col_reader->row_group_index = row_group_index;
+    col_reader->column_index = column_index;
+    col_reader->preserve_dictionary = false;
+
+    if (!rg->columns || column_index >= rg->num_columns) {
+        col_reader->chunk = NULL;
+        col_reader->col_meta = NULL;
+        col_reader->values_remaining = 0;
+        return;
+    }
+
+    col_reader->chunk = &rg->columns[column_index];
+    if (!col_reader->chunk->has_metadata) {
+        col_reader->col_meta = NULL;
+        col_reader->values_remaining = 0;
+        return;
+    }
+    col_reader->col_meta = &col_reader->chunk->metadata;
+
+    /* Decide dictionary preservation up front, before any page is loaded.
+     * Pages are pre-loaded (and decoded/sized) ahead of the read phase, so the
+     * decode width (physical value vs. 4-byte index) must be fixed now; keying
+     * off has_dictionary instead would only flip after the first load and
+     * desync the buffer width from the copy width.
+     *
+     * Never preserve for repeated (nested) columns: the nested reconstruction
+     * path (read_nested_list_column) and the list/dictionary public APIs only
+     * understand materialized physical values, not the 4-byte preserved index
+     * stream. Leaving it on would make that path read 16-byte carquet_byte_array_t
+     * structs out of a buffer holding uint32_t indices — wild pointers and an
+     * out-of-bounds read on export. */
+    col_reader->preserve_dictionary =
+        preserve_dictionaries && col_reader->col_meta->has_dictionary_page_offset &&
+        col_reader->max_rep_level == 0;
+
+    /* Reset reading state */
+    col_reader->values_remaining = col_reader->col_meta->num_values;
+    col_reader->data_start_offset = col_reader->col_meta->data_page_offset;
+    col_reader->current_page = 0;
+    col_reader->page_loaded = false;
+    col_reader->page_num_values = 0;
+    col_reader->page_values_read = 0;
+    col_reader->page_header_size = 0;
+    col_reader->page_compressed_size = 0;
+
+    /* Dictionary may differ between row groups - must reload */
+    if (col_reader->has_dictionary) {
+        if (col_reader->dictionary_ownership == CARQUET_DATA_OWNED) {
+            carquet_mem_free(col_reader->dictionary_data);
+        }
+        carquet_mem_free(col_reader->dictionary_offsets);
+        col_reader->dictionary_data = NULL;
+        col_reader->dictionary_offsets = NULL;
+        col_reader->dictionary_size = 0;
+        col_reader->dictionary_count = 0;
+        col_reader->dictionary_ownership = CARQUET_DATA_OWNED;
+        col_reader->has_dictionary = false;
+    }
+
+    /* If decoded_values is a VIEW (mmap pointer), don't free - just clear */
+    if (col_reader->decoded_ownership == CARQUET_DATA_VIEW) {
+        col_reader->decoded_values = NULL;
+        col_reader->decoded_capacity = 0;
+    }
+    col_reader->decoded_ownership = CARQUET_DATA_OWNED;
+
+    /* Free BYTE_ARRAY page data retention list */
+    carquet_column_clear_retained_pages(col_reader);
+
+    col_reader->dense_cursor_pos = -1;
+    col_reader->dense_cursor_val = 0;
+
+    /* Keep reusable buffers: page_buffer, decoded_values, decoded_def_levels,
+     * decoded_rep_levels, indices_buffer, decompress_buffer, scratch levels.
+     * These will be reused on the next page load. */
+}
+
+
+carquet_status_t carquet_column_reader_reset(
+    carquet_column_reader_t* reader,
+    int32_t row_group_index,
+    carquet_error_t* error) {
+
+    carquet_reader_t* file_reader = reader->file_reader;
+    if (!carquet_reader_row_group_index_valid(file_reader, row_group_index)) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_ROW_GROUP_NOT_FOUND,
+            "Row group %d not found", row_group_index);
+        return CARQUET_ERROR_ROW_GROUP_NOT_FOUND;
+    }
+
+    const parquet_row_group_t* rg = &file_reader->metadata.row_groups[row_group_index];
+    int32_t column_index = reader->column_index;
+    if (!rg->columns || column_index >= rg->num_columns) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_COLUMN_NOT_FOUND,
+            "Column %d not in row group", column_index);
+        return CARQUET_ERROR_COLUMN_NOT_FOUND;
+    }
+    const parquet_column_chunk_t* chunk = &rg->columns[column_index];
+    if (!chunk->has_metadata) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_NOT_IMPLEMENTED,
+            "External column metadata not supported");
+        return CARQUET_ERROR_NOT_IMPLEMENTED;
+    }
+    /* Same guard as carquet_reader_get_column(): the decode width comes from
+     * reader->type, fixed at creation, so a row group whose chunk claims a
+     * different physical type must be rejected rather than misdecoded. */
+    if (chunk->metadata.type != reader->type) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_METADATA,
+            "Column %d physical type in row group %d (%d) does not match "
+            "schema type (%d)", column_index, row_group_index,
+            (int)chunk->metadata.type, (int)reader->type);
+        return CARQUET_ERROR_INVALID_METADATA;
+    }
+
+    /* Public column readers always materialize values (preserve = false). */
+    carquet_column_reader_rebind(reader, file_reader, row_group_index,
+                                 column_index, false);
+    return CARQUET_OK;
 }
 
 bool carquet_column_has_next(const carquet_column_reader_t* reader) {
@@ -1125,7 +1354,7 @@ static carquet_status_t reader_read_bytes(
 
     /* Bounds check */
     if (offset < 0 || offset > INT64_MAX - (int64_t)size ||
-        (size_t)offset > reader->file_size ||
+        (uint64_t)offset > (uint64_t)reader->file_size ||
         (size_t)size > reader->file_size - (size_t)offset) {
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ,
             "Read at offset %lld size %d exceeds file size %lld",
@@ -1152,14 +1381,7 @@ static carquet_status_t reader_read_bytes(
         return CARQUET_ERROR_OUT_OF_MEMORY;
     }
 
-    if (carquet_fseek64(reader->file, (int64_t)offset, SEEK_SET) != 0) {
-        carquet_mem_free(buf);
-        CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_SEEK,
-            "Failed to seek to offset %lld", (long long)offset);
-        return CARQUET_ERROR_FILE_SEEK;
-    }
-
-    if (fread(buf, 1, (size_t)size, reader->file) != (size_t)size) {
+    if (!reader_file_read_at(reader, buf, (size_t)size, (int64_t)offset)) {
         carquet_mem_free(buf);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ,
             "Failed to read %d bytes at offset %lld", size, (long long)offset);

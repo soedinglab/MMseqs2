@@ -374,7 +374,7 @@ static int test_stats_numeric_signed(void) {
     carquet_writer_t* writer = carquet_writer_create(path, schema, &opts, &err);
     if (!writer) { carquet_schema_free(schema); TEST_FAIL(tname, "writer create"); }
 
-    int32_t i32[] = {  10, -7, 100, -2147483648, 0, 2147483647 };
+    int32_t i32[] = {  10, -7, 100, INT32_MIN, 0, INT32_MAX };
     int64_t i64[] = { 1000, -1, 0, INT64_MIN, INT64_MAX, 42 };
     float   f32[] = { 1.5f, -3.25f, 0.0f, -0.0f, 100.0f, -100.5f };
     double  f64[] = { 1e10, -1e10, 0.0, 0.5, -0.5, 7.0 };

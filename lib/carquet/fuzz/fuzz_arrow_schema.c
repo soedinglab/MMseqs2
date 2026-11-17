@@ -7,6 +7,10 @@
  * FlatBuffer reader to recover per-field custom_metadata. This target drives
  * that reader with arbitrary bytes.
  *
+ * The same blob also goes through carquet_arrow_stored_schema(), the full
+ * IPC Schema -> ArrowSchema decoder behind the Arrow stream's type restore
+ * (arrow_restore.c), and the decoded schema is deep-copied and released.
+ *
  * The fuzz input is base64-encoded here and handed to the parser, so the
  * decoded FlatBuffer buffer is exactly the fuzz bytes — libFuzzer gets direct
  * control over every offset, vtable and vector span the reader walks.
@@ -17,7 +21,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <carquet/carquet.h>
+
 #include "reader/arrow_schema_read.h"
+#include "reader/reader_internal.h"
 #include "thrift/parquet_types.h"
 #include "core/arena.h"
 
@@ -68,6 +75,13 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (carquet_arena_init(&arena) != CARQUET_OK) { free(b64); return 0; }
 
     carquet_apply_arrow_field_metadata(b64, elems, 4, parents, &arena);
+
+    struct ArrowSchema stored;
+    if (carquet_arrow_stored_schema(b64, &stored) == CARQUET_OK) {
+        struct ArrowSchema copy;
+        if (carquet_arrow_schema_copy(&stored, &copy) == CARQUET_OK) copy.release(&copy);
+        stored.release(&stored);
+    }
 
     carquet_arena_destroy(&arena);
     free(b64);

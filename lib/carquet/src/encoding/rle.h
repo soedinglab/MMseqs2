@@ -246,6 +246,18 @@ carquet_status_t carquet_rle_encode_levels(
     int bit_width,
     carquet_buffer_t* output);
 
+/**
+ * carquet_rle_encode_levels, also reporting how many levels are 1 when that
+ * comes for free: *num_ones is set for a 1-bit stream of 0/1 levels encoded
+ * on the bit-array path, and to -1 otherwise (count them yourself).
+ */
+carquet_status_t carquet_rle_encode_levels_counted(
+    const int16_t* input,
+    int64_t count,
+    int bit_width,
+    carquet_buffer_t* output,
+    int64_t* num_ones);
+
 /* ============================================================================
  * Level Decoding with Prefix Length
  * ============================================================================
@@ -284,10 +296,14 @@ int64_t carquet_rle_decode_levels_prefixed(
  *
  * @param input Input RLE data (no length prefix)
  * @param input_size Size of input data
- * @param bitmap Output bitmap (must be pre-allocated, (max_values+7)/8 bytes)
+ * @param bitmap Output bitmap: (max_values+7)/8 bytes plus 8 bytes of slack
+ *               (zeroed with the rest: short runs are written as one 64-bit
+ *               read-modify-write)
  * @param max_values Maximum values to decode
  * @param non_null_count Output: number of non-null values decoded
- * @return Number of values decoded, or -1 on error
+ * @return Number of values decoded (short of max_values on a truncated or
+ *         malformed stream, exactly as carquet_rle_decode_levels at bit
+ *         width 1)
  */
 int64_t carquet_rle_decode_to_bitmap(
     const uint8_t* input,
