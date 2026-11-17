@@ -114,18 +114,29 @@ carquet_status_t carquet_delta_strings_decode_lengths(
     }
     if (status == CARQUET_OK) {
         pos += consumed;
-        size_t total = 0, total_suffix = 0;
+        /* Validate as reconstruction will consume them: the first prefix is
+         * 0, each prefix fits in the previous value, the suffixes fit in the
+         * page. Then every value is at most total_suffix (<= data_size) bytes
+         * long and the running total can be bounded without wrapping, even
+         * with a 32-bit size_t. The total is capped at INT32_MAX: reachable
+         * otherwise with tiny pages (bit-width-0 delta runs of maximal
+         * prefixes), and the Arrow export cannot address more anyway. */
+        size_t total = 0, total_suffix = 0, prev_len = 0;
+        size_t suffix_avail = data_size - pos;
         for (int32_t i = 0; i < num_values; i++) {
-            if (prefix_lengths[i] < 0 || suffix_lengths[i] < 0) {
+            if (prefix_lengths[i] < 0 || suffix_lengths[i] < 0 ||
+                (size_t)prefix_lengths[i] > prev_len ||
+                (size_t)suffix_lengths[i] > suffix_avail - total_suffix) {
                 status = CARQUET_ERROR_DECODE;
                 break;
             }
-            total += (size_t)prefix_lengths[i] + (size_t)suffix_lengths[i];
             total_suffix += (size_t)suffix_lengths[i];
-        }
-        /* The suffix payload must be present in the page. */
-        if (status == CARQUET_OK && total_suffix > data_size - pos) {
-            status = CARQUET_ERROR_DECODE;
+            prev_len = (size_t)prefix_lengths[i] + (size_t)suffix_lengths[i];
+            if (prev_len > (size_t)INT32_MAX - total) {
+                status = CARQUET_ERROR_DECODE;
+                break;
+            }
+            total += prev_len;
         }
         if (status == CARQUET_OK) {
             *prefix_out = prefix_lengths;

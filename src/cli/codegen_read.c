@@ -293,7 +293,7 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
         const carquet_schema_node_t* node = carquet_schema_get_element(schema,
             schema->leaf_indices[c]);
         carquet_physical_type_t phys = carquet_schema_column_type(schema, c);
-        bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+        bool nullable = carquet_schema_max_def_level(schema, c) > 0;
         int32_t tl = carquet_schema_node_type_length(node);
         const char* ctype = c_type_for(phys);
         char ident[128];
@@ -320,9 +320,7 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
         /* Suppress unused-parameter warnings for all column args */
         for (int32_t c = 0; c < num_cols; c++) {
             if (!include[c]) continue;
-            const carquet_schema_node_t* node = carquet_schema_get_element(schema,
-                schema->leaf_indices[c]);
-            bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+            bool nullable = carquet_schema_max_def_level(schema, c) > 0;
             char ident[128];
             sanitize_ident(carquet_schema_column_name(schema, c), ident, sizeof(ident));
             if (nullable)
@@ -337,9 +335,7 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
 
         for (int32_t c = 0; c < num_cols; c++) {
             if (!include[c]) continue;
-            const carquet_schema_node_t* node = carquet_schema_get_element(schema,
-                schema->leaf_indices[c]);
-            bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+            bool nullable = carquet_schema_max_def_level(schema, c) > 0;
             if (nullable) {
                 char ident[128];
                 sanitize_ident(carquet_schema_column_name(schema, c), ident, sizeof(ident));
@@ -355,14 +351,14 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
             const carquet_schema_node_t* node = carquet_schema_get_element(schema,
                 schema->leaf_indices[c]);
             carquet_physical_type_t phys = carquet_schema_column_type(schema, c);
-            bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+            bool nullable = carquet_schema_max_def_level(schema, c) > 0;
             int32_t tl = carquet_schema_node_type_length(node);
             char ident[128];
             sanitize_ident(carquet_schema_column_name(schema, c), ident, sizeof(ident));
             const char* sep = col_printed > 0 ? "\\t" : "";
 
             if (nullable) {
-                int16_t max_def = carquet_schema_node_max_def_level(node);
+                int16_t max_def = carquet_schema_max_def_level(schema, c);
                 emit(out,
                     "        if (%s_def[i] < %d) {\n"
                     "            printf(\"%s\");\n"
@@ -503,7 +499,7 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
         const carquet_schema_node_t* node = carquet_schema_get_element(schema, schema->leaf_indices[c]);
         carquet_physical_type_t phys = carquet_schema_column_type(schema, c);
         const carquet_logical_type_t* lt = carquet_schema_node_logical_type(node);
-        bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+        bool nullable = carquet_schema_max_def_level(schema, c) > 0;
         int32_t tl = carquet_schema_node_type_length(node);
         const char* ctype = c_type_for(phys);
         char ident[128], desc[128];
@@ -546,8 +542,7 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
     bool first_col = true;
     for (int32_t c = 0; c < num_cols; c++) {
         if (!include[c]) continue;
-        const carquet_schema_node_t* node = carquet_schema_get_element(schema, schema->leaf_indices[c]);
-        bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+        bool nullable = carquet_schema_max_def_level(schema, c) > 0;
         char ident[128], def_arg[140];
         sanitize_ident(carquet_schema_column_name(schema, c), ident, sizeof(ident));
         snprintf(def_arg, sizeof(def_arg), nullable ? "%s_def" : "NULL", ident);
@@ -571,8 +566,7 @@ int cmd_codegen_read(FILE* out, carquet_reader_t* reader,
     emit(out, "            process_batch(rg, batch_offset, count,\n");
     for (int32_t c = 0; c < num_cols; c++) {
         if (!include[c]) continue;
-        const carquet_schema_node_t* node = carquet_schema_get_element(schema, schema->leaf_indices[c]);
-        bool nullable = carquet_schema_node_repetition(node) != CARQUET_REPETITION_REQUIRED;
+        bool nullable = carquet_schema_max_def_level(schema, c) > 0;
         char ident[128];
         sanitize_ident(carquet_schema_column_name(schema, c), ident, sizeof(ident));
         emit(out, "                %s_buf,\n", ident);

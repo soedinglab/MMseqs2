@@ -39,7 +39,7 @@ jobs:
       matrix:
         # Native runners only: the C library picks its SIMD sources from the
         # host architecture and the tests need to run on the built wheel.
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-14, macos-15-intel, windows-2022]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel, windows-2022]
     steps:
       - uses: actions/checkout@v7
 
@@ -54,7 +54,7 @@ jobs:
           # essentials so the workflow is readable on its own.
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "*-musllinux_* *_i686 *-win32 pp*"
-          CIBW_TEST_REQUIRES: pytest pyarrow
+          CIBW_TEST_REQUIRES: pytest pyarrow numpy
           CIBW_TEST_COMMAND: pytest {project}/python/tests
           # glibc 2.28 images (AlmaLinux 8): gcc toolset + git for FetchContent.
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
@@ -87,7 +87,7 @@ jobs:
       # exercise).
       - name: Smoke-build a wheel from the sdist
         run: |
-          python -m pip install pytest pyarrow
+          python -m pip install pytest pyarrow numpy
           python -m pip install dist/*.tar.gz -v
           python -m pytest python/tests -q
 

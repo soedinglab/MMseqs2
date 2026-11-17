@@ -462,14 +462,14 @@ static uint64_t zigzag_encode64(int64_t n) {
     return ((uint64_t)n << 1) ^ (n >> 63);
 }
 
+/* Not a `while (value > 0) { width++; value >>= 1; }` loop: MSVC 19.44
+ * (VS 2022 17.14) for 32-bit x86 at /O1 and /O2 miscompiles that exact idiom
+ * on a uint64_t, returning width - 32 for any value >= 2^32. Wide delta
+ * mini-blocks were then packed with a too-narrow bit width, silently
+ * corrupting INT64 DELTA_BINARY_PACKED data written by 32-bit Windows builds.
+ * carquet_bit_width64 (clz-based) is unaffected and faster anyway. */
 static int bit_width_required(uint64_t value) {
-    if (value == 0) return 0;
-    int width = 0;
-    while (value > 0) {
-        width++;
-        value >>= 1;
-    }
-    return width;
+    return carquet_bit_width64(value);
 }
 
 static carquet_status_t delta_encoder_init(delta_encoder_t* enc,

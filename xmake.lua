@@ -11,7 +11,7 @@
 -- Enable optional pieces individually, e.g. `xmake f --tests=y --fuzz=y`.
 
 set_project("carquet")
-set_version("0.7.2")
+set_version("0.8.0")
 -- gnu11, not strict c11: matches CMake's `set(CMAKE_C_STANDARD 11)` (GNU
 -- extensions stay on by default). Under strict -std=c11 the POSIX feature-test
 -- macros are off, so functions like strdup/posix_memalign aren't declared and
@@ -85,6 +85,12 @@ option("avx512")
     on_check(function (option)
         if not is_arch("x86_64", "x64", "i386", "x86") then return end
         if not option:enabled() then return end
+        -- avx512_ops.c is x86-64 only (64-bit mask / bit-scan intrinsics).
+        if is_arch("i386", "x86") then
+            option:enable(false)
+            cprint("${yellow}32-bit x86 target — disabling AVX-512${clear}")
+            return
+        end
         local ok, has = pcall(function ()
             import("lib.detect.check_cxsnippets")
             return check_cxsnippets({[[
@@ -162,7 +168,9 @@ end
 -- To link the host's system libraries instead (like CMake's find_package path),
 -- drop {system = false} — xmake then prefers an installed zstd/zlib/lz4.
 add_requires("zstd 1.5.6", {system = false, configs = {shared = false}})
-add_requires("zlib 1.3.1", {system = false, configs = {shared = false}})
+-- zlib 1.4 (security fixes, #40) is not in xmake-repo yet: "v1.4" resolves
+-- through the package's git URL to the upstream tag (static, same sources).
+add_requires("zlib v1.4", {system = false, configs = {shared = false}})
 add_requires("lz4 1.10.0", {system = false, configs = {shared = false}})
 if has_config("brotli") then
     add_requires("brotli 1.1.0", {system = false, configs = {shared = false}})
@@ -183,6 +191,8 @@ target("carquet")
     -- Public API headers propagate to every dependent; src/ stays private.
     add_includedirs("include", {public = true})
     add_includedirs("src")
+    -- `xmake install` copies these to <prefix>/include/carquet/ (CMake: install(DIRECTORY include/carquet)).
+    add_headerfiles("include/(carquet/*.h)")
 
     add_packages("zstd", "zlib", "lz4", {public = true})
     if has_config("brotli") then
@@ -317,6 +327,16 @@ target("carquet")
     if is_plat("linux", "macosx", "bsd") then
         add_syslinks("m", "pthread", {public = true})
     end
+
+    -- Fuzz builds: coverage-instrument (and sanitize) the library itself, not
+    -- only the harnesses, or libFuzzer sees no library edges (mirrors
+    -- fuzz/CMakeLists.txt). AFL's compiler wrapper instruments everything.
+    if has_config("fuzz") and (get_config("fuzz_engine") or "libFuzzer") == "libFuzzer" then
+        add_cflags("-fsanitize=fuzzer-no-link")
+        if get_config("fuzz_sanitizers") ~= false then
+            add_cflags("-fsanitize=address", "-fsanitize=undefined", "-fno-omit-frame-pointer")
+        end
+    end
 target_end()
 
 --------------------------------------------------------------------------------
@@ -380,14 +400,15 @@ if want("tests") then
         "test_production", "test_maturity", "test_large_schema",
         "test_edge_encodings", "test_edge_compression", "test_edge_malformed",
         "test_edge_boundaries", "test_edge_io", "test_nested",
-        "test_bloom_page_index", "test_mmap", "test_advanced_api",
+        "test_bloom_page_index", "test_mmap", "test_advanced_api", "test_dictionary_fallback",
         "test_encoding_roundtrip", "test_writer_extensions", "test_bitunpack_wide",
-        "test_page_filter", "test_append", "test_row_range", "test_dict_decode",
+        "test_page_filter", "test_append", "test_row_range", "test_batch_pipeline", "test_dict_decode",
         "test_decimal_stats", "test_arrow_dictionary", "test_snappy_diag", "test_parallel_write",
         "test_float16", "test_geo_wkb", "test_worker_pool", "test_custom_codec",
-        "test_real_world", "test_arrow_c_data", "test_batch_nested",
+        "test_real_world", "test_arrow_c_data", "test_arrow_stream", "test_batch_nested",
         "test_nested_write", "test_arrow_nested", "test_p2_conformance",
-        "test_cli_format", "test_fixes_0_7_2",
+        "test_cli_format", "test_fixes_0_7_2", "test_fixes_0_7_4", "test_fixes_0_8_0", "test_compat_0_8_0", "test_security_hardening",
+        "test_fuzz_regressions",
     }
     -- Tests that link extra non-library sources (the CLI helpers live in the
     -- carquet_cli target, not in libcarquet).
@@ -484,6 +505,7 @@ if has_config("cli") then
             "src/cli/codegen.c",
             "src/cli/codegen_read.c",
             "src/cli/codegen_write.c")
+        if is_plat("windows", "mingw") then add_syslinks("shell32") end  -- CommandLineToArgvW
         if GCC_LIKE then add_cflags("-Wno-unused-result") end
     target_end()
 end
@@ -516,7 +538,8 @@ if has_config("fuzz") then
         "fuzz_reader", "fuzz_compression", "fuzz_encodings", "fuzz_thrift",
         "fuzz_roundtrip", "fuzz_writer", "fuzz_page_filter", "fuzz_append",
         "fuzz_arrow_schema", "fuzz_arrow_c_data", "fuzz_nested_write",
-        "fuzz_arrow_read",
+        "fuzz_arrow_read", "fuzz_reader_file", "fuzz_arrow_write",
+        "fuzz_arrow_stream",
     }
     for _, f in ipairs(fuzzers) do
         target(f)

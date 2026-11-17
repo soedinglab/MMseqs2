@@ -25,6 +25,7 @@
 #include <stdbool.h>
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 
 #define NUM_ROWS 20
 
@@ -329,7 +330,9 @@ static void explain_definition_levels(void) {
 }
 
 int main(int argc, char* argv[]) {
-    const char* filename = "/tmp/example_nullable.parquet";
+    char default_path[1024];
+    example_temp_path(default_path, sizeof(default_path), "example_nullable.parquet");
+    const char* filename = default_path;
 
     printf("=== Carquet Nullable Columns Example ===\n");
     printf("Library version: %s\n\n", carquet_version());

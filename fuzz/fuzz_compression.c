@@ -2,7 +2,8 @@
  * @file fuzz_compression.c
  * @brief Fuzz target for carquet compression codecs
  *
- * Tests all 4 compression codecs (Snappy, LZ4, GZIP, ZSTD) with:
+ * Tests the compression codecs (Snappy, LZ4_RAW, GZIP, ZSTD, BROTLI and the
+ * Hadoop-framed LZ4 used by the deprecated LZ4 codec id) with:
  *   - Decompression of arbitrary (likely invalid) data
  *   - Compress-then-decompress roundtrip verification
  *   - Decompression with undersized output buffer
@@ -67,6 +68,27 @@ int carquet_gzip_compress(
     uint8_t* dst, size_t dst_capacity, size_t* dst_size, int level);
 size_t carquet_gzip_compress_bound(size_t src_size);
 
+/* BROTLI (src/compression/brotli.c): stubs returning UNSUPPORTED_CODEC when
+ * built without libbrotli, so the target links either way. */
+int carquet_brotli_decompress(
+    const uint8_t* src, size_t src_size,
+    uint8_t* dst, size_t dst_capacity, size_t* dst_size);
+int carquet_brotli_compress(
+    const uint8_t* src, size_t src_size,
+    uint8_t* dst, size_t dst_capacity, size_t* dst_size, int level);
+size_t carquet_brotli_compress_bound(size_t src_size);
+
+/* Hadoop-framed LZ4 (deprecated LZ4 codec id, src/compression/lz4.c). */
+carquet_status_t carquet_lz4_hadoop_decompress(
+    const uint8_t* src, size_t src_size,
+    uint8_t* dst, size_t dst_capacity, size_t* dst_size);
+carquet_status_t carquet_lz4_hadoop_compress(
+    const uint8_t* src, size_t src_size,
+    uint8_t* dst, size_t dst_capacity, size_t* dst_size);
+size_t carquet_lz4_hadoop_compress_bound(size_t src_size);
+
+#define NUM_CODECS 6
+
 /**
  * Decompress arbitrary data — tests robustness against malformed streams.
  */
@@ -97,6 +119,8 @@ static void fuzz_decompress(int codec, const uint8_t* data, size_t size) {
         case 1: (void)carquet_lz4_decompress(data, size, dst, dst_capacity, &dst_size); break;
         case 2: (void)carquet_gzip_decompress(data, size, dst, dst_capacity, &dst_size); break;
         case 3: (void)carquet_zstd_decompress(data, size, dst, dst_capacity, &dst_size); break;
+        case 4: (void)carquet_brotli_decompress(data, size, dst, dst_capacity, &dst_size); break;
+        case 5: (void)carquet_lz4_hadoop_decompress(data, size, dst, dst_capacity, &dst_size); break;
     }
     free(dst);
 }
@@ -113,8 +137,11 @@ static void fuzz_compress_roundtrip(int codec, const uint8_t* data, size_t size)
         case 1: comp_cap = carquet_lz4_compress_bound(size); break;
         case 2: comp_cap = carquet_gzip_compress_bound(size); break;
         case 3: comp_cap = carquet_zstd_compress_bound(size); break;
+        case 4: comp_cap = carquet_brotli_compress_bound(size); break;
+        case 5: comp_cap = carquet_lz4_hadoop_compress_bound(size); break;
         default: return;
     }
+    if (comp_cap == 0) return;  /* codec compiled out (BROTLI stub) */
 
     uint8_t* compressed = malloc(comp_cap);
     if (!compressed) return;
@@ -126,6 +153,9 @@ static void fuzz_compress_roundtrip(int codec, const uint8_t* data, size_t size)
         case 1: status = carquet_lz4_compress(data, size, compressed, comp_cap, &comp_size); break;
         case 2: status = carquet_gzip_compress(data, size, compressed, comp_cap, &comp_size, 6); break;
         case 3: status = carquet_zstd_compress(data, size, compressed, comp_cap, &comp_size, 1); break;
+        /* Low quality keeps the fuzzer fast; quality 11 is ~100x slower. */
+        case 4: status = carquet_brotli_compress(data, size, compressed, comp_cap, &comp_size, 1 + (int)(data[0] % 4)); break;
+        case 5: status = carquet_lz4_hadoop_compress(data, size, compressed, comp_cap, &comp_size); break;
         default: free(compressed); return;
     }
 
@@ -139,6 +169,8 @@ static void fuzz_compress_roundtrip(int codec, const uint8_t* data, size_t size)
                 case 1: dec_status = carquet_lz4_decompress(compressed, comp_size, decompressed, size, &dec_size); break;
                 case 2: dec_status = carquet_gzip_decompress(compressed, comp_size, decompressed, size, &dec_size); break;
                 case 3: dec_status = carquet_zstd_decompress(compressed, comp_size, decompressed, size, &dec_size); break;
+                case 4: dec_status = carquet_brotli_decompress(compressed, comp_size, decompressed, size, &dec_size); break;
+                case 5: dec_status = carquet_lz4_hadoop_decompress(compressed, comp_size, decompressed, size, &dec_size); break;
                 default: dec_status = -1; break;
             }
             if (dec_status == 0 && (dec_size != size || memcmp(data, decompressed, size) != 0)) {
@@ -162,6 +194,8 @@ static void fuzz_decompress_small_buffer(int codec, const uint8_t* data, size_t 
         case 1: (void)carquet_lz4_decompress(data, size, dst, sizeof(dst), &dst_size); break;
         case 2: (void)carquet_gzip_decompress(data, size, dst, sizeof(dst), &dst_size); break;
         case 3: (void)carquet_zstd_decompress(data, size, dst, sizeof(dst), &dst_size); break;
+        case 4: (void)carquet_brotli_decompress(data, size, dst, sizeof(dst), &dst_size); break;
+        case 5: (void)carquet_lz4_hadoop_decompress(data, size, dst, sizeof(dst), &dst_size); break;
     }
 }
 
@@ -169,9 +203,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 2) return 0;
     (void)carquet_init();
 
-    /* High nibble = mode (0-2), low nibble = codec (0-3) */
+    /* High nibble = mode (0-2), low nibble = codec (0..NUM_CODECS-1):
+     * 0 snappy, 1 lz4_raw, 2 gzip, 3 zstd, 4 brotli, 5 lz4 (hadoop-framed). */
     uint8_t mode = (data[0] >> 4) & 0x03;
-    int codec = data[0] & 0x03;
+    int codec = (data[0] & 0x0F) % NUM_CODECS;
     const uint8_t* payload = data + 1;
     size_t payload_size = size - 1;
 

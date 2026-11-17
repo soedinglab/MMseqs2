@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include "reader_internal.h"  /* struct carquet_schema, struct carquet_reader */
+#include "arrow_leaf.h"
 
 /* ============================================================================
  * Release callbacks (producer allocates with malloc, consumer releases)
@@ -42,6 +43,11 @@ static void release_schema(struct ArrowSchema* s) {
         if (s->children[i]) { if (s->children[i]->release) s->children[i]->release(s->children[i]); free(s->children[i]); }
     }
     free(s->children);
+    /* Set by the ARROW:schema restore (arrow_restore.c) on a dictionary field. */
+    if (s->dictionary) {
+        if (s->dictionary->release) s->dictionary->release(s->dictionary);
+        free(s->dictionary);
+    }
     s->release = NULL; s->private_data = NULL;
 }
 static void release_array(struct ArrowArray* a) {
@@ -103,62 +109,49 @@ static int32_t count_leaves(const carquet_schema_t* cs, int32_t e) {
     return total;
 }
 
+static bool elem_repeated(const carquet_schema_t* cs, int32_t e) {
+    return cs->elements[e].repetition_type == CARQUET_REPETITION_REPEATED;
+}
+
+/* Element of LIST group `e`, following the format's backward-compatibility
+ * rules (LogicalTypes.md, "Lists"). Standard three-level lists give the single
+ * child of the repeated group (*legacy = false). In the legacy shapes the
+ * repeated node is itself the element, and is required (*legacy = true): a
+ * repeated primitive, a repeated group with several fields, with one repeated
+ * field, or named "array" / "<list name>_tuple". */
+static bool list_shape(const carquet_schema_t* cs, int32_t e, int32_t* elem, bool* legacy) {
+    int32_t rep[2];
+    if (elem_children(cs, e, rep, 2) != 1) return false;
+    const parquet_schema_element_t* r = &cs->elements[rep[0]];
+    if (r->has_type) {
+        if (r->repetition_type != CARQUET_REPETITION_REPEATED) return false;
+        *elem = rep[0]; *legacy = true;
+        return true;
+    }
+    int32_t kid[2];
+    int32_t nk = elem_children(cs, rep[0], kid, 2);
+    if (nk < 1) return false;
+    bool struct_name = false;
+    const char* ln = cs->elements[e].name;
+    if (r->name) {
+        size_t n = ln ? strlen(ln) : 0;
+        struct_name = strcmp(r->name, "array") == 0 ||
+                      (ln && strncmp(r->name, ln, n) == 0 && strcmp(r->name + n, "_tuple") == 0);
+    }
+    if (nk > 1 || struct_name || elem_repeated(cs, kid[0])) {
+        *elem = rep[0]; *legacy = true;
+        return true;
+    }
+    *elem = kid[0]; *legacy = false;
+    return true;
+}
+
 /* Map a leaf element index to its leaf column ordinal (-1 if not a leaf). */
 static int32_t elem_to_leaf(const carquet_schema_t* cs, int32_t e) {
     for (int32_t l = 0; l < cs->num_leaves; l++) {
         if (cs->leaf_indices[l] == e) return l;
     }
     return -1;
-}
-
-/* ============================================================================
- * Carquet type -> Arrow format string
- * ============================================================================
- */
-static carquet_status_t arrow_format_string(
-    carquet_physical_type_t pt, int32_t type_length,
-    const carquet_logical_type_t* lt, char* buf, size_t buf_size) {
-
-    carquet_logical_type_id_t lid = lt ? lt->id : CARQUET_LOGICAL_UNKNOWN;
-    switch (pt) {
-    case CARQUET_PHYSICAL_BOOLEAN: snprintf(buf, buf_size, "b"); return CARQUET_OK;
-    case CARQUET_PHYSICAL_INT32:
-        if (lid == CARQUET_LOGICAL_DATE) snprintf(buf, buf_size, "tdD");
-        else if (lid == CARQUET_LOGICAL_TIME) snprintf(buf, buf_size, "ttm");
-        else if (lid == CARQUET_LOGICAL_INTEGER) {
-            int bw = lt->params.integer.bit_width; bool s = lt->params.integer.is_signed;
-            if (bw == 8) snprintf(buf, buf_size, s ? "c" : "C");
-            else if (bw == 16) snprintf(buf, buf_size, s ? "s" : "S");
-            else snprintf(buf, buf_size, s ? "i" : "I");
-        } else snprintf(buf, buf_size, "i");
-        return CARQUET_OK;
-    case CARQUET_PHYSICAL_INT64:
-        if (lid == CARQUET_LOGICAL_TIMESTAMP) {
-            char u = lt->params.timestamp.unit == CARQUET_TIME_UNIT_MILLIS ? 'm'
-                   : lt->params.timestamp.unit == CARQUET_TIME_UNIT_MICROS ? 'u' : 'n';
-            snprintf(buf, buf_size, "ts%c:%s", u, lt->params.timestamp.is_adjusted_to_utc ? "UTC" : "");
-        } else if (lid == CARQUET_LOGICAL_TIME) {
-            char u = lt->params.time.unit == CARQUET_TIME_UNIT_MICROS ? 'u' : 'n';
-            snprintf(buf, buf_size, "tt%c", u);
-        } else if (lid == CARQUET_LOGICAL_INTEGER) {
-            snprintf(buf, buf_size, lt->params.integer.is_signed ? "l" : "L");
-        } else snprintf(buf, buf_size, "l");
-        return CARQUET_OK;
-    case CARQUET_PHYSICAL_INT96: snprintf(buf, buf_size, "w:12"); return CARQUET_OK;
-    case CARQUET_PHYSICAL_FLOAT: snprintf(buf, buf_size, "f"); return CARQUET_OK;
-    case CARQUET_PHYSICAL_DOUBLE: snprintf(buf, buf_size, "g"); return CARQUET_OK;
-    case CARQUET_PHYSICAL_BYTE_ARRAY:
-        if (lid == CARQUET_LOGICAL_STRING || lid == CARQUET_LOGICAL_ENUM || lid == CARQUET_LOGICAL_JSON)
-            snprintf(buf, buf_size, "u");
-        else snprintf(buf, buf_size, "z");
-        return CARQUET_OK;
-    case CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY:
-        if (lid == CARQUET_LOGICAL_FLOAT16) snprintf(buf, buf_size, "e");
-        else { if (type_length <= 0) return CARQUET_ERROR_INVALID_ARGUMENT;
-               snprintf(buf, buf_size, "w:%d", type_length); }
-        return CARQUET_OK;
-    default: return CARQUET_ERROR_NOT_IMPLEMENTED;
-    }
 }
 
 /* ============================================================================
@@ -193,13 +186,27 @@ static carquet_status_t schema_node(const carquet_schema_t* cs, int32_t e,
     out->release = release_schema;
     if (!out->name) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
 
+    if (!force_nonnull && elem_repeated(cs, e)) {
+        /* A repeated field outside a LIST / MAP group: a required list of
+         * required elements, the element being the field itself. */
+        out->flags = 0;
+        out->format = c_strdup("+l");
+        if (!out->format) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
+        if (schema_alloc_children(out, 1) != CARQUET_OK) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
+        out->children[0] = new_schema_child();
+        if (!out->children[0]) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
+        carquet_status_t st = schema_node(cs, e, NULL, true, out->children[0]);
+        if (st != CARQUET_OK) { release_schema(out); return st; }
+        return CARQUET_OK;
+    }
+
     switch (elem_kind(cs, e)) {
     case K_LEAF: {
-        char fmt[32];
+        carquet_arrow_leaf_t plan;
         const carquet_logical_type_t* lt = el->has_logical_type ? &el->logical_type : NULL;
-        carquet_status_t st = arrow_format_string(el->type, el->type_length, lt, fmt, sizeof(fmt));
+        carquet_status_t st = carquet_arrow_leaf_plan(el->type, el->type_length, lt, &plan);
         if (st != CARQUET_OK) { release_schema(out); return st; }
-        out->format = c_strdup(fmt);
+        out->format = c_strdup(plan.format);
         if (!out->format) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
         return CARQUET_OK;
     }
@@ -217,17 +224,16 @@ static carquet_status_t schema_node(const carquet_schema_t* cs, int32_t e,
         return CARQUET_OK;
     }
     case K_LIST: {
-        /* list group -> repeated "list" group -> element */
+        /* list group -> repeated "list" group -> element, or a legacy shape
+         * whose repeated node is the element (see list_shape) */
         out->format = c_strdup("+l");
         if (!out->format) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
-        int32_t rep[4]; int32_t nr = elem_children(cs, e, rep, 4);
-        if (nr != 1) { release_schema(out); return CARQUET_ERROR_INVALID_ARGUMENT; }
-        int32_t elem[4]; int32_t ne = elem_children(cs, rep[0], elem, 4);
-        if (ne != 1) { release_schema(out); return CARQUET_ERROR_INVALID_ARGUMENT; }
+        int32_t elem; bool legacy;
+        if (!list_shape(cs, e, &elem, &legacy)) { release_schema(out); return CARQUET_ERROR_INVALID_ARGUMENT; }
         if (schema_alloc_children(out, 1) != CARQUET_OK) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
         out->children[0] = new_schema_child();
         if (!out->children[0]) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
-        carquet_status_t st = schema_node(cs, elem[0], "element", false, out->children[0]);
+        carquet_status_t st = schema_node(cs, elem, legacy ? NULL : "element", legacy, out->children[0]);
         if (st != CARQUET_OK) { release_schema(out); return st; }
         return CARQUET_OK;
     }
@@ -239,6 +245,19 @@ static carquet_status_t schema_node(const carquet_schema_t* cs, int32_t e,
         int32_t kv[4]; int32_t nkv = elem_children(cs, e, kv, 4);
         if (nkv != 1) { release_schema(out); return CARQUET_ERROR_INVALID_ARGUMENT; }
         int32_t pair[4]; int32_t np = elem_children(cs, kv[0], pair, 4);
+        if (np == 1) {
+            /* A MAP without a value column (a set): a list of its keys, as
+             * Arrow C++ reads it. */
+            free((void*)out->format);
+            out->format = c_strdup("+l");
+            if (!out->format) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
+            if (schema_alloc_children(out, 1) != CARQUET_OK) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
+            out->children[0] = new_schema_child();
+            if (!out->children[0]) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
+            carquet_status_t st1 = schema_node(cs, pair[0], NULL, true, out->children[0]);
+            if (st1 != CARQUET_OK) { release_schema(out); return st1; }
+            return CARQUET_OK;
+        }
         if (np != 2) { release_schema(out); return CARQUET_ERROR_INVALID_ARGUMENT; }
         if (schema_alloc_children(out, 1) != CARQUET_OK) { release_schema(out); return CARQUET_ERROR_OUT_OF_MEMORY; }
         struct ArrowSchema* entries = new_schema_child();
@@ -286,6 +305,35 @@ carquet_status_t carquet_arrow_build_schema_tree(
     return CARQUET_OK;
 }
 
+carquet_status_t carquet_arrow_schema_select_children(
+    struct ArrowSchema* schema, const int32_t* keep, int32_t n) {
+    if (!schema || !schema->release || n < 0 || n > schema->n_children || (n && !keep))
+        return CARQUET_ERROR_INVALID_ARGUMENT;
+    int64_t old_n = schema->n_children;
+    struct ArrowSchema** old = schema->children;
+    struct ArrowSchema** kept = n ? (struct ArrowSchema**)calloc((size_t)n, sizeof(void*)) : NULL;
+    if (n && !kept) return CARQUET_ERROR_OUT_OF_MEMORY;
+    for (int32_t i = 0; i < n; i++) {
+        if (keep[i] < 0 || keep[i] >= old_n || !old[keep[i]]) { free(kept); return CARQUET_ERROR_INVALID_ARGUMENT; }
+        for (int32_t j = 0; j < i; j++) {
+            if (keep[j] == keep[i]) { free(kept); return CARQUET_ERROR_INVALID_ARGUMENT; }
+        }
+        kept[i] = old[keep[i]];
+    }
+    for (int64_t i = 0; i < old_n; i++) {
+        bool used = false;
+        for (int32_t j = 0; j < n && !used; j++) used = (keep[j] == i);
+        if (!used && old[i]) {
+            if (old[i]->release) old[i]->release(old[i]);
+            free(old[i]);
+        }
+    }
+    free(old);
+    schema->children = kept;
+    schema->n_children = n;
+    return CARQUET_OK;
+}
+
 /* ============================================================================
  * Leaf reading
  * ============================================================================
@@ -296,12 +344,7 @@ typedef struct {
     int64_t  nslots;
     int16_t  max_def;
     int16_t  max_rep;
-    carquet_physical_type_t pt;
-    int32_t  type_length;
-    size_t   stride;        /* fixed-width byte stride; 0 for byte array */
-    size_t   narrow;        /* Arrow element width for INTEGER(8|16), else 0 */
-    bool     is_bool;
-    bool     is_bytearray;
+    carquet_arrow_leaf_t plan;  /* Arrow mapping; plan.src_width = value stride */
     void*    values;        /* dense present values */
     int64_t  present;       /* count(def == max_def) */
     carquet_column_reader_t* cr;
@@ -312,29 +355,6 @@ typedef struct {
  * ============================================================================
  */
 
-/* Arrow value width of an INT32 column annotated INTEGER(8|16): the schema
- * exports it as int8/uint8/int16/uint16, so the values buffer must hold 1- or
- * 2-byte elements rather than carquet's 4-byte physical values. 0 otherwise. */
-static size_t arrow_narrow_int_width(carquet_physical_type_t pt,
-                                     const carquet_logical_type_t* lt) {
-    if (pt != CARQUET_PHYSICAL_INT32 || !lt || lt->id != CARQUET_LOGICAL_INTEGER) return 0;
-    if (lt->params.integer.bit_width == 8) return 1;
-    if (lt->params.integer.bit_width == 16) return 2;
-    return 0;
-}
-
-/* Truncate `n` INT32 values to `width`-byte elements (two's complement, so the
- * same code serves the signed and unsigned Arrow types). */
-static void arrow_narrow_int_store(uint8_t* dst, const uint8_t* src_i32, size_t width) {
-    int32_t v;
-    memcpy(&v, src_i32, sizeof(v));
-    if (width == 1) {
-        dst[0] = (uint8_t)v;
-    } else {
-        uint16_t t = (uint16_t)v;
-        memcpy(dst, &t, sizeof(t));
-    }
-}
 typedef struct {
     const carquet_schema_t* cs;
     rleaf_t* leaves;        /* [num_leaves] */
@@ -383,10 +403,23 @@ static carquet_status_t build_leaf(rctx_t* ctx, int32_t leaf_col, int16_t exist_
 
     int64_t null_count = 0;
     uint8_t* validity = build_validity(present, len, &null_count);
+    /* A REQUIRED leaf is a non-nullable Arrow field: under a null ancestor
+     * struct its slots hold a zero / empty value, not a null (a field declared
+     * non-nullable that contains nulls is refused by Arrow consumers, e.g.
+     * pyarrow.parquet.write_table). */
+    if (null_count > 0 && !elem_nullable(ctx->cs, ctx->cs->leaf_indices[leaf_col])) {
+        free(validity);
+        validity = NULL;
+        null_count = 0;
+    }
     a->null_count = null_count;
 
     carquet_status_t rc = CARQUET_OK;
-    if (L->is_bytearray) {
+    if (L->plan.kind == CARQUET_ARROW_LEAF_NULL) {
+        free(validity);
+        a->null_count = len;
+        a->n_buffers = 0;
+    } else if (L->plan.kind == CARQUET_ARROW_LEAF_BINARY) {
         const carquet_byte_array_t* src = (const carquet_byte_array_t*)L->values;
         int64_t total = 0;
         for (int64_t i = 0; i < L->present; i++) total += src[i].length;
@@ -406,7 +439,7 @@ static carquet_status_t build_leaf(rctx_t* ctx, int32_t leaf_col, int16_t exist_
         offs[len] = pos;
         bufs[0] = validity; bufs[1] = offs; bufs[2] = data;
         a->n_buffers = 3; a->buffers = bufs;
-    } else if (L->is_bool) {
+    } else if (L->plan.kind == CARQUET_ARROW_LEAF_BOOL) {
         size_t bytes = (size_t)((len + 7) / 8); if (bytes == 0) bytes = 1;
         uint8_t* data = (uint8_t*)calloc(bytes, 1);
         const void** bufs = (const void**)malloc(2 * sizeof(void*));
@@ -419,8 +452,9 @@ static carquet_status_t build_leaf(rctx_t* ctx, int32_t leaf_col, int16_t exist_
         bufs[0] = validity; bufs[1] = data;
         a->n_buffers = 2; a->buffers = bufs;
     } else {
-        size_t stride = L->stride;
-        size_t ostride = L->narrow ? L->narrow : stride;
+        size_t stride = L->plan.src_width;
+        size_t ostride = L->plan.dst_width;
+        if (!stride || !ostride) { rc = CARQUET_ERROR_INVALID_ARGUMENT; goto fail; }
         uint8_t* data = (uint8_t*)calloc((size_t)(len > 0 ? len : 1) * ostride, 1);
         const void** bufs = (const void**)malloc(2 * sizeof(void*));
         if (!data || !bufs) { free(data); free(bufs); rc = CARQUET_ERROR_OUT_OF_MEMORY; goto fail; }
@@ -428,11 +462,11 @@ static carquet_status_t build_leaf(rctx_t* ctx, int32_t leaf_col, int16_t exist_
         int64_t vc = 0;
         for (int64_t i = 0; i < len; i++) {
             if (!present[i]) continue;
-            if (L->narrow) {
-                arrow_narrow_int_store(data + (size_t)i * ostride,
-                                       src + (size_t)vc * stride, ostride);
-            } else {
-                memcpy(data + (size_t)i * stride, src + (size_t)vc * stride, stride);
+            if (!carquet_arrow_leaf_store(&L->plan, data + (size_t)i * ostride,
+                                          src + (size_t)vc * stride)) {
+                free(data); free(bufs);
+                rc = CARQUET_ERROR_DECODE;   /* DECIMAL wider than its precision */
+                goto fail;
             }
             vc++;
         }
@@ -460,6 +494,11 @@ fail:
 static carquet_status_t build_node(rctx_t* ctx, int32_t e, int16_t def_in,
                                    int16_t exist, int16_t rd, int32_t base,
                                    struct ArrowArray** out);
+/* `forced`: build `e` as a required, non-repeated node: the element of a
+ * legacy list shape (see list_shape) or of an unannotated repeated field. */
+static carquet_status_t build_node_as(rctx_t* ctx, int32_t e, bool forced, int16_t def_in,
+                                      int16_t exist, int16_t rd, int32_t base,
+                                      struct ArrowArray** out);
 
 /* Build a struct-shaped node with an explicit child element list. Used for
  * plain structs and for a map's synthetic "entries" struct (children = the
@@ -516,11 +555,13 @@ static carquet_status_t build_struct_like(rctx_t* ctx, const int32_t* kids, int3
     return CARQUET_OK;
 }
 
-/* Build a list/map node. For a list, `child_e` is the element element index;
- * for a map, `map_pair` holds the {key, value} element indices. */
+/* Build a list/map node. For a list, `child_e` is the element element index
+ * (`child_forced`: it is the repeated node itself); for a map, `map_pair`
+ * holds the {key, value} element indices. */
 static carquet_status_t build_list_like(rctx_t* ctx, bool nullable, int16_t def_in,
                                         int16_t exist, int16_t rd, int32_t base,
-                                        int32_t child_e, const int32_t* map_pair,
+                                        int32_t child_e, bool child_forced,
+                                        const int32_t* map_pair,
                                         struct ArrowArray** out) {
     rleaf_t* rep_leaf = &ctx->leaves[base];
     int16_t dpres = (int16_t)(def_in + (nullable ? 1 : 0));
@@ -575,7 +616,8 @@ static carquet_status_t build_list_like(rctx_t* ctx, bool nullable, int16_t def_
         st = build_struct_like(ctx, map_pair, 2, /*nullable=*/false,
                                def_in_child, def_in_child, rd_child, base, &a->children[0]);
     } else {
-        st = build_node(ctx, child_e, def_in_child, def_in_child, rd_child, base, &a->children[0]);
+        st = build_node_as(ctx, child_e, child_forced, def_in_child, def_in_child, rd_child,
+                           base, &a->children[0]);
     }
     if (st != CARQUET_OK) { release_array(a); free(a); return st; }
     if (a->children[0]->length != cc) { release_array(a); free(a); return CARQUET_ERROR_INTERNAL; }
@@ -586,12 +628,23 @@ static carquet_status_t build_list_like(rctx_t* ctx, bool nullable, int16_t def_
 static carquet_status_t build_node(rctx_t* ctx, int32_t e, int16_t def_in,
                                    int16_t exist, int16_t rd, int32_t base,
                                    struct ArrowArray** out) {
+    return build_node_as(ctx, e, false, def_in, exist, rd, base, out);
+}
+
+static carquet_status_t build_node_as(rctx_t* ctx, int32_t e, bool forced, int16_t def_in,
+                                      int16_t exist, int16_t rd, int32_t base,
+                                      struct ArrowArray** out) {
     const carquet_schema_t* cs = ctx->cs;
     (void)def_in;  /* leaves need only `exist`; groups thread both */
     /* `base` (the leftmost leaf column of this node) must index a real leaf.
      * A malformed / inconsistent schema tree can drive it out of range; every
      * node reads its representative leaf ctx->leaves[base], so guard here. */
     if (base < 0 || base >= ctx->num_leaves) return CARQUET_ERROR_INVALID_ARGUMENT;
+    if (!forced && elem_repeated(cs, e)) {
+        /* unannotated repeated field: a required list whose element is `e` */
+        return build_list_like(ctx, false, def_in, exist, rd, base, e, true, NULL, out);
+    }
+    bool nullable = forced ? false : elem_nullable(cs, e);
     switch (elem_kind(cs, e)) {
     case K_LEAF: {
         int32_t leaf = elem_to_leaf(cs, e);
@@ -601,17 +654,21 @@ static carquet_status_t build_node(rctx_t* ctx, int32_t e, int16_t def_in,
     case K_STRUCT: {
         int32_t kids[256]; int32_t nk = elem_children(cs, e, kids, 256);
         if (nk > 256) return CARQUET_ERROR_INVALID_ARGUMENT;
-        return build_struct_like(ctx, kids, nk, elem_nullable(cs, e), def_in, exist, rd, base, out);
+        return build_struct_like(ctx, kids, nk, nullable, def_in, exist, rd, base, out);
     }
     case K_LIST: {
-        int32_t rep[4]; if (elem_children(cs, e, rep, 4) != 1) return CARQUET_ERROR_INVALID_ARGUMENT;
-        int32_t elem[4]; if (elem_children(cs, rep[0], elem, 4) != 1) return CARQUET_ERROR_INVALID_ARGUMENT;
-        return build_list_like(ctx, elem_nullable(cs, e), def_in, exist, rd, base, elem[0], NULL, out);
+        int32_t elem; bool legacy;
+        if (!list_shape(cs, e, &elem, &legacy)) return CARQUET_ERROR_INVALID_ARGUMENT;
+        return build_list_like(ctx, nullable, def_in, exist, rd, base, elem, legacy, NULL, out);
     }
     case K_MAP: {
         int32_t kv[4]; if (elem_children(cs, e, kv, 4) != 1) return CARQUET_ERROR_INVALID_ARGUMENT;
-        int32_t pair[4]; if (elem_children(cs, kv[0], pair, 4) != 2) return CARQUET_ERROR_INVALID_ARGUMENT;
-        return build_list_like(ctx, elem_nullable(cs, e), def_in, exist, rd, base, -1, pair, out);
+        int32_t pair[4]; int32_t np = elem_children(cs, kv[0], pair, 4);
+        if (np == 1) {   /* MAP without values: the list of its keys */
+            return build_list_like(ctx, nullable, def_in, exist, rd, base, pair[0], true, NULL, out);
+        }
+        if (np != 2) return CARQUET_ERROR_INVALID_ARGUMENT;
+        return build_list_like(ctx, nullable, def_in, exist, rd, base, -1, false, pair, out);
     }
     }
     return CARQUET_ERROR_INTERNAL;
@@ -624,6 +681,18 @@ static carquet_status_t build_node(rctx_t* ctx, int32_t e, int16_t def_in,
 carquet_status_t carquet_reader_read_arrow(
     carquet_reader_t* reader,
     int32_t row_group_index,
+    struct ArrowSchema* out_schema,
+    struct ArrowArray* out_array,
+    carquet_error_t* error) {
+    return carquet_reader_read_arrow_fields(reader, row_group_index, NULL, 0,
+                                            out_schema, out_array, error);
+}
+
+carquet_status_t carquet_reader_read_arrow_fields(
+    carquet_reader_t* reader,
+    int32_t row_group_index,
+    const int32_t* field_indices,
+    int32_t num_fields,
     struct ArrowSchema* out_schema,
     struct ArrowArray* out_array,
     carquet_error_t* error) {
@@ -640,32 +709,65 @@ carquet_status_t carquet_reader_read_arrow(
     const carquet_schema_t* cs = reader->schema;
     int32_t num_leaves = cs->num_leaves;
 
+    int32_t top[1024]; int32_t nt = elem_children(cs, 0, top, 1024);
+    if (nt > 1024) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT, "too many top-level fields");
+        return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+    /* Field projection: `fields` lists the top-level field ordinals to emit, in
+     * output order (all of them when the caller passes none). */
+    int32_t all_fields[1024];
+    const int32_t* fields = field_indices;
+    int32_t nf = num_fields;
+    if (!field_indices || num_fields <= 0) {
+        for (int32_t i = 0; i < nt; i++) all_fields[i] = i;
+        fields = all_fields; nf = nt;
+    } else {
+        if (num_fields > nt) {
+            CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
+                "%d fields requested but the schema has %d", num_fields, nt);
+            return CARQUET_ERROR_INVALID_ARGUMENT;
+        }
+        for (int32_t i = 0; i < num_fields; i++) {
+            if (fields[i] < 0 || fields[i] >= nt) {
+                CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
+                    "field index %d out of range (schema has %d top-level fields)", fields[i], nt);
+                return CARQUET_ERROR_INVALID_ARGUMENT;
+            }
+            for (int32_t j = 0; j < i; j++) {
+                if (fields[j] == fields[i]) {
+                    CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
+                        "field index %d requested twice", fields[i]);
+                    return CARQUET_ERROR_INVALID_ARGUMENT;
+                }
+            }
+        }
+    }
+    /* First leaf column of every top-level field (leaves are numbered in
+     * schema order, so field i owns [field_base[i], field_base[i+1])). */
+    int32_t field_base[1025];
+    field_base[0] = 0;
+    for (int32_t i = 0; i < nt; i++) field_base[i + 1] = field_base[i] + count_leaves(cs, top[i]);
+
     rctx_t ctx = { cs, NULL, num_leaves, error };
     ctx.leaves = (rleaf_t*)calloc((size_t)(num_leaves > 0 ? num_leaves : 1), sizeof(rleaf_t));
     if (!ctx.leaves) { CARQUET_SET_ERROR(error, CARQUET_ERROR_OUT_OF_MEMORY, "alloc"); return CARQUET_ERROR_OUT_OF_MEMORY; }
 
     carquet_status_t rc = CARQUET_OK;
 
-    /* Read every leaf column's full (rep, def, value) stream. */
-    for (int32_t l = 0; l < num_leaves; l++) {
+    /* Read the (rep, def, value) stream of every leaf of a selected field. */
+    for (int32_t fi = 0; fi < nf; fi++)
+    for (int32_t l = field_base[fields[fi]]; l < field_base[fields[fi] + 1] && l < num_leaves; l++) {
         rleaf_t* L = &ctx.leaves[l];
         int32_t elem = cs->leaf_indices[l];
         const parquet_schema_element_t* el = &cs->elements[elem];
-        L->pt = el->type;
-        L->type_length = el->type_length;
         L->max_def = cs->max_def_levels[l];
         L->max_rep = cs->max_rep_levels[l];
-        L->is_bool = (el->type == CARQUET_PHYSICAL_BOOLEAN);
-        L->is_bytearray = (el->type == CARQUET_PHYSICAL_BYTE_ARRAY);
-        L->narrow = arrow_narrow_int_width(
-            el->type, el->has_logical_type ? &el->logical_type : NULL);
-        switch (el->type) {
-        case CARQUET_PHYSICAL_INT32: case CARQUET_PHYSICAL_FLOAT: L->stride = 4; break;
-        case CARQUET_PHYSICAL_INT64: case CARQUET_PHYSICAL_DOUBLE: L->stride = 8; break;
-        case CARQUET_PHYSICAL_INT96: L->stride = 12; break;
-        case CARQUET_PHYSICAL_BOOLEAN: L->stride = 1; break;
-        case CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY: L->stride = (size_t)el->type_length; break;
-        default: L->stride = 0; break;  /* byte array */
+        rc = carquet_arrow_leaf_plan(el->type, el->type_length,
+                                     el->has_logical_type ? &el->logical_type : NULL, &L->plan);
+        if (rc != CARQUET_OK) {
+            CARQUET_SET_ERROR(error, rc, "Arrow read: unsupported type for column %d", l);
+            goto cleanup;
         }
 
         L->cr = carquet_reader_get_column(reader, row_group_index, l, error);
@@ -679,8 +781,7 @@ carquet_status_t carquet_reader_read_arrow(
          * file that can differ from the schema element type we shred against, so
          * size the value buffer to the larger of the two to stay in bounds
          * regardless (data for such files is undefined, but memory-safe). */
-        size_t schema_vstride = L->is_bytearray ? sizeof(carquet_byte_array_t)
-                              : (L->stride ? L->stride : 1);
+        size_t schema_vstride = L->plan.src_width ? L->plan.src_width : 1;
         size_t reader_vstride;
         switch (L->cr->type) {
         case CARQUET_PHYSICAL_BOOLEAN: reader_vstride = 1; break;
@@ -721,9 +822,15 @@ carquet_status_t carquet_reader_read_arrow(
 
     /* Assemble the top-level struct array. */
     {
-        int32_t top[1024]; int32_t nt = elem_children(cs, 0, top, 1024);
-        if (nt > 1024) { rc = CARQUET_ERROR_INVALID_ARGUMENT; goto cleanup; }
         int64_t num_rows = reader->metadata.row_groups[row_group_index].num_rows;
+        /* From the footer, and with no field selected there is no column to
+         * check it against: a negative count must not become an array length. */
+        if (num_rows < 0) {
+            rc = CARQUET_ERROR_INVALID_METADATA;
+            CARQUET_SET_ERROR(error, rc, "Arrow read: row group %d has %lld rows",
+                              (int)row_group_index, (long long)num_rows);
+            goto cleanup;
+        }
 
         memset(out_array, 0, sizeof(*out_array));
         out_array->length = num_rows;
@@ -731,20 +838,20 @@ carquet_status_t carquet_reader_read_arrow(
         out_array->offset = 0;
         out_array->n_buffers = 1;
         out_array->buffers = (const void**)calloc(1, sizeof(void*));  /* struct validity (absent) */
-        out_array->n_children = nt;
-        out_array->children = nt ? (struct ArrowArray**)calloc((size_t)nt, sizeof(void*)) : NULL;
+        out_array->n_children = nf;
+        out_array->children = nf ? (struct ArrowArray**)calloc((size_t)nf, sizeof(void*)) : NULL;
         out_array->release = release_array;
-        if (!out_array->buffers || (nt && !out_array->children)) {
+        if (!out_array->buffers || (nf && !out_array->children)) {
             release_array(out_array); rc = CARQUET_ERROR_OUT_OF_MEMORY;
             CARQUET_SET_ERROR(error, rc, "alloc"); goto cleanup;
         }
 
-        int32_t base = 0;
-        for (int32_t i = 0; i < nt; i++) {
-            rc = build_node(&ctx, top[i], 0, 0, 0, base, &out_array->children[i]);
+        for (int32_t i = 0; i < nf; i++) {
+            int32_t f = fields[i];
+            rc = build_node(&ctx, top[f], 0, 0, 0, field_base[f], &out_array->children[i]);
             if (rc != CARQUET_OK) {
                 release_array(out_array);
-                CARQUET_SET_ERROR(error, rc, "Arrow read: failed to assemble field %d", i);
+                CARQUET_SET_ERROR(error, rc, "Arrow read: failed to assemble field %d", f);
                 goto cleanup;
             }
             int64_t got_len = out_array->children[i]->length;
@@ -752,15 +859,21 @@ carquet_status_t carquet_reader_read_arrow(
                 release_array(out_array);
                 CARQUET_SET_ERROR(error, CARQUET_ERROR_INTERNAL,
                     "Arrow read: field %d length %lld != %lld rows",
-                    i, (long long)got_len, (long long)num_rows);
+                    f, (long long)got_len, (long long)num_rows);
                 rc = CARQUET_ERROR_INTERNAL; goto cleanup;
             }
-            base += count_leaves(cs, top[i]);
         }
     }
 
     if (out_schema) {
         rc = carquet_arrow_build_schema_tree(cs, out_schema, error);
+        if (rc == CARQUET_OK && field_indices && num_fields > 0) {
+            rc = carquet_arrow_schema_select_children(out_schema, fields, nf);
+            if (rc != CARQUET_OK) {
+                out_schema->release(out_schema);
+                CARQUET_SET_ERROR(error, rc, "Arrow read: schema projection failed");
+            }
+        }
         if (rc != CARQUET_OK) { release_array(out_array); goto cleanup; }
     }
 

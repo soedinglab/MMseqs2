@@ -6,7 +6,7 @@
 #---------------------------------------------------------------------------
 PROJECT_NAME           = "Carquet"
 PROJECT_BRIEF          = "High-performance pure C11 Apache Parquet library"
-PROJECT_NUMBER         = 0.7.2
+PROJECT_NUMBER         = 0.8.0
 PROJECT_LOGO           = res/img/carquet_logo.png
 OUTPUT_DIRECTORY       = build/docs
 CREATE_SUBDIRS         = NO

@@ -138,6 +138,7 @@ Every public function of `include/carquet/carquet.h` (v0.7.x), grouped by task. 
 | `carquet_column_has_next` | `bool` | `const carquet_column_reader_t* reader` | Check if there are more values to read. |
 | `carquet_column_remaining` | `int64_t` | `const carquet_column_reader_t* reader` | Get the number of remaining values in the column. |
 | `carquet_column_reader_free` | `void` | `carquet_column_reader_t* reader` | Free a column reader. |
+| `carquet_column_reader_reset` | `carquet_status_t` | `carquet_column_reader_t* reader, int32_t row_group_index, carquet_error_t* error` | Move a column reader to another row group, keeping its buffers. |
 | `carquet_count_rows` | `int64_t` | `const int16_t* rep_levels, int64_t num_values` | Count logical rows from repetition levels. |
 | `carquet_list_offsets` | `int64_t` | `const int16_t* rep_levels, int64_t num_values, int16_t list_rep_level, int64_t* offsets_out, int64_t max_offsets` | Compute list offsets from repetition levels. |
 

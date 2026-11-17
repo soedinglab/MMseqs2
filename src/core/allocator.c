@@ -62,6 +62,10 @@ const carquet_allocator_t* carquet_get_allocator(void) {
     return &g_allocator;
 }
 
+void carquet_free(void* ptr) {
+    carquet_mem_free(ptr);
+}
+
 /* ============================================================================
  * Internal wrappers (see allocator.h)
  * ============================================================================

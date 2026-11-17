@@ -14,6 +14,17 @@
  *   - Data Page V2 framing and "ARROW:schema" footer metadata.
  *   - Logical types: STRING, DATE, TIMESTAMP(MICROS, UTC), DECIMAL(9,2),
  *     UUID (FIXED_LEN_BYTE_ARRAY[16]).
+ *   - logical2: INTEGER(8/16/32/64, signed + unsigned), TIME(MILLIS/MICROS/
+ *     NANOS), TIMESTAMP(MILLIS local, NANOS UTC), DECIMAL on INT64 and on
+ *     FIXED_LEN_BYTE_ARRAY, FLOAT16, JSON, ENUM, with a nullable column.
+ *   - DELTA_LENGTH_BYTE_ARRAY, RLE BOOLEAN, BYTE_STREAM_SPLIT on integers,
+ *     dictionary on V2 pages, bloom filters, and a combined
+ *     V2 + page index + multi-page variant.
+ *
+ * Every basic / logical2 file carries an "expect" block (codec, per-column
+ * encodings, page index, bloom columns) that run_interop.py checks against
+ * the footer, and a "dataset" tag so it can regenerate and compare every
+ * value, not only the first five.
  */
 
 #include <stdio.h>
@@ -24,6 +35,7 @@
 #include <carquet/carquet.h>
 
 #define NUM_ROWS 5000
+#define BASIC_CHUNKS 3   /* row groups per basic file */
 
 /* DATE / TIMESTAMP anchors at 2021-01-01T00:00:00Z. */
 #define LOGICAL_DATE_BASE 18628                  /* days since 1970-01-01 */
@@ -41,6 +53,8 @@ typedef enum {
     ENC_DICT,      /* RLE_DICTIONARY on every value column */
     ENC_DELTA,     /* DELTA_BINARY_PACKED + DELTA_BYTE_ARRAY */
     ENC_BSS,       /* BYTE_STREAM_SPLIT where supported    */
+    ENC_DLBA,      /* DELTA_LENGTH_BYTE_ARRAY strings + RLE booleans */
+    ENC_BSS_INT,   /* BYTE_STREAM_SPLIT on INT32/INT64 too (not DuckDB 1.4) */
 } enc_mode_t;
 
 typedef struct {
@@ -50,6 +64,7 @@ typedef struct {
     bool write_arrow_schema;
     bool write_page_index;   /* emit column/offset index (v0.6.0 offset fix)   */
     int64_t page_size;       /* 0 = default; small value forces multi-page     */
+    bool bloom;              /* bloom filters on int32 / int64 / string        */
 } basic_cfg_t;
 
 /* Column indices for the basic schema. */
@@ -122,8 +137,85 @@ static int apply_encoding(carquet_writer_t* w, enc_mode_t enc) {
             if (carquet_writer_set_column_encoding(w, bss[i],
                     CARQUET_ENCODING_BYTE_STREAM_SPLIT) != CARQUET_OK)
                 return 1;
+    } else if (enc == ENC_BSS_INT) {
+        const int bss[] = {COL_INT32, COL_INT64, COL_FLOAT, COL_DOUBLE, COL_NULLABLE_INT};
+        for (size_t i = 0; i < sizeof(bss) / sizeof(bss[0]); i++)
+            if (carquet_writer_set_column_encoding(w, bss[i],
+                    CARQUET_ENCODING_BYTE_STREAM_SPLIT) != CARQUET_OK)
+                return 1;
+    } else if (enc == ENC_DLBA) {
+        if (carquet_writer_set_column_encoding(w, COL_STRING,
+                CARQUET_ENCODING_DELTA_LENGTH_BYTE_ARRAY) != CARQUET_OK)
+            return 1;
+        if (carquet_writer_set_column_encoding(w, COL_BOOL,
+                CARQUET_ENCODING_RLE) != CARQUET_OK)
+            return 1;
     }
     return 0;
+}
+
+/* Parquet encoding name (as PyArrow / DuckDB report it) each column must
+ * carry under a given mode, or NULL when the mode leaves it automatic. */
+static const char* expected_encoding(enc_mode_t enc, int col) {
+    switch (enc) {
+    case ENC_DICT:
+        /* Only the low-cardinality string column: the numeric columns are
+         * all-distinct, where carquet's per-row-group fallback correctly
+         * keeps PLAIN (a 5000-entry dictionary would be larger). */
+        return col == COL_STRING ? "RLE_DICTIONARY" : NULL;
+    case ENC_DELTA:
+        if (col == COL_INT32 || col == COL_INT64 || col == COL_NULLABLE_INT)
+            return "DELTA_BINARY_PACKED";
+        return col == COL_STRING ? "DELTA_BYTE_ARRAY" : NULL;
+    case ENC_BSS:
+        return (col == COL_FLOAT || col == COL_DOUBLE) ? "BYTE_STREAM_SPLIT" : NULL;
+    case ENC_BSS_INT:
+        return (col == COL_BOOL || col == COL_STRING) ? NULL : "BYTE_STREAM_SPLIT";
+    case ENC_DLBA:
+        if (col == COL_STRING) return "DELTA_LENGTH_BYTE_ARRAY";
+        return col == COL_BOOL ? "RLE" : NULL;
+    default:
+        return NULL;
+    }
+}
+
+static const char* codec_name(carquet_compression_t c) {
+    switch (c) {
+        case CARQUET_COMPRESSION_UNCOMPRESSED: return "UNCOMPRESSED";
+        case CARQUET_COMPRESSION_SNAPPY: return "SNAPPY";
+        case CARQUET_COMPRESSION_GZIP: return "GZIP";
+        case CARQUET_COMPRESSION_BROTLI: return "BROTLI";
+        case CARQUET_COMPRESSION_LZ4: return "LZ4";
+        case CARQUET_COMPRESSION_ZSTD: return "ZSTD";
+        case CARQUET_COMPRESSION_LZ4_RAW: return "LZ4_RAW";
+        default: return "?";
+    }
+}
+
+static const char* const BASIC_COL_NAMES[7] = {
+    "bool_col", "int32_col", "int64_col", "float_col", "double_col",
+    "string_col", "nullable_int"
+};
+
+/* Manifest "expect" block for a basic file (checked against the footer). */
+static void print_basic_expect(const basic_cfg_t* cfg) {
+    printf("      \"dataset\": \"basic\",\n");
+    printf("      \"expect\": {\n");
+    printf("        \"codec\": \"%s\",\n", codec_name(cfg->codec));
+    printf("        \"page_index\": %s,\n", cfg->write_page_index ? "true" : "false");
+    printf("        \"bloom\": [%s],\n",
+           cfg->bloom ? "\"int32_col\", \"int64_col\", \"string_col\"" : "");
+    printf("        \"duckdb\": %s,\n", cfg->enc == ENC_BSS_INT ? "false" : "true");
+    printf("        \"encodings\": {");
+    int first = 1;
+    for (int c = 0; c < 7; c++) {
+        const char* e = expected_encoding(cfg->enc, c);
+        if (!e) continue;
+        printf("%s\"%s\": \"%s\"", first ? "" : ", ", BASIC_COL_NAMES[c], e);
+        first = 0;
+    }
+    printf("}\n");
+    printf("      },\n");
 }
 
 /* Write one full copy of the basic dataset (NUM_ROWS rows) to a writer. */
@@ -142,20 +234,38 @@ static carquet_status_t populate_basic(carquet_writer_t* writer) {
                         strings, string_def_levels,
                         nullable_ints, nullable_def_levels, NUM_ROWS);
 
+    /* Written as BASIC_CHUNKS row groups (new_row_group between chunks) so
+     * readers cross row-group boundaries; the nullable columns' value arrays
+     * are compacted, so each chunk starts at the non-null count before it. */
     carquet_status_t st = CARQUET_OK;
-    #define WB(col, vals, defs) do { \
-        carquet_status_t _s = carquet_writer_write_batch(writer, (col), (vals), \
-            NUM_ROWS, (defs), NULL); \
-        if (_s != CARQUET_OK) st = _s; \
-    } while (0)
-    WB(COL_BOOL, bools, NULL);
-    WB(COL_INT32, int32s, NULL);
-    WB(COL_INT64, int64s, NULL);
-    WB(COL_FLOAT, floats, NULL);
-    WB(COL_DOUBLE, doubles, NULL);
-    WB(COL_STRING, strings, string_def_levels);
-    WB(COL_NULLABLE_INT, nullable_ints, nullable_def_levels);
-    #undef WB
+    int str_off = 0, nint_off = 0;
+    for (int ch = 0; ch < BASIC_CHUNKS && st == CARQUET_OK; ch++) {
+        int lo = NUM_ROWS * ch / BASIC_CHUNKS, hi = NUM_ROWS * (ch + 1) / BASIC_CHUNKS;
+        int cnt = hi - lo, str_n = 0, nint_n = 0;
+        for (int i = lo; i < hi; i++) {
+            str_n += string_def_levels[i];
+            nint_n += nullable_def_levels[i];
+        }
+        if (ch > 0) {
+            carquet_status_t _s = carquet_writer_new_row_group(writer);
+            if (_s != CARQUET_OK) { st = _s; break; }
+        }
+        #define WB(col, vals, defs) do { \
+            carquet_status_t _s = carquet_writer_write_batch(writer, (col), (vals), \
+                cnt, (defs), NULL); \
+            if (_s != CARQUET_OK) st = _s; \
+        } while (0)
+        WB(COL_BOOL, bools + lo, NULL);
+        WB(COL_INT32, int32s + lo, NULL);
+        WB(COL_INT64, int64s + lo, NULL);
+        WB(COL_FLOAT, floats + lo, NULL);
+        WB(COL_DOUBLE, doubles + lo, NULL);
+        WB(COL_STRING, strings + str_off, string_def_levels + lo);
+        WB(COL_NULLABLE_INT, nullable_ints + nint_off, nullable_def_levels + lo);
+        #undef WB
+        str_off += str_n;
+        nint_off += nint_n;
+    }
 
     free(bools);
     free(int32s);
@@ -212,7 +322,7 @@ static int write_basic_file(const char* path, basic_cfg_t cfg) {
     carquet_writer_options_t opts;
     carquet_writer_options_init(&opts);
     opts.compression = cfg.codec;
-    opts.row_group_size = 2000 * 100;  /* force multiple row groups */
+    opts.row_group_size = 2000 * 100;  /* row groups come from BASIC_CHUNKS */
     opts.data_page_version = cfg.data_page_version;
     opts.write_arrow_schema = cfg.write_arrow_schema;
     opts.write_page_index = cfg.write_page_index;
@@ -227,6 +337,16 @@ static int write_basic_file(const char* path, basic_cfg_t cfg) {
 
     if (apply_encoding(writer, cfg.enc) != 0) {
         fprintf(stderr, "Failed to set column encoding for %s\n", path);
+        carquet_writer_close(writer);
+        carquet_schema_free(schema);
+        return 1;
+    }
+
+    if (cfg.bloom &&
+        (carquet_writer_set_column_bloom_filter(writer, COL_INT32, true) != CARQUET_OK ||
+         carquet_writer_set_column_bloom_filter(writer, COL_INT64, true) != CARQUET_OK ||
+         carquet_writer_set_column_bloom_filter(writer, COL_STRING, true) != CARQUET_OK)) {
+        fprintf(stderr, "Failed to enable bloom filters for %s\n", path);
         carquet_writer_close(writer);
         carquet_schema_free(schema);
         return 1;
@@ -483,6 +603,158 @@ static void print_logical_columns(void) {
     printf("      }\n");
 }
 
+/* ── logical2: the remaining scalar logical types ─────────────────────────
+ * Values are pure functions of the row index i so run_interop.py can
+ * regenerate every column (see _logical2_expected there). */
+
+enum {
+    L2_I8 = 0, L2_U8, L2_I16N, L2_U16, L2_U32, L2_U64,
+    L2_TIME_MS, L2_TIME_US, L2_TIME_NS, L2_TS_MS, L2_TS_NS,
+    L2_DEC64, L2_DECFLBA, L2_F16, L2_JSON, L2_ENUM, L2_NUM
+};
+
+/* IEEE half-float bits for a small integer (|v| <= 2048 is exact). */
+static uint16_t half_from_int(int v) {
+    if (v == 0) return 0;
+    uint16_t sign = v < 0 ? 0x8000 : 0;
+    unsigned m = (unsigned)(v < 0 ? -v : v);
+    int e = 0;
+    while ((m >> e) > 1) e++;                  /* m in [2^e, 2^(e+1)) */
+    unsigned frac = (m - (1u << e)) << (10 - e);
+    return (uint16_t)(sign | (uint16_t)((e + 15) << 10) | (uint16_t)frac);
+}
+
+static int write_logical2_file(const char* path) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_schema_t* schema = carquet_schema_create(&err);
+    if (!schema) return 1;
+
+    carquet_logical_type_t lt[L2_NUM];
+    memset(lt, 0, sizeof(lt));
+    lt[L2_I8].id = CARQUET_LOGICAL_INTEGER;  lt[L2_I8].params.integer.bit_width = 8;  lt[L2_I8].params.integer.is_signed = true;
+    lt[L2_U8].id = CARQUET_LOGICAL_INTEGER;  lt[L2_U8].params.integer.bit_width = 8;  lt[L2_U8].params.integer.is_signed = false;
+    lt[L2_I16N].id = CARQUET_LOGICAL_INTEGER; lt[L2_I16N].params.integer.bit_width = 16; lt[L2_I16N].params.integer.is_signed = true;
+    lt[L2_U16].id = CARQUET_LOGICAL_INTEGER; lt[L2_U16].params.integer.bit_width = 16; lt[L2_U16].params.integer.is_signed = false;
+    lt[L2_U32].id = CARQUET_LOGICAL_INTEGER; lt[L2_U32].params.integer.bit_width = 32; lt[L2_U32].params.integer.is_signed = false;
+    lt[L2_U64].id = CARQUET_LOGICAL_INTEGER; lt[L2_U64].params.integer.bit_width = 64; lt[L2_U64].params.integer.is_signed = false;
+    lt[L2_TIME_MS].id = CARQUET_LOGICAL_TIME; lt[L2_TIME_MS].params.time.unit = CARQUET_TIME_UNIT_MILLIS; lt[L2_TIME_MS].params.time.is_adjusted_to_utc = true;
+    lt[L2_TIME_US].id = CARQUET_LOGICAL_TIME; lt[L2_TIME_US].params.time.unit = CARQUET_TIME_UNIT_MICROS; lt[L2_TIME_US].params.time.is_adjusted_to_utc = true;
+    lt[L2_TIME_NS].id = CARQUET_LOGICAL_TIME; lt[L2_TIME_NS].params.time.unit = CARQUET_TIME_UNIT_NANOS;  lt[L2_TIME_NS].params.time.is_adjusted_to_utc = true;
+    lt[L2_TS_MS].id = CARQUET_LOGICAL_TIMESTAMP; lt[L2_TS_MS].params.timestamp.unit = CARQUET_TIME_UNIT_MILLIS; lt[L2_TS_MS].params.timestamp.is_adjusted_to_utc = false;
+    lt[L2_TS_NS].id = CARQUET_LOGICAL_TIMESTAMP; lt[L2_TS_NS].params.timestamp.unit = CARQUET_TIME_UNIT_NANOS;  lt[L2_TS_NS].params.timestamp.is_adjusted_to_utc = true;
+    lt[L2_DEC64].id = CARQUET_LOGICAL_DECIMAL; lt[L2_DEC64].params.decimal.precision = 18; lt[L2_DEC64].params.decimal.scale = 4;
+    lt[L2_DECFLBA].id = CARQUET_LOGICAL_DECIMAL; lt[L2_DECFLBA].params.decimal.precision = 20; lt[L2_DECFLBA].params.decimal.scale = 2;
+    lt[L2_F16].id = CARQUET_LOGICAL_FLOAT16;
+    lt[L2_JSON].id = CARQUET_LOGICAL_JSON;
+    lt[L2_ENUM].id = CARQUET_LOGICAL_ENUM;
+
+    static const struct { const char* name; carquet_physical_type_t pt; int32_t len; } cols[L2_NUM] = {
+        {"i8", CARQUET_PHYSICAL_INT32, 0}, {"u8", CARQUET_PHYSICAL_INT32, 0},
+        {"i16_nullable", CARQUET_PHYSICAL_INT32, 0}, {"u16", CARQUET_PHYSICAL_INT32, 0},
+        {"u32", CARQUET_PHYSICAL_INT32, 0}, {"u64", CARQUET_PHYSICAL_INT64, 0},
+        {"time_ms", CARQUET_PHYSICAL_INT32, 0}, {"time_us", CARQUET_PHYSICAL_INT64, 0},
+        {"time_ns", CARQUET_PHYSICAL_INT64, 0}, {"ts_ms_local", CARQUET_PHYSICAL_INT64, 0},
+        {"ts_ns_utc", CARQUET_PHYSICAL_INT64, 0}, {"dec64", CARQUET_PHYSICAL_INT64, 0},
+        {"dec_flba", CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY, 9},
+        {"f16", CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY, 2},
+        {"json", CARQUET_PHYSICAL_BYTE_ARRAY, 0}, {"enum", CARQUET_PHYSICAL_BYTE_ARRAY, 0},
+    };
+    for (int c = 0; c < L2_NUM; c++) {
+        if (carquet_schema_add_column(schema, cols[c].name, cols[c].pt, &lt[c],
+                c == L2_I16N ? CARQUET_REPETITION_OPTIONAL : CARQUET_REPETITION_REQUIRED,
+                cols[c].len, 0) != CARQUET_OK) {
+            fprintf(stderr, "logical2: cannot add column %s\n", cols[c].name);
+            carquet_schema_free(schema);
+            return 1;
+        }
+    }
+
+    carquet_writer_options_t opts;
+    carquet_writer_options_init(&opts);
+    opts.compression = CARQUET_COMPRESSION_ZSTD;
+    opts.write_page_index = true;
+    carquet_writer_t* w = carquet_writer_create(path, schema, &opts, &err);
+    if (!w) {
+        fprintf(stderr, "Failed to create logical2 writer: %s\n", err.message);
+        carquet_schema_free(schema);
+        return 1;
+    }
+
+    const int n = NUM_ROWS;
+    int32_t* i32 = malloc(sizeof(int32_t) * n);
+    int64_t* i64 = malloc(sizeof(int64_t) * n);
+    int16_t* def = malloc(sizeof(int16_t) * n);
+    uint8_t* flba = malloc((size_t)n * 9);
+    carquet_byte_array_t* ba = malloc(sizeof(carquet_byte_array_t) * n);
+    char* json_buf = malloc((size_t)n * 24);
+    int st = 0;
+#define WB(col, vals, cnt, d) do { if (carquet_writer_write_batch(w, (col), (vals), (cnt), (d), NULL) != CARQUET_OK) { \
+        fprintf(stderr, "logical2: write_batch col %d failed\n", (col)); st = 1; } } while (0)
+
+    for (int i = 0; i < n; i++) i32[i] = (i % 256) - 128;
+    WB(L2_I8, i32, n, NULL);
+    for (int i = 0; i < n; i++) i32[i] = i % 256;
+    WB(L2_U8, i32, n, NULL);
+    int nv = 0;   /* nullable int16: every 3rd row null; values are compacted */
+    for (int i = 0; i < n; i++) {
+        def[i] = (i % 3 == 0) ? 0 : 1;
+        if (def[i]) i32[nv++] = ((i * 7) % 65536) - 32768;
+    }
+    WB(L2_I16N, i32, n, def);
+    for (int i = 0; i < n; i++) i32[i] = (i * 13) % 65536;
+    WB(L2_U16, i32, n, NULL);
+    for (int i = 0; i < n; i++) i32[i] = (int32_t)(uint32_t)((uint32_t)i * 2654435761u);
+    WB(L2_U32, i32, n, NULL);
+    for (int i = 0; i < n; i++) i64[i] = (int64_t)((uint64_t)i * 11400714819323198485ull);
+    WB(L2_U64, i64, n, NULL);
+    for (int i = 0; i < n; i++) i32[i] = (int32_t)(((int64_t)i * 17321) % 86400000);
+    WB(L2_TIME_MS, i32, n, NULL);
+    for (int i = 0; i < n; i++) i64[i] = ((int64_t)i * 1000003LL) % 86400000000LL;
+    WB(L2_TIME_US, i64, n, NULL);
+    for (int i = 0; i < n; i++) i64[i] = ((int64_t)i * 1000000007LL) % 86400000000000LL;
+    WB(L2_TIME_NS, i64, n, NULL);
+    for (int i = 0; i < n; i++) i64[i] = 1609459200000LL + (int64_t)i * 61001LL;
+    WB(L2_TS_MS, i64, n, NULL);
+    for (int i = 0; i < n; i++) i64[i] = 1609459200000000000LL + (int64_t)i * 1000000123LL;
+    WB(L2_TS_NS, i64, n, NULL);
+    for (int i = 0; i < n; i++) i64[i] = (int64_t)i * 12345LL - 30000000LL;
+    WB(L2_DEC64, i64, n, NULL);
+    for (int i = 0; i < n; i++) {
+        /* 9-byte big-endian two's complement, sign-extended from int64. */
+        int64_t v = ((int64_t)i - 2500) * 1000000007LL;
+        uint8_t* o = flba + (size_t)i * 9;
+        o[0] = v < 0 ? 0xFF : 0x00;
+        for (int b = 0; b < 8; b++) o[1 + b] = (uint8_t)((uint64_t)v >> (8 * (7 - b)));
+    }
+    WB(L2_DECFLBA, flba, n, NULL);
+    for (int i = 0; i < n; i++) {
+        uint16_t h = half_from_int((i % 2048) - 1024);
+        flba[(size_t)i * 2] = (uint8_t)(h & 0xFF);          /* little-endian */
+        flba[(size_t)i * 2 + 1] = (uint8_t)(h >> 8);
+    }
+    WB(L2_F16, flba, n, NULL);
+    for (int i = 0; i < n; i++) {
+        char* js = json_buf + (size_t)i * 24;
+        int len = snprintf(js, 24, "{\"i\": %d}", i);
+        ba[i].data = (uint8_t*)js;
+        ba[i].length = len;
+    }
+    WB(L2_JSON, ba, n, NULL);
+    for (int i = 0; i < n; i++) {
+        const char* e = SAMPLE_STRINGS[i % 10];
+        ba[i].data = (uint8_t*)e;
+        ba[i].length = (int32_t)strlen(e);
+    }
+    WB(L2_ENUM, ba, n, NULL);
+#undef WB
+
+    carquet_status_t cst = carquet_writer_close(w);
+    if (cst != CARQUET_OK) st = 1;
+    free(i32); free(i64); free(def); free(flba); free(ba); free(json_buf);
+    carquet_schema_free(schema);
+    return st;
+}
+
 /* ── Manifest ──────────────────────────────────────────────────────────────── */
 
 /* Build a filesystem-safe name from a display tag (e.g. "zstd+dict"). */
@@ -572,25 +844,37 @@ int main(int argc, char** argv) {
         const char* tag;
         basic_cfg_t cfg;
     } basics[] = {
-        {"uncompressed", {CARQUET_COMPRESSION_UNCOMPRESSED, ENC_DEFAULT, 1, false, false, 0}},
-        {"snappy",       {CARQUET_COMPRESSION_SNAPPY,       ENC_DEFAULT, 1, false, false, 0}},
-        {"gzip",         {CARQUET_COMPRESSION_GZIP,         ENC_DEFAULT, 1, false, false, 0}},
-        {"lz4_raw",      {CARQUET_COMPRESSION_LZ4_RAW,      ENC_DEFAULT, 1, false, false, 0}},
+        {"uncompressed", {CARQUET_COMPRESSION_UNCOMPRESSED, ENC_DEFAULT, 1, false, false, 0, false}},
+        {"snappy",       {CARQUET_COMPRESSION_SNAPPY,       ENC_DEFAULT, 1, false, false, 0, false}},
+        {"gzip",         {CARQUET_COMPRESSION_GZIP,         ENC_DEFAULT, 1, false, false, 0, false}},
+        {"lz4_raw",      {CARQUET_COMPRESSION_LZ4_RAW,      ENC_DEFAULT, 1, false, false, 0, false}},
         /* v0.7.0: codec 5 (deprecated Hadoop-framed LZ4), distinct from LZ4_RAW. */
-        {"lz4",          {CARQUET_COMPRESSION_LZ4,          ENC_DEFAULT, 1, false, false, 0}},
-        {"zstd",         {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, false, false, 0}},
+        {"lz4",          {CARQUET_COMPRESSION_LZ4,          ENC_DEFAULT, 1, false, false, 0, false}},
+        {"zstd",         {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, false, false, 0, false}},
         /* v0.7.2: built-in BROTLI (codec 4). */
-        {"brotli",       {CARQUET_COMPRESSION_BROTLI,       ENC_DEFAULT, 1, false, false, 0}},
-        {"zstd+dict",    {CARQUET_COMPRESSION_ZSTD,         ENC_DICT,    1, false, false, 0}},
-        {"zstd+delta",   {CARQUET_COMPRESSION_ZSTD,         ENC_DELTA,   1, false, false, 0}},
-        {"zstd+bss",     {CARQUET_COMPRESSION_ZSTD,         ENC_BSS,     1, false, false, 0}},
-        {"zstd+pagev2",  {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 2, false, false, 0}},
-        {"zstd+arrow",   {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, true,  false, 0}},
+        {"brotli",       {CARQUET_COMPRESSION_BROTLI,       ENC_DEFAULT, 1, false, false, 0, false}},
+        {"zstd+dict",    {CARQUET_COMPRESSION_ZSTD,         ENC_DICT,    1, false, false, 0, false}},
+        {"zstd+delta",   {CARQUET_COMPRESSION_ZSTD,         ENC_DELTA,   1, false, false, 0, false}},
+        {"zstd+bss",     {CARQUET_COMPRESSION_ZSTD,         ENC_BSS,     1, false, false, 0, false}},
+        {"zstd+pagev2",  {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 2, false, false, 0, false}},
+        {"zstd+arrow",   {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, true,  false, 0, false}},
         /* v0.6.0: page index (exercises the absolute-offset fix). */
-        {"zstd+pageidx", {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, false, true, 0}},
+        {"zstd+pageidx", {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, false, true, 0, false}},
         /* v0.6.0: tiny pages force OPTIONAL columns across multiple page chunks,
          * exercising the nullable batched-write value mis-indexing fix. */
-        {"zstd+multipage", {CARQUET_COMPRESSION_ZSTD,       ENC_DEFAULT, 1, false, false, 4096}},
+        {"zstd+multipage", {CARQUET_COMPRESSION_ZSTD,       ENC_DEFAULT, 1, false, false, 4096, false}},
+        /* Dictionary pages + RLE_DICTIONARY indices inside Data Page V2. */
+        {"zstd+dict+v2", {CARQUET_COMPRESSION_ZSTD,         ENC_DICT,    2, false, false, 0, false}},
+        /* DELTA_LENGTH_BYTE_ARRAY strings and RLE-encoded booleans. */
+        {"snappy+dlba",  {CARQUET_COMPRESSION_SNAPPY,       ENC_DLBA,    1, false, false, 0, false}},
+        /* BYTE_STREAM_SPLIT on INT32/INT64 (Parquet 2.11; PyArrow only). */
+        {"zstd+bss_int", {CARQUET_COMPRESSION_ZSTD,         ENC_BSS_INT, 1, false, false, 0, false}},
+        /* Split-block bloom filters, probed through DuckDB. */
+        {"zstd+bloom",   {CARQUET_COMPRESSION_ZSTD,         ENC_DEFAULT, 1, false, false, 0, true}},
+        /* V2 pages + page index + small pages + delta, all at once. */
+        {"lz4_raw+v2+pageidx+multipage", {CARQUET_COMPRESSION_LZ4_RAW, ENC_DELTA, 2, false, true, 4096, false}},
+        /* GZIP + dictionary + bloom + ARROW:schema + page index. */
+        {"gzip+dict+bloom+idx", {CARQUET_COMPRESSION_GZIP,  ENC_DICT,    1, true,  true, 0, true}},
     };
     const int num_basics = (int)(sizeof(basics) / sizeof(basics[0]));
 
@@ -622,6 +906,7 @@ int main(int argc, char** argv) {
             printf("        \"int32_col\": {\"Label\": \"Signed 32-bit Measure\", \"Units\": \"count\"}\n");
             printf("      },\n");
         }
+        print_basic_expect(&basics[i].cfg);
         print_basic_columns();
         printf("    }");
     }
@@ -643,6 +928,25 @@ int main(int argc, char** argv) {
         }
     }
 
+    /* logical2: remaining logical types, verified value-by-value. */
+    {
+        char path[512];
+        safe_filename(path, sizeof(path), output_dir, "logical2");
+        if (write_logical2_file(path) == 0) {
+            if (!first) printf(",\n");
+            first = 0;
+            printf("    {\n");
+            printf("      \"path\": \"%s\",\n", path);
+            printf("      \"compression\": \"%s\",\n", "logical2");
+            printf("      \"dataset\": \"logical2\",\n");
+            printf("      \"expect\": {\"codec\": \"ZSTD\", \"page_index\": true, \"bloom\": [], \"duckdb\": true, \"encodings\": {}},\n");
+            printf("      \"columns\": {}\n");
+            printf("    }");
+        } else {
+            fprintf(stderr, "Failed to write %s\n", path);
+        }
+    }
+
     /* Append file: two copies of the dataset (v0.6.0 open_append). Carries its
      * own num_rows / verification since the totals differ from the basics. */
     {
@@ -656,6 +960,7 @@ int main(int argc, char** argv) {
             printf("    {\n");
             printf("      \"path\": \"%s\",\n", path);
             printf("      \"compression\": \"%s\",\n", "append");
+            printf("      \"dataset\": \"basic_x2\",\n");
             printf("      \"num_rows\": %d,\n", NUM_ROWS * 2);
             printf("      \"verification\": {\n");
             printf("        \"null_count_string_col\": %d,\n", 2 * ((NUM_ROWS + 6) / 7));

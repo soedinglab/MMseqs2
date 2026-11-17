@@ -49,13 +49,20 @@ static void destroy_cctx(void* ctx) {
     if (ctx) ZSTD_freeCCtx((ZSTD_CCtx*)ctx);
 }
 
+/* pthread_key_create can fail (PTHREAD_KEYS_MAX exhausted). The key value is
+ * then unspecified and may alias another library's key, so never use it: the
+ * callers fall back to the context-free ZSTD API on a NULL context. */
+static int tls_dctx_key_ok = 0;
+static int tls_cctx_key_ok = 0;
+
 static void init_tls_keys(void) {
-    pthread_key_create(&tls_dctx_key, destroy_dctx);
-    pthread_key_create(&tls_cctx_key, destroy_cctx);
+    tls_dctx_key_ok = pthread_key_create(&tls_dctx_key, destroy_dctx) == 0;
+    tls_cctx_key_ok = pthread_key_create(&tls_cctx_key, destroy_cctx) == 0;
 }
 
 static ZSTD_DCtx* get_dctx(void) {
     pthread_once(&tls_keys_once, init_tls_keys);
+    if (!tls_dctx_key_ok) return NULL;
     ZSTD_DCtx* dctx = (ZSTD_DCtx*)pthread_getspecific(tls_dctx_key);
     if (!dctx) {
         dctx = ZSTD_createDCtx();
@@ -66,6 +73,7 @@ static ZSTD_DCtx* get_dctx(void) {
 
 static ZSTD_CCtx* get_cctx(void) {
     pthread_once(&tls_keys_once, init_tls_keys);
+    if (!tls_cctx_key_ok) return NULL;
     ZSTD_CCtx* cctx = (ZSTD_CCtx*)pthread_getspecific(tls_cctx_key);
     if (!cctx) {
         cctx = ZSTD_createCCtx();
@@ -76,12 +84,14 @@ static ZSTD_CCtx* get_cctx(void) {
 
 void carquet_zstd_cleanup(void) {
     pthread_once(&tls_keys_once, init_tls_keys);
-    ZSTD_DCtx* dctx = (ZSTD_DCtx*)pthread_getspecific(tls_dctx_key);
+    ZSTD_DCtx* dctx = tls_dctx_key_ok
+        ? (ZSTD_DCtx*)pthread_getspecific(tls_dctx_key) : NULL;
     if (dctx) {
         ZSTD_freeDCtx(dctx);
         pthread_setspecific(tls_dctx_key, NULL);
     }
-    ZSTD_CCtx* cctx = (ZSTD_CCtx*)pthread_getspecific(tls_cctx_key);
+    ZSTD_CCtx* cctx = tls_cctx_key_ok
+        ? (ZSTD_CCtx*)pthread_getspecific(tls_cctx_key) : NULL;
     if (cctx) {
         ZSTD_freeCCtx(cctx);
         pthread_setspecific(tls_cctx_key, NULL);

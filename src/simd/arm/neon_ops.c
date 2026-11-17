@@ -1291,6 +1291,66 @@ void carquet_neon_build_null_bitmap(const int16_t* def_levels, int64_t count,
 }
 
 /**
+ * Pack 0/1 levels into a bit array (level i at bit i % 64 of word i / 64),
+ * 64 levels per step: the levels are narrowed to bytes, each byte is shifted
+ * to its bit position within its group of 8 and three pairwise adds sum each
+ * group of 8 into one byte. Returns false when a level is not 0 or 1 (the
+ * OR of every lane then exceeds 1); the words are then unspecified.
+ */
+bool carquet_neon_levels_to_bits(const int16_t* levels, int64_t count, uint64_t* bits) {
+#if defined(__aarch64__)
+    static const int8_t shift_tbl[16] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7};
+    const int8x16_t shift = vld1q_s8(shift_tbl);
+    const uint16_t* p = (const uint16_t*)levels;
+    uint16x8_t bad = vdupq_n_u16(0);
+    int64_t i = 0;
+    int64_t w = 0;
+    for (; i + 64 <= count; i += 64, w++) {
+        uint16x8_t v0 = vld1q_u16(p + i);
+        uint16x8_t v1 = vld1q_u16(p + i + 8);
+        uint16x8_t v2 = vld1q_u16(p + i + 16);
+        uint16x8_t v3 = vld1q_u16(p + i + 24);
+        uint16x8_t v4 = vld1q_u16(p + i + 32);
+        uint16x8_t v5 = vld1q_u16(p + i + 40);
+        uint16x8_t v6 = vld1q_u16(p + i + 48);
+        uint16x8_t v7 = vld1q_u16(p + i + 56);
+        bad = vorrq_u16(bad, vorrq_u16(vorrq_u16(vorrq_u16(v0, v1), vorrq_u16(v2, v3)),
+                                       vorrq_u16(vorrq_u16(v4, v5), vorrq_u16(v6, v7))));
+        uint8x16_t b0 = vshlq_u8(vmovn_high_u16(vmovn_u16(v0), v1), shift);
+        uint8x16_t b1 = vshlq_u8(vmovn_high_u16(vmovn_u16(v2), v3), shift);
+        uint8x16_t b2 = vshlq_u8(vmovn_high_u16(vmovn_u16(v4), v5), shift);
+        uint8x16_t b3 = vshlq_u8(vmovn_high_u16(vmovn_u16(v6), v7), shift);
+        uint8x16_t s = vpaddq_u8(vpaddq_u8(b0, b1), vpaddq_u8(b2, b3));
+        s = vpaddq_u8(s, s);
+        bits[w] = vgetq_lane_u64(vreinterpretq_u64_u8(s), 0);
+    }
+    uint64_t bad_tail = 0;
+    if (i < count) {
+        uint64_t word = 0;
+        for (int64_t j = 0; i + j < count; j++) {
+            uint16_t v = p[i + j];
+            bad_tail |= v & ~1u;
+            word |= (uint64_t)(v & 1u) << j;
+        }
+        bits[w] = word;
+    }
+    return vmaxvq_u16(bad) <= 1 && bad_tail == 0;
+#else
+    uint64_t bad = 0;
+    for (int64_t i = 0; i < count; i += 64) {
+        uint64_t word = 0;
+        for (int64_t j = 0; j < 64 && i + j < count; j++) {
+            uint16_t v = (uint16_t)levels[i + j];
+            bad |= v & ~1u;
+            word |= (uint64_t)(v & 1u) << j;
+        }
+        bits[i / 64] = word;
+    }
+    return bad == 0;
+#endif
+}
+
+/**
  * Fill definition levels with a constant value using NEON.
  */
 void carquet_neon_fill_def_levels(int16_t* def_levels, int64_t count, int16_t value) {

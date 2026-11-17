@@ -12,6 +12,7 @@
  */
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -124,7 +125,8 @@ static int match_east_and_gt(int64_t id, const char* region, int rlen) {
 
 int main(void) {
     carquet_init();
-    const char* path = "/tmp/carquet_page_filter_example.parquet";
+    char path[1024];
+    example_temp_path(path, sizeof(path), "carquet_page_filter_example.parquet");
 
     printf("Writing %d rows (%d per page, %d pages)...\n",
            TOTAL_ROWS, ROWS_PER_PAGE, TOTAL_ROWS / ROWS_PER_PAGE);

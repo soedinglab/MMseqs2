@@ -6,11 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <carquet/carquet.h>
+#include "example_paths.h"
 
 #define NUM_ROWS 1000
 
 int main(void) {
-    const char* filename = "/tmp/example_basic.parquet";
+    char filename[1024];
+    example_temp_path(filename, sizeof(filename), "example_basic.parquet");
     carquet_error_t err = CARQUET_ERROR_INIT;
 
     /* ── Schema ── */

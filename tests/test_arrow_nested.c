@@ -259,11 +259,79 @@ static int test_filter_repeated(void) {
     return 0;
 }
 
+
+/* ---- Test: read_arrow_fields reads only (and orders) the requested fields ---- */
+static int test_read_fields(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_schema_t* s = carquet_schema_create(NULL);
+    carquet_schema_add_column(s, "id", CARQUET_PHYSICAL_INT64, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
+    int32_t pt = carquet_schema_add_group(s, "pt", CARQUET_REPETITION_OPTIONAL, 0);
+    carquet_schema_add_column(s, "x", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, pt);
+    carquet_schema_add_column(s, "y", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, pt);
+    carquet_schema_add_list(s, "vals", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_OPTIONAL, 0, 0);
+
+    char path[512]; carquet_test_temp_path(path, sizeof(path), "nested_fields");
+    carquet_writer_t* w = carquet_writer_create(path, s, NULL, &err);
+    if (!w) TEST_FAIL("read_fields", "create");
+    int64_t ids[3] = {1, 2, 3};
+    int16_t pdef[3] = {1, 0, 1};
+    int32_t xs[2] = {10, 30}, ys[2] = {11, 31};
+    int32_t off[4] = {0, 2, 2, 3}, vals[3] = {5, 6, 7};
+    if (carquet_writer_write_batch(w, 0, ids, 3, NULL, NULL) != CARQUET_OK ||
+        carquet_writer_write_batch(w, 1, xs, 3, pdef, NULL) != CARQUET_OK ||
+        carquet_writer_write_batch(w, 2, ys, 3, pdef, NULL) != CARQUET_OK ||
+        carquet_writer_write_list_column(w, 3, 3, off, NULL, vals, NULL, &err) != CARQUET_OK ||
+        carquet_writer_close(w) != CARQUET_OK)
+        TEST_FAIL("read_fields", "write");
+    carquet_schema_free(s);
+
+    carquet_reader_t* r = carquet_reader_open(path, NULL, &err);
+    if (!r) TEST_FAIL("read_fields", "open");
+    struct ArrowSchema as; struct ArrowArray aa;
+
+    /* vals, pt (reordered; id not read) */
+    int32_t fields[2] = {2, 1};
+    if (carquet_reader_read_arrow_fields(r, 0, fields, 2, &as, &aa, &err) != CARQUET_OK)
+        TEST_FAIL("read_fields", err.message);
+    assert(aa.length == 3 && aa.n_children == 2 && as.n_children == 2);
+    assert(strcmp(as.children[0]->name, "vals") == 0 && strcmp(as.children[0]->format, "+l") == 0);
+    assert(strcmp(as.children[1]->name, "pt") == 0 && strcmp(as.children[1]->format, "+s") == 0);
+    const int32_t* lo = (const int32_t*)aa.children[0]->buffers[1];
+    assert(lo[0] == 0 && lo[1] == 2 && lo[2] == 2 && lo[3] == 3);
+    const struct ArrowArray* ptarr = aa.children[1];
+    assert(ptarr->null_count == 1 && ptarr->n_children == 2);
+    const int32_t* xv = (const int32_t*)ptarr->children[0]->buffers[1];
+    assert(xv[0] == 10 && xv[2] == 30);
+    aa.release(&aa); as.release(&as);
+
+    /* NULL / 0 fields == carquet_reader_read_arrow (no schema requested) */
+    if (carquet_reader_read_arrow_fields(r, 0, NULL, 0, NULL, &aa, &err) != CARQUET_OK)
+        TEST_FAIL("read_fields", err.message);
+    assert(aa.n_children == 3);
+    assert(((const int64_t*)aa.children[0]->buffers[1])[2] == 3);
+    aa.release(&aa);
+
+    /* out of range / duplicate / bad row group */
+    int32_t bad[1] = {3};
+    int32_t dup[2] = {0, 0};
+    aa.release = NULL;
+    assert(carquet_reader_read_arrow_fields(r, 0, bad, 1, NULL, &aa, &err) == CARQUET_ERROR_INVALID_ARGUMENT);
+    assert(carquet_reader_read_arrow_fields(r, 0, dup, 2, NULL, &aa, &err) == CARQUET_ERROR_INVALID_ARGUMENT);
+    assert(carquet_reader_read_arrow_fields(r, 1, fields, 2, NULL, &aa, &err) == CARQUET_ERROR_INVALID_ARGUMENT);
+    assert(aa.release == NULL);
+
+    carquet_reader_close(r);
+    carquet_test_cleanup(path);
+    TEST_PASS("read_fields");
+    return 0;
+}
+
 int main(void) {
     if (test_list_list()) return 1;
     if (test_map()) return 1;
     if (test_errors()) return 1;
     if (test_filter_repeated()) return 1;
+    if (test_read_fields()) return 1;
     printf("\nAll nested Arrow tests passed.\n");
     return 0;
 }

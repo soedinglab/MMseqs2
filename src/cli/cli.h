@@ -89,6 +89,15 @@ const char* cli_format_value(carquet_physical_type_t type,
                              const carquet_logical_type_t* logical,
                              char* buf, size_t buf_size);
 
+/** Format a raw column-statistics value of `raw_size` bytes (fixed-width
+ *  physical types only; BYTE_ARRAY callers wrap the bytes themselves).
+ *  Prints "(invalid)" when the bytes are too short for the type. Returns buf. */
+const char* cli_format_stat_value(carquet_physical_type_t type,
+                                  const void* raw, int32_t raw_size,
+                                  int32_t type_len,
+                                  const carquet_logical_type_t* logical,
+                                  char* buf, size_t buf_size);
+
 /** Repetition name */
 const char* cli_repetition_name(carquet_field_repetition_t rep);
 

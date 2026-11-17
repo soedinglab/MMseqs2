@@ -9,8 +9,11 @@
  * carry a soffset to a trailing vtable.
  */
 
+#include <carquet/carquet.h>
+
 #include "core/allocator.h"
 #include "arrow_schema.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -140,7 +143,8 @@ static size_t fbb_end_vector(fbb* b, size_t n) {
 /* ---- tables ---- */
 static int fbb_start_table(fbb* b, int numfields) {
     carquet_mem_free(b->vtable);
-    b->vtable = (int32_t*)carquet_mem_calloc((size_t)numfields, sizeof(int32_t));
+    /* At least one slot: a 0-byte allocation may return NULL (empty type tables). */
+    b->vtable = (int32_t*)carquet_mem_calloc((size_t)(numfields > 0 ? numfields : 1), sizeof(int32_t));
     if (!b->vtable) { b->oom = 1; return 0; }
     b->vtable_len = numfields;
     b->object_end = fbb_offset(b);
@@ -205,6 +209,23 @@ static void fbb_finish(fbb* b, size_t root) {
  * ============================================================================
  */
 
+/* Arrow Decimal type table. The precision/scale live in the DECIMAL logical
+ * type; the legacy SchemaElement.precision/scale fields are only a fallback
+ * (they are unset for schemas built from logical types, and a precision of 0
+ * makes the whole ARROW:schema blob unreadable for Arrow C++ / PyArrow). */
+static int build_decimal_type(fbb* b, const parquet_schema_element_t* e,
+                              size_t* type_off, uint8_t* type_tag) {
+    int32_t precision = e->logical_type.params.decimal.precision;
+    int32_t scale = e->logical_type.params.decimal.scale;
+    if (precision <= 0) { precision = e->precision; scale = e->scale; }
+    if (precision <= 0 || precision > 76) return 0;  /* not Arrow-representable */
+    fbb_start_table(b, 3);
+    fbb_add_i32(b, 0, precision);
+    fbb_add_i32(b, 1, scale);
+    fbb_add_i32(b, 2, precision > 38 ? 256 : 128);
+    *type_off = fbb_end_table(b); *type_tag = AT_DECIMAL; return 1;
+}
+
 /* Returns 0 on unsupported type (caller aborts ARROW:schema emission). */
 static int build_arrow_type(fbb* b, const parquet_schema_element_t* e,
                             uint8_t* type_tag, size_t* type_off) {
@@ -258,11 +279,7 @@ static int build_arrow_type(fbb* b, const parquet_schema_element_t* e,
             *type_off = fbb_end_table(b); *type_tag = AT_TIME; return 1;
         }
         if (has_lt && lt == CARQUET_LOGICAL_DECIMAL) {
-            fbb_start_table(b, 3);
-            fbb_add_i32(b, 0, e->precision);
-            fbb_add_i32(b, 1, e->scale);
-            fbb_add_i32(b, 2, 128);
-            *type_off = fbb_end_table(b); *type_tag = AT_DECIMAL; return 1;
+            return build_decimal_type(b, e, type_off, type_tag);
         }
         {
             int32_t bw = is64 ? 64 : 32;
@@ -304,11 +321,7 @@ static int build_arrow_type(fbb* b, const parquet_schema_element_t* e,
 
     case CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY:
         if (has_lt && lt == CARQUET_LOGICAL_DECIMAL) {
-            fbb_start_table(b, 3);
-            fbb_add_i32(b, 0, e->precision);
-            fbb_add_i32(b, 1, e->scale);
-            fbb_add_i32(b, 2, 128);
-            *type_off = fbb_end_table(b); *type_tag = AT_DECIMAL; return 1;
+            return build_decimal_type(b, e, type_off, type_tag);
         }
         fbb_start_table(b, 1);
         fbb_add_i32(b, 0, e->type_length);
@@ -401,8 +414,11 @@ static size_t build_field(fbb* b, const parquet_schema_element_t* schema,
     if (depth > ARROW_MAX_NEST_DEPTH) { *ok = 0; return 0; }
     const parquet_schema_element_t* e = &schema[idx];
 
-    int32_t kids[64];
-    int32_t nk = collect_children(parent, num_elements, idx, kids, 64);
+    /* collect_children() returns the full child count but stores at most
+     * max_out indexes: take the first child here (lists and maps need only
+     * that one) and the full list in the struct branch, sized from nk. */
+    int32_t first_kid = -1;
+    int32_t nk = collect_children(parent, num_elements, idx, &first_kid, 1);
     int nullable = force_nonnull ? 0
         : !(e->has_repetition && e->repetition_type == CARQUET_REPETITION_REQUIRED);
 
@@ -434,7 +450,7 @@ static size_t build_field(fbb* b, const parquet_schema_element_t* schema,
         /* group(LIST) → repeated group → element. Arrow List<element>. */
         if (nk != 1) { *ok = 0; return 0; }
         int32_t elem_kids[4];
-        int32_t nek = collect_children(parent, num_elements, kids[0], elem_kids, 4);
+        int32_t nek = collect_children(parent, num_elements, first_kid, elem_kids, 4);
         if (nek != 1) { *ok = 0; return 0; }
         size_t elem_off = build_field(b, schema, num_elements, parent,
                                       elem_kids[0], 0, depth + 1, ok);
@@ -449,7 +465,7 @@ static size_t build_field(fbb* b, const parquet_schema_element_t* schema,
         /* group(MAP) → repeated key_value → {key, value?}.
          * Arrow Map<entries: struct<key, value>> (entries non-nullable). */
         if (nk != 1) { *ok = 0; return 0; }
-        int32_t kv = kids[0];
+        int32_t kv = first_kid;
         int32_t kv_kids[4];
         int32_t nkv = collect_children(parent, num_elements, kv, kv_kids, 4);
         if (nkv < 1 || nkv > 2) { *ok = 0; return 0; }
@@ -490,12 +506,19 @@ static size_t build_field(fbb* b, const parquet_schema_element_t* schema,
     /* Plain STRUCT group. */
     {
         size_t* coffs = (size_t*)carquet_mem_malloc((size_t)nk * sizeof(size_t));
-        if (!coffs) { b->oom = 1; *ok = 0; return 0; }
+        int32_t* kids = (int32_t*)carquet_mem_malloc((size_t)nk * sizeof(int32_t));
+        if (!coffs || !kids) {
+            carquet_mem_free(coffs);
+            carquet_mem_free(kids);
+            b->oom = 1; *ok = 0; return 0;
+        }
+        collect_children(parent, num_elements, idx, kids, nk);
         for (int32_t i = 0; i < nk; i++) {
             coffs[i] = build_field(b, schema, num_elements, parent,
                                    kids[i], 0, depth + 1, ok);
-            if (!*ok) { carquet_mem_free(coffs); return 0; }
+            if (!*ok) { carquet_mem_free(coffs); carquet_mem_free(kids); return 0; }
         }
+        carquet_mem_free(kids);
         fbb_start_vector(b, 4, (size_t)nk, 4);
         for (int32_t i = nk - 1; i >= 0; i--) fbb_prepend_uoffset(b, coffs[i]);
         size_t kids_vec = fbb_end_vector(b, (size_t)nk);
@@ -550,6 +573,52 @@ static char* base64(const uint8_t* in, size_t n) {
     return out;
 }
 
+/* Finish the Schema message around `nfields` built Field offsets (and an
+ * optional Schema.custom_metadata vector), encapsulate it as an IPC message
+ * and base64 it. Frees the builder. */
+static char* finish_schema_message(fbb* b, const size_t* field_offs, int32_t nfields, size_t meta_vec) {
+    fbb_start_vector(b, 4, (size_t)nfields, 4);
+    for (int32_t i = nfields - 1; i >= 0; i--) fbb_prepend_uoffset(b, field_offs[i]);
+    size_t fields_vec = fbb_end_vector(b, (size_t)nfields);
+
+    /* Schema table: only set fields (endianness Little=0 is the default). */
+    fbb_start_table(b, 4);
+    fbb_add_uoffset(b, 1, fields_vec);
+    if (meta_vec) fbb_add_uoffset(b, 2, meta_vec);
+    size_t schema_off = fbb_end_table(b);
+
+    /* Message table */
+    fbb_start_table(b, 5);
+    fbb_add_i16(b, 0, ARROW_METADATA_V5);
+    fbb_add_u8(b, 1, MSG_HEADER_SCHEMA);
+    fbb_add_uoffset(b, 2, schema_off);
+    size_t msg_off = fbb_end_table(b);
+
+    fbb_finish(b, msg_off);
+    if (b->oom) { fbb_free(b); return NULL; }
+
+    size_t fb_len = fbb_offset(b);
+    const uint8_t* fb = b->buf + b->head;
+
+    /* Encapsulated IPC message: 0xFFFFFFFF | int32 metadata_len | flatbuffer,
+     * with the flatbuffer padded so metadata_len is a multiple of 8. */
+    size_t padded = (fb_len + 7) & ~(size_t)7;
+    size_t enc_len = 8 + padded;
+    uint8_t* enc = (uint8_t*)carquet_mem_malloc(enc_len);
+    if (!enc) { fbb_free(b); return NULL; }
+    enc[0] = enc[1] = enc[2] = enc[3] = 0xFF;
+    uint32_t m = (uint32_t)padded;
+    enc[4] = (uint8_t)m; enc[5] = (uint8_t)(m >> 8);
+    enc[6] = (uint8_t)(m >> 16); enc[7] = (uint8_t)(m >> 24);
+    memcpy(enc + 8, fb, fb_len);
+    memset(enc + 8 + fb_len, 0, padded - fb_len);
+    fbb_free(b);
+
+    char* b64 = base64(enc, enc_len);
+    carquet_mem_free(enc);
+    return b64;
+}
+
 /* ============================================================================
  * Public entry
  * ============================================================================
@@ -593,45 +662,254 @@ char* carquet_build_arrow_schema_b64(
     carquet_mem_free(parent);
     if (!ok || b.oom) { carquet_mem_free(field_offs); fbb_free(&b); return NULL; }
 
-    /* fields vector */
-    fbb_start_vector(&b, 4, (size_t)nfields, 4);
-    for (int32_t i = nfields - 1; i >= 0; i--) fbb_prepend_uoffset(&b, field_offs[i]);
-    size_t fields_vec = fbb_end_vector(&b, (size_t)nfields);
+    char* out = finish_schema_message(&b, field_offs, nfields, 0);
     carquet_mem_free(field_offs);
+    return out;
+}
 
-    /* Schema table: only set fields (endianness Little=0 is the default). */
-    fbb_start_table(&b, 4);
-    fbb_add_uoffset(&b, 1, fields_vec);
-    size_t schema_off = fbb_end_table(&b);
+/* ============================================================================
+ * From an Arrow schema (the original types of data written via write_arrow)
+ * ============================================================================
+ */
 
-    /* Message table */
-    fbb_start_table(&b, 5);
-    fbb_add_i16(&b, 0, ARROW_METADATA_V5);
-    fbb_add_u8(&b, 1, MSG_HEADER_SCHEMA);
-    fbb_add_uoffset(&b, 2, schema_off);
-    size_t msg_off = fbb_end_table(&b);
+enum {
+    AT_INTERVAL = 11, AT_FIXEDSIZELIST = 16, AT_DURATION = 18, AT_LARGEBINARY_ = 19,
+    AT_LARGEUTF8_ = 20, AT_LARGELIST_ = 21, AT_BINARYVIEW = 23, AT_UTF8VIEW = 24
+};
 
-    fbb_finish(&b, msg_off);
-    if (b.oom) { fbb_free(&b); return NULL; }
+static int16_t unit_code(char c) {
+    return c == 's' ? 0 : c == 'm' ? 1 : c == 'u' ? 2 : c == 'n' ? 3 : -1;
+}
 
-    size_t fb_len = fbb_offset(&b);
-    const uint8_t* fb = b.buf + b.head;
+/* Arrow metadata blob -> [KeyValue] vector offset (0 when none). */
+static size_t metadata_vector(fbb* b, const char* md) {
+    if (!md) return 0;
+    int32_t n;
+    memcpy(&n, md, 4);
+    if (n <= 0 || n > 1 << 16) return 0;
+    size_t* offs = (size_t*)carquet_mem_malloc((size_t)n * sizeof(size_t));
+    if (!offs) { b->oom = 1; return 0; }
+    size_t pos = 4;
+    for (int32_t i = 0; i < n; i++) {
+        int32_t kl, vl;
+        memcpy(&kl, md + pos, 4);
+        char* k = (char*)carquet_mem_malloc((size_t)kl + 1);
+        if (!k) { b->oom = 1; carquet_mem_free(offs); return 0; }
+        memcpy(k, md + pos + 4, (size_t)kl); k[kl] = '\0';
+        pos += 4 + (size_t)kl;
+        memcpy(&vl, md + pos, 4);
+        char* v = (char*)carquet_mem_malloc((size_t)vl + 1);
+        if (!v) { b->oom = 1; carquet_mem_free(k); carquet_mem_free(offs); return 0; }
+        memcpy(v, md + pos + 4, (size_t)vl); v[vl] = '\0';
+        pos += 4 + (size_t)vl;
+        size_t ko = fbb_create_string(b, k);
+        size_t vo = fbb_create_string(b, v);
+        carquet_mem_free(k);
+        carquet_mem_free(v);
+        fbb_start_table(b, 2);
+        fbb_add_uoffset(b, 0, ko);
+        fbb_add_uoffset(b, 1, vo);
+        offs[i] = fbb_end_table(b);
+    }
+    fbb_start_vector(b, 4, (size_t)n, 4);
+    for (int32_t i = n - 1; i >= 0; i--) fbb_prepend_uoffset(b, offs[i]);
+    size_t vec = fbb_end_vector(b, (size_t)n);
+    carquet_mem_free(offs);
+    return vec;
+}
 
-    /* Encapsulated IPC message: 0xFFFFFFFF | int32 metadata_len | flatbuffer,
-     * with the flatbuffer padded so metadata_len is a multiple of 8. */
-    size_t padded = (fb_len + 7) & ~(size_t)7;
-    size_t enc_len = 8 + padded;
-    uint8_t* enc = (uint8_t*)carquet_mem_malloc(enc_len);
-    if (!enc) { fbb_free(&b); return NULL; }
-    enc[0] = enc[1] = enc[2] = enc[3] = 0xFF;
-    uint32_t m = (uint32_t)padded;
-    enc[4] = (uint8_t)m; enc[5] = (uint8_t)(m >> 8);
-    enc[6] = (uint8_t)(m >> 16); enc[7] = (uint8_t)(m >> 24);
-    memcpy(enc + 8, fb, fb_len);
-    memset(enc + 8 + fb_len, 0, padded - fb_len);
-    fbb_free(&b);
+static int int_bits(const char* f, int32_t* bits, int* is_signed) {
+    if (f[1] != '\0') return 0;
+    switch (f[0]) {
+    case 'c': *bits = 8;  *is_signed = 1; return 1;
+    case 'C': *bits = 8;  *is_signed = 0; return 1;
+    case 's': *bits = 16; *is_signed = 1; return 1;
+    case 'S': *bits = 16; *is_signed = 0; return 1;
+    case 'i': *bits = 32; *is_signed = 1; return 1;
+    case 'I': *bits = 32; *is_signed = 0; return 1;
+    case 'l': *bits = 64; *is_signed = 1; return 1;
+    case 'L': *bits = 64; *is_signed = 0; return 1;
+    default: return 0;
+    }
+}
 
-    char* b64 = base64(enc, enc_len);
-    carquet_mem_free(enc);
-    return b64;
+/* Type table for an Arrow format string; 0 when it has no IPC equivalent. */
+static int arrow_format_type(fbb* b, const char* f, int keys_sorted, uint8_t* tag, size_t* off) {
+    int32_t bits; int sg;
+    if (int_bits(f, &bits, &sg)) {
+        fbb_start_table(b, 2);
+        fbb_add_i32(b, 0, bits);
+        if (sg) fbb_add_u8(b, 1, 1);
+        *off = fbb_end_table(b); *tag = AT_INT; return 1;
+    }
+    if (f[1] == '\0') {
+        int16_t prec = -1;
+        switch (f[0]) {
+        case 'n': *tag = AT_NULL; break;
+        case 'b': *tag = AT_BOOL; break;
+        case 'z': *tag = AT_BINARY; break;
+        case 'u': *tag = AT_UTF8; break;
+        case 'Z': *tag = AT_LARGEBINARY_; break;
+        case 'U': *tag = AT_LARGEUTF8_; break;
+        case 'e': prec = 0; break;
+        case 'f': prec = 1; break;
+        case 'g': prec = 2; break;
+        default: return 0;
+        }
+        if (prec >= 0) {
+            fbb_start_table(b, 1);
+            fbb_add_i16(b, 0, prec);
+            *off = fbb_end_table(b); *tag = AT_FLOAT; return 1;
+        }
+        fbb_start_table(b, 0);
+        *off = fbb_end_table(b); return 1;
+    }
+    if (strcmp(f, "vz") == 0 || strcmp(f, "vu") == 0) {
+        fbb_start_table(b, 0);
+        *off = fbb_end_table(b); *tag = f[1] == 'z' ? AT_BINARYVIEW : AT_UTF8VIEW; return 1;
+    }
+    if (f[0] == 'd' && f[1] == ':') {
+        int p = 0, sc = 0, bw = 128;
+        int n = sscanf(f + 2, "%d,%d,%d", &p, &sc, &bw);
+        if (n < 2 || p <= 0) return 0;
+        fbb_start_table(b, 3);
+        fbb_add_i32(b, 0, p);
+        fbb_add_i32(b, 1, sc);
+        fbb_add_i32(b, 2, bw);
+        *off = fbb_end_table(b); *tag = AT_DECIMAL; return 1;
+    }
+    if (f[0] == 'w' && f[1] == ':') {
+        int w = atoi(f + 2);
+        if (w <= 0) return 0;
+        fbb_start_table(b, 1);
+        fbb_add_i32(b, 0, w);
+        *off = fbb_end_table(b); *tag = AT_FIXEDSIZEBINARY; return 1;
+    }
+    if (f[0] == 't') {
+        if (f[1] == 'd' && (f[2] == 'D' || f[2] == 'm') && f[3] == '\0') {
+            fbb_start_table(b, 1);
+            fbb_add_i16(b, 0, f[2] == 'D' ? 0 : 1);
+            *off = fbb_end_table(b); *tag = AT_DATE; return 1;
+        }
+        if (f[1] == 't' && unit_code(f[2]) >= 0 && f[3] == '\0') {
+            fbb_start_table(b, 2);
+            fbb_add_i16(b, 0, unit_code(f[2]));
+            fbb_add_i32(b, 1, (f[2] == 's' || f[2] == 'm') ? 32 : 64);
+            *off = fbb_end_table(b); *tag = AT_TIME; return 1;
+        }
+        if (f[1] == 's' && unit_code(f[2]) >= 0 && f[3] == ':') {
+            size_t tz = f[4] ? fbb_create_string(b, f + 4) : 0;
+            fbb_start_table(b, 2);
+            fbb_add_i16(b, 0, unit_code(f[2]));
+            if (tz) fbb_add_uoffset(b, 1, tz);
+            *off = fbb_end_table(b); *tag = AT_TIMESTAMP; return 1;
+        }
+        if (f[1] == 'D' && unit_code(f[2]) >= 0 && f[3] == '\0') {
+            fbb_start_table(b, 1);
+            fbb_add_i16(b, 0, unit_code(f[2]));
+            *off = fbb_end_table(b); *tag = AT_DURATION; return 1;
+        }
+        if (f[1] == 'i' && (f[2] == 'M' || f[2] == 'D' || f[2] == 'n') && f[3] == '\0') {
+            fbb_start_table(b, 1);
+            fbb_add_i16(b, 0, f[2] == 'M' ? 0 : f[2] == 'D' ? 1 : 2);
+            *off = fbb_end_table(b); *tag = AT_INTERVAL; return 1;
+        }
+        return 0;
+    }
+    if (f[0] == '+') {
+        if (strcmp(f, "+l") == 0 || strcmp(f, "+L") == 0 || strcmp(f, "+s") == 0) {
+            fbb_start_table(b, 0);
+            *off = fbb_end_table(b);
+            *tag = f[1] == 'l' ? AT_LIST : f[1] == 'L' ? AT_LARGELIST_ : AT_STRUCT;
+            return 1;
+        }
+        if (strcmp(f, "+m") == 0) {
+            fbb_start_table(b, 1);
+            if (keys_sorted) fbb_add_u8(b, 0, 1);
+            *off = fbb_end_table(b); *tag = AT_MAP; return 1;
+        }
+        if (f[1] == 'w' && f[2] == ':' && atoi(f + 3) > 0) {
+            fbb_start_table(b, 1);
+            fbb_add_i32(b, 0, atoi(f + 3));
+            *off = fbb_end_table(b); *tag = AT_FIXEDSIZELIST; return 1;
+        }
+    }
+    return 0;
+}
+
+static size_t arrow_field(fbb* b, const struct ArrowSchema* s, int depth, int64_t* dict_id, int* ok) {
+    if (depth > ARROW_MAX_NEST_DEPTH || !s->format || s->n_children < 0) { *ok = 0; return 0; }
+    /* A dictionary-encoded field has the value type; its own format is the index type. */
+    const struct ArrowSchema* vt = s->dictionary ? s->dictionary : s;
+    size_t* kids = NULL;
+    if (vt->n_children > 0) {
+        kids = (size_t*)carquet_mem_malloc((size_t)vt->n_children * sizeof(size_t));
+        if (!kids) { b->oom = 1; *ok = 0; return 0; }
+        for (int64_t i = 0; i < vt->n_children; i++) {
+            kids[i] = arrow_field(b, vt->children[i], depth + 1, dict_id, ok);
+            if (!*ok) { carquet_mem_free(kids); return 0; }
+        }
+    }
+    size_t kids_vec = 0;
+    if (vt->n_children > 0) {
+        fbb_start_vector(b, 4, (size_t)vt->n_children, 4);
+        for (int64_t i = vt->n_children - 1; i >= 0; i--) fbb_prepend_uoffset(b, kids[i]);
+        kids_vec = fbb_end_vector(b, (size_t)vt->n_children);
+    }
+    carquet_mem_free(kids);
+
+    uint8_t tag = 0;
+    size_t type_off = 0;
+    if (!arrow_format_type(b, vt->format, (s->flags & ARROW_FLAG_MAP_KEYS_SORTED) != 0, &tag, &type_off)) {
+        *ok = 0;
+        return 0;
+    }
+    size_t dict_off = 0;
+    if (s->dictionary) {
+        int32_t bits; int sg;
+        if (!int_bits(s->format, &bits, &sg)) { *ok = 0; return 0; }
+        fbb_start_table(b, 2);
+        fbb_add_i32(b, 0, bits);
+        if (sg) fbb_add_u8(b, 1, 1);
+        size_t idx = fbb_end_table(b);
+        fbb_start_table(b, 4);
+        int64_t id = (*dict_id)++;
+        /* DictionaryEncoding.id is a long: two little-endian words. */
+        fbb_prep(b, 8, 0);
+        fbb_place_u32(b, (uint32_t)((uint64_t)id >> 32));
+        fbb_place_u32(b, (uint32_t)id);
+        fbb_slot(b, 0);
+        fbb_add_uoffset(b, 1, idx);
+        if (s->flags & ARROW_FLAG_DICTIONARY_ORDERED) fbb_add_u8(b, 2, 1);
+        dict_off = fbb_end_table(b);
+    }
+    size_t name_off = fbb_create_string(b, s->name ? s->name : "");
+    size_t meta_off = metadata_vector(b, s->metadata);
+    if (b->oom) { *ok = 0; return 0; }
+    fbb_start_table(b, 7);
+    fbb_add_uoffset(b, 0, name_off);
+    if (s->flags & ARROW_FLAG_NULLABLE) fbb_add_u8(b, 1, 1);
+    fbb_add_u8(b, 2, tag);
+    fbb_add_uoffset(b, 3, type_off);
+    if (dict_off) fbb_add_uoffset(b, 4, dict_off);
+    if (kids_vec) fbb_add_uoffset(b, 5, kids_vec);
+    if (meta_off) fbb_add_uoffset(b, 6, meta_off);
+    return fbb_end_table(b);
+}
+
+char* carquet_build_arrow_schema_b64_from_arrow(const struct ArrowSchema* schema) {
+    if (!schema || !schema->format || strcmp(schema->format, "+s") != 0 || schema->n_children < 1) return NULL;
+    fbb b;
+    if (!fbb_init(&b)) return NULL;
+    int32_t n = (int32_t)schema->n_children;
+    size_t* offs = (size_t*)carquet_mem_malloc((size_t)n * sizeof(size_t));
+    if (!offs) { fbb_free(&b); return NULL; }
+    int ok = 1;
+    int64_t dict_id = 0;
+    for (int32_t i = 0; i < n && ok; i++) offs[i] = arrow_field(&b, schema->children[i], 0, &dict_id, &ok);
+    size_t meta = ok ? metadata_vector(&b, schema->metadata) : 0;
+    if (!ok || b.oom) { carquet_mem_free(offs); fbb_free(&b); return NULL; }
+    char* out = finish_schema_message(&b, offs, n, meta);
+    carquet_mem_free(offs);
+    return out;
 }

@@ -32,6 +32,49 @@
                 "CARQUET_BUILD_FUZZ": "OFF",
                 "CARQUET_BUILD_BENCHMARKS": "OFF"
             }
+        },
+        {
+            "name": "windows-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-${presetName}",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CARQUET_BUILD_TESTS": "ON",
+                "CARQUET_BUILD_EXAMPLES": "ON"
+            }
+        },
+        {
+            "name": "msvc",
+            "inherits": "windows-base",
+            "displayName": "Windows MSVC (static, Release, tests)",
+            "description": "Run from a Developer PowerShell / vcvars prompt (x64 or x86).",
+            "cacheVariables": { "CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl" }
+        },
+        {
+            "name": "msvc-shared",
+            "inherits": "msvc",
+            "displayName": "Windows MSVC (carquet.dll, Release, tests)",
+            "cacheVariables": { "CARQUET_BUILD_SHARED": "ON" }
+        },
+        {
+            "name": "clang-cl",
+            "inherits": "windows-base",
+            "displayName": "Windows clang-cl (static, Release, tests)",
+            "description": "Run from a Developer prompt with the VS LLVM component installed.",
+            "cacheVariables": { "CMAKE_C_COMPILER": "clang-cl", "CMAKE_CXX_COMPILER": "clang-cl" }
+        },
+        {
+            "name": "mingw",
+            "inherits": "windows-base",
+            "displayName": "Windows MinGW-w64 GCC (static, Release, tests)",
+            "description": "MinGW-w64 gcc and ninja on PATH (do not mix with a vcvars environment).",
+            "cacheVariables": { "CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++" }
         }
     ],
     "buildPresets": [
@@ -42,7 +85,11 @@
         {
             "name": "release",
             "configurePreset": "release"
-        }
+        },
+        { "name": "msvc", "configurePreset": "msvc" },
+        { "name": "msvc-shared", "configurePreset": "msvc-shared" },
+        { "name": "clang-cl", "configurePreset": "clang-cl" },
+        { "name": "mingw", "configurePreset": "mingw" }
     ],
     "testPresets": [
         {
@@ -51,6 +98,10 @@
             "output": {
                 "outputOnFailure": true
             }
-        }
+        },
+        { "name": "msvc", "configurePreset": "msvc", "output": { "outputOnFailure": true } },
+        { "name": "msvc-shared", "configurePreset": "msvc-shared", "output": { "outputOnFailure": true } },
+        { "name": "clang-cl", "configurePreset": "clang-cl", "output": { "outputOnFailure": true } },
+        { "name": "mingw", "configurePreset": "mingw", "output": { "outputOnFailure": true } }
     ]
 }

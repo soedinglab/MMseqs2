@@ -763,6 +763,6 @@ int main(void) {
     rc |= test_bss_large_tiled_decode();
     rc |= test_brotli_roundtrip();
     rc |= test_encrypted_file_detected();
-    if (rc == 0) printf("\nAll 0.7.2 regression tests passed.\n");
+    if (rc == 0) printf("\nAll 0.7.3 regression tests passed.\n");
     return rc;
 }

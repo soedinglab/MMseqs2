@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carquet · Parquet at the speed of C</title>
+<meta name="description" content="Carquet is a pure C11 library for reading and writing Apache Parquet files. ~500 KB, four dependencies, SIMD everywhere, and faster than Arrow.">
+<meta property="og:title" content="Carquet · Parquet at the speed of C">
+<meta property="og:description" content="A pure C11 Apache Parquet reader and writer. Faster than Arrow C++, PyArrow and fastparquet. make, or pip install carquet.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vitruves.github.io/carquet/">
+<meta property="og:image" content="https://vitruves.github.io/carquet/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="carquet: Parquet at the speed of C. Compressed writes 4.6-5.9x and reads 1.9x faster than Arrow C++.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://vitruves.github.io/carquet/assets/og.png">
+<meta name="theme-color" content="#08090b">
+<link rel="canonical" href="https://vitruves.github.io/carquet/">
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><img src="assets/mark.png" alt="" width="28" height="28"><span>carquet</span></a>
+    <nav class="links">
+      <a href="#bench">Benchmarks</a>
+      <a href="#metal">Why C</a>
+      <a href="#simd">SIMD</a>
+      <a href="#install">Install</a>
+      <a href="#api">API</a>
+      <a href="#cli">CLI</a>
+      <a href="https://github.com/Vitruves/carquet/tree/main/docs">Docs</a>
+      <a class="gh" href="https://github.com/Vitruves/carquet" aria-label="GitHub">
+        <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="wrap hero-in">
+      <img class="hero-mark" src="assets/mark.png" alt="Carquet logo" width="132" height="132">
+      <p class="eyebrow">Apache Parquet · pure C11 · MIT</p>
+      <h1>Parquet at the<br><span class="hot">speed of C.</span></h1>
+      <p class="lede">A tiny, self-contained library to read and write Parquet files. No runtime, no garbage collector, no 50&nbsp;MB framework: just tight C compiled down to the instructions your CPU is best at.</p>
+      <div class="cta">
+        <a class="btn" href="#install">Get started →</a>
+        <a class="btn ghost" href="https://github.com/Vitruves/carquet">View on GitHub</a>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+  </section>
+
+  <!-- BENCHMARKS -->
+  <section id="bench" class="section">
+    <div class="wrap">
+      <p class="eyebrow">Benchmarks</p>
+      <h2>Measured against Arrow C++, PyArrow, fastparquet and polars.</h2>
+      <p class="sub" id="bench-sub"></p>
+
+      <div class="controls">
+        <div class="seg" role="tablist" aria-label="Operation" id="op-seg">
+          <button type="button" role="tab" data-op="read_ms" aria-selected="true">Read</button>
+          <button type="button" role="tab" data-op="write_ms" aria-selected="false">Write</button>
+        </div>
+        <div class="seg" role="tablist" aria-label="Rows" id="size-seg"></div>
+      </div>
+
+      <div class="legend" id="legend"></div>
+      <div class="chart" id="chart" aria-live="polite"></div>
+      <div class="tip" id="tip" role="tooltip"></div>
+
+      <details class="table-view">
+        <summary>Show as table</summary>
+        <div id="table"></div>
+      </details>
+      <p class="method" id="method"></p>
+    </div>
+  </section>
+
+  <!-- CLOSE TO THE METAL -->
+  <section id="metal" class="section">
+    <div class="wrap">
+      <div class="metal">
+        <div class="metal-copy">
+          <svg class="c-logo" viewBox="0 0 120 132" role="img" aria-label="C language">
+            <defs>
+              <linearGradient id="cg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5aa8f0"/><stop offset="1" stop-color="#1f5fae"/>
+              </linearGradient>
+              <linearGradient id="cg2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#ffc24a"/><stop offset="1" stop-color="#e06a17"/>
+              </linearGradient>
+            </defs>
+            <path d="M60 4 112 34v64L60 128 8 98V34Z" fill="url(#cg)"/>
+            <path d="M60 4 112 34 60 66Z" fill="#fff" opacity=".10"/>
+            <path d="M60 66 112 98 60 128Z" fill="#000" opacity=".18"/>
+            <path d="M80.5 82.5A27 27 0 1 1 80.5 49.5" fill="none" stroke="url(#cg2)" stroke-width="13" stroke-linecap="round"/>
+          </svg>
+          <p class="eyebrow">Why C</p>
+          <h2>Close to the metal.<br>Far ahead of the pack.</h2>
+          <p>C has no layer between your data and the silicon. Carquet uses that directly: columns are decoded with vector instructions picked at runtime, uncompressed pages are served straight from the memory map, and memory comes from arenas instead of millions of small allocations.</p>
+        </div>
+        <ul class="metal-grid">
+          <li><span class="k">arena</span><b>No per-value malloc</b><span>Metadata and scratch space come from arena allocators. No garbage collector, no pauses.</span></li>
+          <li><span class="k">mmap</span><b>Zero-copy reads</b><span>Uncompressed columns are handed out in place: 10M rows in well under a millisecond.</span></li>
+          <li><span class="k">OpenMP</span><b>Parallel encode &amp; async I/O</b><span>Page-granular parallel compression with a background writer, byte-identical to the serial path.</span></li>
+          <li><span class="k">500K</span><b>~500 KB library</b><span>Four dependencies (zstd, zlib, lz4, brotli), fetched for you. Arrow C++ is 50 MB+.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMD -->
+  <section id="simd" class="section simd-sec">
+    <div class="wrap">
+      <p class="eyebrow">SIMD inside</p>
+      <h2>Augmented with SIMD.<br><span class="hot">Eight values per instruction.</span></h2>
+      <p class="sub">The hot loops of Parquet decoding are written as vector kernels for every major instruction set. One portable binary detects the CPU at startup and dispatches to the widest kernel it supports, with a scalar fallback for everything else.</p>
+
+      <div class="simd">
+        <div class="lanes" aria-hidden="true">
+          <div class="lane-row">
+            <span class="lane-l">scalar<small>1 value / op</small></span>
+            <div class="lane scalar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="lane-row">
+            <span class="lane-l">AVX2 · NEON<small>8 × 32-bit / op</small></span>
+            <div class="lane vec"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="lane-row">
+            <span class="lane-l">AVX-512<small>16 × 32-bit / op</small></span>
+            <div class="lane wide"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+
+        <div class="isa">
+          <div><b>x86-64</b><span>SSE4.2</span><span>AVX</span><span>AVX2</span><span>AVX-512</span></div>
+          <div><b>ARM64</b><span>NEON</span><span>SVE</span></div>
+        </div>
+
+        <div class="simd-stats">
+          <div><b>30+</b><span>dispatched kernels</span></div>
+          <div><b>6</b><span>instruction sets</span></div>
+          <div><b>up to 21×</b><span>faster AVX2 bit-unpacking</span></div>
+          <div><b>1</b><span>binary, runtime dispatch</span></div>
+        </div>
+
+        <ul class="simd-list">
+          <li><b>Bit-unpacking &amp; RLE</b><span>Definition levels and dictionary indices of any bit width, unpacked a register at a time.</span></li>
+          <li><b>Dictionary gathers</b><span>Index-to-value gathers with the bounds check fused into the vector loop.</span></li>
+          <li><b>Byte-stream split</b><span>FLOAT / DOUBLE transposes for BYTE_STREAM_SPLIT, both directions.</span></li>
+          <li><b>Statistics</b><span>Min / max for every numeric type, NaN-aware, computed while copying.</span></li>
+          <li><b>Nulls &amp; booleans</b><span>Validity bitmaps, non-null counts and boolean packing.</span></li>
+          <li><b>Codecs &amp; DELTA</b><span>Snappy / LZ4 match copies and the prefix sums behind DELTA_BINARY_PACKED.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="section">
+    <div class="wrap">
+      <p class="eyebrow">Install</p>
+      <h2>Up and running in a minute.</h2>
+      <p class="sub">Linux, macOS and Windows. GCC, Clang, MSVC and MinGW. Missing codecs are fetched and built for you.</p>
+
+      <div class="install">
+        <div class="tabs" role="tablist" aria-label="Installation method">
+          <button type="button" role="tab" aria-selected="true" data-tab="make">make</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="pip">Python · PyPI</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="fetch">CMake FetchContent</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="cmake">CMake</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="xmake">xmake</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="win">Windows</button>
+        </div>
+
+        <div class="panel" data-panel="make">
+          <p>The simplest path: clone, <code>make</code>, install. You get the static library, the headers, the <code>carquet</code> CLI, a pkg-config file and <code>find_package(carquet)</code> support.</p>
+<pre><code class="lang-sh">$ git clone https://github.com/Vitruves/carquet.git && cd carquet
+$ make                    # optimized build (make native for -march=native)
+$ sudo make install       # /usr/local, or make install PREFIX=/opt/carquet
+
+$ cc app.c $(pkg-config --cflags --libs carquet)</code></pre>
+        </div>
+
+        <div class="panel" data-panel="pip" hidden>
+          <p>Prebuilt wheels bundle the library for Linux, macOS and Windows. No dependencies: reads return a <code>carquet.Table</code> that pandas, NumPy, polars, DuckDB and PyArrow take through the Arrow C Data Interface.</p>
+<pre><code class="lang-sh">$ pip install carquet</code></pre>
+        </div>
+
+        <div class="panel" data-panel="fetch" hidden>
+          <p>Pull a pinned release straight into your CMake project, no install step.</p>
+<pre><code class="lang-cmake">include(FetchContent)
+set(CARQUET_BUILD_CLI OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(carquet
+    GIT_REPOSITORY https://github.com/Vitruves/carquet.git
+    GIT_TAG        v0.8.0)
+FetchContent_MakeAvailable(carquet)
+target_link_libraries(app PRIVATE carquet)</code></pre>
+        </div>
+
+        <div class="panel" data-panel="cmake" hidden>
+          <p>Drive CMake directly for custom options: shared library, <code>-march=native</code>, Brotli off, your own zstd/zlib/lz4 targets.</p>
+<pre><code class="lang-sh">$ cmake -B build -DCMAKE_BUILD_TYPE=Release -DCARQUET_BUILD_SHARED=ON
+$ cmake --build build -j
+$ sudo cmake --install build</code></pre>
+        </div>
+
+        <div class="panel" data-panel="xmake" hidden>
+          <p>An equivalent <a href="https://xmake.io">xmake</a> build with the same options and defaults.</p>
+<pre><code class="lang-sh">$ xmake                      # static library + CLI, release
+$ xmake f --native_arch=y    # optional: -march=native
+$ xmake install -o /usr/local</code></pre>
+        </div>
+
+        <div class="panel" data-panel="win" hidden>
+          <p>Presets for MSVC, clang-cl and MinGW-w64, static or shared. Run from a Developer PowerShell.</p>
+<pre><code class="lang-sh">PS> cmake --preset msvc
+PS> cmake --build --preset msvc
+PS> ctest --preset msvc</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API -->
+  <section id="api" class="section">
+    <div class="wrap">
+      <p class="eyebrow">API</p>
+      <h2>A small API that stays out of the way.</h2>
+      <p class="sub">131 plain C functions, errors returned as values, no framework to adopt. Every snippet below compiles as-is with <code>-Wall -Wextra -Werror</code>.</p>
+
+      <div class="install">
+        <div class="tabs" role="tablist" aria-label="API example">
+          <button type="button" role="tab" aria-selected="true" data-tab="ex-write">Write</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="ex-read">Read</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="ex-filter">Filter pushdown</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="ex-arrow">Arrow bridge</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="ex-py">Python</button>
+        </div>
+        <div class="panel" data-panel="ex-write">
+          <p>Define a schema, then hand each column a plain C array. Nullable columns take a definition level per row and only the present values.</p>
+<pre><code class="lang-c">#include &lt;carquet/carquet.h&gt;
+#include &lt;stdio.h&gt;
+
+#define TRY(x) do { if ((x) != CARQUET_OK) return 1; } while (0)
+
+int main(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_logical_type_t utf8 = { .id = CARQUET_LOGICAL_STRING };
+
+    carquet_schema_t* schema = carquet_schema_create(&amp;err);
+    TRY(carquet_schema_add_column(schema, "id",    CARQUET_PHYSICAL_INT64,      NULL,  CARQUET_REPETITION_REQUIRED, 0, 0));
+    TRY(carquet_schema_add_column(schema, "name",  CARQUET_PHYSICAL_BYTE_ARRAY, &amp;utf8, CARQUET_REPETITION_REQUIRED, 0, 0));
+    TRY(carquet_schema_add_column(schema, "score", CARQUET_PHYSICAL_DOUBLE,     NULL,  CARQUET_REPETITION_OPTIONAL, 0, 0));
+
+    carquet_writer_options_t opts;
+    carquet_writer_options_init(&amp;opts);
+    opts.compression      = CARQUET_COMPRESSION_ZSTD;
+    opts.write_page_index = true;               /* lets readers skip pages */
+
+    carquet_writer_t* w = carquet_writer_create("people.parquet", schema, &amp;opts, &amp;err);
+    if (!w) { fprintf(stderr, "%s\n", err.message); return 1; }
+
+    int64_t ids[] = {1, 2, 3};
+    carquet_byte_array_t names[] = {{(uint8_t*)"ada", 3}, {(uint8_t*)"linus", 5}, {(uint8_t*)"grace", 5}};
+    double  scores[] = {9.5, 7.25};              /* present values only */
+    int16_t defs[]   = {1, 0, 1};                /* row 2 is NULL */
+
+    TRY(carquet_writer_write_batch(w, 0, ids,    3, NULL, NULL));
+    TRY(carquet_writer_write_batch(w, 1, names,  3, NULL, NULL));
+    TRY(carquet_writer_write_batch(w, 2, scores, 3, defs, NULL));
+    TRY(carquet_writer_close(w));
+    carquet_schema_free(schema);
+    return 0;
+}</code></pre>
+        </div>
+        <div class="panel" data-panel="ex-read" hidden>
+          <p>The batch reader decodes only the columns you ask for, in parallel, and hands you typed pointers plus an Arrow-style validity bitmap.</p>
+<pre><code class="lang-c">#include &lt;carquet/carquet.h&gt;
+#include &lt;stdio.h&gt;
+
+#define TRY(x) do { if ((x) != CARQUET_OK) return 1; } while (0)
+
+int main(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_reader_t* r = carquet_reader_open("people.parquet", NULL, &amp;err);
+    if (!r) { fprintf(stderr, "%s\n", err.message); return 1; }
+
+    carquet_batch_reader_config_t cfg;
+    carquet_batch_reader_config_init(&amp;cfg);
+    const char* cols[] = {"name", "score"};     /* only these are decoded */
+    cfg.column_names     = cols;
+    cfg.num_column_names = 2;
+    cfg.batch_size       = 65536;
+
+    carquet_batch_reader_t* br = carquet_batch_reader_create(r, &amp;cfg, &amp;err);
+    carquet_row_batch_t* batch = NULL;
+    while (carquet_batch_reader_next(br, &amp;batch) == CARQUET_OK &amp;&amp; batch) {
+        const void *names, *scores; const uint8_t *nn, *valid; int64_t n;
+        TRY(carquet_row_batch_column(batch, 0, &amp;names,  &amp;nn,    &amp;n));
+        TRY(carquet_row_batch_column(batch, 1, &amp;scores, &amp;valid, &amp;n));
+        const carquet_byte_array_t* s = names;
+        for (int64_t i = 0; i &lt; n; i++) {
+            if (valid &amp;&amp; !(valid[i / 8] &amp; (1u &lt;&lt; (i % 8))))
+                printf("%.*s  NULL\n", (int)s[i].length, s[i].data);
+            else
+                printf("%.*s  %.2f\n", (int)s[i].length, s[i].data, ((const double*)scores)[i]);
+        }
+        carquet_row_batch_free(batch);
+        batch = NULL;
+    }
+    carquet_batch_reader_free(br);
+    carquet_reader_close(r);
+    return 0;
+}</code></pre>
+          <p class="out">ada  9.50 · linus  NULL · grace  7.25</p>
+        </div>
+        <div class="panel" data-panel="ex-filter" hidden>
+          <p>Predicates are pushed down: row groups are pruned by statistics and bloom filters, pages by the page index, before anything is decompressed.</p>
+<pre><code class="lang-c">#include &lt;carquet/carquet.h&gt;
+#include &lt;stdio.h&gt;
+
+#define TRY(x) do { if ((x) != CARQUET_OK) return 1; } while (0)
+
+int main(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_reader_t* r = carquet_reader_open("people.parquet", NULL, &amp;err);
+    if (!r) { fprintf(stderr, "%s\n", err.message); return 1; }
+
+    carquet_batch_reader_config_t cfg;
+    carquet_batch_reader_config_init(&amp;cfg);
+    carquet_batch_reader_t* br = carquet_batch_reader_create(r, &amp;cfg, &amp;err);
+
+    /* WHERE id &gt;= 2: row groups and pages whose min/max cannot match are
+       never decompressed (statistics, bloom filters, page index). */
+    int64_t lo = 2;
+    carquet_filter_clause_t where = {
+        .column_index = 0, .op = CARQUET_FILTER_GE,
+        .value = &amp;lo, .value_size = sizeof lo,
+    };
+    TRY(carquet_batch_reader_set_page_filter(br, &amp;where, 1));
+
+    carquet_row_batch_t* batch = NULL;
+    int64_t rows = 0;
+    while (carquet_batch_reader_next(br, &amp;batch) == CARQUET_OK &amp;&amp; batch) {
+        rows += carquet_row_batch_num_rows(batch);
+        carquet_row_batch_free(batch);
+        batch = NULL;
+    }
+    printf("read %lld rows, skipped %lld\n",
+           (long long)rows, (long long)carquet_batch_reader_rows_skipped(br));
+    carquet_batch_reader_free(br);
+    carquet_reader_close(r);
+    return 0;
+}</code></pre>
+        </div>
+        <div class="panel" data-panel="ex-arrow" hidden>
+          <p>Read and write through the standard Arrow C Data Interface, with struct, list and map at any depth. No Arrow library needed on either side of the call.</p>
+<pre><code class="lang-c">#include &lt;carquet/carquet.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_reader_t* r = carquet_reader_open("people.parquet", NULL, &amp;err);
+    if (!r) { fprintf(stderr, "%s\n", err.message); return 1; }
+
+    /* One row group as a standard Arrow C Data struct array: hand it to
+       Arrow, DuckDB, polars, nanoarrow... with no Arrow dependency here. */
+    struct ArrowSchema schema;
+    struct ArrowArray  array;
+    if (carquet_reader_read_arrow(r, 0, &amp;schema, &amp;array, &amp;err) == CARQUET_OK) {
+        printf("%lld rows, %lld fields\n", (long long)array.length, (long long)schema.n_children);
+        array.release(&amp;array);
+        schema.release(&amp;schema);
+    }
+    carquet_reader_close(r);
+    return 0;
+}</code></pre>
+        </div>
+        <div class="panel" data-panel="ex-py" hidden>
+          <p>The same engine from Python, with no dependencies: tables that pandas, NumPy, polars, DuckDB and PyArrow take without a copy, streaming batches and exact filters, with the GIL released in every C call.</p>
+<pre><code class="lang-py">import carquet as cq
+
+# Projection and predicate pushdown, into a carquet.Table
+table = cq.read_table("people.parquet", columns=["id", "score"],
+                      filters=[("id", "&gt;=", 2)])
+
+df = cq.read_pandas("people.parquet")             # pandas.DataFrame
+table.to_pydict(); table.column("score").to_numpy()   # or polars.DataFrame(table)
+
+with cq.ParquetFile("people.parquet") as pf:      # streaming, GIL released
+    for batch in pf.iter_batches(batch_size=65_536, columns=["name"]):
+        ...                                       # carquet.RecordBatch
+    print(pf.count_rows(filters=[("score", "is null")]))    # 1
+
+cq.write_table(table, "out.parquet", compression="zstd")</code></pre>
+        </div>
+      </div>
+
+      <ul class="chips">
+        <li>All physical types &amp; encodings</li>
+        <li>Snappy · GZIP · LZ4 · ZSTD · Brotli</li>
+        <li>Nested struct / list / map, any depth</li>
+        <li>Bloom filters &amp; page indexes</li>
+        <li>Predicate pushdown</li>
+        <li>Arrow C Data Interface</li>
+        <li>Reads &amp; writes with PyArrow, DuckDB, Spark</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- CLI -->
+  <section id="cli" class="section">
+    <div class="wrap">
+      <div class="cli">
+        <div class="cli-copy">
+          <p class="eyebrow">CLI</p>
+          <h2>Look inside any Parquet file.</h2>
+          <p class="sub">The <code>carquet</code> command ships with the library. Inspect schemas, metadata and statistics, print or export rows with page-level filter pushdown, validate files, and generate a ready-to-compile C reader from a file's schema.</p>
+          <ul class="cmds">
+            <li><code>schema</code><span>schema tree</span></li>
+            <li><code>info</code><span>full metadata</span></li>
+            <li><code>head</code> <code>tail</code> <code>sample</code><span>print rows</span></li>
+            <li><code>cat</code> <code>export</code><span>slice, filter, CSV</span></li>
+            <li><code>stat</code><span>min / max / nulls</span></li>
+            <li><code>count</code> <code>columns</code><span>quick answers</span></li>
+            <li><code>validate</code><span>integrity check</span></li>
+            <li><code>codegen</code><span>C reader from a schema</span></li>
+          </ul>
+        </div>
+        <div class="term" aria-label="Terminal session">
+          <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
+<pre class="term-body"><code><span class="tp">$</span> carquet schema people.parquet
+message schema {
+  REQUIRED INT64 id;
+  REQUIRED STRING name;
+  OPTIONAL DOUBLE score;
+}
+
+<span class="tp">$</span> carquet stat people.parquet
+  Column  Type    Nulls  Min   Max
+  ------  ------  -----  ----  -----
+  id      INT64   0      1     3
+  name    STRING  0      ada   linus
+  score   DOUBLE  1      7.25  9.5
+
+<span class="tp">$</span> carquet head -n 3 people.parquet
+  id  name   score
+  --  -----  -----
+  1   ada    9.5
+  2   linus  null
+  3   grace  7.25
+
+<span class="tp">$</span> carquet export -c id,name data.parquet &gt; data.csv
+<span class="tp">$</span> carquet codegen -f data.parquet -o reader.c
+</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section final">
+    <div class="wrap">
+      <h2>Make Parquet the fast part.</h2>
+      <div class="cta center">
+        <a class="btn" href="#install">Get started →</a>
+        <a class="btn ghost" href="https://github.com/Vitruves/carquet">Star on GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span>carquet · MIT License · © Johan H. G. Natter</span>
+    <span><a href="https://github.com/Vitruves/carquet">GitHub</a> · <a href="https://pypi.org/project/carquet/">PyPI</a> · <a href="https://github.com/Vitruves/carquet/blob/main/CHANGELOG.md">Changelog</a></span>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

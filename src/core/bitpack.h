@@ -99,7 +99,10 @@ static inline int carquet_ctz32(uint32_t v) {
 static inline int carquet_popcount32(uint32_t v) {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_popcount(v);
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)) && defined(__AVX__)
+    /* __popcnt is the raw POPCNT instruction, which is NOT part of baseline
+     * x86-64 and MSVC does not emulate it; only use it when the TU is already
+     * built for a CPU level that guarantees it (/arch:AVX or higher). */
     return (int)__popcnt(v);
 #else
     v = v - ((v >> 1) & 0x55555555);
@@ -115,8 +118,8 @@ static inline int carquet_popcount32(uint32_t v) {
 static inline int carquet_popcount64(uint64_t v) {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_popcountll(v);
-#elif defined(_MSC_VER) && defined(_M_X64)
-    return (int)__popcnt64(v);
+#elif defined(_MSC_VER) && defined(_M_X64) && defined(__AVX__)
+    return (int)__popcnt64(v);  /* see carquet_popcount32 */
 #else
     v = v - ((v >> 1) & 0x5555555555555555ULL);
     v = (v & 0x3333333333333333ULL) + ((v >> 2) & 0x3333333333333333ULL);

@@ -18,11 +18,8 @@ extern carquet_bloom_filter_t* carquet_bloom_filter_create(size_t num_bytes);
 extern carquet_bloom_filter_t* carquet_bloom_filter_from_data(const uint8_t* data, size_t size);
 extern void carquet_bloom_filter_insert_hash(carquet_bloom_filter_t* filter, uint64_t hash);
 extern const uint8_t* carquet_bloom_filter_data(const carquet_bloom_filter_t* filter);
-extern size_t carquet_bloom_filter_size(const carquet_bloom_filter_t* filter);
-extern void carquet_bloom_filter_destroy(carquet_bloom_filter_t* filter);
-extern bool carquet_bloom_filter_check_i32(const carquet_bloom_filter_t* filter, int32_t value);
-extern bool carquet_bloom_filter_check_i64(const carquet_bloom_filter_t* filter, int64_t value);
-extern bool carquet_bloom_filter_check_double(const carquet_bloom_filter_t* filter, double value);
+/* carquet_bloom_filter_size/_destroy/_check_* are public (carquet.h); redeclaring
+ * them without CARQUET_API is an inconsistent-linkage error (C4273) against the DLL. */
 
 typedef struct carquet_column_index_builder carquet_column_index_builder_t;
 extern carquet_column_index_builder_t* carquet_column_index_builder_create(

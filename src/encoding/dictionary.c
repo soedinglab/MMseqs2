@@ -500,13 +500,364 @@ carquet_status_t carquet_dictionary_encode_byte_array(
     return status;
 }
 
-/* Single-pass dictionary encoder with an early-abort budget. Dispatches on
- * physical type, applying the same PLAIN value marshaling as the per-type
- * encoders above. If the PLAIN dictionary payload would exceed
- * max_dict_bytes, it stops immediately (without scanning the remaining
- * input or serializing indices) and reports *abandoned = true so the caller
- * can fall back to PLAIN. When max_dict_bytes is 0 the cap is disabled and
- * this behaves exactly like the per-type encoders. */
+/* ============================================================================
+ * Capped dictionary build (the column writer's path)
+ * ============================================================================
+ */
+
+/* Fixed-width values (INT32/INT64/FLOAT/DOUBLE/FIXED_LEN_BYTE_ARRAY) are
+ * deduplicated in an open-addressing table whose slots hold entry index + 1
+ * (0 = empty). The entries themselves are the PLAIN dictionary payload being
+ * built, so a lookup compares against payload bytes: no per-entry allocation,
+ * no chain walk, no memcmp call for 4- and 8-byte values. Entries are
+ * numbered in first-occurrence order, exactly like the chained builder. */
+typedef struct {
+    uint32_t* slots;
+    size_t mask;
+} fixed_table_t;
+
+static inline uint32_t fixed_hash(const uint8_t* v, size_t size) {
+    if (size == 4) return dict_hash_fixed32(v);
+    if (size == 8) return dict_hash_fixed64(v);
+    return dict_hash(v, size);
+}
+
+static inline bool fixed_equal(const uint8_t* a, const uint8_t* b, size_t size) {
+    if (size == 4) {
+        uint32_t x, y;
+        memcpy(&x, a, 4); memcpy(&y, b, 4);
+        return x == y;
+    }
+    if (size == 8) {
+        uint64_t x, y;
+        memcpy(&x, a, 8); memcpy(&y, b, 8);
+        return x == y;
+    }
+    return memcmp(a, b, size) == 0;
+}
+
+static carquet_status_t fixed_table_grow(fixed_table_t* t, const uint8_t* entries,
+                                         uint32_t count, size_t size) {
+    size_t cap = t->slots ? (t->mask + 1) * 2 : 1024;
+    uint32_t* slots = carquet_mem_calloc(cap, sizeof(uint32_t));
+    if (!slots) return CARQUET_ERROR_OUT_OF_MEMORY;
+    size_t mask = cap - 1;
+    for (uint32_t e = 0; e < count; e++) {
+        size_t b = fixed_hash(entries + (size_t)e * size, size) & mask;
+        while (slots[b]) b = (b + 1) & mask;
+        slots[b] = e + 1;
+    }
+    carquet_mem_free(t->slots);
+    t->slots = slots;
+    t->mask = mask;
+    return CARQUET_OK;
+}
+
+/* Bring value i into PLAIN (little-endian) form. */
+static inline const uint8_t* fixed_value_le(carquet_physical_type_t type,
+                                            const void* values, int64_t i,
+                                            size_t size, uint8_t* tmp) {
+    switch (type) {
+        case CARQUET_PHYSICAL_INT32:
+            carquet_write_i32_le(tmp, ((const int32_t*)values)[i]); return tmp;
+        case CARQUET_PHYSICAL_INT64:
+            carquet_write_i64_le(tmp, ((const int64_t*)values)[i]); return tmp;
+        case CARQUET_PHYSICAL_FLOAT:
+            carquet_write_f32_le(tmp, ((const float*)values)[i]); return tmp;
+        case CARQUET_PHYSICAL_DOUBLE:
+            carquet_write_f64_le(tmp, ((const double*)values)[i]); return tmp;
+        default:
+            return (const uint8_t*)values + (size_t)i * size;
+    }
+}
+
+#if CARQUET_LITTLE_ENDIAN
+/* 4- and 8-byte values on a little-endian host, where a value's bytes in
+ * memory already are its PLAIN form: each value is one machine word, hashed
+ * with a multiplicative (Fibonacci) hash taking the top bits of the product,
+ * so every input bit reaches the slot index. Entries live in a word array
+ * (no unaligned payload loads), and a value equal to the previous one reuses
+ * its index without a lookup. Same first-occurrence numbering and the same
+ * early-abort rule as the generic loop below, so the same dictionary and
+ * indices. */
+static inline uint64_t word_load(const uint8_t* p, size_t size) {
+    if (size == 4) {
+        uint32_t v;
+        memcpy(&v, p, 4);
+        return v;
+    }
+    uint64_t v;
+    memcpy(&v, p, 8);
+    return v;
+}
+
+/* The xor-shift pre-mix brings the high bits (exponent and leading mantissa
+ * bits of a float/double, which are often the only varying bits) down
+ * before the multiply. Probe sequences must stay short: each extra probe is
+ * a mispredicted branch after a dependent load, which costs more than the
+ * hash. */
+static inline size_t word_slot(uint64_t x, size_t size, unsigned bits) {
+    if (size == 4) {
+        uint32_t h = (uint32_t)x;
+        h ^= h >> 16;
+        return (size_t)((h * 0x9E3779B1u) >> (32 - bits));
+    }
+    x ^= x >> 29;
+    x *= 0xBF58476D1CE4E5B9ULL;
+    x ^= x >> 32;
+    return (size_t)((x * 0x9E3779B97F4A7C15ULL) >> (64 - bits));
+}
+
+static inline carquet_status_t build_fixed_word(size_t size, const uint8_t* src,
+                                                int64_t count, size_t max_dict_bytes,
+                                                carquet_buffer_t* dict_output,
+                                                uint32_t* indices, uint32_t* num_entries,
+                                                bool* abandoned) {
+    unsigned bits = 10;
+    size_t mask = ((size_t)1 << bits) - 1;
+    uint32_t* slots = carquet_mem_calloc(mask + 1, sizeof(uint32_t));
+    size_t entries_cap = 256;
+    uint64_t* entries = carquet_mem_malloc(entries_cap * sizeof(uint64_t));
+    carquet_status_t status = CARQUET_OK;
+    uint32_t n = 0;
+    if (!slots || !entries) {
+        status = CARQUET_ERROR_OUT_OF_MEMORY;
+        count = 0;
+    }
+    uint64_t prev = 0;
+    uint32_t prev_index = UINT32_MAX;   /* none yet */
+    for (int64_t i = 0; i < count; i++) {
+        uint64_t x = word_load(src + (size_t)i * size, size);
+        if (x == prev && prev_index != UINT32_MAX) {
+            indices[i] = prev_index;
+            continue;
+        }
+        size_t b = word_slot(x, size, bits);
+        uint32_t slot;
+        while ((slot = slots[b]) != 0 && entries[slot - 1] != x) {
+            b = (b + 1) & mask;
+        }
+        if (!slot) {
+            if (n == UINT32_MAX) { status = CARQUET_ERROR_ENCODE; break; }
+            if (n == entries_cap) {
+                uint64_t* grown = (entries_cap <= SIZE_MAX / (2 * sizeof(uint64_t)))
+                    ? carquet_mem_realloc(entries, entries_cap * 2 * sizeof(uint64_t))
+                    : NULL;
+                if (!grown) { status = CARQUET_ERROR_OUT_OF_MEMORY; break; }
+                entries = grown;
+                entries_cap *= 2;
+            }
+            entries[n] = x;
+            slots[b] = n + 1;
+            slot = ++n;
+            /* Same budget rule as the generic loop. */
+            if (max_dict_bytes && (size_t)n * size > max_dict_bytes) {
+                *abandoned = true;
+                break;
+            }
+            /* Load factor at most 1/8 while the table is small (up to 64K
+             * slots, 256 KB), then at most 1/2. */
+            if ((size_t)n * ((mask + 1) <= ((size_t)1 << 16) ? 8 : 2) > mask + 1) {
+                unsigned nbits = bits + 1;
+                size_t nmask = ((size_t)1 << nbits) - 1;
+                uint32_t* nslots = carquet_mem_calloc(nmask + 1, sizeof(uint32_t));
+                if (!nslots) { status = CARQUET_ERROR_OUT_OF_MEMORY; break; }
+                for (uint32_t e = 0; e < n; e++) {
+                    size_t nb = word_slot(entries[e], size, nbits);
+                    while (nslots[nb]) nb = (nb + 1) & nmask;
+                    nslots[nb] = e + 1;
+                }
+                carquet_mem_free(slots);
+                slots = nslots;
+                bits = nbits;
+                mask = nmask;
+            }
+        }
+        indices[i] = prev_index = slot - 1;
+        prev = x;
+    }
+    if (status == CARQUET_OK && !*abandoned && n > 0) {
+        size_t base = dict_output->size;
+        status = carquet_buffer_resize(dict_output, base + (size_t)n * size);
+        if (status == CARQUET_OK) {
+            uint8_t* out = dict_output->data + base;
+            if (size == 8) {
+                memcpy(out, entries, (size_t)n * 8);
+            } else {
+                for (uint32_t e = 0; e < n; e++) {
+                    uint32_t v = (uint32_t)entries[e];
+                    memcpy(out + (size_t)e * 4, &v, 4);
+                }
+            }
+        }
+    }
+    carquet_mem_free(slots);
+    carquet_mem_free(entries);
+    *num_entries = n;
+    return status;
+}
+#endif
+
+static carquet_status_t build_fixed(carquet_physical_type_t type, size_t size,
+                                    const void* values, int64_t count,
+                                    size_t max_dict_bytes,
+                                    carquet_buffer_t* dict_output,
+                                    uint32_t* indices, uint32_t* num_entries,
+                                    bool* abandoned) {
+#if CARQUET_LITTLE_ENDIAN
+    if (size == 4) {
+        return build_fixed_word(4, (const uint8_t*)values, count, max_dict_bytes,
+                                dict_output, indices, num_entries, abandoned);
+    }
+    if (size == 8) {
+        return build_fixed_word(8, (const uint8_t*)values, count, max_dict_bytes,
+                                dict_output, indices, num_entries, abandoned);
+    }
+#endif
+    fixed_table_t t = {NULL, 0};
+    uint32_t n = 0;
+    size_t base = dict_output->size;
+    carquet_status_t status = fixed_table_grow(&t, NULL, 0, size);
+    for (int64_t i = 0; status == CARQUET_OK && i < count; i++) {
+        uint8_t tmp[8];
+        const uint8_t* v = fixed_value_le(type, values, i, size, tmp);
+        size_t b = fixed_hash(v, size) & t.mask;
+        const uint8_t* entries = dict_output->data + base;
+        uint32_t slot;
+        while ((slot = t.slots[b]) != 0 &&
+               !fixed_equal(entries + (size_t)(slot - 1) * size, v, size)) {
+            b = (b + 1) & t.mask;
+        }
+        if (slot) {
+            indices[i] = slot - 1;
+            continue;
+        }
+        if (n == UINT32_MAX) { status = CARQUET_ERROR_ENCODE; break; }
+        status = carquet_buffer_append(dict_output, v, size);
+        if (status != CARQUET_OK) break;
+        t.slots[b] = n + 1;
+        indices[i] = n++;
+        /* Same budget rule as the chained builder: stop as soon as the PLAIN
+         * payload exceeds the cap. */
+        if (max_dict_bytes && (size_t)n * size > max_dict_bytes) {
+            *abandoned = true;
+            break;
+        }
+        /* Keep the load factor at or below one half. */
+        if ((size_t)n * 2 > t.mask + 1) {
+            status = fixed_table_grow(&t, dict_output->data + base, n, size);
+        }
+    }
+    carquet_mem_free(t.slots);
+    *num_entries = n;
+    return status;
+}
+
+/* Single-pass dictionary build with an early-abort budget, applying the same
+ * PLAIN value marshaling as the per-type encoders above. On success the PLAIN
+ * dictionary payload is appended to dict_output, *indices_out receives one
+ * entry index per input value (count entries, carquet_mem_free to release)
+ * and *num_entries the dictionary size. If the payload would exceed
+ * max_dict_bytes, it stops immediately (without scanning the remaining input)
+ * and reports *abandoned = true, with no indices, so the caller can fall back
+ * to PLAIN. When max_dict_bytes is 0 the cap is disabled. */
+carquet_status_t carquet_dictionary_build_capped(
+    carquet_physical_type_t type,
+    int32_t type_length,
+    const void* fixed_values,
+    const carquet_byte_array_t* ba_values,
+    int64_t count,
+    size_t max_dict_bytes,
+    carquet_buffer_t* dict_output,
+    uint32_t** indices_out,
+    int32_t* num_entries,
+    bool* abandoned) {
+
+    if (abandoned) *abandoned = false;
+    if (indices_out) *indices_out = NULL;
+    if (num_entries) *num_entries = 0;
+    if (count <= 0 || !dict_output || !indices_out || !num_entries ||
+        (uint64_t)count > (uint64_t)(SIZE_MAX / sizeof(uint32_t))) {
+        return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+
+    size_t value_size;
+    switch (type) {
+        case CARQUET_PHYSICAL_INT32:
+        case CARQUET_PHYSICAL_FLOAT:  value_size = 4; break;
+        case CARQUET_PHYSICAL_INT64:
+        case CARQUET_PHYSICAL_DOUBLE: value_size = 8; break;
+        case CARQUET_PHYSICAL_BYTE_ARRAY: value_size = 0; break;
+        case CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY:
+            if (type_length <= 0) return CARQUET_ERROR_INVALID_ARGUMENT;
+            value_size = (size_t)type_length;
+            break;
+        default: return CARQUET_ERROR_NOT_IMPLEMENTED;
+    }
+    if (type == CARQUET_PHYSICAL_BYTE_ARRAY ? !ba_values : !fixed_values) {
+        return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+
+    bool dropped = false;
+    carquet_status_t status;
+    if (type != CARQUET_PHYSICAL_BYTE_ARRAY) {
+        uint32_t* indices = carquet_mem_malloc((size_t)count * sizeof(uint32_t));
+        if (!indices) return CARQUET_ERROR_OUT_OF_MEMORY;
+        uint32_t n = 0;
+        size_t base = dict_output->size;
+        status = build_fixed(type, value_size, fixed_values, count, max_dict_bytes,
+                             dict_output, indices, &n, &dropped);
+        if (status != CARQUET_OK || dropped || n > INT32_MAX) {
+            carquet_mem_free(indices);
+            dict_output->size = base;
+            if (status == CARQUET_OK && !dropped) status = CARQUET_ERROR_ENCODE;
+            if (dropped && abandoned) *abandoned = true;
+            return status;
+        }
+        *indices_out = indices;
+        *num_entries = (int32_t)n;
+        return CARQUET_OK;
+    }
+
+    dict_builder_t builder;
+    status = dict_builder_init(&builder, (size_t)count, 0, true);
+    if (status != CARQUET_OK) return status;
+    builder.max_dict_bytes = max_dict_bytes;
+    for (int64_t i = 0; i < count && !builder.abandoned; i++) {
+        if (ba_values[i].length < 0 ||
+            (!ba_values[i].data && ba_values[i].length > 0)) {
+            status = CARQUET_ERROR_INVALID_ARGUMENT;
+            break;
+        }
+        status = dict_builder_add(&builder, ba_values[i].data,
+                                  (size_t)ba_values[i].length);
+        if (status != CARQUET_OK) break;
+    }
+    if (status == CARQUET_OK && builder.abandoned) {
+        if (abandoned) *abandoned = true;
+    } else if (status == CARQUET_OK && builder.count > INT32_MAX) {
+        status = CARQUET_ERROR_ENCODE;
+    } else if (status == CARQUET_OK) {
+        status = carquet_buffer_append(dict_output, builder.dict_buffer.data,
+                                       builder.dict_buffer.size);
+        if (status == CARQUET_OK) {
+            /* Hand the index array over instead of copying it. */
+            *indices_out = builder.indices;
+            *num_entries = (int32_t)builder.count;
+            builder.indices = NULL;
+        }
+    }
+    dict_builder_destroy(&builder);
+    return status;
+}
+
+/* Bit width of the indices of a dictionary of `count` entries. */
+int carquet_dictionary_index_bit_width(int32_t count) {
+    return bit_width_for_count(count > 0 ? (uint32_t)count : 0);
+}
+
+/* carquet_dictionary_build_capped, then the whole index stream encoded as one
+ * RLE_DICTIONARY data page payload (bit-width byte + RLE/bit-packed runs). */
 carquet_status_t carquet_dictionary_encode_capped(
     carquet_physical_type_t type,
     int32_t type_length,
@@ -520,93 +871,33 @@ carquet_status_t carquet_dictionary_encode_capped(
 
     if (abandoned) *abandoned = false;
     if (count <= 0) return CARQUET_ERROR_INVALID_ARGUMENT;
-
-    size_t value_size;
-    bool var_len = false;
-    switch (type) {
-        case CARQUET_PHYSICAL_INT32:
-        case CARQUET_PHYSICAL_FLOAT:  value_size = 4; break;
-        case CARQUET_PHYSICAL_INT64:
-        case CARQUET_PHYSICAL_DOUBLE: value_size = 8; break;
-        case CARQUET_PHYSICAL_BYTE_ARRAY: value_size = 0; var_len = true; break;
-        case CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY:
-            if (type_length <= 0) return CARQUET_ERROR_INVALID_ARGUMENT;
-            value_size = (size_t)type_length;
-            break;
-        default: return CARQUET_ERROR_NOT_IMPLEMENTED;
-    }
-
-    dict_builder_t builder;
-    carquet_status_t status = dict_builder_init(&builder, (size_t)count,
-                                                value_size, var_len);
+    uint32_t* indices = NULL;
+    int32_t n = 0;
+    bool dropped = false;
+    carquet_status_t status = carquet_dictionary_build_capped(
+        type, type_length, fixed_values, ba_values, count, max_dict_bytes,
+        dict_output, &indices, &n, &dropped);
     if (status != CARQUET_OK) return status;
-    builder.max_dict_bytes = max_dict_bytes;
-
-    for (int64_t i = 0; i < count && !builder.abandoned; i++) {
-        switch (type) {
-            case CARQUET_PHYSICAL_INT32: {
-                uint8_t le[4];
-                carquet_write_i32_le(le, ((const int32_t*)fixed_values)[i]);
-                status = dict_builder_add(&builder, le, 4);
-                break;
-            }
-            case CARQUET_PHYSICAL_INT64: {
-                uint8_t le[8];
-                carquet_write_i64_le(le, ((const int64_t*)fixed_values)[i]);
-                status = dict_builder_add(&builder, le, 8);
-                break;
-            }
-            case CARQUET_PHYSICAL_FLOAT: {
-                uint8_t le[4];
-                carquet_write_f32_le(le, ((const float*)fixed_values)[i]);
-                status = dict_builder_add(&builder, le, 4);
-                break;
-            }
-            case CARQUET_PHYSICAL_DOUBLE: {
-                uint8_t le[8];
-                carquet_write_f64_le(le, ((const double*)fixed_values)[i]);
-                status = dict_builder_add(&builder, le, 8);
-                break;
-            }
-            case CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY:
-                status = dict_builder_add(&builder,
-                    (const uint8_t*)fixed_values + (size_t)i * value_size,
-                    value_size);
-                break;
-            default:  /* BYTE_ARRAY */
-                if (ba_values[i].length < 0 ||
-                    (!ba_values[i].data && ba_values[i].length > 0)) {
-                    status = CARQUET_ERROR_INVALID_ARGUMENT;
-                    break;
-                }
-                status = dict_builder_add(&builder, ba_values[i].data,
-                                          (size_t)ba_values[i].length);
-                break;
-        }
-        if (status != CARQUET_OK) {
-            dict_builder_destroy(&builder);
-            return status;
-        }
-    }
-
-    if (builder.abandoned) {
+    if (dropped) {
         if (abandoned) *abandoned = true;
-        dict_builder_destroy(&builder);
         return CARQUET_OK;
     }
-
-    status = carquet_buffer_append(dict_output, builder.dict_buffer.data,
-                                   builder.dict_buffer.size);
+    int bit_width = bit_width_for_count((uint32_t)n);
+    status = carquet_buffer_append_byte(indices_output, (uint8_t)bit_width);
     if (status == CARQUET_OK) {
-        int bit_width = bit_width_for_count((uint32_t)builder.count);
-        status = carquet_buffer_append_byte(indices_output, (uint8_t)bit_width);
-        if (status == CARQUET_OK) {
-            status = carquet_rle_encode_all(builder.indices, count, bit_width,
-                                            indices_output);
-        }
+        status = carquet_rle_encode_all(indices, count, bit_width, indices_output);
     }
-    dict_builder_destroy(&builder);
+    carquet_mem_free(indices);
     return status;
+}
+
+/* output_count is an int64_t from the caller; on a 32-bit target
+ * `output_count * sizeof(uint32_t)` can exceed SIZE_MAX and the converted
+ * malloc size wraps to a small buffer that the RLE index decode then
+ * overruns. Reject counts whose index array cannot be addressed. */
+static inline bool indices_count_fits(int64_t output_count) {
+    return output_count >= 0 &&
+           (uint64_t)output_count <= (uint64_t)(SIZE_MAX / sizeof(uint32_t));
 }
 
 /* ============================================================================
@@ -632,7 +923,7 @@ carquet_status_t carquet_dictionary_decode_int32(
         return CARQUET_ERROR_DECODE;
     }
 
-    if (dict_size < (size_t)dict_count * sizeof(int32_t)) {
+    if (dict_size / sizeof(int32_t) < (size_t)dict_count) {  /* no 32-bit wrap */
         return CARQUET_ERROR_DECODE;
     }
 
@@ -643,7 +934,10 @@ carquet_status_t carquet_dictionary_decode_int32(
     int bit_width = indices_data[0];
 
     /* Decode RLE indices */
-    uint32_t* indices = carquet_mem_malloc(output_count * sizeof(uint32_t));
+    if (!indices_count_fits(output_count)) {
+        return CARQUET_ERROR_DECODE;
+    }
+    uint32_t* indices = carquet_mem_malloc((size_t)output_count * sizeof(uint32_t));
     if (!indices) {
         return CARQUET_ERROR_OUT_OF_MEMORY;
     }
@@ -708,7 +1002,7 @@ carquet_status_t carquet_dictionary_decode_int64(
         return CARQUET_ERROR_DECODE;
     }
 
-    if (dict_size < (size_t)dict_count * sizeof(int64_t)) {
+    if (dict_size / sizeof(int64_t) < (size_t)dict_count) {  /* no 32-bit wrap */
         return CARQUET_ERROR_DECODE;
     }
 
@@ -717,7 +1011,10 @@ carquet_status_t carquet_dictionary_decode_int64(
     }
     int bit_width = indices_data[0];
 
-    uint32_t* indices = carquet_mem_malloc(output_count * sizeof(uint32_t));
+    if (!indices_count_fits(output_count)) {
+        return CARQUET_ERROR_DECODE;
+    }
+    uint32_t* indices = carquet_mem_malloc((size_t)output_count * sizeof(uint32_t));
     if (!indices) {
         return CARQUET_ERROR_OUT_OF_MEMORY;
     }
@@ -781,7 +1078,7 @@ carquet_status_t carquet_dictionary_decode_float(
         return CARQUET_ERROR_DECODE;
     }
 
-    if (dict_size < (size_t)dict_count * sizeof(float)) {
+    if (dict_size / sizeof(float) < (size_t)dict_count) {  /* no 32-bit wrap */
         return CARQUET_ERROR_DECODE;
     }
 
@@ -790,7 +1087,10 @@ carquet_status_t carquet_dictionary_decode_float(
     }
     int bit_width = indices_data[0];
 
-    uint32_t* indices = carquet_mem_malloc(output_count * sizeof(uint32_t));
+    if (!indices_count_fits(output_count)) {
+        return CARQUET_ERROR_DECODE;
+    }
+    uint32_t* indices = carquet_mem_malloc((size_t)output_count * sizeof(uint32_t));
     if (!indices) {
         return CARQUET_ERROR_OUT_OF_MEMORY;
     }
@@ -854,7 +1154,7 @@ carquet_status_t carquet_dictionary_decode_double(
         return CARQUET_ERROR_DECODE;
     }
 
-    if (dict_size < (size_t)dict_count * sizeof(double)) {
+    if (dict_size / sizeof(double) < (size_t)dict_count) {  /* no 32-bit wrap */
         return CARQUET_ERROR_DECODE;
     }
 
@@ -863,7 +1163,10 @@ carquet_status_t carquet_dictionary_decode_double(
     }
     int bit_width = indices_data[0];
 
-    uint32_t* indices = carquet_mem_malloc(output_count * sizeof(uint32_t));
+    if (!indices_count_fits(output_count)) {
+        return CARQUET_ERROR_DECODE;
+    }
+    uint32_t* indices = carquet_mem_malloc((size_t)output_count * sizeof(uint32_t));
     if (!indices) {
         return CARQUET_ERROR_OUT_OF_MEMORY;
     }
@@ -967,6 +1270,10 @@ carquet_status_t carquet_dictionary_decode_byte_array(
     }
 
     int bit_width = indices_data[0];
+    if (!indices_count_fits(output_count)) {
+        carquet_mem_free(entries);
+        return CARQUET_ERROR_DECODE;
+    }
     uint32_t* indices =
         carquet_mem_malloc((size_t)output_count * sizeof(uint32_t));
     if (!indices) {
@@ -1032,6 +1339,9 @@ carquet_status_t carquet_dictionary_decode_fixed_len_byte_array(
     }
 
     int bit_width = indices_data[0];
+    if (!indices_count_fits(output_count)) {
+        return CARQUET_ERROR_DECODE;
+    }
     uint32_t* indices =
         carquet_mem_malloc((size_t)output_count * sizeof(uint32_t));
     if (!indices) {

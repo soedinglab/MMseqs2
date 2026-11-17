@@ -107,7 +107,8 @@ static int test_categorical_string(void) {
     carquet_batch_reader_t* br = carquet_batch_reader_create(r, &cfg, &err);
     carquet_row_batch_t* batch = NULL;
     if (!br || carquet_batch_reader_next(br, &batch) != CARQUET_OK || !batch) {
-        if (br) carquet_batch_reader_free(br); carquet_reader_close(r); carquet_test_cleanup(path);
+        if (br) carquet_batch_reader_free(br);
+        carquet_reader_close(r); carquet_test_cleanup(path);
         TEST_FAIL("categorical_string", "read");
     }
     const void* data = NULL; const uint8_t* nulls = NULL; int64_t n = 0;

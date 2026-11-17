@@ -1,0 +1,16 @@
+# Normalize text files to LF in the repository; let Git pick the checkout EOL.
+* text=auto
+
+# Scripts run by POSIX shells (Git Bash, WSL, CI) break with CRLF on checkout
+# (core.autocrlf=true is the Git for Windows default).
+*.sh        text eol=lf
+Makefile    text eol=lf
+*.dict      text eol=lf
+*.supp      text eol=lf
+
+# Binary fixtures and assets: never touch line endings or diff as text.
+*.parquet   binary
+*.png       binary
+*.jpg       binary
+*.gz        binary
+*.zst       binary

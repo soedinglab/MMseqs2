@@ -93,6 +93,18 @@ static int test_file(const char* path, int verbose) {
             const uint8_t* nulls;
             int64_t n;
             if (carquet_row_batch_column(batch, c, &data, &nulls, &n) != CARQUET_OK) {
+                /* Repeated (LIST/MAP) leaves are exposed through the list
+                 * accessor, one reconstructed list per row. */
+                const int32_t* offsets;
+                int64_t num_lists, count;
+                const void* values;
+                const uint8_t *vvalid, *lvalid;
+                if (carquet_schema_max_rep_level(schema, c) > 0 &&
+                    carquet_row_batch_column_list(batch, c, &offsets, &num_lists,
+                        &values, &vvalid, &count, &lvalid) == CARQUET_OK &&
+                    num_lists == batch_rows && offsets[num_lists] == count) {
+                    continue;
+                }
                 if (verbose) printf("  FAIL: column %d read error\n", c);
                 rc = 1;
             }
@@ -295,7 +307,38 @@ static void json_emit_value(carquet_physical_type_t t, const void* data,
     }
 }
 
-static int emit_json(const char* path) {
+/* Emit the first `limit` values of leaf `c` by streaming a single-column
+ * projected batch reader across pages and row groups. */
+static void json_emit_column_values(carquet_reader_t* reader, int32_t c,
+                                    carquet_physical_type_t ptype, int64_t limit) {
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    carquet_batch_reader_config_t config;
+    carquet_batch_reader_config_init(&config);
+    config.batch_size = 4096;
+    config.column_indices = &c;
+    config.num_columns = 1;
+    carquet_batch_reader_t* br = carquet_batch_reader_create(reader, &config, &err);
+    if (!br) return;
+    int64_t emitted = 0;
+    carquet_row_batch_t* batch = NULL;
+    while (emitted < limit &&
+           carquet_batch_reader_next(br, &batch) == CARQUET_OK && batch) {
+        const void* data = NULL;
+        const uint8_t* nulls = NULL;
+        int64_t n = 0;
+        if (carquet_row_batch_column(batch, 0, &data, &nulls, &n) == CARQUET_OK) {
+            for (int64_t i = 0; i < n && emitted < limit; i++, emitted++) {
+                if (emitted) putchar(',');
+                json_emit_value(ptype, data, nulls, i);
+            }
+        }
+        carquet_row_batch_free(batch);
+        batch = NULL;
+    }
+    carquet_batch_reader_free(br);
+}
+
+static int emit_json(const char* path, int64_t first_n) {
     carquet_error_t err = CARQUET_ERROR_INIT;
     carquet_reader_options_t opts;
     carquet_reader_options_init(&opts);
@@ -335,12 +378,16 @@ static int emit_json(const char* path) {
         const void* data = NULL;
         const uint8_t* nulls = NULL;
         int64_t n = 0;
-        int have = batch &&
-            carquet_row_batch_column(batch, c, &data, &nulls, &n) == CARQUET_OK;
-        int64_t emit = !have ? 0 : (n < JSON_FIRST_N ? n : JSON_FIRST_N);
-        for (int64_t i = 0; i < emit; i++) {
-            if (i) putchar(',');
-            json_emit_value(ptype, data, nulls, i);
+        if (first_n > JSON_FIRST_N) {
+            json_emit_column_values(reader, c, ptype, first_n);
+        } else {
+            int have = batch &&
+                carquet_row_batch_column(batch, c, &data, &nulls, &n) == CARQUET_OK;
+            int64_t emit = !have ? 0 : (n < JSON_FIRST_N ? n : JSON_FIRST_N);
+            for (int64_t i = 0; i < emit; i++) {
+                if (i) putchar(',');
+                json_emit_value(ptype, data, nulls, i);
+            }
         }
         printf("]}");
     }
@@ -393,7 +440,7 @@ int main(int argc, char** argv) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <parquet_file>\n", argv[0]);
         fprintf(stderr, "       %s --dir <directory> [-v]\n", argv[0]);
-        fprintf(stderr, "       %s --json <file>\n", argv[0]);
+        fprintf(stderr, "       %s --json <file> [--first N]\n", argv[0]);
         return 1;
     }
 
@@ -410,7 +457,11 @@ int main(int argc, char** argv) {
 
     if (strcmp(argv[1], "--json") == 0) {
         if (argc < 3) { fprintf(stderr, "--json requires a file\n"); return 1; }
-        return emit_json(argv[2]);
+        /* --first N: emit N values per column (all pages / row groups)
+         * instead of the first JSON_FIRST_N of the first batch. */
+        int64_t first_n = JSON_FIRST_N;
+        if (argc >= 5 && strcmp(argv[3], "--first") == 0) first_n = atoll(argv[4]);
+        return emit_json(argv[2], first_n);
     }
 
     if (strcmp(argv[1], "--dir") == 0) {

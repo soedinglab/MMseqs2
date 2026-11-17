@@ -285,8 +285,8 @@ carquet_writer_close(writer);
 void* buffer = NULL;
 size_t size = 0;
 if (carquet_writer_get_buffer(writer, &buffer, &size) == CARQUET_OK) {
-    /* buffer now belongs to the caller */
-    free(buffer);
+    /* buffer now belongs to the caller; the writer is released */
+    carquet_free(buffer);
 }
 ```
 

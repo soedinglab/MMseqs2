@@ -219,6 +219,12 @@ typedef struct carquet_row_group_writer {
     double* col_page_cost;       /* [num_columns] */
     int32_t* col_order;          /* [num_columns] */
     int32_t* work_order;         /* [page_task_capacity] */
+    /* Pipelined finalize (begin/complete_page_tasks): the columns that are
+     * finalized whole as one work item each (whole_cols[0..num_whole)), and
+     * the result of each such finalize, kept until complete. */
+    int32_t* whole_cols;                          /* [num_columns] */
+    int32_t num_whole;
+    struct finalized_column_chunk* whole_chunks;  /* [num_columns] */
 } carquet_row_group_writer_t;
 
 typedef struct finalized_column_chunk {
@@ -347,6 +353,11 @@ static void release_parallel_scratch(carquet_row_group_writer_t* writer) {
     writer->col_task_offsets = NULL;
     writer->col_page_cost = NULL;
     writer->col_order = NULL;
+    carquet_mem_free(writer->whole_cols);
+    carquet_mem_free(writer->whole_chunks);
+    writer->whole_cols = NULL;
+    writer->whole_chunks = NULL;
+    writer->num_whole = 0;
 }
 
 #ifdef _OPENMP
@@ -480,7 +491,7 @@ static void finalize_whole_column(carquet_row_group_writer_t* writer, int i,
  * one task per page, dynamically balanced over all OpenMP threads, so a row
  * group of three numeric columns keeps eight cores busy instead of three and
  * a wide column no longer bounds the wall time on its own. Columns that do
- * not qualify (dictionary, nullable, BYTE_ARRAY, bloom filter, ...) run as one
+ * not qualify (dictionary, BYTE_ARRAY, repeated, bloom filter, ...) run as one
  * task each, scheduled first since they are the longest. Each qualifying
  * column then stitches its pages together in order; that pass is a memcpy
  * per column and runs column-parallel.
@@ -518,7 +529,7 @@ static carquet_status_t plan_row_group_work(
     /* A row group whose pages were handed out (pages_ready) may still be
      * being written by the I/O thread: encode the next one into the other
      * bank. Keyed on pages_ready rather than on each call, so a plan that is
-     * abandoned (begin_page_tasks finding a serial column) and redone by the
+     * abandoned (begin_page_tasks failing after planning) and redone by the
      * ordinary finalize does not flip back onto the bank in flight. */
     if (writer->pages_ready) writer->bank ^= 1;
     writer->pages_ready = false;
@@ -734,6 +745,7 @@ void carquet_row_group_writer_reset(carquet_row_group_writer_t* writer, int64_t 
         writer->column_infos[i].has_min_max = false;
         writer->column_infos[i].has_null_count = false;
         writer->column_infos[i].null_count = 0;
+        writer->column_infos[i].has_geo_stats = false;
     }
 }
 
@@ -1024,14 +1036,20 @@ void carquet_row_group_writer_set_page_io(
 }
 
 /*
- * Pipelined finalize (driven by file_writer.c): the file writer runs the page
- * tasks on its own thread pool so a row group's encode can overlap the next
- * row group's input and the previous one's stragglers, instead of the
- * fork/join of finalize_columns_parallel. begin plans the tasks; the caller
- * runs each carquet_row_group_writer_page_task(k), in that order, on any
- * thread; complete does the rest of carquet_row_group_writer_finalize_columns.
- * Only a row group whose every column is page-parallel (and page_io) can be
- * pipelined: begin returns 0 otherwise and the caller takes the usual path.
+ * Pipelined finalize (driven by file_writer.c): the file writer runs the
+ * row group's work items on its own thread pool so a row group's encode can
+ * overlap the next row group's input and the previous one's stragglers,
+ * instead of the fork/join of finalize_columns_parallel. begin plans the
+ * work and returns the number of items; the caller runs each item k (a page
+ * task, carquet_row_group_writer_page_task(k), or a whole column,
+ * carquet_row_group_writer_run_whole_column(k)) on any thread; complete does
+ * the rest of carquet_row_group_writer_finalize_columns. Items 0..num_whole-1
+ * are the columns that are not page-parallel (dictionary, BYTE_ARRAY,
+ * BOOLEAN, repeated, uncompressed, bloom filter, ...): each is finalized exactly as the serial
+ * path does, by one thread, so its bytes cannot differ. They come first
+ * because they are the longest items. Returns 0 when the row group cannot be
+ * pipelined (no page_io, one thread, page index) and the caller takes the
+ * usual path.
  */
 int32_t carquet_row_group_writer_begin_page_tasks(
     carquet_row_group_writer_t* writer) {
@@ -1039,12 +1057,13 @@ int32_t carquet_row_group_writer_begin_page_tasks(
     if (!writer || !writer->page_io || !can_parallel_finalize(writer)) return 0;
     int num_threads = omp_get_max_threads();
     if (num_threads < 2) return 0;
-    /* Every column must be page-parallel; check before planning so a row
-     * group that is not leaves no half-planned state behind. */
-    for (int i = 0; i < writer->num_columns; i++) {
-        if (carquet_column_writer_plan_page_tasks(writer->column_writers[i], NULL, 0) <= 0) {
-            return 0;
-        }
+    int nc = writer->num_columns;
+    if (!writer->whole_cols || !writer->whole_chunks) {
+        carquet_mem_free(writer->whole_cols);
+        carquet_mem_free(writer->whole_chunks);
+        writer->whole_cols = carquet_mem_calloc((size_t)nc, sizeof(int32_t));
+        writer->whole_chunks = carquet_mem_calloc((size_t)nc, sizeof(*writer->whole_chunks));
+        if (!writer->whole_cols || !writer->whole_chunks) return 0;
     }
     int32_t total_tasks = 0;
     int32_t whole_columns = 0;
@@ -1052,21 +1071,48 @@ int32_t carquet_row_group_writer_begin_page_tasks(
         CARQUET_OK) {
         return 0;
     }
-    if (whole_columns > 0 || total_tasks <= 0) return 0;
-    return total_tasks;
+    if (whole_columns > nc || total_tasks > INT32_MAX - whole_columns) return 0;
+    int32_t w = 0;
+    for (int i = 0; i < nc; i++) {
+        if (writer->col_task_counts[i] != 0) continue;
+        writer->whole_cols[w++] = i;
+        memset(&writer->whole_chunks[i], 0, sizeof(writer->whole_chunks[i]));
+        writer->whole_chunks[i].status = CARQUET_ERROR_INTERNAL;  /* until run */
+    }
+    writer->num_whole = whole_columns;
+    return whole_columns + total_tasks;
 #else
     (void)writer;
     return 0;
 #endif
 }
 
+/* Work item k of a pipelined row group when it is a page task, or NULL when
+ * it is a whole column (or out of range). */
 carquet_page_task_t* carquet_row_group_writer_page_task(
     carquet_row_group_writer_t* writer, int32_t k) {
     if (!writer || !writer->page_tasks || !writer->work_order ||
-        k < 0 || k >= writer->page_task_capacity) {
+        k < writer->num_whole || k - writer->num_whole >= writer->page_task_capacity) {
         return NULL;
     }
-    return &writer->page_tasks[writer->work_order[k]];
+    return &writer->page_tasks[writer->work_order[k - writer->num_whole]];
+}
+
+/* Run work item k when it is a whole column: finalize that column on the
+ * calling thread. Columns are independent, so items of one row group may
+ * run concurrently with each other and with its page tasks. */
+void carquet_row_group_writer_run_whole_column(
+    carquet_row_group_writer_t* writer, int32_t k) {
+#ifdef _OPENMP
+    if (!writer || !writer->whole_cols || !writer->whole_chunks ||
+        k < 0 || k >= writer->num_whole) {
+        return;
+    }
+    int i = writer->whole_cols[k];
+    finalize_whole_column(writer, i, &writer->whole_chunks[i]);
+#else
+    (void)writer; (void)k;
+#endif
 }
 
 carquet_status_t carquet_row_group_writer_complete_page_tasks(
@@ -1086,6 +1132,12 @@ carquet_status_t carquet_row_group_writer_complete_page_tasks(
     finalized_column_chunk_t* chunks = carquet_mem_calloc(
         (size_t)writer->num_columns, sizeof(*chunks));
     if (!chunks) return CARQUET_ERROR_OUT_OF_MEMORY;
+    /* The whole columns were finalized by their work items. */
+    for (int32_t k = 0; k < writer->num_whole; k++) {
+        int i = writer->whole_cols[k];
+        chunks[i] = writer->whole_chunks[i];
+    }
+    writer->num_whole = 0;
     carquet_status_t status = assemble_row_group_work(
         writer, chunks, total_tasks, 1, false);
     size_t total = 0;

@@ -15,6 +15,7 @@
  */
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -177,7 +178,8 @@ done:
 
 int main(void) {
     carquet_init();
-    const char* path = "/tmp/carquet_nested_example.parquet";
+    char path[1024];
+    example_temp_path(path, sizeof(path), "carquet_nested_example.parquet");
 
     printf("Writing nested file...\n");
     if (write_file(path)) return 1;

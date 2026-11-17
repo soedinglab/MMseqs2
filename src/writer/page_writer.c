@@ -366,7 +366,12 @@ static carquet_status_t encode_levels(
     int64_t count,
     int16_t max_level,
     carquet_buffer_t* output,
-    bool with_prefix) {
+    bool with_prefix,
+    int64_t* num_max) {
+
+    /* *num_max: how many levels equal max_level, when the encoder counted
+     * them as a by-product (1-bit levels); -1 otherwise. */
+    if (num_max) *num_max = -1;
 
     if (max_level == 0) {
         return CARQUET_OK;
@@ -384,7 +389,8 @@ static carquet_status_t encode_levels(
     carquet_status_t status;
     size_t encoded_offset = output->size;
     if (levels) {
-        status = carquet_rle_encode_levels(levels, count, bit_width, output);
+        status = carquet_rle_encode_levels_counted(levels, count, bit_width, output,
+                                                   max_level == 1 ? num_max : NULL);
     } else {
         carquet_rle_encoder_t enc;
         carquet_rle_encoder_init(&enc, output, bit_width);
@@ -412,6 +418,28 @@ static carquet_status_t encode_levels(
         output->data[prefix_offset + 3] = (uint8_t)((encoded_size >> 24) & 0xFF);
     }
     return CARQUET_OK;
+}
+
+/* hist[l] += number of levels equal to l, for l in [0, max_level]; levels
+ * outside that range are not counted. A one-bit level (a flat OPTIONAL
+ * column's definition levels) is counted with two branch-free sums the
+ * compiler vectorizes, which matters at one call per page chunk. */
+static void level_histogram_add(int64_t* hist, const int16_t* levels,
+                                int64_t count, int16_t max_level) {
+    if (max_level == 1) {
+        int64_t zeros = 0, ones = 0;
+        for (int64_t i = 0; i < count; i++) {
+            zeros += levels[i] == 0;
+            ones += levels[i] == 1;
+        }
+        hist[0] += zeros;
+        hist[1] += ones;
+        return;
+    }
+    for (int64_t i = 0; i < count; i++) {
+        int16_t l = levels[i];
+        if (l >= 0 && l <= max_level) hist[l]++;
+    }
 }
 
 /* ============================================================================
@@ -1019,17 +1047,10 @@ carquet_status_t carquet_page_writer_add_values(
         memcpy(max_snapshot, writer->max_value, max_size_before);
     }
 
-    /* Count nulls and non-null values */
-    int64_t num_non_null = num_values;
-    if (def_levels && writer->max_def_level > 0) {
-        num_non_null = carquet_dispatch_count_non_nulls(def_levels, num_values,
-                                                        writer->max_def_level);
-        writer->num_nulls += (num_values - num_non_null);
-    }
-
     /* Encode definition levels.
      * If def_levels is NULL for an OPTIONAL column, generate all-present levels
      * since Parquet requires definition levels for non-REQUIRED columns. */
+    int64_t encoded_non_null = -1;
     if (writer->max_def_level > 0) {
         /* Encode raw RLE with no length prefix. A V1 page accumulates the
          * levels of one or more add_values calls; the single 4-byte length
@@ -1038,17 +1059,28 @@ carquet_status_t carquet_page_writer_add_values(
          * decode as one stream, so multi-chunk pages stay spec-conformant. */
         status = encode_levels(def_levels, num_values, writer->max_def_level,
                                &writer->def_levels_buffer,
-                               false);
+                               false, &encoded_non_null);
         if (status != CARQUET_OK) {
             goto fail;
         }
+    }
+
+    /* Count nulls and non-null values (the 1-bit level encoder already
+     * counted the present ones). */
+    int64_t num_non_null = num_values;
+    if (def_levels && writer->max_def_level > 0) {
+        num_non_null = encoded_non_null >= 0
+            ? encoded_non_null
+            : carquet_dispatch_count_non_nulls(def_levels, num_values,
+                                               writer->max_def_level);
+        writer->num_nulls += (num_values - num_non_null);
     }
 
     /* Encode repetition levels */
     if (writer->max_rep_level > 0 && rep_levels) {
         status = encode_levels(rep_levels, num_values, writer->max_rep_level,
                                &writer->rep_levels_buffer,
-                               false);
+                               false, NULL);
         if (status != CARQUET_OK) {
             goto fail;
         }
@@ -1246,19 +1278,19 @@ carquet_status_t carquet_page_writer_add_values(
      * an OPTIONAL column means every value is present (level == max_def_level);
      * a NULL rep_levels means level 0. When max_def/rep_level == 0 the single
      * bucket is index 0, which is exactly what these fall-through paths hit. */
-    if (writer->max_def_level > 0 && def_levels) {
-        for (int64_t i = 0; i < num_values; i++) {
-            int16_t d = def_levels[i];
-            if (d >= 0 && d <= writer->max_def_level) writer->def_level_hist[d]++;
-        }
+    if (writer->max_def_level > 0 && def_levels && encoded_non_null >= 0) {
+        /* The 1-bit level encoder counted them: every level is 0 or 1. */
+        writer->def_level_hist[0] += num_values - encoded_non_null;
+        writer->def_level_hist[1] += encoded_non_null;
+    } else if (writer->max_def_level > 0 && def_levels) {
+        level_histogram_add(writer->def_level_hist, def_levels, num_values,
+                            writer->max_def_level);
     } else {
         writer->def_level_hist[writer->max_def_level] += num_values;
     }
     if (writer->max_rep_level > 0 && rep_levels) {
-        for (int64_t i = 0; i < num_values; i++) {
-            int16_t r = rep_levels[i];
-            if (r >= 0 && r <= writer->max_rep_level) writer->rep_level_hist[r]++;
-        }
+        level_histogram_add(writer->rep_level_hist, rep_levels, num_values,
+                            writer->max_rep_level);
     } else {
         writer->rep_level_hist[0] += num_values;
     }
@@ -2165,13 +2197,13 @@ carquet_status_t carquet_page_writer_add_dictionary_indices(
         /* Raw RLE; the V1 length prefix is applied once at page assembly. */
         status = encode_levels(def_levels, num_values_total, writer->max_def_level,
                                &writer->def_levels_buffer,
-                               false);
+                               false, NULL);
         if (status != CARQUET_OK) return status;
     }
     if (writer->max_rep_level > 0 && rep_levels) {
         status = encode_levels(rep_levels, num_values_total, writer->max_rep_level,
                                &writer->rep_levels_buffer,
-                               false);
+                               false, NULL);
         if (status != CARQUET_OK) return status;
     }
 
@@ -2188,21 +2220,17 @@ carquet_status_t carquet_page_writer_add_dictionary_indices(
         writer->num_rows += num_values_total;
     }
 
-    /* Per-page level histograms for the single RLE_DICTIONARY data page
+    /* Per-page level histograms for an RLE_DICTIONARY data page
      * (see the matching logic in carquet_page_writer_add_values). */
     if (writer->max_def_level > 0 && def_levels) {
-        for (int64_t i = 0; i < num_values_total; i++) {
-            int16_t d = def_levels[i];
-            if (d >= 0 && d <= writer->max_def_level) writer->def_level_hist[d]++;
-        }
+        level_histogram_add(writer->def_level_hist, def_levels, num_values_total,
+                            writer->max_def_level);
     } else {
         writer->def_level_hist[writer->max_def_level] += num_values_total;
     }
     if (writer->max_rep_level > 0 && rep_levels) {
-        for (int64_t i = 0; i < num_values_total; i++) {
-            int16_t r = rep_levels[i];
-            if (r >= 0 && r <= writer->max_rep_level) writer->rep_level_hist[r]++;
-        }
+        level_histogram_add(writer->rep_level_hist, rep_levels, num_values_total,
+                            writer->max_rep_level);
     } else {
         writer->rep_level_hist[0] += num_values_total;
     }
@@ -2242,6 +2270,14 @@ void carquet_page_writer_set_data_page_v2(carquet_page_writer_t* writer,
     if (writer) writer->data_page_v2 = enabled;
 }
 
+/* GeospatialStatistics cover a whole column chunk: carquet_page_writer_reset()
+ * runs per page and keeps them; the column writer clears them per row group. */
+void carquet_page_writer_reset_geo_stats(carquet_page_writer_t* writer) {
+    if (writer && writer->geo_enabled) {
+        carquet_geo_stats_init(&writer->geo_stats);
+    }
+}
+
 const parquet_geospatial_statistics_t* carquet_page_writer_get_geo_stats(
     const carquet_page_writer_t* writer) {
     if (!writer || !writer->geo_enabled) return NULL;
@@ -2254,6 +2290,11 @@ size_t carquet_page_writer_estimated_size(const carquet_page_writer_t* writer) {
            writer->def_levels_buffer.size +
            writer->rep_levels_buffer.size +
            CARQUET_PAGE_SIZE_ESTIMATE_OVERHEAD;  /* Header overhead */
+}
+
+/* Bytes of values staged for the current page (no levels, no header). */
+size_t carquet_page_writer_values_size(const carquet_page_writer_t* writer) {
+    return writer ? writer->values_buffer.size : 0;
 }
 
 int64_t carquet_page_writer_num_values(const carquet_page_writer_t* writer) {
@@ -2309,6 +2350,10 @@ void carquet_page_writer_set_crc(carquet_page_writer_t* writer, bool enabled) {
     }
 }
 
+bool carquet_page_writer_statistics_enabled(const carquet_page_writer_t* writer) {
+    return writer && writer->write_statistics;
+}
+
 void carquet_page_writer_set_statistics(carquet_page_writer_t* writer, bool enabled) {
     if (writer) {
         writer->write_statistics = enabled &&
@@ -2359,12 +2404,21 @@ carquet_status_t carquet_page_writer_adopt_config(
     const carquet_page_writer_t* src) {
 
     if (!dst || !src) return CARQUET_ERROR_INVALID_ARGUMENT;
-    /* The level histograms are sized at create time (one bucket per level);
-     * a scratch writer is flat, so only flat columns can be adopted. Geo
+    /* Only non-repeated columns can be adopted (a repeated page must end on
+     * a record boundary, which the page planner does not track). Geo
      * statistics span a column, not a page, so they stay serial too. */
-    if (src->max_def_level != 0 || src->max_rep_level != 0 || src->geo_enabled ||
-        dst->max_def_level != 0 || dst->max_rep_level != 0) {
+    if (src->max_rep_level != 0 || src->geo_enabled || dst->max_rep_level != 0 ||
+        src->max_def_level < 0) {
         return CARQUET_ERROR_INVALID_ARGUMENT;
+    }
+    /* A scratch writer serves columns of any definition depth in turn; its
+     * definition-level histogram (one bucket per level) follows the column. */
+    if (dst->max_def_level != src->max_def_level) {
+        int64_t* hist = carquet_mem_realloc(
+            dst->def_level_hist, ((size_t)src->max_def_level + 1) * sizeof(int64_t));
+        if (!hist) return CARQUET_ERROR_OUT_OF_MEMORY;
+        dst->def_level_hist = hist;
+        dst->max_def_level = src->max_def_level;
     }
     dst->type = src->type;
     dst->logical_type = src->logical_type;

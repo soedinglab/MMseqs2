@@ -128,15 +128,10 @@ carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
     for (int32_t i = 0; i < num_threads; i++) {
         pool->threads[i] = CreateThread(NULL, 0, worker_thread_func, pool, 0, NULL);
         if (!pool->threads[i]) {
-            pool->shutdown = true;
-            WakeAllConditionVariable(&pool->work_available);
-            for (int32_t j = 0; j < i; j++) {
-                WaitForSingleObject(pool->threads[j], INFINITE);
-                CloseHandle(pool->threads[j]);
-            }
-            DeleteCriticalSection(&pool->mutex);
-            carquet_mem_free(pool->threads);
-            carquet_mem_free(pool);
+            /* Tear down the i threads already started; destroy sets shutdown
+             * and broadcasts under the lock, so no worker can miss it. */
+            pool->num_threads = i;
+            carquet_worker_pool_destroy(pool);
             return NULL;
         }
     }
@@ -157,17 +152,8 @@ carquet_worker_pool_t* carquet_worker_pool_create(int32_t num_threads) {
     }
     for (int32_t i = 0; i < num_threads; i++) {
         if (pthread_create(&pool->threads[i], NULL, worker_thread_func, pool) != 0) {
-            pool->shutdown = true;
-            pthread_cond_broadcast(&pool->work_available);
-            for (int32_t j = 0; j < i; j++) {
-                pthread_join(pool->threads[j], NULL);
-            }
-            pthread_mutex_destroy(&pool->mutex);
-            pthread_cond_destroy(&pool->work_available);
-            pthread_cond_destroy(&pool->work_done);
-            pthread_cond_destroy(&pool->queue_not_full);
-            carquet_mem_free(pool->threads);
-            carquet_mem_free(pool);
+            pool->num_threads = i;  /* see the Windows branch */
+            carquet_worker_pool_destroy(pool);
             return NULL;
         }
     }

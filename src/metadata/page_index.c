@@ -923,17 +923,25 @@ carquet_column_index_t* carquet_column_index_parse(const uint8_t* data, size_t s
         return NULL;
     }
 
-    /* Clamp num_pages to the minimum of all parsed array sizes so that
-     * accessors never read past any allocation — even with malformed
-     * Thrift data where list counts disagree. */
-    if (ci->null_pages && ci->num_null_pages < ci->num_pages)
-        ci->num_pages = ci->num_null_pages;
-    if (ci->min_values && ci->num_min_values < ci->num_pages)
-        ci->num_pages = ci->num_min_values;
-    if (ci->max_values && ci->num_max_values < ci->num_pages)
-        ci->num_pages = ci->num_max_values;
-    if (ci->null_counts && ci->num_null_counts < ci->num_pages)
-        ci->num_pages = ci->num_null_counts;
+    /* null_pages, min_values and max_values are required and describe one
+     * entry per page. A ColumnIndex whose required lists are missing or
+     * disagree cannot be mapped onto pages: reject it (callers then keep
+     * every page). Clamping to the shortest list made later pages vanish
+     * from filtered reads. */
+    if (!ci->null_pages || !ci->min_values || !ci->max_values ||
+        ci->num_min_values != ci->num_pages ||
+        ci->num_max_values != ci->num_pages) {
+        carquet_column_index_free(ci);
+        return NULL;
+    }
+    /* null_counts is optional: a list of the wrong length is dropped, not
+     * used to shrink the page count. carquet_column_index_get_page_stats()
+     * then reports has_null_count = false. */
+    if (ci->null_counts && ci->num_null_counts != ci->num_pages) {
+        carquet_mem_free(ci->null_counts);
+        ci->null_counts = NULL;
+        ci->num_null_counts = 0;
+    }
 
     return ci;
 }

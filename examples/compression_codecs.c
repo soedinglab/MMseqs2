@@ -11,8 +11,10 @@
  * - UNCOMPRESSED
  * - SNAPPY
  * - GZIP
- * - LZ4
+ * - LZ4_RAW (the LZ4 codec to use for new files)
+ * - LZ4 (deprecated Hadoop-framed variant, kept for compatibility)
  * - ZSTD
+ * - BROTLI (when built with CARQUET_ENABLE_BROTLI, the default)
  *
  * Build:
  *   gcc -o compression_codecs compression_codecs.c -lcarquet -I../include
@@ -27,6 +29,7 @@
 #include <sys/stat.h>
 
 #include <carquet/carquet.h>
+#include "example_paths.h"
 
 #define NUM_ROWS 10000
 
@@ -209,7 +212,7 @@ static int verify_file(const char* filename) {
 /**
  * Test a single compression codec
  */
-static void test_codec(
+static int test_codec(
     carquet_compression_t codec,
     const char* base_path,
     carquet_schema_t* schema,
@@ -228,7 +231,8 @@ static void test_codec(
     if (write_with_compression(filename, schema, data, codec) != 0) {
         printf("    FAILED to write\n");
         *out_size = -1;
-        return;
+        remove(filename);
+        return 1;
     }
 
     /* Get file size */
@@ -239,7 +243,7 @@ static void test_codec(
     if (verify_file(filename) != 0) {
         printf("    FAILED verification\n");
         remove(filename);
-        return;
+        return 1;
     }
 
     printf("    Size: %lld bytes (%.2f KB)\n",
@@ -247,6 +251,7 @@ static void test_codec(
 
     /* Clean up */
     remove(filename);
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -280,7 +285,8 @@ int main(int argc, char* argv[]) {
     /* Test each codec */
     printf("Writing files with different compression codecs:\n\n");
 
-    const char* base_path = "/tmp/compression_test";
+    char base_path[1024];
+    example_temp_path(base_path, sizeof(base_path), "compression_test");
 
     typedef struct {
         carquet_compression_t codec;
@@ -291,13 +297,22 @@ int main(int argc, char* argv[]) {
         { CARQUET_COMPRESSION_UNCOMPRESSED, 0 },
         { CARQUET_COMPRESSION_SNAPPY, 0 },
         { CARQUET_COMPRESSION_GZIP, 0 },
+        { CARQUET_COMPRESSION_LZ4_RAW, 0 },
         { CARQUET_COMPRESSION_LZ4, 0 },
         { CARQUET_COMPRESSION_ZSTD, 0 },
+        { CARQUET_COMPRESSION_BROTLI, 0 },
     };
     const int num_codecs = sizeof(results) / sizeof(results[0]);
 
+    int failures = 0;
     for (int i = 0; i < num_codecs; i++) {
-        test_codec(results[i].codec, base_path, schema, data, &results[i].size);
+        int rc = test_codec(results[i].codec, base_path, schema, data, &results[i].size);
+        /* BROTLI is optional at build time (CARQUET_ENABLE_BROTLI=OFF). */
+        if (rc != 0 && results[i].codec == CARQUET_COMPRESSION_BROTLI) {
+            printf("    (BROTLI not available in this build; skipped)\n");
+        } else {
+            failures += rc;
+        }
     }
 
     /* Summary */
@@ -320,13 +335,19 @@ int main(int argc, char* argv[]) {
     printf("\nCodec Recommendations:\n");
     printf("  - SNAPPY: Fast compression/decompression, good for real-time workloads\n");
     printf("  - ZSTD: Best compression ratio, good balance of speed and size\n");
-    printf("  - LZ4: Fastest decompression, good for read-heavy workloads\n");
+    printf("  - LZ4_RAW: Fastest decompression, good for read-heavy workloads\n");
+    printf("    (LZ4, the Hadoop-framed codec id, is deprecated: write LZ4_RAW)\n");
+    printf("  - BROTLI: High ratio on text-like data, slower to compress\n");
     printf("  - GZIP: Widely compatible, good compression but slower\n");
 
     /* Clean up */
     free_test_data(data);
     carquet_schema_free(schema);
 
+    if (failures) {
+        printf("\n=== Compression example: %d codec(s) FAILED ===\n", failures);
+        return 1;
+    }
     printf("\n=== Compression example completed ===\n");
     return 0;
 }

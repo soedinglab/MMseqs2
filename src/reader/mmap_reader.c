@@ -11,6 +11,8 @@
 #include <carquet/carquet.h>
 #include "reader_internal.h"
 #include "../core/endian.h"
+#include "../core/file_io.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,15 +39,21 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
         return NULL;
     }
 
-    /* Open file */
-    mmap_info->file_handle = CreateFileA(
-        path,
-        GENERIC_READ,
-        FILE_SHARE_READ,
-        NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        NULL);
+    /* Open file. A UTF-8 path with non-ASCII characters goes through the
+     * wide API (CreateFileA would read it in the ANSI code page).
+     * FILE_SHARE_DELETE lets other processes rename/delete the file while it
+     * is mapped, like POSIX unlink-while-open; writers stay excluded so the
+     * mapped bytes cannot change under the parser. */
+    wchar_t* wpath = carquet_path_to_wide(path);
+    const DWORD share = FILE_SHARE_READ | FILE_SHARE_DELETE;
+    if (wpath) {
+        mmap_info->file_handle = CreateFileW(wpath, GENERIC_READ, share, NULL,
+                                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        carquet_mem_free(wpath);
+    } else {
+        mmap_info->file_handle = CreateFileA(path, GENERIC_READ, share, NULL,
+                                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    }
 
     if (mmap_info->file_handle == INVALID_HANDLE_VALUE) {
         carquet_mem_free(mmap_info);
@@ -61,10 +69,22 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to get file size");
         return NULL;
     }
+    /* CreateFileMapping rejects empty files (ERROR_FILE_INVALID), and on a
+     * 32-bit build a file larger than SIZE_MAX cannot be mapped: the
+     * (size_t) cast below would silently truncate the size and every bounds
+     * check against it. Report both up front; the caller falls back to the
+     * fread path, which produces the proper "file too small/large" error. */
+    if (file_size.QuadPart <= 0 || (uint64_t)file_size.QuadPart > (uint64_t)SIZE_MAX) {
+        CloseHandle(mmap_info->file_handle);
+        carquet_mem_free(mmap_info);
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ,
+            "File size %lld cannot be memory-mapped", (long long)file_size.QuadPart);
+        return NULL;
+    }
     mmap_info->size = (size_t)file_size.QuadPart;
 
     /* Create file mapping */
-    mmap_info->mapping_handle = CreateFileMappingA(
+    mmap_info->mapping_handle = CreateFileMappingW(
         mmap_info->file_handle,
         NULL,
         PAGE_READONLY,
@@ -135,6 +155,14 @@ carquet_mmap_info_t* carquet_mmap_open(const char* path, carquet_error_t* error)
         close(mmap_info->fd);
         carquet_mem_free(mmap_info);
         CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "Failed to stat file");
+        return NULL;
+    }
+    /* Empty files cannot be mapped (EINVAL), and on a 32-bit build a file
+     * larger than SIZE_MAX would have its size truncated by the cast. */
+    if (st.st_size <= 0 || (uint64_t)st.st_size > (uint64_t)SIZE_MAX) {
+        close(mmap_info->fd);
+        carquet_mem_free(mmap_info);
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_FILE_READ, "File cannot be memory-mapped: %s", path);
         return NULL;
     }
     mmap_info->size = (size_t)st.st_size;

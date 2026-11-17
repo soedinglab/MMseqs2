@@ -121,9 +121,12 @@ typedef struct carquet_error {
  * Initialize an error structure to success state. Matches carquet_error_init():
  * the context fields use -1 for "not applicable", since 0 is a valid file
  * offset, column and row group.
+ *
+ * Positional (in field order) rather than designated, so the macro is also
+ * valid C++ before C++20 (MSVC rejects designated initializers below
+ * /std:c++20).
  */
-#define CARQUET_ERROR_INIT { .code = CARQUET_OK, .message = {0}, .offset = -1, \
-                             .column_index = -1, .row_group_index = -1 }
+#define CARQUET_ERROR_INIT { CARQUET_OK, {0}, NULL, 0, NULL, -1, -1, -1 }
 
 /**
  * Check if status indicates success.

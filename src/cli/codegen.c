@@ -4,6 +4,7 @@
  */
 
 #include "cli.h"
+#include "core/file_io.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -106,7 +107,7 @@ int cmd_codegen(const codegen_opts_t* opts) {
     /* mode == 0 (read) */
     FILE* out = stdout;
     if (opts->output_path) {
-        out = fopen(opts->output_path, "w");
+        out = carquet_fopen(opts->output_path, "w");  /* UTF-8 path aware */
         if (!out) {
             fprintf(stderr, "error: cannot open output file '%s'\n", opts->output_path);
             return 1;

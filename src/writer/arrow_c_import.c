@@ -60,7 +60,10 @@ typedef enum {
 static int64_t fixed_list_size(const char* fmt) {
     if (!fmt || fmt[0] != '+' || fmt[1] != 'w' || fmt[2] != ':' || fmt[3] == '\0') return 0;
     char* end = NULL;
-    long n = strtol(fmt + 3, &end, 10);
+    /* strtoll, not strtol: long is 32-bit on Windows, where strtol would
+     * saturate an out-of-range count to LONG_MAX == INT32_MAX and slip past
+     * the range check below. */
+    long long n = strtoll(fmt + 3, &end, 10);
     if (n <= 0 || n > INT32_MAX || !end || *end != '\0') return 0;
     return (int64_t)n;
 }
@@ -89,7 +92,9 @@ typedef enum {
     CONV_DATE64,    /* int64 milliseconds -> INT32 days (DATE) */
     CONV_TIME32_S,  /* int32 seconds -> INT32 milliseconds (TIME(MILLIS)) */
     CONV_TS_S,      /* int64 seconds -> INT64 milliseconds (TIMESTAMP(MILLIS)) */
-    CONV_DECIMAL    /* little-endian two's complement -> big-endian FLBA (DECIMAL) */
+    CONV_DECIMAL,   /* little-endian two's complement -> big-endian FLBA (DECIMAL) */
+    CONV_WIDEN_I64, /* a narrower integer into an INT64 column (src_code: its format) */
+    CONV_F32_F64    /* float into a DOUBLE column */
 } arrow_conv_t;
 
 /* Byte length of the FIXED_LEN_BYTE_ARRAY used to store a DECIMAL of the given
@@ -168,8 +173,17 @@ static carquet_status_t parse_arrow_format(
         case 'u': case 'U': *pt = CARQUET_PHYSICAL_BYTE_ARRAY; *has_lt = true;
                   lt->id = CARQUET_LOGICAL_STRING; return CARQUET_OK;   /* utf8 / large utf8 */
         case 'z': case 'Z': *pt = CARQUET_PHYSICAL_BYTE_ARRAY; return CARQUET_OK; /* binary / large binary */
+        case 'n': *pt = CARQUET_PHYSICAL_INT32; *has_lt = true;      /* null type: an all-null INT32 */
+                  lt->id = CARQUET_LOGICAL_NULL; return CARQUET_OK;      /* annotated Null, as pyarrow */
         default: return CARQUET_ERROR_NOT_IMPLEMENTED;
         }
+    }
+
+    /* string / binary views */
+    if (fmt[0] == 'v' && (fmt[1] == 'u' || fmt[1] == 'z') && fmt[2] == '\0') {
+        *pt = CARQUET_PHYSICAL_BYTE_ARRAY;
+        if (fmt[1] == 'u') { *has_lt = true; lt->id = CARQUET_LOGICAL_STRING; }
+        return CARQUET_OK;
     }
 
     /* fixed_size_binary "w:<n>" */
@@ -253,6 +267,11 @@ static carquet_status_t parse_arrow_format(
             }
             return CARQUET_ERROR_NOT_IMPLEMENTED;
         }
+        if (fmt[1] == 'D' && (fmt[2] == 's' || fmt[2] == 'm' || fmt[2] == 'u' || fmt[2] == 'n') &&
+            fmt[3] == '\0') {            /* duration: INT64 counts, as pyarrow writes it */
+            *pt = CARQUET_PHYSICAL_INT64;
+            return CARQUET_OK;
+        }
         if (fmt[1] == 's') {              /* timestamp "ts<unit>:<tz>" */
             if (fmt[2] == '\0' || fmt[3] != ':') return CARQUET_ERROR_INVALID_ARGUMENT;
             *pt = CARQUET_PHYSICAL_INT64; *has_lt = true;
@@ -287,6 +306,24 @@ static size_t fixed_stride(carquet_physical_type_t pt, int32_t type_length) {
     }
 }
 
+/* Structural sanity of a caller-supplied ArrowSchema tree: every node has a
+ * format, a non-negative child count and a non-NULL children array/entries
+ * when it has children; nesting is bounded. The walkers below index
+ * s->children[i] without re-checking. */
+static bool arrow_schema_tree_ok(const struct ArrowSchema* s, int depth) {
+    if (!s || !s->format || s->n_children < 0 || depth > ARROW_MAX_NEST_DEPTH) {
+        return false;
+    }
+    if (s->n_children > 0 && !s->children) return false;
+    for (int64_t i = 0; i < s->n_children; i++) {
+        if (!arrow_schema_tree_ok(s->children[i], depth + 1)) return false;
+    }
+    if (s->dictionary && !arrow_schema_tree_ok(s->dictionary, depth + 1)) {
+        return false;
+    }
+    return true;
+}
+
 /* Number of leaf columns under an Arrow schema node. */
 static int64_t arrow_leaf_count(const struct ArrowSchema* s) {
     if (!s || !s->format) return 0;
@@ -309,6 +346,31 @@ static int64_t arrow_leaf_count(const struct ArrowSchema* s) {
  * Schema import (arbitrary depth)
  * ============================================================================
  */
+
+/* True when the field's Arrow metadata ("ARROW:extension:name") names the
+ * canonical extension `ext`. The blob is int32 count, then per entry int32
+ * length + bytes for the key and for the value, native endian. */
+static bool arrow_extension_is(const struct ArrowSchema* s, const char* ext) {
+    static const char key[] = "ARROW:extension:name";
+    const char* p = s->metadata;
+    if (!p) return false;
+    int32_t n;
+    memcpy(&n, p, 4); p += 4;
+    size_t ext_len = strlen(ext);
+    for (int32_t i = 0; i < n; i++) {
+        int32_t klen, vlen;
+        memcpy(&klen, p, 4); p += 4;
+        if (klen < 0) return false;
+        const char* k = p; p += klen;
+        memcpy(&vlen, p, 4); p += 4;
+        if (vlen < 0) return false;
+        const char* v = p; p += vlen;
+        if ((size_t)klen == sizeof(key) - 1 && memcmp(k, key, (size_t)klen) == 0) {
+            return (size_t)vlen == ext_len && memcmp(v, ext, ext_len) == 0;
+        }
+    }
+    return false;
+}
 
 /* Recursively add one Arrow field (and its subtree) under `parent_elem`. */
 static carquet_status_t import_field(
@@ -417,6 +479,18 @@ static carquet_status_t import_field(
                 value_format, name);
             return rc;
         }
+        /* Canonical extensions with a Parquet logical type, as pyarrow maps
+         * them: without the annotation DuckDB, Spark... see a plain
+         * FIXED_LEN_BYTE_ARRAY(16) / STRING. */
+        if (pt == CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY && tlen == 16 && !has_lt &&
+            arrow_extension_is(s, "arrow.uuid")) {
+            memset(&lt, 0, sizeof(lt));
+            lt.id = CARQUET_LOGICAL_UUID;
+            has_lt = true;
+        } else if (pt == CARQUET_PHYSICAL_BYTE_ARRAY && has_lt &&
+                   lt.id == CARQUET_LOGICAL_STRING && arrow_extension_is(s, "arrow.json")) {
+            lt.id = CARQUET_LOGICAL_JSON;
+        }
         rc = carquet_schema_add_column(cs, name, pt, has_lt ? &lt : NULL, rep, tlen,
                                        parent_elem);
         if (rc != CARQUET_OK) {
@@ -454,6 +528,13 @@ carquet_status_t carquet_arrow_import_schema(
         goto done;
     }
 
+    if (!arrow_schema_tree_ok(schema, 0)) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
+            "Arrow import: malformed schema tree (NULL children or format)");
+        rc = CARQUET_ERROR_INVALID_ARGUMENT;
+        goto done;
+    }
+
     cs = carquet_schema_create(error);
     if (!cs) { rc = CARQUET_ERROR_OUT_OF_MEMORY; goto done; }
 
@@ -484,6 +565,8 @@ typedef struct {
     bool is_bool;
     bool is_bytearray;
     bool off64;             /* byte-array with 64-bit offsets (large utf8/binary) */
+    bool view;              /* byte-array as string / binary views */
+    char src_code;          /* single-character Arrow format of the values, or 0 */
     size_t stride;          /* fixed-width byte stride written (0 for byte array) */
     arrow_conv_t conv;      /* value conversion from the Arrow representation */
     size_t src_stride;      /* Arrow in-memory stride when conv != CONV_NONE */
@@ -572,6 +655,37 @@ static void emit_value(shred_ctx_t* ctx, leaf_acc_t* acc,
         acc->fixed_bytes += 1;
         return;
     }
+    if (acc->is_bytearray && acc->view) {
+        /* 16-byte views: int32 length, then the bytes inline (<= 12) or a
+         * 4-byte prefix, a data-buffer index and an offset into it. Buffers:
+         * validity, views, data buffers..., then the int64 buffer sizes. */
+        const uint8_t* views = (a->n_buffers >= 2) ? (const uint8_t*)a->buffers[1] : NULL;
+        if (!views || a->n_buffers < 3) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
+        const uint8_t* v = views + (size_t)i * 16;
+        int32_t len;
+        memcpy(&len, v, 4);
+        const uint8_t* data;
+        if (len < 0) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
+        if (len <= 12) {
+            data = v + 4;
+        } else {
+            int32_t bi, off;
+            memcpy(&bi, v + 8, 4);
+            memcpy(&off, v + 12, 4);
+            int64_t ndata = a->n_buffers - 3;
+            if (bi < 0 || bi >= ndata || off < 0 || !a->buffers[2 + bi]) {
+                ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return;
+            }
+            const int64_t* sizes = (const int64_t*)a->buffers[a->n_buffers - 1];
+            if (sizes && (int64_t)off + len > sizes[bi]) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
+            data = (const uint8_t*)a->buffers[2 + bi] + off;
+        }
+        if (!grow_ba(acc, 1)) return;
+        acc->ba[acc->nba].data = (uint8_t*)data;
+        acc->ba[acc->nba].length = (uint32_t)len;
+        acc->nba++;
+        return;
+    }
     if (acc->is_bytearray) {
         if (a->n_buffers < 3) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
         const uint8_t* bytes = (const uint8_t*)a->buffers[2];
@@ -585,7 +699,10 @@ static void emit_value(shred_ctx_t* ctx, leaf_acc_t* acc,
             if (!off) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
             s = off[i]; e = off[i + 1];
         }
-        if (s < 0 || e < s) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
+        /* Parquet BYTE_ARRAY lengths are int32; a non-empty value needs data. */
+        if (s < 0 || e < s || e - s > INT32_MAX || (!bytes && e > s)) {
+            ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return;
+        }
         if (!grow_ba(acc, 1)) return;
         acc->ba[acc->nba].data = (uint8_t*)(bytes ? bytes + s : NULL);
         acc->ba[acc->nba].length = (uint32_t)(e - s);
@@ -622,6 +739,24 @@ static void emit_value(shred_ctx_t* ctx, leaf_acc_t* acc,
             int64_t sec; memcpy(&sec, src, 8);
             if (sec > INT64_MAX / 1000 || sec < INT64_MIN / 1000) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
             int64_t v = sec * 1000; memcpy(dst, &v, 8); break;
+        }
+        case CONV_WIDEN_I64: {
+            int64_t v;
+            switch (acc->src_code) {
+            case 'c': v = *(const int8_t*)src; break;
+            case 'C': v = *src; break;
+            case 's': { int16_t t; memcpy(&t, src, 2); v = t; break; }
+            case 'S': { uint16_t t; memcpy(&t, src, 2); v = t; break; }
+            case 'i': { int32_t t; memcpy(&t, src, 4); v = t; break; }
+            default:  { uint32_t t; memcpy(&t, src, 4); v = t; break; }   /* 'I' */
+            }
+            memcpy(dst, &v, 8);
+            break;
+        }
+        case CONV_F32_F64: {
+            float f; memcpy(&f, src, 4);
+            double d = f; memcpy(dst, &d, 8);
+            break;
         }
         case CONV_DECIMAL: {
             /* Keep the low `stride` bytes of the little-endian two's complement
@@ -703,6 +838,8 @@ static bool shred_flat_fast(shred_ctx_t* ctx, leaf_acc_t* acc,
     int64_t off = a->offset;
     d += (size_t)off * stride;
     bool nullable = (s->flags & ARROW_FLAG_NULLABLE) != 0;
+    /* Nulls under a non-nullable field: the generic path reports them. */
+    if (!nullable && a->n_buffers >= 1 && a->buffers[0] && a->null_count != 0) return false;
     const uint8_t* valid = (nullable && a->n_buffers >= 1)
                                ? (const uint8_t*)a->buffers[0] : NULL;
 
@@ -757,7 +894,8 @@ static void visit(shred_ctx_t* ctx, const struct ArrowSchema* s,
                   int32_t base, int depth) {
     if (ctx->rc != CARQUET_OK) return;
     if (depth > ARROW_MAX_NEST_DEPTH) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
-    if (a->offset < 0 || idx < 0 || idx >= a->length) {
+    if (a->offset < 0 || idx < 0 || idx >= a->length ||
+        a->offset > INT64_MAX - idx) {
         ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return;
     }
     /* Sliced array: `idx` is logical (relative to the slice); every buffer of
@@ -771,8 +909,19 @@ static void visit(shred_ctx_t* ctx, const struct ArrowSchema* s,
     bool nullable = (s->flags & ARROW_FLAG_NULLABLE) != 0;
     int64_t subtree_leaves = arrow_leaf_count(s);
 
-    /* Absent: record one null placeholder at def_in for every leaf below. */
-    if (nullable && arr_is_null(a, pidx)) {
+    /* Absent: record one null placeholder at def_in for every leaf below
+     * (every element of the null type). */
+    bool null_type = s->format[0] == 'n' && s->format[1] == '\0';
+    if (null_type && !nullable) { ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return; }
+    /* A null under a non-nullable field has no definition level to take it:
+     * refuse it rather than write the slot's leftover value. */
+    if (!nullable && arr_is_null(a, pidx)) {
+        CARQUET_SET_ERROR(ctx->error, CARQUET_ERROR_INVALID_ARGUMENT,
+            "Arrow import: null in non-nullable field \"%s\"", s->name ? s->name : "");
+        ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT;
+        return;
+    }
+    if (nullable && (null_type || arr_is_null(a, pidx))) {
         emit_placeholder_range(ctx, base, subtree_leaves, rep_in, def_in);
         return;
     }
@@ -798,7 +947,14 @@ static void visit(shred_ctx_t* ctx, const struct ArrowSchema* s,
             int64_t pk = dict->offset + k;
             if (arr_is_null(dict, pk)) {
                 /* The dictionary slot itself is null: the row is null. Replace
-                 * the level just appended with the absent placeholder. */
+                 * the level just appended with the absent placeholder. A
+                 * non-nullable field has no level for "absent" (def_in is
+                 * its present level): the null cannot be written, and keeping
+                 * the level without a value desynchronises levels and values. */
+                if (!nullable) {
+                    ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT;
+                    return;
+                }
                 acc->def[acc->nlevels - 1] = def_in;
                 return;
             }
@@ -810,6 +966,9 @@ static void visit(shred_ctx_t* ctx, const struct ArrowSchema* s,
     }
     case ANODE_STRUCT: {
         int32_t child_base = base;
+        if (a->n_children != s->n_children) {
+            ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return;
+        }
         for (int64_t c = 0; c < s->n_children; c++) {
             if (!a->children || !a->children[c] || !s->children[c]) {
                 ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return;
@@ -822,7 +981,8 @@ static void visit(shred_ctx_t* ctx, const struct ArrowSchema* s,
     }
     case ANODE_LIST:
     case ANODE_MAP: {
-        if (s->n_children != 1 || !a->children || !a->children[0] || !s->children[0]) {
+        if (s->n_children != 1 || a->n_children != 1 || !a->children ||
+            !a->children[0] || !s->children || !s->children[0]) {
             ctx->rc = CARQUET_ERROR_INVALID_ARGUMENT; return;
         }
         int64_t lo, hi;
@@ -912,6 +1072,8 @@ static carquet_status_t assign_leaves(const struct ArrowSchema* s, int32_t* next
         acc->is_bool = (pt == CARQUET_PHYSICAL_BOOLEAN);
         acc->is_bytearray = (pt == CARQUET_PHYSICAL_BYTE_ARRAY);
         acc->off64 = (value_format[0] == 'U' || value_format[0] == 'Z');
+        acc->view = (value_format[0] == 'v');
+        acc->src_code = value_format[1] == '\0' ? value_format[0] : 0;
         acc->stride = fixed_stride(pt, tlen);
         acc->conv = conv;
         acc->src_stride = src_stride;
@@ -947,6 +1109,11 @@ static carquet_status_t assign_leaves(const struct ArrowSchema* s, int32_t* next
     }
 }
 
+extern carquet_status_t carquet_writer_column_desc_internal(
+    const carquet_writer_t* writer, int32_t column_index,
+    carquet_physical_type_t* physical_type, int32_t* type_length,
+    int16_t* max_def_level, int16_t* max_rep_level);
+
 carquet_status_t carquet_writer_write_arrow(
     carquet_writer_t* writer,
     struct ArrowArray* array,
@@ -980,6 +1147,12 @@ carquet_status_t carquet_writer_write_arrow(
             (long long)array->n_children, (long long)schema->n_children);
         rc = CARQUET_ERROR_INVALID_ARGUMENT; goto done;
     }
+    if (!arrow_schema_tree_ok(schema, 0) ||
+        (array->n_children > 0 && !array->children)) {
+        CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
+            "Arrow import: malformed schema/array tree (NULL children)");
+        rc = CARQUET_ERROR_INVALID_ARGUMENT; goto done;
+    }
 
     /* Assign leaf columns and validate the leaf count equals the writer's. */
     accs = (leaf_acc_t*)calloc((size_t)(num_cols > 0 ? num_cols : 1), sizeof(leaf_acc_t));
@@ -995,6 +1168,48 @@ carquet_status_t carquet_writer_write_arrow(
                 "Arrow import: schema has %d leaf columns, writer expects %d",
                 (int)next_col, (int)num_cols);
             rc = CARQUET_ERROR_INVALID_ARGUMENT; goto done;
+        }
+        /* Each leaf must match its writer column: write_batch reads values
+         * with the column's width and levels with its max_def / max_rep, so a
+         * mismatch (e.g. int32 leaf into an INT64 column) would over-read the
+         * shredded buffers. */
+        for (int32_t c = 0; c < num_cols; c++) {
+            carquet_physical_type_t wpt;
+            int32_t wlen;
+            int16_t wdef, wrep;
+            /* Lossless widening into the writer's type: narrower integers into
+             * an INT64 column, float into DOUBLE. */
+            if (carquet_writer_column_desc_internal(writer, c, &wpt, &wlen, &wdef, &wrep) == CARQUET_OK &&
+                wpt != accs[c].pt) {
+                const char* widen = strchr("cCsSiI", accs[c].src_code ? accs[c].src_code : '#');
+                if (wpt == CARQUET_PHYSICAL_INT64 && accs[c].pt == CARQUET_PHYSICAL_INT32 && widen &&
+                    (accs[c].conv == CONV_NONE || accs[c].conv == CONV_I8 || accs[c].conv == CONV_U8 ||
+                     accs[c].conv == CONV_I16 || accs[c].conv == CONV_U16)) {
+                    accs[c].src_stride = (accs[c].src_code == 'c' || accs[c].src_code == 'C') ? 1
+                                       : (accs[c].src_code == 's' || accs[c].src_code == 'S') ? 2 : 4;
+                    accs[c].conv = CONV_WIDEN_I64;
+                    accs[c].pt = CARQUET_PHYSICAL_INT64;
+                    accs[c].stride = 8;
+                } else if (wpt == CARQUET_PHYSICAL_DOUBLE && accs[c].pt == CARQUET_PHYSICAL_FLOAT &&
+                           accs[c].conv == CONV_NONE) {
+                    accs[c].conv = CONV_F32_F64;
+                    accs[c].src_stride = 4;
+                    accs[c].pt = CARQUET_PHYSICAL_DOUBLE;
+                    accs[c].stride = 8;
+                }
+            }
+            if (carquet_writer_column_desc_internal(writer, c, &wpt, &wlen,
+                                                    &wdef, &wrep) != CARQUET_OK ||
+                wpt != accs[c].pt || wdef != accs[c].max_def ||
+                wrep != accs[c].max_rep ||
+                (wpt == CARQUET_PHYSICAL_FIXED_LEN_BYTE_ARRAY &&
+                 (wlen <= 0 || (size_t)wlen != accs[c].stride))) {
+                CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
+                    "Arrow import: leaf %d (physical type %d, def %d, rep %d) "
+                    "does not match writer column", (int)c, (int)accs[c].pt,
+                    (int)accs[c].max_def, (int)accs[c].max_rep);
+                rc = CARQUET_ERROR_INVALID_ARGUMENT; goto done;
+            }
         }
     }
 
@@ -1012,7 +1227,10 @@ carquet_status_t carquet_writer_write_arrow(
             }
             /* A struct's offset applies to its children: child row r lives at
              * logical child position array->offset + r. */
-            if (carray->offset < 0 || carray->length < array->offset + array->length) {
+            if (carray->offset < 0 || array->offset < 0 || array->length < 0 ||
+                array->offset > INT64_MAX - array->length ||
+                carray->offset > INT64_MAX - array->offset ||
+                carray->length < array->offset + array->length) {
                 CARQUET_SET_ERROR(error, CARQUET_ERROR_INVALID_ARGUMENT,
                     "Arrow import: child %lld length %lld < struct offset %lld + length %lld",
                     (long long)i, (long long)carray->length,

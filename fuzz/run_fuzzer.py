@@ -62,12 +62,15 @@ TARGETS = [
     ("arrow_c_data", "Arrow C Data Interface format-string parser (import_schema)"),
     ("nested_write", "Nested write helper: auto-shredding LIST/MAP offsets+validity"),
     ("arrow_read",   "Nested Arrow reassembler (carquet_reader_read_arrow) over file bytes"),
+    ("reader_file",  "Path/FILE*/mmap reader: fread page path, validate_file, stats/predicates"),
+    ("arrow_write",  "Arrow write->read differential: write_arrow + read_arrow value compare"),
+    ("arrow_stream", "ArrowArrayStream scan: restore, predicate, row selection, ref views"),
 ]
 TARGET_NAMES = [t[0] for t in TARGETS]
 
 # Targets that consume whole Parquet files and therefore benefit from the
 # real-world apache/parquet-testing seeds fetched by fuzz/fetch_corpus.sh.
-EXTERNAL_SEED_TARGETS = {"reader", "page_filter", "arrow_read"}
+EXTERNAL_SEED_TARGETS = {"reader", "page_filter", "arrow_read", "reader_file"}
 
 
 # ── Seed corpus ──────────────────────────────────────────────────────────────
@@ -160,6 +163,11 @@ SEEDS = {
             b'els and Missing\x00\x05\x00\x00\x00Label\x00\x00\x00\t\x00\x00\x00SurveyVar\x00\x00\x00\x08\x00\x0c\x00'
             b'\x08\x00\x07\x00\x08\x00\x00\x00\x00\x00\x00\x01 \x00\x00\x00'
         ),
+    },
+    "arrow_write": {
+        "seed_flat": bytes([5, 0, 3, 0, 40, 0x80, 1, 2, 3, 5, 0x8f]) + bytes(range(256)),
+        "seed_nested": bytes([3, 1, 0x3b, 0x0f, 80, 0x8d, 0x0e, 0x91]) + bytes(range(255, -1, -1)),
+        "seed_dict_map": bytes([2, 0, 0x13, 0x02, 60, 0x8f, 0x11, 1, 1]) + bytes(range(0, 256, 3)) * 3,
     },
 }
 
@@ -313,8 +321,12 @@ def ensure_corpus(build_dir, target, script_dir):
         # Some targets (e.g. page_filter) need real binary seeds too large to
         # inline as byte literals. Copy any checked-in seeds from
         # fuzz/corpus/<target>/ if present.
-        checked_in = os.path.join(script_dir, "corpus", target)
-        if os.path.isdir(checked_in):
+        # Both layouts exist: fuzz/corpus/<target>/ (page_filter, append) and
+        # fuzz/corpus/fuzz_<target>/ (reader, writer, compression, ...).
+        for sub in (target, f"fuzz_{target}"):
+            checked_in = os.path.join(script_dir, "corpus", sub)
+            if not os.path.isdir(checked_in):
+                continue
             for entry in os.scandir(checked_in):
                 if entry.is_file():
                     shutil.copy2(entry.path, corpus_dir)
@@ -741,11 +753,19 @@ def run_single_fuzzer(build_dir, target, script_dir, max_time, jobs, extra_args)
         # Multi-job: run in artifact_dir so fuzz-*.log files go there
         cwd = artifact_dir if jobs > 1 else None
 
+        # Per-thread codec contexts held in pthread TSD look leaked to LSan
+        # on macOS; see fuzz/lsan.supp.
+        env = os.environ.copy()
+        supp = os.path.join(os.path.abspath(script_dir), "lsan.supp")
+        if os.path.isfile(supp) and "suppressions=" not in env.get("LSAN_OPTIONS", ""):
+            env["LSAN_OPTIONS"] = (env.get("LSAN_OPTIONS", "") + f":suppressions={supp}").lstrip(":")
+
         proc = subprocess.Popen(
             argv,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
+            env=env,
             cwd=cwd,
         )
 

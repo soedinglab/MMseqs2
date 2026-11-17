@@ -4,13 +4,15 @@
  *
  * A deferred-encode column (see column_writer.c, defer_encode) holds its raw
  * input verbatim until the row group is finalized. For the common flat case
- * (REQUIRED, fixed-stride, PLAIN or BYTE_STREAM_SPLIT, no bloom filter or page
- * index) the page boundaries the eager encoder would pick depend only on the
- * value count, so the stash can be cut into pages up front and every page can
- * be encoded, CRC'd and compressed independently on any worker thread. The
- * row-group writer schedules one task per page across all columns, then each
- * column stitches its pages back together in order. Output is byte-identical
- * to the serial path: same values per page, same code path per page.
+ * (non-repeated, fixed-stride, PLAIN or BYTE_STREAM_SPLIT, no bloom filter or
+ * page index) the page boundaries the eager encoder would pick depend only on
+ * the value counts (the definition levels are charged at their bit-packed
+ * size, see page_flush_estimate in column_writer.c), so the stash can be cut
+ * into pages up front and every page can be encoded, CRC'd and compressed
+ * independently on any worker thread. The row-group writer schedules one task
+ * per page across all columns, then each column stitches its pages back
+ * together in order. Output is byte-identical to the serial path: same values
+ * per page, fed to the page writer in the same chunks, same code path.
  */
 
 #ifndef CARQUET_WRITER_PAGE_TASKS_H
@@ -22,6 +24,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* Deepest definition level a page task can carry (its level histogram is a
+ * fixed array); deeper columns finalize serially. */
+#define CARQUET_PAGE_TASK_MAX_DEF_LEVEL 7
+
 /* Header overhead added to a page's accumulated bytes when deciding whether
  * it has reached the target page size. Shared by the page writer's size
  * estimate and the page planner so both pick the same boundaries. */
@@ -32,8 +38,10 @@ typedef struct carquet_page_writer carquet_page_writer_t;
 
 typedef struct carquet_page_task {
     carquet_column_writer_internal_t* column;
-    int64_t first_value;        /* Index into the column's deferred stash */
-    int64_t num_values;
+    int64_t first_value;        /* First level (logical value) of the page in the stash */
+    int64_t num_values;         /* Levels in the page, nulls included */
+    int64_t first_packed;       /* First non-null value of the page in the stash */
+    int64_t chunk_values;       /* The eager encoder's chunk size (add_values granularity) */
     carquet_buffer_t* out;      /* Encoded page: header + payload */
 
     /* Results, filled by carquet_column_writer_run_page_task */
@@ -42,7 +50,9 @@ typedef struct carquet_page_task {
     int32_t uncompressed_size;
     int32_t compressed_size;
     int64_t null_count;
-    int64_t def_hist0;          /* Level histograms: a flat REQUIRED column has one bucket */
+    /* Level histograms: one bucket per definition level; a non-repeated
+     * column has a single repetition bucket. */
+    int64_t def_hist[CARQUET_PAGE_TASK_MAX_DEF_LEVEL + 1];
     int64_t rep_hist0;
     bool has_stats;
     /* Wall-clock seconds the encode of this page took, recorded by the
@@ -102,8 +112,8 @@ carquet_page_writer_t* carquet_page_writer_create_scratch(void);
 
 /**
  * Point @p dst at the same column configuration as @p src (type, encoding,
- * codec, level, CRC/statistics/V2 flags) and reset it. Both must be flat
- * (max definition and repetition level 0).
+ * codec, level, definition depth, CRC/statistics/V2 flags) and reset it.
+ * Both must be non-repeated (max repetition level 0).
  */
 carquet_status_t carquet_page_writer_adopt_config(
     carquet_page_writer_t* dst,

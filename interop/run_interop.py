@@ -199,11 +199,14 @@ def find_corpus(project_dir):
     return d if (d / "data").is_dir() else None
 
 
-def carquet_json(test_interop_bin, path):
-    """Decode a file with carquet. Returns (summary_dict_or_None, crashed)."""
+def carquet_json(test_interop_bin, path, first_n=None):
+    """Decode a file with carquet. Returns (summary_dict_or_None, crashed).
+    first_n: emit that many values per column (across all pages / row
+    groups) instead of test_interop's default first 5."""
+    extra = ["--first", str(first_n)] if first_n else []
     try:
         proc = subprocess.run(
-            [str(test_interop_bin), "--json", str(path)],
+            [str(test_interop_bin), "--json", str(path)] + extra,
             capture_output=True, text=True, timeout=60
         )
     except subprocess.TimeoutExpired:
@@ -225,7 +228,13 @@ def _pa_normalize(col_type, value):
     if pa.types.is_boolean(col_type):
         return bool(value)
     if pa.types.is_integer(col_type):
-        return int(value)
+        v = int(value)
+        # carquet reports the physical (signed) INT32 / INT64 value.
+        if pa.types.is_unsigned_integer(col_type) and col_type.bit_width >= 32:
+            bits = col_type.bit_width
+            if v >= 1 << (bits - 1):
+                v -= 1 << bits
+        return v
     if pa.types.is_floating(col_type):
         f = float(value)
         # carquet emits null for NaN/Inf; not meaningfully comparable.
@@ -302,14 +311,21 @@ def run_corpus_tests(test_interop_bin, corpus_dir, verbose):
 
     data_dir = corpus_dir / "data"
     files = sorted(p for p in data_dir.rglob("*.parquet"))
+    import pyarrow.parquet as pq
     for p in files:
         results["data"]["checked"] += 1
-        cq, crashed = carquet_json(test_interop_bin, p)
+        # Compare every value (up to 20000 rows), not just the first five:
+        # an empty carquet decode used to pass the zip()-based comparison.
+        try:
+            n = max(1, min(pq.read_metadata(p).num_rows, 20000))
+        except Exception:
+            n = 5
+        cq, crashed = carquet_json(test_interop_bin, p, first_n=n)
         if crashed:
             results["data"]["failed"] += 1
             print(f"  {RED}CRASH{RST} {p.name}")
             continue
-        pa_sum = pyarrow_summary(p)
+        pa_sum = pyarrow_summary(p, first_n=n)
         if cq is None or pa_sum is None:
             # One side can't read it (unsupported feature / encrypted / nested).
             results["data"]["skipped"] += 1
@@ -324,7 +340,19 @@ def run_corpus_tests(test_interop_bin, corpus_dir, verbose):
                 print(f"    {DIM}skip {p.name} (nested / column model differs){RST}")
             continue
         errs = compare_decode(cq, pa_sum)
-        if errs:
+        if not errs:
+            for cc, pc in zip(cq["columns"], pa_sum["columns"]):
+                if len(cc.get("first", [])) != len(pc["first"]):
+                    errs.append(f"{cc['name']}: {len(cc.get('first', []))} values "
+                                f"!= {len(pc['first'])}")
+                    break
+        if errs and ("corrupt" in p.name or "malformed" in p.name):
+            # Intentionally broken files PyArrow tolerates (it skips CRC
+            # checks by default) but carquet rejects: expected.
+            results["data"]["skipped"] += 1
+            if verbose:
+                print(f"    {DIM}skip {p.name} (carquet rejects: {errs[0]}){RST}")
+        elif errs:
             results["data"]["failed"] += 1
             print(f"  {RED}FAIL{RST} {p.name}: {errs[0]}")
         else:
@@ -342,6 +370,48 @@ def run_corpus_tests(test_interop_bin, corpus_dir, verbose):
                 results["bad"]["passed"] += 1
 
     return results
+
+
+def run_generated_oracle(test_interop_bin, test_dir, verbose, cap=20000):
+    """Full-value oracle over the generated files: every value of every flat
+    column (up to `cap` rows) decoded by carquet must equal PyArrow's decode.
+    run_read_tests() only proves the files decode without error."""
+    import pyarrow.parquet as pq
+    res = {"checked": 0, "passed": 0, "skipped": 0, "failed": 0}
+    for p in sorted(Path(test_dir).rglob("*.parquet")):
+        res["checked"] += 1
+        try:
+            rows = pq.read_metadata(p).num_rows
+        except Exception:
+            res["skipped"] += 1
+            continue
+        n = max(1, min(rows, cap))
+        cq, crashed = carquet_json(test_interop_bin, p, first_n=n)
+        if crashed:
+            res["failed"] += 1
+            print(f"  {RED}CRASH{RST} {p.name}")
+            continue
+        pa_sum = pyarrow_summary(p, first_n=n)
+        if (cq is None or pa_sum is None or pa_sum["nested"] or
+                len(cq.get("columns", [])) != len(pa_sum["columns"])):
+            res["skipped"] += 1
+            if verbose:
+                print(f"    {DIM}oracle skip {p.name}{RST}")
+            continue
+        errs = compare_decode(cq, pa_sum)
+        if not errs:
+            # compare_decode zips: make sure carquet emitted every value.
+            for cc, pc in zip(cq["columns"], pa_sum["columns"]):
+                if len(cc.get("first", [])) != len(pc["first"]):
+                    errs.append(f"{cc['name']}: {len(cc.get('first', []))} values "
+                                f"!= {len(pc['first'])}")
+                    break
+        if errs:
+            res["failed"] += 1
+            print(f"  {RED}FAIL{RST} {p.parent.name}/{p.name}: {errs[0]}")
+        else:
+            res["passed"] += 1
+    return res
 
 
 # ── Read tests: Carquet reads files from other libraries ─────────────────────
@@ -497,6 +567,8 @@ def verify_pyarrow(path, expected, file_info):
                 errors.append(
                     f"field_metadata {fname}[{k}]: {md.get(k)!r} != {v!r}")
 
+    if not errors:
+        errors.extend(verify_full_pyarrow(path, expected, file_info))
     return errors
 
 
@@ -514,6 +586,7 @@ def verify_duckdb(path, expected, file_info):
         result = conn.execute("SELECT * FROM read_parquet(?)", [path])
         rows = result.fetchall()
         col_names = [desc[0] for desc in result.description]
+        errors.extend(verify_full_duckdb(path, expected, file_info, conn))
     except Exception as e:
         return [f"Failed to read: {e}"]
     finally:
@@ -568,6 +641,217 @@ def verify_duckdb(path, expected, file_info):
         except Exception:
             pass
 
+    return errors
+
+
+# ── Full-value + footer verification (carquet → other libs) ──────────────────
+#
+# roundtrip_writer tags each flat file with a "dataset" (values are pure
+# functions of the row index, regenerated here) and an "expect" block (codec,
+# per-column encodings, page index, bloom columns) checked against the footer.
+# The first-5 comparison above only proves the start of the first page; these
+# cover every page and row group, and prove the requested encodings were
+# actually applied rather than silently falling back to PLAIN.
+
+_SAMPLE_STRINGS = ["hello", "world", "carquet", "parquet", "test",
+                   "alpha", "beta", "gamma", "delta", "epsilon"]
+
+
+def _basic_expected(n, copies=1):
+    one = {
+        "bool_col": [i % 2 == 0 for i in range(n)],
+        "int32_col": [i * 10 - 5000 for i in range(n)],
+        "int64_col": [i * 1000000 - 2500000000 for i in range(n)],
+        "float_col": [i * 0.5 - 1250.0 for i in range(n)],
+        "double_col": [i * 0.125 - 312.5 for i in range(n)],
+        "string_col": [None if i % 7 == 0 else _SAMPLE_STRINGS[i % 10] for i in range(n)],
+        "nullable_int": [None if i % 5 == 0 else i * 100 for i in range(n)],
+    }
+    return {k: v * copies for k, v in one.items()}
+
+
+def _logical2_expected(n):
+    """Mirror of write_logical2_file() in roundtrip_writer.c, normalized to
+    raw integers (times / timestamps), unscaled ints (decimals), str."""
+    m64 = (1 << 64) - 1
+    return {
+        "i8": [(i % 256) - 128 for i in range(n)],
+        "u8": [i % 256 for i in range(n)],
+        "i16_nullable": [None if i % 3 == 0 else ((i * 7) % 65536) - 32768 for i in range(n)],
+        "u16": [(i * 13) % 65536 for i in range(n)],
+        "u32": [(i * 2654435761) & 0xFFFFFFFF for i in range(n)],
+        "u64": [(i * 11400714819323198485) & m64 for i in range(n)],
+        "time_ms": [(i * 17321) % 86400000 for i in range(n)],
+        "time_us": [(i * 1000003) % 86400000000 for i in range(n)],
+        "time_ns": [(i * 1000000007) % 86400000000000 for i in range(n)],
+        "ts_ms_local": [1609459200000 + i * 61001 for i in range(n)],
+        "ts_ns_utc": [1609459200000000000 + i * 1000000123 for i in range(n)],
+        "dec64": [i * 12345 - 30000000 for i in range(n)],
+        "dec_flba": [(i - 2500) * 1000000007 for i in range(n)],
+        "f16": [float((i % 2048) - 1024) for i in range(n)],
+        "json": ['{"i": %d}' % i for i in range(n)],
+        "enum": [_SAMPLE_STRINGS[i % 10] for i in range(n)],
+    }
+
+
+def _dataset_expected(file_info, n):
+    ds = file_info.get("dataset")
+    if ds == "basic":
+        return _basic_expected(n)
+    if ds == "basic_x2":
+        return _basic_expected(n, copies=2)
+    if ds == "logical2":
+        return _logical2_expected(n)
+    return None
+
+
+def _pa_column_values(col):
+    """PyArrow column -> list normalized like _logical2_expected."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    t = col.type
+    if isinstance(t, pa.ExtensionType):
+        col = pa.chunked_array([c.storage for c in col.chunks], type=t.storage_type)
+        t = t.storage_type
+    if pa.types.is_time32(t):
+        col = pc.cast(col, pa.int32())
+    elif pa.types.is_time64(t) or pa.types.is_timestamp(t):
+        col = pc.cast(col, pa.int64())
+    elif pa.types.is_float16(t):
+        col = pc.cast(col, pa.float32())
+    vals = col.to_pylist()
+    if pa.types.is_decimal(t):
+        vals = [None if v is None else int(v.scaleb(t.scale)) for v in vals]
+    elif pa.types.is_binary(t) or pa.types.is_large_binary(t):
+        vals = [None if v is None else v.decode("utf-8") for v in vals]
+    return vals
+
+
+def _first_diff(name, got, want, errors):
+    if len(got) != len(want):
+        errors.append(f"{name}: {len(got)} values != {len(want)}")
+        return
+    for i, (a, b) in enumerate(zip(got, want)):
+        if a != b:
+            errors.append(f"{name}[{i}]: {a!r} != {b!r}")
+            return
+
+
+_PA_CODEC_ALIASES = {"LZ4_RAW": {"LZ4_RAW", "LZ4"}, "LZ4": {"LZ4_HADOOP", "UNKNOWN"}}
+
+
+def verify_full_pyarrow(path, expected, file_info):
+    """Every value of every column, plus the footer "expect" block."""
+    import pyarrow.parquet as pq
+    errors = []
+    n = expected["num_rows"]
+    want = _dataset_expected(file_info, n)
+    try:
+        table = pq.read_table(path)
+    except Exception as e:
+        return [f"Failed to read: {e}"]
+    if want is not None:
+        for name, vals in want.items():
+            try:
+                _first_diff(name, _pa_column_values(table.column(name)), vals, errors)
+            except Exception as e:
+                errors.append(f"{name}: {e}")
+
+    exp = file_info.get("expect")
+    if not exp:
+        return errors
+    md = pq.ParquetFile(path).metadata
+    names = [md.schema.column(i).path for i in range(md.num_columns)]
+    for rg in range(md.num_row_groups):
+        r = md.row_group(rg)
+        for ci, cname in enumerate(names):
+            cc = r.column(ci)
+            # PyArrow names LZ4_RAW "LZ4" and has no name for the Hadoop
+            # LZ4 codec; DuckDB's exact Parquet codec name is checked too.
+            if cc.compression not in _PA_CODEC_ALIASES.get(exp["codec"], {exp["codec"]}):
+                errors.append(f"rg{rg} {cname}: codec {cc.compression} != {exp['codec']}")
+            want_enc = exp.get("encodings", {}).get(cname)
+            if want_enc and want_enc not in cc.encodings:
+                errors.append(f"rg{rg} {cname}: encodings {cc.encodings} lack {want_enc}")
+            if exp.get("page_index") is not None:
+                for attr in ("has_column_index", "has_offset_index"):
+                    if bool(getattr(cc, attr)) != bool(exp["page_index"]):
+                        errors.append(f"rg{rg} {cname}: {attr}={getattr(cc, attr)} "
+                                      f"!= {exp['page_index']}")
+    return errors
+
+
+def verify_full_duckdb(path, expected, file_info, conn):
+    """Every value of the flat columns DuckDB maps 1:1, plus bloom filters."""
+    errors = []
+    n = expected["num_rows"]
+    want = _dataset_expected(file_info, n)
+    if want is not None:
+        if file_info.get("dataset") == "logical2":
+            # DuckDB applies session time zones to TIME/TIMESTAMP WITH TZ;
+            # those are covered by PyArrow. Compare the rest.
+            skip = {"time_ms", "time_us", "time_ns", "ts_ms_local", "ts_ns_utc"}
+            want = {k: v for k, v in want.items() if k not in skip}
+            scale = {"dec64": 4, "dec_flba": 2}
+        else:
+            scale = {}
+        cols = ", ".join(f'"{c}"' for c in want)
+        rows = conn.execute(f"SELECT {cols} FROM read_parquet(?)", [path]).fetchall()
+        for j, (name, vals) in enumerate(want.items()):
+            # Un-annotated BYTE_ARRAY comes back as BLOB (bytes).
+            got = [r[j].decode("utf-8") if isinstance(r[j], (bytes, bytearray)) else r[j]
+                   for r in rows]
+            if name in scale:
+                got = [None if v is None else int(v.scaleb(scale[name])) for v in got]
+            _first_diff(name, got, vals, errors)
+
+    exp = file_info.get("expect") or {}
+    bloom_cols = exp.get("bloom")
+    if bloom_cols is None:
+        return errors
+    meta = conn.execute(
+        "SELECT row_group_id, path_in_schema, bloom_filter_offset, row_group_num_rows, "
+        "compression FROM parquet_metadata(?)", [path]).fetchall()
+    rg_rows = {}
+    for rg, col, off, nrows, codec in meta:
+        rg_rows[rg] = nrows
+        if exp.get("codec") and codec != exp["codec"]:
+            errors.append(f"rg{rg} {col}: DuckDB codec {codec} != {exp['codec']}")
+        if (off is not None) != (col in bloom_cols):
+            errors.append(f"rg{rg} {col}: bloom_filter_offset={off} but bloom expected="
+                          f"{col in bloom_cols}")
+    if not bloom_cols or want is None:
+        return errors
+    starts, acc = {}, 0
+    for rg in sorted(rg_rows):
+        starts[rg] = acc
+        acc += rg_rows[rg]
+
+    def rg_of(i):
+        return max(rg for rg in starts if starts[rg] <= i % n)
+
+    absent = {"int32_col": [7 + 10 * k for k in range(16)],
+              "int64_col": [123 + 1000000 * k for k in range(16)],
+              "string_col": [f"absent-{k}" for k in range(16)]}
+    excluded = probes = 0
+    for col in bloom_cols:
+        vals = want[col]
+        for i in range(0, len(vals), max(1, len(vals) // 25)):
+            v = vals[i]
+            if v is None:
+                continue
+            res = dict(conn.execute("SELECT row_group_id, bloom_filter_excludes FROM "
+                                    "parquet_bloom_probe(?, ?, ?)", [path, col, v]).fetchall())
+            if res.get(rg_of(i), False):
+                errors.append(f"bloom {col}: present value {v!r} (row {i}) excluded")
+                break
+        for v in absent[col]:
+            for _, ex in conn.execute("SELECT row_group_id, bloom_filter_excludes FROM "
+                                      "parquet_bloom_probe(?, ?, ?)", [path, col, v]).fetchall():
+                probes += 1
+                excluded += bool(ex)
+    if probes and excluded < probes // 2:
+        errors.append(f"bloom: only {excluded}/{probes} absent-value probes excluded")
     return errors
 
 
@@ -724,7 +1008,9 @@ def run_write_tests(roundtrip_bin, verbose):
             # DuckDB verification. DuckDB does not support the deprecated
             # Hadoop-framed LZ4 (Parquet codec 5); PyArrow does, which is the
             # interop proof for that wire format.
-            if compression == "lz4":
+            if compression == "lz4" or not file_info.get("expect", {}).get("duckdb", True):
+                # Also BYTE_STREAM_SPLIT on integers ("duckdb": false), which
+                # DuckDB 1.4 cannot decode.
                 db_errors = ["duckdb not available"]  # treated as SKIP below
             else:
                 db_errors = (verify_nested_duckdb(path) if is_nested
@@ -742,7 +1028,7 @@ def run_write_tests(roundtrip_bin, verbose):
                 entry["duckdb"] = "PASS"
                 db_status = f"{GRN}OK{RST}"
 
-            print(f"  {CYN}{tag}{RST} {compression:<14} "
+            print(f"  {CYN}{tag}{RST} {compression:<28} "
                   f"PyArrow {pa_status}  DuckDB {db_status}")
 
             results.append(entry)
@@ -768,6 +1054,11 @@ def print_read_summary(read_results):
     print(f"  {BOLD}Read:{RST}   {color}{passed}/{tested} passed{RST}", end="")
     if failed > 0:
         print(f"  ({RED}{failed} failed{RST})", end="")
+    oracle = read_results.get("oracle")
+    if oracle:
+        ocolor = RED if oracle["failed"] else GRN
+        print(f"; full-value oracle {ocolor}{oracle['passed']} match{RST}"
+              f" ({oracle['skipped']} nested skipped, {oracle['failed']} failed)", end="")
     print()
 
 
@@ -795,21 +1086,21 @@ def print_write_summary(write_results):
 
     # Detail table
     print()
-    print(f"  {'Compression':<14} {'PyArrow':>8} {'DuckDB':>8}")
-    print(f"  {_bar(width=32)}")
+    width = max([14] + [len(r["compression"]) for r in write_results])
+    print(f"  {'Variant':<{width}} {'PyArrow':>8} {'DuckDB':>8}")
+    print(f"  {_bar(width=width + 18)}")
 
     for r in write_results:
         pa = r["pyarrow"] or "-"
         db = r["duckdb"] or "-"
 
         def color_status(s):
-            if s == "PASS":
-                return f"{GRN}PASS{RST}"
-            elif s == "FAIL":
-                return f"{RED}FAIL{RST}"
-            return f"{DIM}{s}{RST}"
+            # Pad before colouring: ANSI codes would otherwise count toward
+            # the field width (and they are empty when stdout is not a TTY).
+            color = GRN if s == "PASS" else RED if s == "FAIL" else DIM
+            return f"{color}{s:>8}{RST}"
 
-        print(f"  {r['compression']:<14} {color_status(pa):>17} {color_status(db):>17}")
+        print(f"  {r['compression']:<{width}} {color_status(pa)} {color_status(db)}")
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -918,6 +1209,15 @@ def main():
                 )
                 if read_results["failed"] > 0:
                     has_failures = True
+                if have_pa:
+                    oracle = run_generated_oracle(test_interop_bin, test_dir,
+                                                  args.verbose)
+                    read_results["oracle"] = oracle
+                    print(f"  Full-value oracle: {oracle['passed']} files match "
+                          f"PyArrow, {oracle['skipped']} skipped (nested), "
+                          f"{oracle['failed']} failed")
+                    if oracle["failed"] > 0:
+                        has_failures = True
         finally:
             if cleanup_read and test_dir.exists():
                 shutil.rmtree(test_dir, ignore_errors=True)
@@ -1004,6 +1304,8 @@ def main():
             "passed": read_results["passed"],
             "failed": read_results["failed"],
         }
+        if "oracle" in read_results:
+            report["read"]["oracle"] = read_results["oracle"]
     if corpus_results is not None:
         report["corpus"] = corpus_results
     if write_results is not None:

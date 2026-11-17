@@ -138,6 +138,20 @@ if (n < 0) {
 
 The error out-parameter is cleared on entry, so `err.code == CARQUET_OK` reliably means "no failure", independent of the count. Passing `NULL` for the error makes it behave exactly like `carquet_column_read_batch()`.
 
+To scan a column across several row groups, create the column reader once and move it with `carquet_column_reader_reset()` instead of freeing and re-creating it per row group: the reader keeps its page and decode buffers, so large decode buffers are allocated (and page-faulted in) once per scan rather than once per row group. `carquet_reader_prebuffer()` likewise reuses its buffer while the next row group's range fits.
+
+```c
+int32_t cols[] = {2};
+carquet_column_reader_t* col = NULL;
+for (int32_t rg = 0; rg < carquet_reader_num_row_groups(reader); rg++) {
+    carquet_reader_prebuffer(reader, rg, cols, 1, &err);   /* optional, fread readers */
+    if (!col) col = carquet_reader_get_column(reader, rg, 2, &err);
+    else if (carquet_column_reader_reset(col, rg, &err) != CARQUET_OK) break;
+    while ((n = carquet_column_read_batch(col, values, 1024, def_levels, NULL)) > 0) { /* ... */ }
+}
+carquet_column_reader_free(col);
+```
+
 Also available:
 
 - `carquet_column_skip()`
@@ -329,7 +343,53 @@ if (carquet_arrow_export_batch(batch, schema, &aschema, &aarray, &err) == CARQUE
 - `carquet_arrow_export_batch()` covers **flat** columns plus **single-level `LIST<T>` and `MAP<K,V>`** from a row batch — a list becomes an Arrow `List` child (offsets + flattened element) and a map an Arrow `Map` child (`entries` struct of key/value). STRUCT and deeper-than-single-level nesting return `CARQUET_ERROR_NOT_IMPLEMENTED` here; use `carquet_reader_read_arrow()` (below) for those. The batch must have been read without column projection (leaf count must match the schema).
 - Every exported buffer is an **independent copy owned by the struct**, so the export stays valid after the source batch is freed or the batch reader advances. The consumer owns it and must call the `release` callback once.
 - `carquet_arrow_export_schema()` exports just the schema (a `"+s"` struct), now **including nested types** — a Parquet LIST becomes Arrow `List<element>`, a MAP becomes `Map<entries: struct<key, value>>`, and a group becomes a `Struct`. BOOLEAN is bit-packed, UTF8/binary get `int32` offset buffers, and validity bitmaps are already Arrow-native (LSB-first, present bit set).
-- The struct definitions are declared inline in `carquet.h` under the standard `ARROW_C_DATA_INTERFACE` guard, so including a real Arrow `abi.h`/`nanoarrow.h` alongside is safe.
+- Types match `pyarrow.parquet`: `DECIMAL` becomes `decimal128` (precision up to 38) or `decimal256` (up to 76) whatever its physical type (INT32, INT64, FIXED_LEN_BYTE_ARRAY, BYTE_ARRAY), and `INT96` becomes `timestamp[ns]`. A BYTE_ARRAY decimal value too wide for its Arrow type fails the export with `CARQUET_ERROR_DECODE`. Logical types Arrow has no lossless equivalent for (UUID, INTERVAL, GEOMETRY, ...) keep their physical storage type. Before 0.8.0, DECIMAL and INT96 were exported as their storage (`w:N`, `i`, `l`, `z`, `w:12`).
+- The struct definitions are declared inline in `carquet.h` under the standard `ARROW_C_DATA_INTERFACE` / `ARROW_C_STREAM_INTERFACE` guards, so including a real Arrow `abi.h`/`nanoarrow.h` alongside is safe.
+
+### Streaming a file: `carquet_reader_export_arrow_stream()`
+
+To hand a whole file (or some of its top-level fields) to a consumer that takes an Arrow C Stream (`ArrowArrayStream`: DuckDB, Arrow C++ `ImportRecordBatchReader`, nanoarrow, polars, ...):
+
+```c
+carquet_arrow_stream_options_t opts;
+carquet_arrow_stream_options_init(&opts);
+int32_t fields[2] = {3, 0};          /* top-level fields, in output order; NULL = all */
+opts.field_indices = fields;
+opts.num_fields = 2;
+opts.batch_size = 65536;
+opts.close_reader = true;            /* releasing the stream closes the reader */
+
+struct ArrowArrayStream stream;
+if (carquet_reader_export_arrow_stream(reader, &opts, &stream, &err) == CARQUET_OK) {
+    struct ArrowSchema s;
+    stream.get_schema(&stream, &s);  /* "+s" struct of the selected fields */
+    s.release(&s);
+    struct ArrowArray batch;
+    while (stream.get_next(&stream, &batch) == 0 && batch.release) {
+        /* ... */
+        batch.release(&batch);
+    }
+    stream.release(&stream);
+}
+```
+
+The options also select `row_groups` (in any order) or a row window (`row_offset`, `row_limit`), filter rows with a `predicate` and apply the file's stored Arrow types with `restore_arrow_schema`:
+
+```c
+int32_t v = 2020;
+carquet_filter_clause_t clauses[2] = {
+    { .column_index = 4, .op = CARQUET_FILTER_GE, .value = &v, .value_size = 4 },
+    { .column_index = 7, .op = CARQUET_FILTER_IS_NOT_NULL },
+};
+int32_t sizes[1] = {2};                       /* one conjunction of two clauses */
+carquet_predicate_t pred = { clauses, sizes, 1 };
+opts.predicate = &pred;                       /* copied: need not outlive the call */
+opts.restore_arrow_schema = true;
+```
+
+A predicate is an OR of ANDs (`conjunction_sizes` splits `clauses`) on leaf columns outside lists and maps (struct fields included), with values in the column's physical encoding as for page filters. Row groups whose statistics rule it out are skipped, pages are pruned through the page index for a single conjunction, and every batch is filtered exactly on its Arrow values; comparisons with a null are false, floats follow IEEE 754, and `CARQUET_FILTER_NOT_IN` complements `IN`. `carquet_reader_predicate_row_groups()` returns the row groups the statistics keep.
+
+A selection of primitives and single-level `LIST` / `MAP` of primitives is read through the batch reader (parallel decode; batches of up to `batch_size` rows when no field is repeated, one row group per batch otherwise); one with a STRUCT or deeper nesting goes through `carquet_reader_read_arrow_fields()`, one row group per batch. Batches never span row groups and outlive the stream. On an error the callbacks return an `errno` value (`EIO`, `ENOMEM`, `EINVAL`) and `get_last_error()` has the message.
 
 ### Nested data: `carquet_reader_read_arrow()`
 

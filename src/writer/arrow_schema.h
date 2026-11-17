@@ -38,6 +38,15 @@ char* carquet_build_arrow_schema_b64(
     const parquet_schema_element_t* schema,
     int32_t num_elements);
 
+/**
+ * Build the "ARROW:schema" value from an Arrow schema (a top-level struct):
+ * every type with an IPC equivalent, dictionaries, nullability, child names,
+ * field and schema metadata. NULL when a type has no IPC form or on OOM.
+ * Free with carquet_mem_free().
+ */
+struct ArrowSchema;
+char* carquet_build_arrow_schema_b64_from_arrow(const struct ArrowSchema* schema);
+
 #ifdef __cplusplus
 }
 #endif
