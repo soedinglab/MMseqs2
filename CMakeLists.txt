@@ -366,9 +366,6 @@ add_subdirectory(lib/tantan)
 # carquet
 # brotli is off by default: linking the system libbrotlienc/libbrotlidec fails 
 set(CARQUET_ENABLE_BROTLI OFF CACHE BOOL "Build the BROTLI codec of carquet (needs libbrotli)")
-# carquet links the same zstd as MMseqs2 (bundled libzstd_static, or the system library with USE_SYSTEM_ZSTD);
-# otherwise it searches on its own and can link a second, different zstd. carquet needs a CMake target, so the
-# system library is wrapped in an imported target
 if (USE_SYSTEM_ZSTD)
     add_library(mmseqs_system_zstd STATIC IMPORTED)
     set_target_properties(mmseqs_system_zstd PROPERTIES IMPORTED_LOCATION "${ZSTD_LIBRARIES}"

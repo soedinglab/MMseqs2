@@ -111,7 +111,8 @@ void ParquetDBWriter::init(const char* resultFile,const std::vector<int>& outcod
     schema = carquet_schema_create(&err);
     record_counter = 0;
     record_batch.assign(outcodes.size(), Record(NULL, CARQUET_PHYSICAL_INT32));
-    
+    setIdentityProjection(outcodes.size());
+
     if (!schema) {
         status = CARQUET_ERROR_INTERNAL;
         checkStatus("Schema initialisation error");
@@ -125,6 +126,15 @@ void ParquetDBWriter::init(const char* resultFile,const std::vector<int>& outcod
     openWriter(resultFile, outcodes.size());
 };
 
+// all native columns are written, in DB order
+void ParquetDBWriter::setIdentityProjection(const size_t columns){
+    nativeColumns = static_cast<int>(columns);
+    projection.resize(columns);
+    for (size_t i = 0; i < columns; i++) {
+        projection[i] = static_cast<int>(i);
+    }
+}
+
 void ParquetDBWriter::initFromDbType(const char* resultFile, const int dbtype, const unsigned int optional){
     this->dbtype = dbtype;
     metadataDbtype = dbtype;
@@ -137,8 +147,7 @@ void ParquetDBWriter::initFromFields(const char* resultFile, const std::vector<i
         specs.push_back(fieldSpec(fieldList[i]));
     }
     fields = fieldList;
-    nativeColumns = static_cast<int>(fieldList.size());
-    projection.clear();
+    setIdentityProjection(fieldList.size());
     initFromSpecs(resultFile, specs);
 }
 
@@ -231,16 +240,15 @@ void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCoun
     opts.write_crc = true;
     opts.write_page_index = true;
     opts.write_bloom_filters = true;
-    opts.dictionary_encoding = CARQUET_ENCODING_PLAIN; // might want to change, depends on performance
+    opts.dictionary_encoding = CARQUET_ENCODING_PLAIN; 
     opts.created_by = "MMseqs parquet writer";
 
-    // statistics (min/max per page and row group) cost ~10% of the conversion time; keep them only for columns that
-    // are typically filtered on (keys/ids and scores), not for coordinates, lengths, sequences, profile values
+    // statistics (min, max, row count), only keep for columns that are usually queried
     static const char* statsColumns[] = {"key", "query", "target", "representative", "member", "score", "seqId",
                                          "evalue", "bits", "fident", "pident", "prefScore", "taxid", "accession"};
     std::vector<bool> withStats(carquet_schema_num_columns(schema), false);
-    // bloom filters (hashing every value) cost ~25% of the conversion time when written for all columns; they only
-    // help equality lookups, which are typical for the query and target ids
+    
+    // bloom filters only on query and target, not needed for other columns
     std::vector<bool> withBloom(withStats.size(), false);
     for (size_t c = 0; c < withStats.size(); c++) {
         const char* name = carquet_schema_column_name(schema, static_cast<int32_t>(c));
@@ -276,8 +284,7 @@ void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCoun
         status = carquet_writer_set_column_encoding(writer, i, CARQUET_ENCODING_PLAIN);
         checkStatus("Column encoding overwrite");
     }
-    // the entry key (column 0, INT64) repeats for all rows of an entry and increases between entries: delta encoding
-    // stores it in a few bits per row instead of 8 bytes (PLAIN); after the PLAIN loop, which would overwrite it
+    // the entry key (column 0, INT64) delta encoding stores it in a few bits per row instead of 8 bytes (PLAIN);
     if (keyColumnDelta) {
         status = carquet_writer_set_column_encoding(writer, 0, CARQUET_ENCODING_DELTA_BINARY_PACKED);
         checkStatus("Setting the key column encoding failed");
@@ -899,7 +906,7 @@ void ParquetDBWriter::freeRecordBatch(){
                 break;
         }
     }
-    record_batch.clear();   // a second call (destructor after an error path) must not free again
+    record_batch.clear();
 }
 
 
@@ -1080,8 +1087,7 @@ bool ParquetDBWriter::isSupportedDbType(const int dbtype){
         case Parameters::DBTYPE_GENERIC_DB:
             return true;
         default:
-            // CA3M (binary msa column still missing), INDEX_DB (binary k-mer tables, single values of
-            // hundreds of MB that carquet does not compress), OMIT_FILE, OFFSETDB and the validation-only types
+            // CA3M (binary msa column), INDEX_DB (binary k-mer tables), OMIT_FILE, OFFSETDB and the validation-only types
             return false;
     }
 }
@@ -1140,31 +1146,25 @@ unsigned int ParquetDBWriter::detectTaxonomyColumns(const char* entry){
     return optional;
 }
 
-// strict integer parse: optional '-', digits only, within [lo, hi]
-static bool parseInteger(const char* s, const size_t n, const int64_t lo, const int64_t hi, int64_t& value){
-    size_t i = 0;
-    bool negative = false;
-    if (i < n && s[i] == '-') {
-        negative = true;
-        i++;
-    }
-    if (i == n) {
+// strict integer parse: optional '-', 1-19 digits, within [lo, hi]
+static bool parseInteger(const char* s, size_t n, const int64_t lo, const int64_t hi, int64_t& value){
+    const bool negative = (n > 0 && s[0] == '-');
+    s += negative;
+    n -= negative;
+    if (n == 0 || n > 19) {   // 19 digits always fit into uint64, the loop cannot overflow
         return false;
     }
     uint64_t v = 0;
-    for (; i < n; i++) {
-        if (s[i] < '0' || s[i] > '9' || v > (UINT64_MAX - 9) / 10) {
-            return false;
-        }
-        v = v * 10 + static_cast<uint64_t>(s[i] - '0');
+    bool bad = false;
+    for (size_t i = 0; i < n; i++) {
+        const unsigned int d = static_cast<unsigned char>(s[i]) - '0';
+        bad |= (d > 9);       // no branch per digit, checked once after the loop
+        v = v * 10 + d;
     }
-    if (negative) {
-        if (v > static_cast<uint64_t>(INT64_MAX) + 1) return false;
-        value = (v == static_cast<uint64_t>(INT64_MAX) + 1) ? INT64_MIN : -static_cast<int64_t>(v);
-    } else {
-        if (v > static_cast<uint64_t>(INT64_MAX)) return false;
-        value = static_cast<int64_t>(v);
+    if (bad || v > static_cast<uint64_t>(INT64_MAX) + negative) {
+        return false;
     }
+    value = negative ? static_cast<int64_t>(0 - v) : static_cast<int64_t>(v);
     return value >= lo && value <= hi;
 }
 
@@ -1248,8 +1248,7 @@ void ParquetDBWriter::writeEntry(const DBKeyType key, const char* data, const si
         default: {
             // tab separated lines: alignment, prefilter, cluster, taxonomy, and generic DBs with a schema;
             // native column 0 is the entry key, column c the (c-1)-th field of the line
-            // fields are split byte by byte; memchr per field was measured slower on ARM (spark004, 20 GiB:
-            // 6.6 -> 8.6 s), the fields are only a few bytes long
+            // fields are split byte by byte
             const char* p = data;
             const char* end = data + len;
             while (p < end && *p != '\0') {
@@ -1261,15 +1260,16 @@ void ParquetDBWriter::writeEntry(const DBKeyType key, const char* data, const si
                 int col = 1;
                 const char* start = p;
                 while (true) {
-                    if (p == end || *p == '\t' || *p == '\n' || *p == '\0') {
+                    const unsigned char c = static_cast<unsigned char>(*p);
+                    if (c <= '\n' && (c == '\t' || c == '\n' || c == '\0')) {
                         if (col < nativeColumns) {
-                            const int out = projection.empty() ? col : projection[col];
+                            const int out = projection[col];
                             if (out >= 0) {
                                 writeField(out, start, p - start);
                             }
                         }
                         col++;
-                        if (p == end || *p != '\t') {
+                        if (c != '\t') {
                             break;
                         }
                         start = p + 1;
@@ -1392,8 +1392,7 @@ void ParquetDBWriter::initFromSchema(const char* resultFile, const int dbtype, c
         }
         out.push_back(ColumnSpec{"key", COL_INT64});
         out.insert(out.end(), schemaColumns.begin(), schemaColumns.end());
-        nativeColumns = static_cast<int>(out.size());
-        projection.clear();
+        setIdentityProjection(out.size());
         parseLines = true;
     } else {
         // select columns of the layout by name; the output keeps the schema order

@@ -186,20 +186,21 @@ private:
     // per output column, for parsing and error messages
     std::vector<std::string> columnNames;
     std::vector<ColumnType> columnTypes;
-    // columns of the DB entry (key + fields); projection maps them to output columns, -1 = not written,
-    // empty = identity
+    // columns of the DB entry (key + fields); projection maps them to output columns, -1 = not written
+    // (always filled, identity when all columns are written in DB order: no extra branch per cell)
     int nativeColumns = 0;
     std::vector<int> projection;
     bool parseLines = false;    // generic DB with schema: tab separated lines
     DBKeyType currentKey = 0;   // entry being parsed, for error messages
 
     template <typename T> void put(const int nativeColumn, const T& value) {
-        const int column = projection.empty() ? nativeColumn : projection[nativeColumn];
+        const int column = projection[nativeColumn];
         if (column >= 0) {
             writeCell(value, column);
         }
     }
     void initFromSpecs(const char* resultFile, const std::vector<ColumnSpec>& specs);
+    void setIdentityProjection(const size_t columns);
     void addSpecColumn(const ColumnSpec& spec);
     void writeField(const int column, const char* s, const size_t n);
     static unsigned int detectTaxonomyColumns(const char* entry);
