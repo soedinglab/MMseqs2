@@ -169,9 +169,9 @@ else ()
 endif ()
 
 target_link_libraries(mmseqs-framework tinyexpr ${ZSTD_LIBRARIES} microtar tantan block_aligner_c)
-# if (CYGWIN)
-#     target_link_libraries(mmseqs-framework nedmalloc)
-# endif ()
+if (CYGWIN)
+    target_link_libraries(mmseqs-framework nedmalloc)
+endif ()
 
 if (EMSCRIPTEN)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_ZLIB=1 -DHAVE_BZLIB=1)

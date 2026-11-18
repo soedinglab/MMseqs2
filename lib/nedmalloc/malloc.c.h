@@ -1797,7 +1797,7 @@ static FORCEINLINE int pthread_try_lock (MLOCK_T *sl) {
 /* Custom win32-style spin locks on x86 and x64 for MSC */
 struct win32_mlock_t
 {
-  volatile long l;
+  volatile LONG l;
   volatile unsigned int c;
   volatile long threadid;
 };
@@ -1926,7 +1926,7 @@ static int pthread_init_lock (MLOCK_T *sl) {
 #define NEED_GLOBAL_LOCK_INIT
 
 static MLOCK_T malloc_global_mutex;
-static volatile long malloc_global_mutex_status;
+static volatile LONG malloc_global_mutex_status;
 
 /* Use spin loop to initialize global lock */
 static void init_malloc_global_mutex() {
