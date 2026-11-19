@@ -77,10 +77,14 @@ public:
     CacheFriendlyOperations(size_t maxElement, size_t initBinSize);
     ~CacheFriendlyOperations();
 
-    size_t findDuplicates(IndexEntryLocal **input, CounterResult *output, size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore);
+    // diagonal scoring: keeps one entry per run of k-mer hits of a target on the same diagonal
+    size_t findDuplicates(IndexEntryLocal **input, CounterResult *output, size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
 
-    // merge elements in CounterResult assuming that each element (diagonalMatcher.id) exist at most twice
-    size_t mergeElementsByScore(CounterResult *inputOutputArray, const size_t N);
+    // total score: counts for every target the k-mer hits that repeat the diagonal of its previous
+    // hit and merges the result in place with the result of the previous calls for the same query
+    // in output[0, prevCount) (0 for the first call). Every target is kept once with its summed score.
+    // Nothing is dropped if outputSize is larger than the number of targets.
+    size_t findDuplicatesAndMergeScores(IndexEntryLocal **input, CounterResult *output, size_t outputSize, size_t prevCount, unsigned short indexFrom, unsigned short indexTo);
 
     // merge elements in CounterResult by diagonal, combines elements with same ids that occur after each other
     size_t mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N, const bool keepScoredHits = false);
@@ -121,10 +125,9 @@ private:
     void hashIndexEntry(unsigned short position_i, IndexEntryLocal *inputArray, size_t N, CounterResult *lastPosition);
 
     // detect duplicates in diagonal
-    size_t findDuplicates(CounterResult *output, size_t outputSize, bool computeTotalScore);
+    size_t findDuplicates(CounterResult *output, size_t outputSize);
 
-    // merge by id and combine score
-    size_t mergeScoreDuplicates(CounterResult *output);
+    size_t findDuplicatesAndMergeScores(CounterResult *output, size_t outputSize, size_t prevCount);
 
     size_t mergeDiagonalDuplicates(CounterResult *output);
 

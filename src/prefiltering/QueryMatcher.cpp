@@ -49,7 +49,9 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
     Util::checkAllocation(databaseHits, "Can not allocate databaseHits memory in QueryMatcher");
-    this->foundDiagonals = (CounterResult*)calloc(foundDiagonalsSize, sizeof(CounterResult));
+    // one spare entry for total-score mode: its extract loop writes one scratch entry
+    // behind the last result, and there can be dbSize results
+    this->foundDiagonals = (CounterResult*)calloc(foundDiagonalsSize + 1, sizeof(CounterResult));
     Util::checkAllocation(foundDiagonals, "Can not allocate foundDiagonals memory in QueryMatcher");
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
@@ -345,25 +347,26 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
                 // last pointer
                 indexPointer[current_i + 1] = sequenceHits;
                 //std::cout << "Overflow in i=" << indexStart << std::endl;
-                const size_t hitCount = findDuplicates(indexPointer,
-                                                       foundDiagonals + overflowHitCount,
-                                                       foundDiagonalsSize - overflowHitCount,
-                                                       indexStart, current_i, (diagonalScoring == false));
-                // this happens only if we have two overflows in a row
-                if (overflowHitCount != 0) {
-                    if(diagonalScoring == true){
+                if (diagonalScoring == false) {
+                    // sum up the scores of this batch and of the previous ones in place:
+                    // every target is kept once, so the max number of hits is DBsize
+                    overflowHitCount = findDuplicatesAndMergeScores(indexPointer, foundDiagonals, foundDiagonalsSize + 1,
+                                                                    overflowHitCount, indexStart, current_i);
+                } else {
+                    const size_t hitCount = findDuplicates(indexPointer,
+                                                           foundDiagonals + overflowHitCount,
+                                                           foundDiagonalsSize - overflowHitCount,
+                                                           indexStart, current_i);
+                    // this happens only if we have two overflows in a row
+                    if (overflowHitCount != 0) {
                         overflowHitCount = mergeElements(foundDiagonals, hitCount + overflowHitCount, true);
                         // align the new diaognals
                         ungappedAlignment->align(foundDiagonals, overflowHitCount);
                         // We keep only the maximal diagonal scoring hit, so the max number of hits is DBsize
                         overflowHitCount = keepMaxScoreElementOnly(foundDiagonals, overflowHitCount);
                     } else {
-                        // in case of scoring we just sum up in mergeElements, so the max number of hits is DBsize
-                        // merge lists, hitCount is max. dbSize so there can be no overflow in mergeElements
-                        overflowHitCount = mergeElements(foundDiagonals, hitCount + overflowHitCount);
+                        overflowHitCount = hitCount;
                     }
-                } else {
-                    overflowHitCount = hitCount;
                 }
                 // reset pointer position
                 sequenceHits = databaseHits;
@@ -387,11 +390,16 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     // fill the output
     size_t hitCount = 0;
     if(numMatches > 0){
-        hitCount = findDuplicates(indexPointer, foundDiagonals + overflowHitCount,
-                                     foundDiagonalsSize - overflowHitCount, indexStart, indexTo, (diagonalScoring == false));
-        if (overflowHitCount != 0) {
-            // overflow occurred
-            hitCount = mergeElements(foundDiagonals, overflowHitCount + hitCount);
+        if (diagonalScoring == false) {
+            hitCount = findDuplicatesAndMergeScores(indexPointer, foundDiagonals, foundDiagonalsSize + 1,
+                                                    overflowHitCount, indexStart, indexTo);
+        } else {
+            hitCount = findDuplicates(indexPointer, foundDiagonals + overflowHitCount,
+                                      foundDiagonalsSize - overflowHitCount, indexStart, indexTo);
+            if (overflowHitCount != 0) {
+                // overflow occurred
+                hitCount = mergeElements(foundDiagonals, overflowHitCount + hitCount);
+            }
         }
     }
     stats->doubleMatches = 0;
@@ -529,10 +537,9 @@ void QueryMatcher::deleteDiagonalMatcher(unsigned int activeCounter){
 
 size_t QueryMatcher::findDuplicates(IndexEntryLocal **hitsByIndex,
                                     CounterResult *output, size_t outputSize,
-                                    unsigned short indexFrom, unsigned short indexTo,
-                                    bool computeTotalScore) {
+                                    unsigned short indexFrom, unsigned short indexTo) {
     size_t localResultSize = 0;
-#define COUNT_CASE(x) case x: localResultSize += cachedOperation##x->findDuplicates(hitsByIndex, output, outputSize, indexFrom, indexTo, computeTotalScore); break;
+#define COUNT_CASE(x) case x: localResultSize += cachedOperation##x->findDuplicates(hitsByIndex, output, outputSize, indexFrom, indexTo); break;
     switch (activeCounter){
         FOR_EACH(COUNT_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
     }
@@ -540,12 +547,23 @@ size_t QueryMatcher::findDuplicates(IndexEntryLocal **hitsByIndex,
     return localResultSize;
 }
 
+size_t QueryMatcher::findDuplicatesAndMergeScores(IndexEntryLocal **hitsByIndex,
+                                                  CounterResult *output, size_t outputSize, size_t prevCount,
+                                                  unsigned short indexFrom, unsigned short indexTo) {
+    size_t localResultSize = 0;
+#define COUNT_CASE(x) case x: localResultSize += cachedOperation##x->findDuplicatesAndMergeScores(hitsByIndex, output, outputSize, prevCount, indexFrom, indexTo); break;
+    switch (activeCounter){
+        FOR_EACH(COUNT_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
+    }
+#undef COUNT_CASE
+    return localResultSize;
+}
+
+// only used with diagonal scoring, total scores are merged in findDuplicatesAndMergeScores
 size_t QueryMatcher::mergeElements(CounterResult *foundDiagonals, size_t hitCounter, bool keepScoredHits) {
     size_t overflowHitCount = 0;
 #define MERGE_CASE(x) \
-    case x: overflowHitCount = diagonalScoring ? \
-                               cachedOperation##x->mergeElementsByDiagonal(foundDiagonals,hitCounter, keepScoredHits) : \
-                               cachedOperation##x->mergeElementsByScore(foundDiagonals,hitCounter); \
+    case x: overflowHitCount = cachedOperation##x->mergeElementsByDiagonal(foundDiagonals,hitCounter, keepScoredHits); \
     break;
 
     switch (activeCounter){
