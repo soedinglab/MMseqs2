@@ -2,6 +2,11 @@
 #ifndef CUSTOM_SCORE_TYPES_CUH
 #define CUSTOM_SCORE_TYPES_CUH
 
+#include <cstdint>
+
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
+
 
 struct ScoreType_u8x4{
     __host__ __device__
@@ -79,5 +84,7 @@ struct ScoreType_u8x4{
 
     unsigned int raw{};
 };
+
+LIBMARV_NAMESPACE_WITH_NESTING_END
 
 #endif

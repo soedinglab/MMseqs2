@@ -69,7 +69,7 @@ std::size_t getAvailableMemoryInKB(){
 struct InMemoryBatch{
     std::vector<char> chars;               
     std::vector<std::size_t> offsets;  
-    std::vector<cudasw4::SequenceLengthT> lengths;  
+    std::vector<libmarv::SequenceLengthT> lengths;  
     std::vector<char> headers;  
     std::vector<std::size_t> headerOffsets;  
 };
@@ -84,19 +84,19 @@ struct HybridBatch{
     static_assert(charweight + offsetweight + lengthweight + headersweight + headeroffsetweight == 100);
 
     HybridBatch(const std::string& temppath, size_t memoryLimit) : 
-        chars(0, (memoryLimit / 100) * charweight, temppath + "_cudasw4tmpchars"),
-        offsets(0, (memoryLimit / 100) * offsetweight, temppath + "_cudasw4tmpoffsets"),
-        lengths(0, (memoryLimit / 100) * lengthweight, temppath + "_cudasw4tmplengths"),
-        headers(0, (memoryLimit / 100) * headersweight, temppath + "_cudasw4tmpheaders"),
-        headerOffsets(0, (memoryLimit / 100) * headeroffsetweight, temppath + "_cudasw4tmpheaderOffsets")
+        chars(0, (memoryLimit / 100) * charweight, temppath + "_libmarvtmpchars"),
+        offsets(0, (memoryLimit / 100) * offsetweight, temppath + "_libmarvtmpoffsets"),
+        lengths(0, (memoryLimit / 100) * lengthweight, temppath + "_libmarvtmplengths"),
+        headers(0, (memoryLimit / 100) * headersweight, temppath + "_libmarvtmpheaders"),
+        headerOffsets(0, (memoryLimit / 100) * headeroffsetweight, temppath + "_libmarvtmpheaderOffsets")
     {
 
     }
-    cudasw4::FileBackedUVector<char> chars;               
-    cudasw4::FileBackedUVector<std::size_t> offsets;  
-    cudasw4::FileBackedUVector<cudasw4::SequenceLengthT> lengths;  
-    cudasw4::FileBackedUVector<char> headers;  
-    cudasw4::FileBackedUVector<std::size_t> headerOffsets;  
+    libmarv::FileBackedUVector<char> chars;               
+    libmarv::FileBackedUVector<std::size_t> offsets;  
+    libmarv::FileBackedUVector<libmarv::SequenceLengthT> lengths;  
+    libmarv::FileBackedUVector<char> headers;  
+    libmarv::FileBackedUVector<std::size_t> headerOffsets;  
 };
 
 
@@ -143,9 +143,9 @@ void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inpu
 
     kseqpp::KseqPP reader(inputfilename);
     while(reader.next() >= 0){
-        if(batch.lengths.size() > cudasw4::MaxSequencesInDB::value()){
+        if(batch.lengths.size() > libmarv::MaxSequencesInDB::value()){
             std::string msg = "File contains at least " + std::to_string(batch.lengths.size()+1) 
-                    + " sequences, but config allows at most " + std::to_string(cudasw4::MaxSequencesInDB::value());
+                    + " sequences, but config allows at most " + std::to_string(libmarv::MaxSequencesInDB::value());
             throw std::runtime_error(msg);
         }
 
@@ -153,9 +153,9 @@ void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inpu
         const std::string& sequence = reader.getCurrentSequence();
 
         size_t sequenceLength = sequence.size();
-        if(sequenceLength > cudasw4::MaxSequenceLength::value()){
+        if(sequenceLength > libmarv::MaxSequenceLength::value()){
             std::string msg = "Got sequence of length " + std::to_string(sequenceLength) 
-                + ", but config allows only lengths <= " + std::to_string(cudasw4::MaxSequenceLength::value());
+                + ", but config allows only lengths <= " + std::to_string(libmarv::MaxSequenceLength::value());
             throw std::runtime_error(msg);
         }
 
@@ -166,11 +166,11 @@ void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inpu
         const size_t newCharsSize = oldCharsSize + sequence.size() + sequencepadding;
         batch.chars.resize(newCharsSize);
         if(!allowLowerCase){
-            auto convert = cudasw4::ConvertAA_20{};
+            auto convert = libmarv::ConvertAA_20{};
             auto it = std::transform(sequence.begin(), sequence.end(), batch.chars.begin() + oldCharsSize, convert);
             std::fill(it, batch.chars.end(), convert(' ')); // add converted padding
         }else{
-            auto convert = cudasw4::ConvertAA_20_CaseSensitive{};
+            auto convert = libmarv::ConvertAA_20_CaseSensitive{};
             auto it = std::transform(sequence.begin(), sequence.end(), batch.chars.begin() + oldCharsSize, convert);
             std::fill(it, batch.chars.end(), convert(' ')); // add converted padding
         }
@@ -184,12 +184,12 @@ void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inpu
 
 template<class Batch>
 void createDBfilesFromSequenceBatch(const std::string& outputPrefix, const Batch& batch){
-    using cudasw4::DBdataIoConfig;
+    using libmarv::DBdataIoConfig;
 
     const size_t numSequences = batch.lengths.size();
 
-    std::vector<cudasw4::ReferenceIdT> indices(numSequences);
-    std::iota(indices.begin(), indices.end(), cudasw4::ReferenceIdT(0));
+    std::vector<libmarv::ReferenceIdT> indices(numSequences);
+    std::iota(indices.begin(), indices.end(), libmarv::ReferenceIdT(0));
 
     auto compareIndicesByLength = [&](const auto& l, const auto& r){
         return batch.lengths[l] < batch.lengths[r];
@@ -197,7 +197,7 @@ void createDBfilesFromSequenceBatch(const std::string& outputPrefix, const Batch
 
     std::sort(indices.begin(), indices.end(), compareIndicesByLength);
 
-    auto lengthBoundaries = cudasw4::getLengthPartitionBoundaries();
+    auto lengthBoundaries = libmarv::getLengthPartitionBoundaries();
     const int numPartitions = lengthBoundaries.size();
 
     std::vector<size_t> numSequencesPerPartition(numPartitions);
@@ -264,12 +264,12 @@ void createDBfilesFromSequenceBatch(const std::string& outputPrefix, const Batch
         headersoffsetsout.write((const char*)&currentHeaderOffset, sizeof(size_t));
 
         const size_t numChars = batch.offsets[sortedIndex+1] - batch.offsets[sortedIndex];
-        const cudasw4::SequenceLengthT length = batch.lengths[sortedIndex];
+        const libmarv::SequenceLengthT length = batch.lengths[sortedIndex];
         const char* const sequence = batch.chars.data() + batch.offsets[sortedIndex];
 
 
         charsout.write(sequence, numChars);
-        lengthsout.write((const char*)&length, sizeof(cudasw4::SequenceLengthT));
+        lengthsout.write((const char*)&length, sizeof(libmarv::SequenceLengthT));
         currentCharOffset += numChars;
         offsetsout.write((const char*)&currentCharOffset, sizeof(size_t));
     }
@@ -366,12 +366,12 @@ int main(int argc, char* argv[])
     if(!allowLowerCase){
         #pragma omp parallel for
         for(size_t i = 0; i < batch.chars.size(); i++){
-            batch.chars[i] = cudasw4::ConvertAA_20{}(batch.chars[i]);
+            batch.chars[i] = libmarv::ConvertAA_20{}(batch.chars[i]);
         }
     }else{
         #pragma omp parallel for
         for(size_t i = 0; i < batch.chars.size(); i++){
-            batch.chars[i] = cudasw4::ConvertAA_20_CaseSensitive{}(batch.chars[i]);
+            batch.chars[i] = libmarv::ConvertAA_20_CaseSensitive{}(batch.chars[i]);
         }
     }
     timer2.print();
@@ -382,8 +382,8 @@ int main(int argc, char* argv[])
     createDBfilesFromSequenceBatch(batchOutputPrefix, batch);
     timer3.print();
 
-    cudasw4::DBGlobalInfo info;
+    libmarv::DBGlobalInfo info;
 
-    cudasw4::writeGlobalDbInfo(outputPrefix, info);
+    libmarv::writeGlobalDbInfo(outputPrefix, info);
 
 }

@@ -7,6 +7,8 @@
 #include "FastSort.h"
 
 #include <dirent.h>
+#include <algorithm>
+#include <cstdlib>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -146,7 +148,7 @@ static void applyAmbiguityPatches(
             uint64_t word = (((uint64_t)hi) << 32) | (uint64_t)lo;
             unsigned int sym = (unsigned int)((word >> 60) & 0x0FULL);
             unsigned int rep = (unsigned int)(((word >> 48) & 0x0FFFULL) + 1ULL);
-            uint64_t off = (word & 0x0000FFFFFFFFFFFFULL);
+            uint64_t off = lo;
             char ch = iupacFromMask((unsigned char)sym);
 
             size_t a = (size_t)off;
@@ -288,23 +290,55 @@ static void pushNumberedVols(
     }
 }
 
-static unsigned char asciiToLower(unsigned char c) {
-    if (c >= 'A' && c <= 'Z') {
-        return (unsigned char)(c + ('a' - 'A'));
+// split a DBLIST value into tokens; makeblastdb quotes every entry it writes
+static void splitQuoted(const std::string &value, std::vector<std::string> &out) {
+    size_t i = 0;
+    size_t n = value.size();
+    while (i < n) {
+        while (i < n && (unsigned char)value[i] <= 32) {
+            ++i;
+        }
+        if (i >= n) {
+            break;
+        }
+
+        if (value[i] == '"') {
+            ++i;
+            size_t j = i;
+            while (j < n && value[j] != '"') {
+                ++j;
+            }
+            if (j > i) {
+                out.emplace_back(value, i, j - i);
+            }
+            i = (j < n) ? j + 1 : j;
+        } else {
+            size_t j = i;
+            while (j < n && (unsigned char)value[j] > 32) {
+                ++j;
+            }
+            out.emplace_back(value, i, j - i);
+            i = j;
+        }
     }
-    return c;
 }
 
-static void skipWsBuf(const char *buf, size_t n, size_t &k) {
-    while (k < n && (unsigned char)buf[k] <= 32) {
-        ++k;
-    }
-}
+// alias keys selecting a subset of the volumes; ignoring them would silently convert everything
+static const char *ALIAS_FILTER_KEYS[] = {
+    "OIDLIST", "GILIST", "TILIST", "SEQIDLIST", "TAXIDLIST",
+    "MEMB_BIT", "FIRST_OID", "LAST_OID", "OID_MASK_TYPE"
+};
 
 static bool parseAliasFileVolumes(
     const std::string &aliasPath,
     const char *dataExt,
-    std::vector<std::string> &volumes) {
+    std::vector<std::string> &volumes,
+    unsigned int depth) {
+    if (depth > 32) {
+        Debug(Debug::ERROR) << "Alias files nested too deeply at " << aliasPath << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     MemoryMapped pal(aliasPath, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     if (!pal.isValid()) {
         Debug(Debug::ERROR) << "Cannot mmap alias file " << aliasPath << "\n";
@@ -314,89 +348,130 @@ static bool parseAliasFileVolumes(
     const char *buf = reinterpret_cast<const char *>(pal.getData());
     size_t n = pal.mappedSize();
 
-    const char needle[] = "dblist";
-    size_t tlen = 6;
+    // like BLAST: a line is "KEY value", '#' in the first column starts a comment
+    std::vector<std::string> entries;
+    size_t i = 0;
+    while (i < n) {
+        size_t eol = i;
+        while (eol < n && buf[eol] != '\n' && buf[eol] != '\r') {
+            ++eol;
+        }
 
-    size_t pos = (size_t)-1;
-    if (n >= tlen) {
-        for (size_t i = 0; i <= n - tlen; ++i) {
-            bool match = true;
+        size_t k = i;
+        if (k < eol && buf[k] != '#') {
+            size_t ke = k;
+            while (ke < eol && buf[ke] != ' ' && buf[ke] != '\t') {
+                ++ke;
+            }
 
-            for (size_t k = 0; k < tlen; ++k) {
-                if (asciiToLower((unsigned char)buf[i + k]) != (unsigned char)needle[k]) {
-                    match = false;
-                    break;
+            std::string key(buf + k, ke - k);
+
+            size_t v = ke;
+            while (v < eol && (buf[v] == ' ' || buf[v] == '\t')) {
+                ++v;
+            }
+
+            if (key == "DBLIST") {
+                splitQuoted(std::string(buf + v, eol - v), entries);
+            } else {
+                for (size_t f = 0; f < sizeof(ALIAS_FILTER_KEYS) / sizeof(ALIAS_FILTER_KEYS[0]); ++f) {
+                    if (key == ALIAS_FILTER_KEYS[f]) {
+                        Debug(Debug::ERROR) << "Alias file " << aliasPath << " uses " << key
+                                            << ", which selects only a subset of its volumes.\n"
+                                            << "convertblastdb cannot apply this filter and would convert the full volumes instead.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                 }
             }
-
-            if (match) {
-                pos = i;
-                break;
-            }
-        }
-    }
-
-    if (pos == (size_t)-1) {
-        pal.close();
-        return false;
-    }
-
-    std::string baseDir = FileUtil::dirName(aliasPath);
-
-    size_t i = pos + tlen;
-    skipWsBuf(buf, n, i);
-
-    std::vector<std::string> toks;
-    while (i < n) {
-        skipWsBuf(buf, n, i);
-        if (i >= n) {
-            break;
         }
 
-        if (buf[i] == '"') {
-            ++i;
-            size_t j = i;
-            while (j < n && buf[j] != '"') {
-                ++j;
-            }
-            toks.emplace_back(std::string(buf + i, (j > i) ? (j - i) : 0));
-            i = (j < n) ? j + 1 : j;
-        } else {
-            size_t j = i;
-            while (j < n && (unsigned char)buf[j] > 32) {
-                ++j;
-            }
-            toks.emplace_back(std::string(buf + i, (j > i) ? (j - i) : 0));
-            i = j;
-        }
+        i = (eol < n) ? eol + 1 : eol;
     }
     pal.close();
 
-    for (size_t t = 0; t < toks.size(); ++t) {
-        const std::string &tok = toks[t];
-        if (tok.size() >= 6 && strncasecmp(tok.c_str(), "DBLIST", 6) == 0) {
-            continue;
-        }
+    std::string baseDir = FileUtil::dirName(aliasPath);
+    const char *aliasExt = (dataExt[1] == 'p') ? ".pal" : ".nal";
+    std::string aliasName = FileUtil::baseName(aliasPath);
+    aliasName.resize(aliasName.size() - 4);
 
-        std::string cand = tok;
+    for (size_t t = 0; t < entries.size(); ++t) {
+        std::string cand = entries[t];
         if (!(cand.size() && (cand[0] == '/' || (cand.size() > 1 && cand[1] == ':')))) {
             cand = baseDir.empty() ? cand : (baseDir + "/" + cand);
         }
 
+        // like BLAST: an alias file wins over a volume, except for an entry naming the alias itself
+        if (entries[t] != aliasName && FileUtil::fileExists((cand + aliasExt).c_str())) {
+            parseAliasFileVolumes(cand + aliasExt, dataExt, volumes, depth + 1);
+            continue;
+        }
+
         if (FileUtil::fileExists((cand + dataExt).c_str())) {
             volumes.push_back(cand);
-        } else {
-            pushNumberedVols(cand, dataExt, volumes);
+            continue;
+        }
+
+        size_t before = volumes.size();
+        pushNumberedVols(cand, dataExt, volumes);
+        if (volumes.size() == before) {
+            Debug(Debug::ERROR) << "Cannot resolve '" << entries[t] << "' listed in " << aliasPath << "\n";
+            EXIT(EXIT_FAILURE);
         }
     }
 
     return !volumes.empty();
 }
 
+// BLAST opens each volume once, ordered by file name and then path; matching that keeps keys equal to BLAST OIDs
+static bool compareVolumes(const std::string &a, const std::string &b) {
+    std::string an = FileUtil::baseName(a);
+    std::string bn = FileUtil::baseName(b);
+    if (an != bn) {
+        return an < bn;
+    }
+    return a < b;
+}
+
+static void uniqueSortVolumes(std::vector<std::string> &volumes, const char *dataExt) {
+    size_t extLen = std::strlen(dataExt);
+    for (size_t i = 0; i < volumes.size(); ++i) {
+        char *resolved = realpath((volumes[i] + dataExt).c_str(), NULL);
+        if (resolved != NULL) {
+            std::string path(resolved);
+            free(resolved);
+            volumes[i] = path.substr(0, path.size() - extLen);
+        }
+    }
+    std::sort(volumes.begin(), volumes.end(), compareVolumes);
+    volumes.erase(std::unique(volumes.begin(), volumes.end()), volumes.end());
+}
+
 static void findVolumes(
     const std::string &db,
     int &kind,
     std::vector<std::string> &volumes) {
+    // alias files, like BLAST before volumes of the same name
+    std::string palPath = db + ".pal";
+    std::string nalPath = db + ".nal";
+    bool tried = false;
+
+    if (FileUtil::fileExists(palPath.c_str())) {
+        tried = true;
+        if (parseAliasFileVolumes(palPath, ".psq", volumes, 0)) {
+            uniqueSortVolumes(volumes, ".psq");
+            kind = Parameters::DBTYPE_AMINO_ACIDS;
+            return;
+        }
+    }
+    if (FileUtil::fileExists(nalPath.c_str())) {
+        tried = true;
+        if (parseAliasFileVolumes(nalPath, ".nsq", volumes, 0)) {
+            uniqueSortVolumes(volumes, ".nsq");
+            kind = Parameters::DBTYPE_NUCLEOTIDES;
+            return;
+        }
+    }
+
     // direct data files
     if (FileUtil::fileExists((db + ".psq").c_str())) {
         kind = Parameters::DBTYPE_AMINO_ACIDS;
@@ -419,26 +494,6 @@ static void findVolumes(
     if (!volumes.empty()) {
         kind = Parameters::DBTYPE_NUCLEOTIDES;
         return;
-    }
-
-    // alias files
-    std::string palPath = db + ".pal";
-    std::string nalPath = db + ".nal";
-    bool tried = false;
-
-    if (FileUtil::fileExists(palPath.c_str())) {
-        tried = true;
-        if (parseAliasFileVolumes(palPath, ".psq", volumes)) {
-            kind = Parameters::DBTYPE_AMINO_ACIDS;
-            return;
-        }
-    }
-    if (FileUtil::fileExists(nalPath.c_str())) {
-        tried = true;
-        if (parseAliasFileVolumes(nalPath, ".nsq", volumes)) {
-            kind = Parameters::DBTYPE_NUCLEOTIDES;
-            return;
-        }
     }
 
     if (tried == false) {
@@ -472,7 +527,7 @@ static bool parseIndexHeader(
     uint32_t seqType = be32(idx + pos);
     pos += 4;
     int expectedKind = (expectedDbType == Parameters::DBTYPE_AMINO_ACIDS) ? 1 : 0;
-    if (expectedKind != 0 && (int)seqType != expectedKind) {
+    if ((int)seqType != expectedKind) {
         return false;
     }
 
@@ -955,7 +1010,8 @@ static bool parseTextseqId(const unsigned char *b, size_t n, size_t nodePos, Seq
                 }
             } else if (ntag == 3) {
                 long v = 0;
-                if (getInteger(b, n, p, v)) {
+                // a version of 0 is not rendered by BLAST
+                if (getInteger(b, n, p, v) && v != 0) {
                     out.version = SSTR(v);
                 }
             }
@@ -1060,7 +1116,8 @@ static bool parsePdbSeqId(const unsigned char *b, size_t n, size_t nodePos, SeqI
                     chainLegacy = s;
                 } else {
                     long v = 0;
-                    if (getInteger(b, n, p, v)) {
+                    // BLAST only renders a legacy chain above ' '
+                    if (getInteger(b, n, p, v) && v > ' ') {
                         chainLegacy.assign(1, static_cast<char>(v));
                     }
                 }
@@ -1270,7 +1327,8 @@ static std::pair<int, std::string> formatId(const SeqId &sid) {
         return std::make_pair(1, sid.accession);
     }
 
-    if (sid.type == 8 && !sid.db.empty() && !sid.tag.empty()) {
+    // gnl|BL_ORD_ID|<oid> comes from makeblastdb without -parse_seqids, BLAST prints only the title
+    if (sid.type == 8 && !sid.db.empty() && !sid.tag.empty() && sid.db != "BL_ORD_ID") {
         return std::make_pair(2, sid.db + "|" + sid.tag);
     }
 
@@ -1353,7 +1411,7 @@ static std::string parseBlastDefline(const unsigned char *blob, size_t blobSize,
                                 if (getInteger(blob, blobSize, f, v)) {
                                     out.taxid = v;
                                 }
-                            } else if (ntag == 4 && out.pig < 0) {
+                            } else if (ntag == 5 && out.pig < 0) {
                                 long v = 0;
                                 if (getInteger(blob, blobSize, f, v)) {
                                     out.pig = v;
@@ -1478,7 +1536,7 @@ static void dumpVolumeToDb(const std::string &base,
             header = parseBlastDefline(blob, blobSize, info);
         }
         if (header.empty()) {
-            header = "OID:" + SSTR(baseOid);
+            header = "OID:" + SSTR(key);
         }
         if (header.back() != '\n') {
             header.append(1, '\n');

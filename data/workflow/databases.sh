@@ -151,6 +151,18 @@ case "${SELECTION}" in
         push_back "${TMP_PATH}/nr_cluster_seq"
         INPUT_TYPE="BLASTDB"
     ;;
+    "Logan-human"|"Logan-nonhuman"|"Logan50-human"|"Logan50-nonhuman")
+        case "${SELECTION}" in
+            Logan-*)   LOGAN_FILE="logan_c1.0_${SELECTION#Logan-}_proteins.fasta.zst" ;;
+            Logan50-*) LOGAN_FILE="logan50_c1.0_${SELECTION#Logan50-}_complete.fa.zst" ;;
+        esac
+        if notExists "${TMP_PATH}/${LOGAN_FILE}"; then
+            printf "c1.0 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
+            downloadFile "https://s3.amazonaws.com/logan-pub/p/${LOGAN_FILE}" "${TMP_PATH}/${LOGAN_FILE}"
+        fi
+        push_back "${TMP_PATH}/${LOGAN_FILE}"
+        INPUT_TYPE="FASTA_LIST"
+    ;;
     "NT")
         if notExists "${TMP_PATH}/nt.nal"; then
             downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/nt-nucl-metadata.json" "${TMP_PATH}"

@@ -738,7 +738,11 @@ inline uint16_t simd_hmax16_sse(const __m128i buffer) {
 #else
     __m128i tmp1 = _mm_subs_epu16(_mm_set1_epi16((short)65535), buffer);
     __m128i tmp3 = _mm_minpos_epu16(tmp1);
+#if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_BIG
+    return (65535 - _mm_extract_epi16(tmp3, 0));
+#else
     return (65535 - _mm_cvtsi128_si32(tmp3));
+#endif
 #endif
 }
 
@@ -749,7 +753,11 @@ inline uint8_t simd_hmax8_sse(const __m128i buffer) {
     __m128i tmp1 = _mm_subs_epu8(_mm_set1_epi8((char)255), buffer);
     __m128i tmp2 = _mm_min_epu8(tmp1, _mm_srli_epi16(tmp1, 8));
     __m128i tmp3 = _mm_minpos_epu16(tmp2);
+#if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_BIG
+    return (int8_t)(255 -(int8_t) _mm_extract_epi16(tmp3, 0));
+#else
     return (int8_t)(255 -(int8_t) _mm_cvtsi128_si32(tmp3));
+#endif
 #endif
 }
 
@@ -1004,9 +1012,10 @@ static inline simd_float simdf32_shiftl_lanes(const simd_float a) {
 // lanes holding whole numbers in [0, 127] as VECSIZE_FLOAT bytes
 static inline void simdf32_storeu_u8(uint8_t *dst, const simd_float a) {
 #if defined(AVX512)
-    _mm_storeu_si128((__m128i *)dst, _mm512_cvtepi32_epi8(_mm512_cvttps_epi32(a)));
+    // maskz conversions avoid _mm_undefined_si128, which GCC 12.2 flags with -Wmaybe-uninitialized
+    _mm_storeu_si128((__m128i *)dst, _mm512_maskz_cvtepi32_epi8(0xFFFF, _mm512_cvttps_epi32(a)));
 #elif defined(MMSEQS_AVX512VL_MASKS)
-    _mm_storel_epi64((__m128i *)dst, _mm256_cvtepi32_epi8(_mm256_cvttps_epi32(a)));
+    _mm_storel_epi64((__m128i *)dst, _mm256_maskz_cvtepi32_epi8(0xFF, _mm256_cvttps_epi32(a)));
 #elif defined(AVX2)
     const __m256i w = _mm256_cvttps_epi32(a);
     const __m128i h = _mm_packs_epi32(_mm256_castsi256_si128(w), _mm256_extracti128_si256(w, 1));

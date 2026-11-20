@@ -6,7 +6,8 @@
 #include <array>
 #include <limits>
 
-namespace cudasw4{
+#include "namespace.hpp"
+LIBMARV_NAMESPACE_BEGIN
 
 //length k is in partition i if boundaries[i-1] < k <= boundaries[i]
 
@@ -57,6 +58,6 @@ constexpr auto getLengthPartitionBoundaries(){
 }
     
 
-} //namespace cudasw4
+LIBMARV_NAMESPACE_END
 
 #endif

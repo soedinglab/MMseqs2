@@ -109,7 +109,7 @@ namespace helpers {
     };
 
 
-    #if defined(__CUDACC__) || defined(__HIPCC__)
+    #if defined(__CUDACC__) || defined(__HIPCC__) || defined(__METAL_BACKEND__) || defined(__SIMD_BACKEND__)
 
     class GpuTimer{
     public:

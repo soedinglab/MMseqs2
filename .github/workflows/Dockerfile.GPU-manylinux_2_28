@@ -1,4 +1,4 @@
-FROM ghcr.io/steineggerlab/build-containers:main-x86_64-manylinux_2_28-cuda13
+FROM ghcr.io/steineggerlab/build-containers:main-x86_64-manylinux_2_28-cuda13 AS builder
 
 WORKDIR /work
 ADD . .
@@ -6,7 +6,7 @@ RUN mkdir -p /work/build && cd /work/build; \
     if [ -e "${LIBGCC}/libgomp.so" ]; then \
         mv -f -- "${LIBGCC}/libgomp.so" "${LIBGCC}/libgomp.so.disabled"; \
     fi; \
-    /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
+    /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
         -DOpenMP_C_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY="${LIBGCC}/libgomp.a" \
         -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
@@ -30,3 +30,6 @@ RUN if ldd /work/build/src/mmseqs | grep -P -v "linux-vdso.so|/lib64/(ld-linux-x
         readelf -V /work/build/src/mmseqs; \
         exit 1; \
     fi;
+
+FROM scratch
+COPY --from=builder /work/build/src/mmseqs /mmseqs

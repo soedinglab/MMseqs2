@@ -5,10 +5,11 @@
     Need to link with -lnvToolsExt to use this
 */
 
-#if defined(__NVCC__) || defined(__HIPCC__)
+#if defined(__NVCC__) || defined(__HIPCC__) || defined(__METAL_BACKEND__) || defined(__SIMD_BACKEND__)
 
 #if defined(__NVCC__) && !defined(NO_NVTOOLSEXT)
 #include <nvtx3/nvToolsExt.h>
+#include <nvtx3/nvtx3.hpp>
 #endif
 
 #include <iostream>

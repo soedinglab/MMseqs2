@@ -9,7 +9,12 @@ if [ ! -d "$REPO" ]; then
 fi
 
 mkdir -p "$BUILD/build_sse41" && cd "$BUILD/build_sse41"
-cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_SSE4_1=1 -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" "$REPO"
+# no static libintl in cygwin, link it dynamically
+mkdir -p intl && cp -f /usr/lib/libintl.dll.a intl/libintl.a
+cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_SSE4_1=1 -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L$BUILD/build_sse41/intl" \
+    -DZLIB_LIBRARY=/usr/lib/libz.a -DBZIP2_LIBRARY_RELEASE=/usr/lib/libbz2.a \
+    -DOpenMP_gomp_LIBRARY="$(gcc -print-file-name=libgomp.a)" "$REPO"
 make -j 4
 mkdir -p "$BUILD/${BINARY_NAME}/bin"
 cp "src/${BINARY_NAME}" "$BUILD/${BINARY_NAME}/bin/${BINARY_NAME}"

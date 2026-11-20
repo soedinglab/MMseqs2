@@ -48,8 +48,14 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     const int querySeqType = qdbr->getDbtype();
     Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
 
-    std::vector<Marv::Result> results;
-    results.reserve(par.maxResListLen);
+#ifdef HAVE_METAL
+    if (par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
+        Debug(Debug::ERROR) << "Ungapped and gapped prefilter mode is not supported with Metal\n";
+        EXIT(EXIT_FAILURE);
+    }
+#endif
+    const bool gapped = par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED;
+    std::vector<Marv::Result> results(par.maxResListLen, Marv::Result(0, 0, -1, -1));
     std::vector<hit_t> shortResults;
     std::vector<Matcher::result_t> resultsAln;
 
@@ -149,11 +155,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
            Debug(Debug::ERROR) << "Invalid GPU database\n";
            EXIT(EXIT_FAILURE);
        }
-        int32_t maxTargetLength = lengths.back();
-        Marv::AlignmentType type = (par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) ?
-                Marv::AlignmentType::GAPLESS_SMITH_WATERMAN : Marv::AlignmentType::GAPLESS;
-        marv = new Marv(tdbr->getSize(), subMat->alphabetSize, maxTargetLength,
-                        par.maxResListLen, type);
+        marv = new Marv(tdbr->getSize(), subMat->alphabetSize);
         void* h = marv->loadDb(
             tdbr->getDataForFile(0), offsetData, lengthData, tdbr->getDataSizeForFile(0)
         );
@@ -206,7 +208,8 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         }
         Marv::Stats stats;
         if (serverMode == 0) {
-            stats = marv->scan(reinterpret_cast<const char *>(qSeq.numSequence), qSeq.L, profile, results.data());
+            stats = marvSearch(*marv, gapped, reinterpret_cast<const char *>(qSeq.numSequence), qSeq.L, profile,
+                               par.maxResListLen, results.data());
         } else {
             bool claimed = false;
             while (!claimed) {

@@ -1,7 +1,7 @@
 #ifndef HELPERS_SIMPLE_ALLOCATION_CUH
 #define HELPERS_SIMPLE_ALLOCATION_CUH
 
-#if defined(__NVCC__) || defined(__HIPCC__)
+#if defined(__NVCC__) || defined(__HIPCC__) || defined(__METAL_BACKEND__) || defined(__SIMD_BACKEND__)
 
     #include <cassert>
     #include <iostream>
