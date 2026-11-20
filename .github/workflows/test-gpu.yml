@@ -5,7 +5,10 @@ on:
         - master
 jobs:
   test_gpu:
-    runs-on: [ self-hosted, slurm, gpu ]
+    runs-on: [ self-hosted, slurm, gpu, nvidia, sm75 ]
+    timeout-minutes: 180
+    env:
+      JOB: gha-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -14,9 +17,16 @@ jobs:
         run: |
           source /home/cirunner/miniforge3/etc/profile.d/conda.sh
           conda activate nvcc
-          mkdir build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="native" ..
-          make -j$(nproc --all)
+          srun -J "$JOB" -p gpu -w "$(hostname -s)" --gres=gpu:1 -c 16 --time=60 sh -ec '
+            mkdir build && cd build
+            cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="native" ..
+            make -j"$(nproc)"'
       - name: Regression
         run: |
-          ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH
+          srun -J "$JOB" -p gpu -w "$(hostname -s)" --gres=gpu:1 -c 8 --time=30 sh -ec '
+            test -n "$CUDA_VISIBLE_DEVICES"
+            ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH_GPU
+            ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH_GPU_SERVER'
+      - name: Cancel Slurm jobs
+        if: cancelled()
+        run: scancel -u "$USER" -n "$JOB"

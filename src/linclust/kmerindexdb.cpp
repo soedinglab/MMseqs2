@@ -219,7 +219,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.alignToPageSize();
         free(subData);
 
-        if (par.spacedKmerPattern.empty() != false) {
+        if (par.spacedKmerPattern.empty() == false) {
             Debug(Debug::INFO) << "Write SPACEDPATTERN (" << PrefilteringIndexReader::SPACEDPATTERN << ")\n";
             dbw.writeData(par.spacedKmerPattern.c_str(), par.spacedKmerPattern.length(), PrefilteringIndexReader::SPACEDPATTERN, 0);
             dbw.alignToPageSize();

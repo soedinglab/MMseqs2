@@ -155,6 +155,9 @@ void * nedrealloc(void *mem, size_t size) THROWSPEC	{ return nedprealloc(0, mem,
 void   nedfree(void *mem) THROWSPEC					{ nedpfree(0, mem); }
 void * nedmemalign(size_t alignment, size_t bytes) THROWSPEC { return nedpmemalign(0, alignment, bytes); }
 int    nedposix_memalign(void** p, size_t alignment, size_t bytes) THROWSPEC { *p = nedmemalign(alignment, bytes); return 0; }
+#ifdef REPLACE_SYSTEM_ALLOCATOR
+void * aligned_alloc(size_t alignment, size_t bytes) THROWSPEC { return nedpmemalign(0, alignment, bytes); }
+#endif
 #if !NO_MALLINFO
 struct mallinfo nedmallinfo(void) THROWSPEC			{ return nedpmallinfo(0); }
 #endif

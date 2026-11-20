@@ -144,7 +144,8 @@ struct ScoreEndposSearch::GpuWorkingSet{
 };
 
 ScoreEndposSearch::ScoreEndposSearch(GpuDatabase& gpuDatabase_, int kernelOutputArraySize_, int topNSize_, int maxNumQueries_) 
-    : kernelOutputArraySize(kernelOutputArraySize_), 
+    : kernelOutputArraySize(int(std::min(size_t(kernelOutputArraySize_),
+                                        std::max(size_t(1), gpuDatabase_.getNumSequences())))),
     topNSize(int(std::min(size_t(topNSize_), gpuDatabase_.getNumSequences()))), 
     maxNumQueries(maxNumQueries_),
     deviceIds(gpuDatabase_.getDeviceIds()), gpuDatabase(&gpuDatabase_)
@@ -654,7 +655,7 @@ void ScoreEndposSearch::forEachCallback(cuda::std::span<GpuDatabase::CallbackInp
                                 // CUDACHECK(cudaEventRecord(ws.forkStreamEvent, stream));
                                 // CUDACHECK(cudaStreamWaitEvent(alignmentStream, ws.forkStreamEvent, 0));
 
-                                PositionsIterator d_overflowPositionsIterator = PositionsIterator::fromPointer(d_overflowIndices_global);
+                                PositionsIterator d_overflowPositionsIterator = PositionsIterator::fromPointer(reinterpret_cast<ReferenceIdT*>(d_overflowIndices_global));
 
                                 //sequence data is same as before, but we have to pass the indices to overflow alignments
                                 OneToAllInputDataPSSM inputData;

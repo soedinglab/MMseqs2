@@ -10,12 +10,12 @@ LIBMARV_NAMESPACE_BEGIN
 //MODIFY AT OWN RISK
 
 //data type to enumerate all sequences in the database
-using ReferenceIdT = std::int32_t;
+using ReferenceIdT = std::uint32_t;
 
 //data type for length of of both query sequences and databases sequences
 using SequenceLengthT = std::int32_t;
 
-static_assert(std::is_same_v<ReferenceIdT, std::int32_t>, "unexpected reference type");
+static_assert(std::is_same_v<ReferenceIdT, std::uint32_t>, "unexpected reference type");
 static_assert(std::is_same_v<SequenceLengthT, std::int32_t>, "unexpected sequence length type");
 
 struct MaxSequencesInDB{
