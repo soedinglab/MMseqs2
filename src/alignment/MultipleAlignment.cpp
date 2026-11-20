@@ -104,20 +104,13 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
         unsigned int targetEndPos = result.dbEndPos;
         std::string bt = result.backtrace;
         bool reverse = false;
-        if (queryPos > queryEndPos){
-            // swap start and end position of query and db
-            std::swap(queryPos, queryEndPos);
-            std::swap(targetPos, targetEndPos);
-            // flip backtrace
-            std::reverse(bt.begin(), bt.end());
-            reverse = true;
-        }
 
         char *edgeSeqMSA = msaSequence[i+1];
         const std::vector<unsigned char> &edgeSeq = seqs[i];
 
         // HACK: score was 0 and sequence was rejected, so we fill in an empty gap sequence
         // Needed for pairaln with dummy sequences
+        // Must be checked before the reverse swap below, which moves dbEndPos into targetPos
         if(targetPos == UINT_MAX) {
             //Debug(Debug::WARNING) << "Edge sequence " << i << " was not aligned." << "\n";
             // fill up with gaps
@@ -125,6 +118,14 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                 edgeSeqMSA[pos] = '-';
             }
             continue;
+        }
+        if (queryPos > queryEndPos){
+            // swap start and end position of query and db
+            std::swap(queryPos, queryEndPos);
+            std::swap(targetPos, targetEndPos);
+            // flip backtrace
+            std::reverse(bt.begin(), bt.end());
+            reverse = true;
         }
         size_t bufferPos = 0;
         // fill initial positions with gaps (local alignment)
