@@ -36,7 +36,7 @@ CacheFriendlyOperations<BINSIZE>::~CacheFriendlyOperations(){
 
 template<unsigned int BINSIZE>
 size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(IndexEntryLocal **input, CounterResult *output,
-                                                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore) {
+                                                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo) {
     do {
         setupBinPointer();
         CounterResult *lastPosition = (binDataFrame + BINCOUNT * binSize) - 1;
@@ -45,16 +45,22 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(IndexEntryLocal **input,
             hashIndexEntry(i, input[i], N, lastPosition);
         }
     } while (checkForOverflowAndResizeArray(true) == true); // overflowed occurred
-    return findDuplicates(output, outputSize, computeTotalScore);
+    return findDuplicates(output, outputSize);
 }
 
 template<unsigned int BINSIZE>
-size_t CacheFriendlyOperations<BINSIZE>::mergeElementsByScore(CounterResult *inputOutputArray, const size_t N) {
+size_t CacheFriendlyOperations<BINSIZE>::findDuplicatesAndMergeScores(IndexEntryLocal **input, CounterResult *output,
+                                                                      size_t outputSize, size_t prevCount,
+                                                                      unsigned short indexFrom, unsigned short indexTo) {
     do {
         setupBinPointer();
-        hashElements(inputOutputArray, N);
-    } while(checkForOverflowAndResizeArray(false) == true); // overflowed occurred
-    return mergeScoreDuplicates(inputOutputArray);
+        CounterResult *lastPosition = (binDataFrame + BINCOUNT * binSize) - 1;
+        for (unsigned int i = indexFrom; i <= indexTo; ++i) {
+            const size_t N = input[i + 1] - input[i];
+            hashIndexEntry(i, input[i], N, lastPosition);
+        }
+    } while (checkForOverflowAndResizeArray(true) == true); // overflowed occurred
+    return findDuplicatesAndMergeScores(output, outputSize, prevCount);
 }
 
 template<unsigned int BINSIZE>
@@ -149,40 +155,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalKeepScoredHitsDuplicates(C
 }
 
 template<unsigned int BINSIZE>
-size_t CacheFriendlyOperations<BINSIZE>::mergeScoreDuplicates(CounterResult *output) {
-    size_t doubleElementCount = 0;
-    const CounterResult *bin_ref_pointer = binDataFrame;
-    // duplicateBitArray is already zero'd from findDuplicates
-
-    for (size_t bin = 0; bin < BINCOUNT; bin++) {
-        const CounterResult *binStartPos = (bin_ref_pointer + bin * binSize);
-        const size_t currBinSize = (bins[bin] - binStartPos);
-        // merge double hits
-        for (size_t n = 0; n < currBinSize; n++) {
-            const CounterResult &element = binStartPos[n];
-            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
-            const unsigned char currScore = element.count;
-            const unsigned char dbScore = duplicateBitArray[hashBinElement];
-            const unsigned char newScore = (currScore > 0xFF - dbScore) ? 0xFF : dbScore + currScore;
-            duplicateBitArray[hashBinElement] = newScore;
-        }
-        // extract final scores and set dubplicateBitArray to 0
-        for (size_t n = 0; n < currBinSize; n++) {
-            const CounterResult element = binStartPos[n];
-            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
-            output[doubleElementCount].id = element.id;
-            output[doubleElementCount].count = duplicateBitArray[hashBinElement];
-            output[doubleElementCount].diagonal = element.diagonal;
-            // memory overflow can not happen since input array = output array
-            doubleElementCount += (UNLIKELY(duplicateBitArray[hashBinElement] != 0  ) ) ? 1 : 0;
-            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(binStartPos[n].diagonal);
-        }
-    }
-    return doubleElementCount;
-}
-
-template<unsigned int BINSIZE>
-size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, size_t outputSize, bool computeTotalScore) {
+size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, size_t outputSize) {
     memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
     size_t doubleElementCount = 0;
     const CounterResult *bin_ref_pointer = binDataFrame;
@@ -214,55 +187,30 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
         if (doubleElementCount + elementCount >= outputSize) {
             return doubleElementCount;
         }
-        // set memory to zero
-        if (computeTotalScore) {
-            for (size_t n = 0; n < elementCount; n++) {
-                const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
-                duplicateBitArray[element] = 0;
-            }
-            // sum up score
-            for (size_t n = 0; n < elementCount; n++) {
-                const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
-                duplicateBitArray[element] += (duplicateBitArray[element] < 255) ? 1 : 0;
-            }
-            // extract results
-            for (size_t n = 0; n < elementCount; n++) {
-                const DBLocalId element = tmpElementBuffer[n].id;
-                const size_t hashBinElement = element >> (MASK_0_5_BIT);
-                output[doubleElementCount].id    = element;
-                output[doubleElementCount].count = duplicateBitArray[hashBinElement];
-                output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
+        // set duplicate bit array to first diagonal + 1
+        // so (duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal) is true
+        size_t n = elementCount - 1;
+        while (n != static_cast<size_t>(-1)) {
+            const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
+            duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
+            --n;
+        }
 
-                // memory overflow can not happen since input array = output array
-                doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0;
-                duplicateBitArray[hashBinElement] = 0;
-            }
-        } else {
-            // set duplicate bit array to first diagonal + 1
-            // so (duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal) is true
-            size_t n = elementCount - 1;
-            while (n != static_cast<size_t>(-1)) {
-                const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
-                duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
-                --n;
-            }
-
-            // extract results
-            for (size_t n = 0; n < elementCount; n++) {
-                const DBLocalId element = tmpElementBuffer[n].id;
-                const size_t hashBinElement = element >> (MASK_0_5_BIT);
-                output[doubleElementCount].id    = element;
-                output[doubleElementCount].count = 0;
-                output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
-                //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
-                // memory overflow can not happen since input array = output array
-                //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
-                //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
-                //                << " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
-                //            }
-                doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
-                duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
-            }
+        // extract results
+        for (size_t n = 0; n < elementCount; n++) {
+            const DBLocalId element = tmpElementBuffer[n].id;
+            const size_t hashBinElement = element >> (MASK_0_5_BIT);
+            output[doubleElementCount].id    = element;
+            output[doubleElementCount].count = 0;
+            output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
+            //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
+            // memory overflow can not happen since input array = output array
+            //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
+            //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
+            //                << " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
+            //            }
+            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
+            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
         }
         // clean memory faster if current bin size is smaller duplicateBitArraySize
         if (currBinSize < duplicateBitArraySize/16) {
@@ -275,6 +223,85 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
         }
     }
     return doubleElementCount;
+}
+
+template<unsigned int BINSIZE>
+size_t CacheFriendlyOperations<BINSIZE>::findDuplicatesAndMergeScores(CounterResult *output, size_t outputSize, size_t prevCount) {
+    // output[0, prevCount) is the result of the previous calls for this query: every target
+    // at most once, grouped by bin in bin order, as written below. Move it to the end of
+    // output and merge it back bin by bin. Old and new entries together hold every target
+    // at most once, so the write position does not reach the unread old entries as long as
+    // outputSize is larger than the number of targets.
+    CounterResult *prev = output + (outputSize - prevCount);
+    const CounterResult *prevEnd = output + outputSize;
+    memmove(prev, output, prevCount * sizeof(CounterResult));
+    memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
+    size_t doubleElementCount = 0;
+    const CounterResult *bin_ref_pointer = binDataFrame;
+    for (size_t bin = 0; bin < BINCOUNT; bin++) {
+        const CounterResult *binStartPos = (bin_ref_pointer + bin * binSize);
+        const size_t currBinSize = (bins[bin] - binStartPos);
+        size_t elementCount = 0;
+        // find duplicates, see findDuplicates
+        for (size_t n = 0; n < currBinSize; n++) {
+            const CounterResult element = binStartPos[n];
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
+            const unsigned char currDiagonal = element.diagonal;
+            const unsigned char prevDiagonal = duplicateBitArray[hashBinElement];
+            tmpElementBuffer[elementCount].id = element.id;
+            tmpElementBuffer[elementCount].diagonal = element.diagonal;
+            elementCount += (UNLIKELY(currDiagonal == prevDiagonal)) ? 1 : 0;
+            duplicateBitArray[hashBinElement] = currDiagonal;
+        }
+        // set memory to zero, also for targets without duplicates: they can have an old entry
+        if (currBinSize < duplicateBitArraySize/16) {
+            for (size_t n = 0; n < currBinSize; n++) {
+                const size_t byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
+                duplicateBitArray[byteArrayPos] = 0;
+            }
+        } else {
+            memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
+        }
+        // sum up score
+        for (size_t n = 0; n < elementCount; n++) {
+            const size_t element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
+            duplicateBitArray[element] += (duplicateBitArray[element] < 255) ? 1 : 0;
+        }
+        // old entries of this bin: add the new score
+        while (prev < prevEnd && (prev->id & MASK_0_5) == bin) {
+            const CounterResult element = *prev;
+            ++prev;
+            const size_t hashBinElement = element.id >> (MASK_0_5_BIT);
+            const unsigned char currScore = element.count;
+            const unsigned char dbScore = duplicateBitArray[hashBinElement];
+            output[doubleElementCount].id = element.id;
+            output[doubleElementCount].count = (currScore > 0xFF - dbScore) ? 0xFF : dbScore + currScore;
+            output[doubleElementCount].diagonal = element.diagonal;
+            doubleElementCount++;
+            duplicateBitArray[hashBinElement] = 0;
+        }
+        // targets without an old entry; this leaves duplicateBitArray zeroed. The write
+        // position must stay below the old entries of the next bins, which is always the
+        // case if outputSize is larger than the number of targets.
+        const size_t writeEnd = prev - output;
+        size_t n = 0;
+        for (; n < elementCount && doubleElementCount < writeEnd; n++) {
+            const DBLocalId element = tmpElementBuffer[n].id;
+            const size_t hashBinElement = element >> (MASK_0_5_BIT);
+            output[doubleElementCount].id    = element;
+            output[doubleElementCount].count = duplicateBitArray[hashBinElement];
+            output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
+            doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0;
+            duplicateBitArray[hashBinElement] = 0;
+        }
+        if (n < elementCount) {
+            break;
+        }
+    }
+    // only if the buffer was too small: keep the old entries that were not merged
+    const size_t unmerged = prevEnd - prev;
+    memmove(output + doubleElementCount, prev, unmerged * sizeof(CounterResult));
+    return doubleElementCount + unmerged;
 }
 
 template<unsigned int BINSIZE>

@@ -261,7 +261,10 @@ protected:
 
     // find duplicates in the diagonal bins
     size_t findDuplicates(IndexEntryLocal **hitsByIndex, CounterResult *output,
-                          size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore);
+                          size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
+
+    size_t findDuplicatesAndMergeScores(IndexEntryLocal **hitsByIndex, CounterResult *output, size_t outputSize,
+                                        size_t prevCount, unsigned short indexFrom, unsigned short indexTo);
 
     size_t mergeElements(CounterResult *foundDiagonals, size_t hitCounter, bool keepHitsWithCounts = false);
 
