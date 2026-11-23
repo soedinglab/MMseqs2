@@ -23,107 +23,31 @@
 #endif
 
 
-//#include <variant> //new
 #include <carquet/include/carquet/carquet.h>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
 
-// all values of a batch are stored back to back in one arena, avoiding a heap allocation
-// and the std::string overhead per value; byte arrays are built at finalize, once the arena no longer moves
-struct StringColumn {
-    std::vector<char> arena;
-    std::vector<size_t> offsets;
-    std::vector<carquet_byte_array_t> values;
-
-    void add(const char* s, size_t len) {
-        offsets.push_back(arena.size());
-        if (arena.size() + len > arena.capacity() && len > arena.size()) {
-            // a value larger than the whole batch so far: grow to the exact size instead of doubling
-            arena.reserve(arena.size() + len);
-        }
-        arena.insert(arena.end(), s, s + len);
-    }
-
-    void add(const std::string& s) {
-        add(s.data(), s.size());
-    }
-
-    // build a value char by char with append()
-    void startValue() {
-        offsets.push_back(arena.size());
-    }
-
-    void append(char c) {
-        arena.push_back(c);
-    }
-
-    void finalize(){
-        values.clear();
-        values.reserve(offsets.size());
-        uint8_t* base = reinterpret_cast<uint8_t*>(arena.data());
-        for (size_t i = 0; i < offsets.size(); i++){
-            const size_t end = (i + 1 < offsets.size()) ? offsets[i + 1] : arena.size();
-            values.push_back(carquet_byte_array_t{base + offsets[i], static_cast<int32_t>(end - offsets[i])});
-        }
-    }
-
-    // keeps up to maxKeepBytes of arena capacity for the next batch, so a single huge value
-    // does not pin its memory for the rest of the run
-    void clear(size_t maxKeepBytes) {
-        values.clear();
-        offsets.clear();
-        arena.clear();
-        if (arena.capacity() > maxKeepBytes) {
-            std::vector<char>().swap(arena);
-            std::vector<carquet_byte_array_t>().swap(values);
-            std::vector<size_t>().swap(offsets);
-        }
-    }
-};
-
-
-void ParquetDBWriter::checkStatus(const std::string message){
+void ParquetDBWriter::checkStatus(const std::string& message){
     if (status != carquet_status_t::CARQUET_OK){
         Debug(Debug::ERROR) << message << "\n";
         EXIT(EXIT_FAILURE);
     }
 }
 
-ParquetDBWriter::ParquetDBWriter(){
-
-};
-
 ParquetDBWriter::~ParquetDBWriter(){
-    if (writer_close_status == CARQUET_ERROR_NOT_OPEN){
-        // the instance was not initialised
-        return;
-    }
-    // close first, it flushes the pending rows from the record batch
-    if (writer_close_status != CARQUET_ERROR_ALREADY_CLOSED){
+    if (writer != NULL){
         close();
     }
-    freeRecordBatch();
 }
 
 void ParquetDBWriter::init(const char* resultFile,const std::vector<int>& outcodes){
-    err = CARQUET_ERROR_INIT;
-    schema = carquet_schema_create(&err);
-    record_counter = 0;
-    record_batch.assign(outcodes.size(), Record(NULL, CARQUET_PHYSICAL_INT32));
-    setIdentityProjection(outcodes.size());
-
-    if (!schema) {
-        status = CARQUET_ERROR_INTERNAL;
-        checkStatus("Schema initialisation error");
-    }
-
+    std::vector<ColumnSpec> specs;
     for (size_t i = 0; i < outcodes.size(); i++){
-        // creates schema column and returns void pointer
-        outcodeToField(outcodes[i]);
-        checkStatus("Adding column to schema failed");
+        specs.push_back(outcodeSpec(outcodes[i]));
     }
-    openWriter(resultFile, outcodes.size());
+    setIdentityProjection(outcodes.size());
+    initFromSpecs(resultFile, specs);
 };
 
 // all native columns are written, in DB order
@@ -137,7 +61,6 @@ void ParquetDBWriter::setIdentityProjection(const size_t columns){
 
 void ParquetDBWriter::initFromDbType(const char* resultFile, const int dbtype, const unsigned int optional){
     this->dbtype = dbtype;
-    metadataDbtype = dbtype;
     initFromFields(resultFile, dbTypeToFields(dbtype, optional));
 }
 
@@ -146,34 +69,26 @@ void ParquetDBWriter::initFromFields(const char* resultFile, const std::vector<i
     for (size_t i = 0; i < fieldList.size(); i++){
         specs.push_back(fieldSpec(fieldList[i]));
     }
-    fields = fieldList;
     setIdentityProjection(fieldList.size());
     initFromSpecs(resultFile, specs);
 }
 
 void ParquetDBWriter::initFromSpecs(const char* resultFile, const std::vector<ColumnSpec>& specs){
-    err = CARQUET_ERROR_INIT;
+    carquet_error_t err = CARQUET_ERROR_INIT;
     schema = carquet_schema_create(&err);
-    record_counter = 0;
-    record_batch.assign(specs.size(), Record(NULL, CARQUET_PHYSICAL_INT32));
-
     if (!schema) {
         status = CARQUET_ERROR_INTERNAL;
         checkStatus("Schema initialisation error");
     }
 
+    record_batch.clear();
     columnNames.clear();
     columnTypes.clear();
     for (size_t i = 0; i < specs.size(); i++){
         addSpecColumn(specs[i]);
         checkStatus("Adding column " + specs[i].name + " to schema failed");
     }
-    openWriter(resultFile, specs.size());
-}
-
-void ParquetDBWriter::initFromDbReader(const char* resultFile, DBReader<DBKeyType>& reader, const int thread_idx){
-    const int dbtype = reader.getDbtype();
-    initFromDbType(resultFile, dbtype, detectOptionalColumns(reader, thread_idx));
+    openWriter(resultFile);
 }
 
 unsigned int ParquetDBWriter::detectOptionalColumns(DBReader<DBKeyType>& reader, const int thread_idx){
@@ -225,8 +140,8 @@ unsigned int ParquetDBWriter::detectOptionalColumns(DBReader<DBKeyType>& reader,
     return DBOPT_NONE;
 }
 
-// shared by init() and initFromDbType()
-void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCount){
+void ParquetDBWriter::openWriter(const char* resultFile){
+    carquet_writer_options_t opts;
     carquet_writer_options_init(&opts);
     opts.compression = static_cast<carquet_compression_t>(writerOptions.compression);
     opts.compression_level = writerOptions.compressionLevel;
@@ -240,61 +155,42 @@ void ParquetDBWriter::openWriter(const char* resultFile, const size_t columnCoun
     opts.write_crc = true;
     opts.write_page_index = true;
     opts.write_bloom_filters = true;
-    opts.dictionary_encoding = CARQUET_ENCODING_PLAIN; 
+    opts.dictionary_encoding = CARQUET_ENCODING_PLAIN;
     opts.created_by = "MMseqs parquet writer";
+
+    carquet_error_t err = CARQUET_ERROR_INIT;
+    writer = carquet_writer_create(resultFile, schema, &opts, &err);
+    carquet_schema_free(schema);
+    if (!writer) {
+        status = CARQUET_ERROR_INTERNAL;
+        checkStatus("Writer initialisation error");
+    }
 
     // statistics (min, max, row count), only keep for columns that are usually queried
     static const char* statsColumns[] = {"key", "query", "target", "representative", "member", "score", "seqId",
                                          "evalue", "bits", "fident", "pident", "prefScore", "taxid", "accession"};
-    std::vector<bool> withStats(carquet_schema_num_columns(schema), false);
-    
-    // bloom filters only on query and target, not needed for other columns
-    std::vector<bool> withBloom(withStats.size(), false);
-    for (size_t c = 0; c < withStats.size(); c++) {
-        const char* name = carquet_schema_column_name(schema, static_cast<int32_t>(c));
-        for (size_t k = 0; name != NULL && k < sizeof(statsColumns) / sizeof(statsColumns[0]); k++) {
-            withStats[c] = withStats[c] || strcmp(name, statsColumns[k]) == 0;
-        }
-        withBloom[c] = name != NULL && (strcmp(name, "query") == 0 || strcmp(name, "target") == 0);
-    }
-    bool keyColumnDelta = false;
-    if (withStats.empty() == false && carquet_schema_column_type(schema, 0) == CARQUET_PHYSICAL_INT64) {
-        const char* name0 = carquet_schema_column_name(schema, 0);
-        keyColumnDelta = name0 != NULL && (strcmp(name0, "key") == 0 || strcmp(name0, "query") == 0
-                                           || strcmp(name0, "representative") == 0);
-    }
-    writer = carquet_writer_create(resultFile, schema, &opts, &err);
-    carquet_schema_free(schema); // writer copies schema, can be freed early
-    if (!writer) {
-        freeRecordBatch();
-        status = CARQUET_ERROR_INTERNAL;
-        checkStatus("Writer initialisation error");
-    }
-    for (size_t c = 0; c < withStats.size(); c++) {
-        if (withStats[c] == false) {
-            status = carquet_writer_set_column_statistics(writer, static_cast<int32_t>(c), false);
+    for (size_t c = 0; c < columnNames.size(); c++) {
+        const std::string& name = columnNames[c];
+        const int32_t column = static_cast<int32_t>(c);
+        if (std::find(std::begin(statsColumns), std::end(statsColumns), name) == std::end(statsColumns)) {
+            status = carquet_writer_set_column_statistics(writer, column, false);
             checkStatus("Disabling statistics failed");
         }
-        // the _options setter switches carquet to per-column bloom control (the plain per-column setter is ignored
-        // while the global flag is on); ndv 0 / fpp 0 = carquet defaults
-        status = carquet_writer_set_column_bloom_filter_options(writer, static_cast<int32_t>(c), withBloom[c], 0, 0.0);
+        // bloom filters only on query and target
+        status = carquet_writer_set_column_bloom_filter_options(writer, column, name == "query" || name == "target", 0, 0.0);
         checkStatus("Setting the bloom filter of a column failed");
+        // entry key delta encoding
+        const bool keyColumnDelta = c == 0 && columnTypes[c] == COL_INT64
+                                    && (name == "key" || name == "query" || name == "representative");
+        status = carquet_writer_set_column_encoding(writer, column, keyColumnDelta ? CARQUET_ENCODING_DELTA_BINARY_PACKED
+                                                                                   : CARQUET_ENCODING_PLAIN);
+        checkStatus("Setting the column encoding failed");
     }
-    for (size_t i = 0; i < columnCount; i++){
-        status = carquet_writer_set_column_encoding(writer, i, CARQUET_ENCODING_PLAIN);
-        checkStatus("Column encoding overwrite");
-    }
-    // the entry key (column 0, INT64) delta encoding stores it in a few bits per row instead of 8 bytes (PLAIN);
-    if (keyColumnDelta) {
-        status = carquet_writer_set_column_encoding(writer, 0, CARQUET_ENCODING_DELTA_BINARY_PACKED);
-        checkStatus("Setting the key column encoding failed");
-    }
-    writer_close_status = CARQUET_OK;
 }
 
 std::vector<int> ParquetDBWriter::dbTypeToFields(const int dbtype, const unsigned int optional){
     std::vector<int> f;
-    const int type = dbtype & Parameters::DBTYPE_MASK; // strip extended/compressed bits
+    const int type = dbtype & Parameters::DBTYPE_MASK;
     switch (type) {
         case Parameters::DBTYPE_AMINO_ACIDS:
         case Parameters::DBTYPE_NUCLEOTIDES:
@@ -357,8 +253,7 @@ std::vector<int> ParquetDBWriter::dbTypeToFields(const int dbtype, const unsigne
 
 void ParquetDBWriter::addColumn(const char* name, carquet_physical_type type, const carquet_logical_type_t* logical){
     status = carquet_schema_add_column(schema, name, type, logical, CARQUET_REPETITION_REQUIRED, 0, 0);
-    record_batch[record_counter] = Record(typToPointer(type), type);
-    record_counter++;
+    record_batch.push_back(Column(type));
 }
 
 ParquetDBWriter::ColumnSpec ParquetDBWriter::fieldSpec(const int field){
@@ -445,353 +340,59 @@ void ParquetDBWriter::addSpecColumn(const ColumnSpec& spec){
     columnTypes.push_back(spec.type);
 }
 
-void ParquetDBWriter::dbFieldToField(const int field){
-    addSpecColumn(fieldSpec(field));
-}
-
-void* ParquetDBWriter::typToPointer(carquet_physical_type type){
-    switch (type){
-        case carquet_physical_type::CARQUET_PHYSICAL_BYTE_ARRAY:
-            return reinterpret_cast<void*>(new StringColumn());
-        case carquet_physical_type::CARQUET_PHYSICAL_DOUBLE:
-            return reinterpret_cast<void*>(new std::vector<double>());
-        case carquet_physical_type::CARQUET_PHYSICAL_INT32:
-            return reinterpret_cast<void*>(new std::vector<int32_t>());
-        case carquet_physical_type::CARQUET_PHYSICAL_INT64:
-            return reinterpret_cast<void*>(new std::vector<int64_t>());
-        case carquet_physical_type::CARQUET_PHYSICAL_FLOAT:
-            return reinterpret_cast<void*>(new std::vector<float>());
-        default:
-            status = CARQUET_ERROR_INTERNAL;
-            checkStatus("Create pointer for unkown field type");
-            return nullptr;
-    }
-}
-
-void ParquetDBWriter::outcodeToField(const int outcode){
-    carquet_logical_type_t string_type = {};
-    string_type.id = CARQUET_LOGICAL_STRING;
+ParquetDBWriter::ColumnSpec ParquetDBWriter::outcodeSpec(const int outcode){
     switch (outcode) {
-        case Parameters::OUTFMT_QUERY:{
-            status = carquet_schema_add_column(schema, "query", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* query = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(query,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TARGET:{
-            status =carquet_schema_add_column(schema, "target", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* target = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(target,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_EVALUE:{
-            status =carquet_schema_add_column(schema, "evalue", CARQUET_PHYSICAL_DOUBLE, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* evalue = typToPointer(CARQUET_PHYSICAL_DOUBLE);
-            record_batch[record_counter] = Record(evalue,CARQUET_PHYSICAL_DOUBLE);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_GAPOPEN:{
-            status =carquet_schema_add_column(schema, "gapopen", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* gapopen = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(gapopen,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_FIDENT:{
-            status =carquet_schema_add_column(schema, "fident", CARQUET_PHYSICAL_FLOAT, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* findent = typToPointer(CARQUET_PHYSICAL_FLOAT);
-            record_batch[record_counter] = Record(findent,CARQUET_PHYSICAL_FLOAT);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_PIDENT:{
-            status =carquet_schema_add_column(schema, "pident", CARQUET_PHYSICAL_FLOAT, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* pindent = typToPointer(CARQUET_PHYSICAL_FLOAT);
-            record_batch[record_counter] = Record(pindent,CARQUET_PHYSICAL_FLOAT);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_NIDENT:{
-            status =carquet_schema_add_column(schema, "nident", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* nident = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(nident,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QSTART:{
-            status =carquet_schema_add_column(schema, "Qstart", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qstart = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qstart,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QEND:{
-            status =carquet_schema_add_column(schema, "qend", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qend = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qend,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QLEN:{
-            status =carquet_schema_add_column(schema, "qlen", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qlen = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qlen,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TSTART:{
-            status = carquet_schema_add_column(schema, "tstart", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tstart = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(tstart,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TEND:{
-            status = carquet_schema_add_column(schema, "tend", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tend = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(tend,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TLEN:{
-            status = carquet_schema_add_column(schema, "tlen", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tlen = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(tlen,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_ALNLEN:{
-            status = carquet_schema_add_column(schema, "alnlen", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* alnlen = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(alnlen,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_RAW:{
-            status = carquet_schema_add_column(schema, "raw", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* raw = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(raw,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_BITS:{
-            status = carquet_schema_add_column(schema, "score", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* score = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(score,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_CIGAR:{
-            status = carquet_schema_add_column(schema, "cigar", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* cigar = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(cigar,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QSEQ:{
-            status = carquet_schema_add_column(schema, "qseq", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qseq = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(qseq,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TSEQ:{
-            status = carquet_schema_add_column(schema, "tseq", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tseq = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(tseq,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QHEADER:{
-            status = carquet_schema_add_column(schema, "qheader", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qheader = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(qheader,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_THEADER:{
-            status = carquet_schema_add_column(schema, "theader", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* theader = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(theader,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QALN:{
-            status = carquet_schema_add_column(schema, "qaln", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qaln = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(qaln,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TALN:{
-            status = carquet_schema_add_column(schema, "taln", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* taln = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(taln,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_MISMATCH:{
-            status = carquet_schema_add_column(schema, "mismatch", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* mismatch = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(mismatch,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QCOV:{
-            status = carquet_schema_add_column(schema, "qcov", CARQUET_PHYSICAL_FLOAT, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qcov = typToPointer(CARQUET_PHYSICAL_FLOAT);
-            record_batch[record_counter] = Record(qcov,CARQUET_PHYSICAL_FLOAT);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TCOV:{
-            status = carquet_schema_add_column(schema, "tcov", CARQUET_PHYSICAL_FLOAT, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tcov = typToPointer(CARQUET_PHYSICAL_FLOAT);
-            record_batch[record_counter] = Record(tcov,CARQUET_PHYSICAL_FLOAT);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QSET:{
-            status = carquet_schema_add_column(schema, "qset", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qset = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(qset,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QSETID:{
-#ifdef MMSEQS_INT64_IDS
-            status = carquet_schema_add_column(schema, "qsetid", CARQUET_PHYSICAL_INT64, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qsetid = typToPointer(CARQUET_PHYSICAL_INT64);
-            record_batch[record_counter] = Record(qsetid,CARQUET_PHYSICAL_INT64);
-            record_counter++;
-#else
-            status = carquet_schema_add_column(schema, "qsetid", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qsetid = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qsetid,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-#endif
-            break;
-        }
-        case Parameters::OUTFMT_TSET:{
-            status = carquet_schema_add_column(schema, "tset", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qset = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(qset,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TSETID:{
-#ifdef MMSEQS_INT64_IDS
-            status = carquet_schema_add_column(schema, "tsetid", CARQUET_PHYSICAL_INT64, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tsetid = typToPointer(CARQUET_PHYSICAL_INT64);
-            record_batch[record_counter] = Record(tsetid,CARQUET_PHYSICAL_INT64);
-            record_counter++;
-#else
-            status = carquet_schema_add_column(schema, "tsetid", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tsetid = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(tsetid,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-#endif
-            break;
-        }
-        case Parameters::OUTFMT_TAXID:{
-#ifdef MMSEQS_INT64_IDS
-            status = carquet_schema_add_column(schema, "taxid", CARQUET_PHYSICAL_INT64, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* taxid = typToPointer(CARQUET_PHYSICAL_INT64);
-            record_batch[record_counter] = Record(taxid,CARQUET_PHYSICAL_INT64);
-            record_counter++;
-#else
-            status = carquet_schema_add_column(schema, "taxid", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* taxid = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(taxid,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-#endif
-            break;
-        }
-        case Parameters::OUTFMT_TAXNAME:{
-            status = carquet_schema_add_column(schema, "taxname", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* taxname = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(taxname,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TAXLIN:{
-            status = carquet_schema_add_column(schema, "taxlin", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* taxlin = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(taxlin,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_EMPTY:{
-            status = carquet_schema_add_column(schema, "empty", CARQUET_PHYSICAL_BYTE_ARRAY, &string_type, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* empty = typToPointer(CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_batch[record_counter] = Record(empty,CARQUET_PHYSICAL_BYTE_ARRAY);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QORFSTART:{
-            status = carquet_schema_add_column(schema, "qorfstart", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qorfstart = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qorfstart,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QORFEND:{
-            status = carquet_schema_add_column(schema, "qorfend", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qorfend = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qorfend,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TORFSTART:{
-            status = carquet_schema_add_column(schema, "torfstart", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* torfstart = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(torfstart,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TORFEND:{
-            status = carquet_schema_add_column(schema, "torfend", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* torfend = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(torfend,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_PPOS:{
-            status = carquet_schema_add_column(schema, "ppos", CARQUET_PHYSICAL_FLOAT, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* ppos = typToPointer(CARQUET_PHYSICAL_FLOAT);
-            record_batch[record_counter] = Record(ppos,CARQUET_PHYSICAL_FLOAT);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_QFRAME:{
-            status = carquet_schema_add_column(schema, "qframe", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* qframe = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(qframe,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
-        case Parameters::OUTFMT_TFRAME:{
-            status = carquet_schema_add_column(schema, "tframe", CARQUET_PHYSICAL_INT32, NULL, CARQUET_REPETITION_REQUIRED, 0, 0);
-            void* tframe = typToPointer(CARQUET_PHYSICAL_INT32);
-            record_batch[record_counter] = Record(tframe,CARQUET_PHYSICAL_INT32);
-            record_counter++;
-            break;
-        }
+        case Parameters::OUTFMT_QUERY:     return ColumnSpec{"query",     COL_STRING};
+        case Parameters::OUTFMT_TARGET:    return ColumnSpec{"target",    COL_STRING};
+        case Parameters::OUTFMT_EVALUE:    return ColumnSpec{"evalue",    COL_DOUBLE};
+        case Parameters::OUTFMT_GAPOPEN:   return ColumnSpec{"gapopen",   COL_INT32};
+        case Parameters::OUTFMT_FIDENT:    return ColumnSpec{"fident",    COL_FLOAT};
+        case Parameters::OUTFMT_PIDENT:    return ColumnSpec{"pident",    COL_FLOAT};
+        case Parameters::OUTFMT_NIDENT:    return ColumnSpec{"nident",    COL_INT32};
+        case Parameters::OUTFMT_QSTART:    return ColumnSpec{"Qstart",    COL_INT32};
+        case Parameters::OUTFMT_QEND:      return ColumnSpec{"qend",      COL_INT32};
+        case Parameters::OUTFMT_QLEN:      return ColumnSpec{"qlen",      COL_INT32};
+        case Parameters::OUTFMT_TSTART:    return ColumnSpec{"tstart",    COL_INT32};
+        case Parameters::OUTFMT_TEND:      return ColumnSpec{"tend",      COL_INT32};
+        case Parameters::OUTFMT_TLEN:      return ColumnSpec{"tlen",      COL_INT32};
+        case Parameters::OUTFMT_ALNLEN:    return ColumnSpec{"alnlen",    COL_INT32};
+        case Parameters::OUTFMT_RAW:       return ColumnSpec{"raw",       COL_INT32};
+        case Parameters::OUTFMT_BITS:      return ColumnSpec{"score",     COL_INT32};
+        case Parameters::OUTFMT_CIGAR:     return ColumnSpec{"cigar",     COL_STRING};
+        case Parameters::OUTFMT_QSEQ:      return ColumnSpec{"qseq",      COL_STRING};
+        case Parameters::OUTFMT_TSEQ:      return ColumnSpec{"tseq",      COL_STRING};
+        case Parameters::OUTFMT_QHEADER:   return ColumnSpec{"qheader",   COL_STRING};
+        case Parameters::OUTFMT_THEADER:   return ColumnSpec{"theader",   COL_STRING};
+        case Parameters::OUTFMT_QALN:      return ColumnSpec{"qaln",      COL_STRING};
+        case Parameters::OUTFMT_TALN:      return ColumnSpec{"taln",      COL_STRING};
+        case Parameters::OUTFMT_MISMATCH:  return ColumnSpec{"mismatch",  COL_INT32};
+        case Parameters::OUTFMT_QCOV:      return ColumnSpec{"qcov",      COL_FLOAT};
+        case Parameters::OUTFMT_TCOV:      return ColumnSpec{"tcov",      COL_FLOAT};
+        case Parameters::OUTFMT_QSET:      return ColumnSpec{"qset",      COL_STRING};
+        case Parameters::OUTFMT_QSETID:    return ColumnSpec{"qsetid",    COL_INT64};
+        case Parameters::OUTFMT_TSET:      return ColumnSpec{"tset",      COL_STRING};
+        case Parameters::OUTFMT_TSETID:    return ColumnSpec{"tsetid",    COL_INT64};
+        case Parameters::OUTFMT_TAXID:     return ColumnSpec{"taxid",     COL_INT32};
+        case Parameters::OUTFMT_TAXNAME:   return ColumnSpec{"taxname",   COL_STRING};
+        case Parameters::OUTFMT_TAXLIN:    return ColumnSpec{"taxlin",    COL_STRING};
+        case Parameters::OUTFMT_EMPTY:     return ColumnSpec{"empty",     COL_STRING};
+        case Parameters::OUTFMT_QORFSTART: return ColumnSpec{"qorfstart", COL_INT32};
+        case Parameters::OUTFMT_QORFEND:   return ColumnSpec{"qorfend",   COL_INT32};
+        case Parameters::OUTFMT_TORFSTART: return ColumnSpec{"torfstart", COL_INT32};
+        case Parameters::OUTFMT_TORFEND:   return ColumnSpec{"torfend",   COL_INT32};
+        case Parameters::OUTFMT_PPOS:      return ColumnSpec{"ppos",      COL_FLOAT};
+        case Parameters::OUTFMT_QFRAME:    return ColumnSpec{"qframe",    COL_INT32};
+        case Parameters::OUTFMT_TFRAME:    return ColumnSpec{"tframe",    COL_INT32};
         default:
-            status = CARQUET_ERROR_INTERNAL;
-            checkStatus("Tried to create schema for unkown field type, outcode number:" + std::to_string(outcode));
-            break;
+            Debug(Debug::ERROR) << "Tried to create schema for unkown field type, outcode number:" << outcode << "\n";
+            EXIT(EXIT_FAILURE);
     }
 }
 
 void ParquetDBWriter::addSeqBasedOnAln(const int record_num, const char *seq, unsigned int offset,
                         const std::string &bt, bool reverse, bool isReverseStrand,
                         bool translateSequence, const TranslateNucl &translateNucl) {
-    void* record_pointer = record_batch[record_num].first;
-    StringColumn* carbyte_pointer = reinterpret_cast<StringColumn*>(record_pointer);
+    StringColumn* carbyte_pointer = &record_batch[record_num].str;
     // write directly into the column arena instead of a temporary string
     const size_t startSize = carbyte_pointer->arena.size();
     carbyte_pointer->startValue();
@@ -832,177 +433,54 @@ void ParquetDBWriter::addSeqBasedOnAln(const int record_num, const char *seq, un
 }
 
 
-void ParquetDBWriter::clearRecordBatch(){
-    for (const Record& record : record_batch) {
-        void* record_pointer = record.first;
-        carquet_physical_type type = record.second;
-        switch (type){
-            case CARQUET_PHYSICAL_BYTE_ARRAY:{
-                StringColumn* carbyte_pointer_a = reinterpret_cast<StringColumn*>(record_pointer);
-                carbyte_pointer_a->clear(2 * flush_bytes);
-                break;
-            }
-            case CARQUET_PHYSICAL_DOUBLE:{
-                std::vector<double>* carbyte_pointer_b = reinterpret_cast<std::vector<double>*>(record_pointer);
-                carbyte_pointer_b->clear();
-                break;
-            }
-            case CARQUET_PHYSICAL_INT32:{
-                std::vector<int32_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int32_t>*>(record_pointer);
-                carbyte_pointer_c->clear();
-                break;
-            }
-            case CARQUET_PHYSICAL_INT64:{
-                std::vector<int64_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int64_t>*>(record_pointer);
-                carbyte_pointer_c->clear();
-                break;
-            }
-            case CARQUET_PHYSICAL_FLOAT:{
-                std::vector<float>* carbyte_pointer_d = reinterpret_cast<std::vector<float>*>(record_pointer);
-                carbyte_pointer_d->clear();
-                break;
-            }
-            default:
-                status = CARQUET_ERROR_INTERNAL;
-                checkStatus("Clear record of unkown field type");
-                break;
-        }
-    }
+void ParquetDBWriter::writeCell(const char* s, const size_t n, const int record_num){
+    record_batch[record_num].str.add(s, n);
+    pending_bytes += n;
 }
-
-void ParquetDBWriter::freeRecordBatch(){
-    for (const Record& record : record_batch) {
-        void* record_pointer = record.first;
-        carquet_physical_type type = record.second;
-        switch (type){
-            case CARQUET_PHYSICAL_BYTE_ARRAY:{
-                StringColumn* carbyte_pointer_a = reinterpret_cast<StringColumn*>(record_pointer);
-                delete carbyte_pointer_a; 
-                break;
-            }
-            case CARQUET_PHYSICAL_DOUBLE:{
-                std::vector<double>* carbyte_pointer_b = reinterpret_cast<std::vector<double>*>(record_pointer);
-                delete carbyte_pointer_b;
-                break;
-            }
-            case CARQUET_PHYSICAL_INT32:{
-                std::vector<int32_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int32_t>*>(record_pointer);
-                delete carbyte_pointer_c;
-                break;
-            }
-            case CARQUET_PHYSICAL_INT64:{
-                std::vector<int64_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int64_t>*>(record_pointer);
-                delete carbyte_pointer_c;
-                break;
-            }
-            case CARQUET_PHYSICAL_FLOAT:{
-                std::vector<float>* carbyte_pointer_d = reinterpret_cast<std::vector<float>*>(record_pointer);
-                delete carbyte_pointer_d;
-                break;
-            }
-            default:
-                status = CARQUET_ERROR_INTERNAL;
-                checkStatus("Free record of unkown field type");
-                break;
-        }
-    }
-    record_batch.clear();
-}
-
 
 void ParquetDBWriter::writeCell(const std::string& record_value, const int record_num){
-    void* record_pointer = record_batch[record_num].first;
-    carquet_physical_type type = record_batch[record_num].second;
-    StringColumn* carbyte_pointer_a = reinterpret_cast<StringColumn*>(record_pointer);
-    carbyte_pointer_a->add(record_value);
-    pending_bytes += record_value.size();
+    writeCell(record_value.data(), record_value.size(), record_num);
 }
 
 void ParquetDBWriter::writeCell(const double& record_value, const int record_num){
-    void* record_pointer = record_batch[record_num].first;
-    carquet_physical_type type = record_batch[record_num].second;
-    std::vector<double>* carbyte_pointer_b = reinterpret_cast<std::vector<double>*>(record_pointer);
-    carbyte_pointer_b->emplace_back(record_value);
+    record_batch[record_num].f64.push_back(record_value);
     pending_bytes += sizeof(double);
 }
 
 void ParquetDBWriter::writeCell(const int& record_value, const int record_num){
-    void* record_pointer = record_batch[record_num].first;
-    carquet_physical_type type = record_batch[record_num].second;
-    std::vector<int32_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int32_t>*>(record_pointer);
-    carbyte_pointer_c->emplace_back(record_value);
+    record_batch[record_num].i32.push_back(record_value);
     pending_bytes += sizeof(int32_t);
 }
 
 void ParquetDBWriter::writeCell(const int64_t& record_value, const int record_num){
-    void* record_pointer = record_batch[record_num].first;
-    carquet_physical_type type = record_batch[record_num].second;
-    std::vector<int64_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int64_t>*>(record_pointer);
-    carbyte_pointer_c->emplace_back(record_value);
+    record_batch[record_num].i64.push_back(record_value);
     pending_bytes += sizeof(int64_t);
 }
 
 void ParquetDBWriter::writeCell(const float& record_value, const int record_num){
-    void* record_pointer = record_batch[record_num].first;
-    carquet_physical_type type = record_batch[record_num].second;
-    std::vector<float>* carbyte_pointer_d = reinterpret_cast<std::vector<float>*>(record_pointer);
-    carbyte_pointer_d->emplace_back(record_value);
+    record_batch[record_num].f32.push_back(record_value);
     pending_bytes += sizeof(float);
 }
 
 
 
 void ParquetDBWriter::writeColumn(int column_number){
-    
-    void* record_pointer = record_batch[column_number].first;
-    carquet_physical_type type = record_batch[column_number].second;
-    
-    switch (type){
-        case CARQUET_PHYSICAL_BYTE_ARRAY: {
-            StringColumn* carbyte_pointer_a = reinterpret_cast<StringColumn*>(record_pointer);
-            carbyte_pointer_a->finalize(); 
-            status = carquet_writer_write_batch(writer, column_number, carbyte_pointer_a->values.data(),static_cast<int64_t>(carbyte_pointer_a->values.size()), NULL, NULL);
-            checkStatus("Column write" + std::to_string(column_number) + "error");
-            break;
-        }
-        case CARQUET_PHYSICAL_DOUBLE:{
-            std::vector<double>* carbyte_pointer_b = reinterpret_cast<std::vector<double>*>(record_pointer);
-            status = carquet_writer_write_batch(writer, column_number, carbyte_pointer_b->data(),static_cast<int64_t>(carbyte_pointer_b->size()), NULL, NULL);
-            checkStatus("Column write" + std::to_string(column_number) + "error");
-            break;
-        }
-        case CARQUET_PHYSICAL_INT32:{
-            std::vector<int32_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int32_t>*>(record_pointer);
-            status = carquet_writer_write_batch(writer, column_number, carbyte_pointer_c->data(),static_cast<int64_t>(carbyte_pointer_c->size()), NULL, NULL);
-            checkStatus("Column write" + std::to_string(column_number) + "error");
-            break;
-        }
-        case CARQUET_PHYSICAL_INT64:{
-            std::vector<int64_t>* carbyte_pointer_c = reinterpret_cast<std::vector<int64_t>*>(record_pointer);
-            status = carquet_writer_write_batch(writer, column_number, carbyte_pointer_c->data(),static_cast<int64_t>(carbyte_pointer_c->size()), NULL, NULL);
-            checkStatus("Column write" + std::to_string(column_number) + "error");
-            break;
-        }
-        case CARQUET_PHYSICAL_FLOAT:{
-            std::vector<float>* carbyte_pointer_d = reinterpret_cast<std::vector<float>*>(record_pointer);
-            status = carquet_writer_write_batch(writer, column_number, carbyte_pointer_d->data(),static_cast<int64_t>(carbyte_pointer_d->size()), NULL, NULL);
-            checkStatus("Column write" + std::to_string(column_number) + "error");
-            break;
-        }
-        default:
-            status = carquet_status::CARQUET_ERROR_INTERNAL;;
-            checkStatus("Column write" + std::to_string(column_number) + "error"); 
-            break;
+    Column& col = record_batch[column_number];
+    const void* values = NULL;
+    size_t count = 0;
+    switch (col.type){
+        case CARQUET_PHYSICAL_BYTE_ARRAY:
+            col.str.finalize();
+            values = col.str.values.data(); count = col.str.values.size(); break;
+        case CARQUET_PHYSICAL_DOUBLE: values = col.f64.data(); count = col.f64.size(); break;
+        case CARQUET_PHYSICAL_INT32:  values = col.i32.data(); count = col.i32.size(); break;
+        case CARQUET_PHYSICAL_INT64:  values = col.i64.data(); count = col.i64.size(); break;
+        case CARQUET_PHYSICAL_FLOAT:  values = col.f32.data(); count = col.f32.size(); break;
+        default: break;
     }
-}
-
-void ParquetDBWriter::writeBatchToFile(const std::vector<int>& outcodes){
-    for(size_t i = 0; i < outcodes.size(); i++){
-        writeColumn(i);
-    }
-    clearRecordBatch();
-    pending_bytes = 0;
-    pending_rows = 0;
+    status = (values == NULL) ? CARQUET_ERROR_INTERNAL
+                              : carquet_writer_write_batch(writer, column_number, values, static_cast<int64_t>(count), NULL, NULL);
+    checkStatus("Column write" + std::to_string(column_number) + "error");
 }
 
 void ParquetDBWriter::endRow(){
@@ -1020,34 +498,31 @@ void ParquetDBWriter::flush(){
     for(size_t i = 0; i < record_batch.size(); i++){
         writeColumn(i);
     }
-    clearRecordBatch();
+    for (Column& col : record_batch) {
+        col.i32.clear();
+        col.i64.clear();
+        col.f32.clear();
+        col.f64.clear();
+        col.str.clear(2 * flush_bytes);
+    }
     pending_bytes = 0;
     pending_rows = 0;
 }
 
-void ParquetDBWriter::setFlushBytes(const size_t bytes){
-    flush_bytes = bytes;
-}
-
 void ParquetDBWriter::close(){
-    if (writer_close_status == CARQUET_ERROR_ALREADY_CLOSED){
+    if (writer == NULL){
         Debug(Debug::WARNING) << "Writer already closed" << "\n";
         return;
     }
     flush();
-    if (metadataDbtype >= 0) {
-        status = carquet_writer_add_metadata(writer, DBTYPE_METADATA_KEY, SSTR(metadataDbtype).c_str());
+    if (dbtype >= 0) {
+        status = carquet_writer_add_metadata(writer, DBTYPE_METADATA_KEY, SSTR(dbtype).c_str());
         checkStatus("Adding the dbtype metadata failed");
     }
-    writer_close_status = carquet_writer_close(writer);
-    if (writer_close_status != carquet_status_t::CARQUET_OK){
-        carquet_writer_abort(writer);
-        writer_close_status = CARQUET_ERROR_ALREADY_CLOSED;
-        checkStatus("Closing parquet writer failed");
-        
-    } else {
-        writer_close_status = CARQUET_ERROR_ALREADY_CLOSED;
-    }
+    // close releases the writer, also when it fails
+    status = carquet_writer_close(writer);
+    writer = NULL;
+    checkStatus("Closing parquet writer failed");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1055,9 +530,7 @@ void ParquetDBWriter::close(){
 // ---------------------------------------------------------------------------------------------
 
 ParquetDBWriter::WriterOptions ParquetDBWriter::writerOptionsFromParameters(const Parameters& par){
-    // order of --parquet-compression; LZ4_RAW, the legacy LZ4 codec is not readable by most readers (e.g. DuckDB)
-    // 5 (brotli) is only offered when carquet is built with -DCARQUET_ENABLE_BROTLI=ON: extend the option's
-    // description and regex ("^[0-5]{1}$") in Parameters.cpp to enable it again
+    // 5 (brotli) is only offered when carquet is built with -DCARQUET_ENABLE_BROTLI=ON
     static const int codecs[] = {CARQUET_COMPRESSION_UNCOMPRESSED, CARQUET_COMPRESSION_ZSTD, CARQUET_COMPRESSION_SNAPPY,
                                  CARQUET_COMPRESSION_GZIP, CARQUET_COMPRESSION_LZ4_RAW, CARQUET_COMPRESSION_BROTLI};
     WriterOptions options;
@@ -1069,7 +542,6 @@ ParquetDBWriter::WriterOptions ParquetDBWriter::writerOptionsFromParameters(cons
 
 void ParquetDBWriter::setWriterOptions(const WriterOptions& options){
     writerOptions = options;
-    // carquet starts a new row group only between batches, so a batch must not exceed the row group size
     flush_bytes = std::min<size_t>(DEFAULT_FLUSH_BYTES, options.rowGroupSize);
 }
 
@@ -1151,14 +623,14 @@ static bool parseInteger(const char* s, size_t n, const int64_t lo, const int64_
     const bool negative = (n > 0 && s[0] == '-');
     s += negative;
     n -= negative;
-    if (n == 0 || n > 19) {   // 19 digits always fit into uint64, the loop cannot overflow
+    if (n == 0 || n > 19) {
         return false;
     }
     uint64_t v = 0;
     bool bad = false;
     for (size_t i = 0; i < n; i++) {
         const unsigned int d = static_cast<unsigned char>(s[i]) - '0';
-        bad |= (d > 9);       // no branch per digit, checked once after the loop
+        bad |= (d > 9);       
         v = v * 10 + d;
     }
     if (bad || v > static_cast<uint64_t>(INT64_MAX) + negative) {
@@ -1166,6 +638,12 @@ static bool parseInteger(const char* s, size_t n, const int64_t lo, const int64_
     }
     value = negative ? static_cast<int64_t>(0 - v) : static_cast<int64_t>(v);
     return value >= lo && value <= hi;
+}
+
+template <typename T>
+static bool parseFloating(const char* s, const size_t n, T& value){
+    const fast_float::from_chars_result r = fast_float::from_chars(s, s + n, value);
+    return n > 0 && r.ec == std::errc() && r.ptr == s + n;
 }
 
 void ParquetDBWriter::writeField(const int column, const char* s, const size_t n){
@@ -1178,23 +656,11 @@ void ParquetDBWriter::writeField(const int column, const char* s, const size_t n
         case COL_INT16:  ok = parseInteger(s, n, INT16_MIN, INT16_MAX, i); if (ok) writeCell(static_cast<int>(i), column); break;
         case COL_INT32:  ok = parseInteger(s, n, INT32_MIN, INT32_MAX, i); if (ok) writeCell(static_cast<int>(i), column); break;
         case COL_INT64:  ok = parseInteger(s, n, INT64_MIN, INT64_MAX, i); if (ok) writeCell(i, column); break;
-        case COL_FLOAT: {
-            float v = 0;
-            const fast_float::from_chars_result r = fast_float::from_chars(s, s + n, v);
-            ok = (n > 0 && r.ec == std::errc() && r.ptr == s + n);
-            if (ok) writeCell(v, column);
-            break;
-        }
-        case COL_DOUBLE: {
-            double v = 0;
-            const fast_float::from_chars_result r = fast_float::from_chars(s, s + n, v);
-            ok = (n > 0 && r.ec == std::errc() && r.ptr == s + n);
-            if (ok) writeCell(v, column);
-            break;
-        }
+        case COL_FLOAT:  { float v = 0;  ok = parseFloating(s, n, v); if (ok) writeCell(v, column); break; }
+        case COL_DOUBLE: { double v = 0; ok = parseFloating(s, n, v); if (ok) writeCell(v, column); break; }
         case COL_STRING:
         case COL_BINARY:
-            writeCell(std::string(s, n), column);
+            writeCell(s, n, column);
             break;
     }
     if (ok == false) {
@@ -1216,7 +682,7 @@ void ParquetDBWriter::writeEntry(const DBKeyType key, const char* data, const si
                 l--;
             }
             put(0, k);
-            put(1, std::string(data, l));
+            put(1, data, l);
             endRow();
             break;
         }
@@ -1224,7 +690,7 @@ void ParquetDBWriter::writeEntry(const DBKeyType key, const char* data, const si
         case Parameters::DBTYPE_MSA_DB:
         case Parameters::DBTYPE_INDEX_DB:
             put(0, k);
-            put(1, std::string(data, len));
+            put(1, data, len);
             endRow();
             break;
         case Parameters::DBTYPE_HMM_PROFILE: {
@@ -1379,8 +845,6 @@ bool ParquetDBWriter::parseSchema(const std::string& text, std::vector<ColumnSpe
 void ParquetDBWriter::initFromSchema(const char* resultFile, const int dbtype, const unsigned int optional,
                                      const std::vector<ColumnSpec>& schemaColumns){
     this->dbtype = dbtype;
-    metadataDbtype = dbtype;
-    fields.clear();
     std::vector<ColumnSpec> out;
     if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_GENERIC_DB)) {
         // the entry key is always the first column, the schema describes the fields of each line
@@ -1449,11 +913,9 @@ static size_t availableMemory(){
 }
 
 static inline size_t entryLength(DBReader<DBKeyType>& reader, size_t id, const char* data){
-    // compressed DBs: the index length is the compressed size, the decompressed entry ends with \0
     return (reader.isCompressed() == DBReader<DBKeyType>::COMPRESSED) ? strlen(data) : reader.getEntryLen(id) - 1;
 }
 
-// starts of `parts` ranges of roughly equal data size over the given entry order
 static std::vector<size_t> splitByBytes(DBReader<DBKeyType>& reader, const std::vector<size_t>* order, size_t parts){
     std::vector<size_t> bounds(1, 0);
     const size_t n = reader.getSize();
@@ -1472,27 +934,22 @@ static std::vector<size_t> splitByBytes(DBReader<DBKeyType>& reader, const std::
     return bounds;
 }
 
-std::string ParquetDBWriter::lookupParquetName(const std::string& output, const bool multiFile){
+static std::string sidecarName(const std::string& output, const bool multiFile, const std::string& kind){
     if (multiFile) {
-        return output + "/_lookup.pq";
+        return output + "/_" + kind + ".pq";
     }
-    const size_t slash = output.find_last_of('/');
-    const std::string dir = (slash == std::string::npos) ? "" : output.substr(0, slash + 1);
-    const std::string base = (slash == std::string::npos) ? output : output.substr(slash + 1);
-    return dir + "_" + base + ".lookup.pq";
+    const size_t base = output.find_last_of('/') + 1;   // 0 without a directory (npos + 1)
+    return output.substr(0, base) + "_" + output.substr(base) + "." + kind + ".pq";
+}
+
+std::string ParquetDBWriter::lookupParquetName(const std::string& output, const bool multiFile){
+    return sidecarName(output, multiFile, "lookup");
 }
 
 std::string ParquetDBWriter::emptyParquetName(const std::string& output, const bool multiFile){
-    if (multiFile) {
-        return output + "/_empty.pq";
-    }
-    const size_t slash = output.find_last_of('/');
-    const std::string dir = (slash == std::string::npos) ? "" : output.substr(0, slash + 1);
-    const std::string base = (slash == std::string::npos) ? output : output.substr(slash + 1);
-    return dir + "_" + base + ".empty.pq";
+    return sidecarName(output, multiFile, "empty");
 }
 
-// remove an earlier result of the same name: <output> file or <output>/part-*.parquet, its lookup and empty keys
 static void removeStaleParquet(const std::string& output){
     const std::string singles[] = {ParquetDBWriter::lookupParquetName(output, false), ParquetDBWriter::emptyParquetName(output, false)};
     for (const std::string& single : singles) {
@@ -1513,7 +970,7 @@ static void removeStaleParquet(const std::string& output){
             }
             closedir(dir);
         }
-        rmdir(output.c_str());   // only succeeds when nothing else is in it
+        rmdir(output.c_str());
     } else if (FileUtil::fileExists(output.c_str())) {
         FileUtil::remove(output.c_str());
     }
@@ -1530,7 +987,6 @@ void ParquetDBWriter::removeNumberedParquet(const std::string& dir, const std::s
         if (name.size() <= prefix.size() + 1 || name.compare(0, prefix.size() + 1, prefix + "_") != 0) {
             continue;
         }
-        // <prefix>_<digits>.parquet or <prefix>_<digits>.parquet.tmp
         size_t p = prefix.size() + 1;
         const size_t digits = p;
         while (p < name.size() && isdigit(name[p])) {
@@ -1544,7 +1000,6 @@ void ParquetDBWriter::removeNumberedParquet(const std::string& dir, const std::s
     closedir(d);
 }
 
-// key, accession, file_number of every lookup entry (reader opened with USE_LOOKUP)
 static void writeLookupParquet(DBReader<DBKeyType>& reader, const std::string& name,
                                const ParquetDBWriter::WriterOptions& options){
     const std::string tmp = name + ".tmp";
@@ -1563,7 +1018,6 @@ static void writeLookupParquet(DBReader<DBKeyType>& reader, const std::string& n
     FileUtil::move(tmp.c_str(), name.c_str());
 }
 
-// keys of the entries without rows, sorted (column key)
 static void writeEmptyKeysParquet(std::vector<DBKeyType>& keys, const std::string& name,
                                   const ParquetDBWriter::WriterOptions& options){
     std::sort(keys.begin(), keys.end());
@@ -1626,7 +1080,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
         writeLookupParquet(*lookupReader, lookupName, options);
     }
 
-    // each output file is written by one worker; its writer only lives while the file is written
+    // each output file is written by one worker;
     auto openPart = [&](ParquetDBWriter& w, size_t f) {
         w.setWriterOptions(options);
         if (hooks.openPart) {
@@ -1637,8 +1091,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
             w.initFromSchema((names[f] + ".tmp").c_str(), reader.getDbtype(), optional, schemaColumns);
         }
     };
-    // entries that produce no rows (empty alignment/cluster/... entries) are listed in emptyParquetName,
-    // so that a reader knows every key; not for the hooks (convertalis), whose output is not read back
+
     std::vector<DBKeyType> emptyKeys;
     std::mutex emptyLock;
     auto writeEntryRows = [&](ParquetDBWriter& w, DBKeyType key, char* data, size_t len, unsigned int thread_idx) {
@@ -1664,39 +1117,21 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
     };
 
     Debug::Progress progress(entries);
-    if (mode == SORT_MODE_KEYORDER) {
-        // reader is sorted by key: contiguous id ranges are key ranges
-        const std::vector<size_t> bounds = splitByBytes(reader, NULL, files);
-#pragma omp parallel for schedule(dynamic, 1) num_threads(workers)
-        for (size_t f = 0; f < files; f++) {
-            unsigned int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
-            ParquetDBWriter w;
-            openPart(w, f);
-            for (size_t id = bounds[f]; id < bounds[f + 1]; id++) {
-                progress.updateProgress();
-                char* data = reader.getData(id, thread_idx);
-                writeEntryRows(w, reader.getDbKey(id), data, entryLength(reader, id, data), thread_idx);
-            }
-            closePart(w, f);
+    // linear and spillsort read the data in file order, keyorder in id order
+    std::vector<size_t> byOffset;
+    if (mode != SORT_MODE_KEYORDER) {
+        byOffset.resize(entries);
+        for (size_t i = 0; i < entries; i++) {
+            byOffset[i] = i;
         }
-        writeEmptyKeys();
-        return;
+        std::sort(byOffset.begin(), byOffset.end(),
+                  [&](size_t a, size_t b) { return reader.getOffset(a) < reader.getOffset(b); });
+        reader.setSequentialAdvice();
     }
 
-    // linear and spillsort read the data in file order
-    std::vector<size_t> byOffset(entries);
-    for (size_t i = 0; i < entries; i++) {
-        byOffset[i] = i;
-    }
-    std::sort(byOffset.begin(), byOffset.end(),
-              [&](size_t a, size_t b) { return reader.getOffset(a) < reader.getOffset(b); });
-    reader.setSequentialAdvice();
-
-    if (mode == SORT_MODE_LINEAR) {
-        const std::vector<size_t> bounds = splitByBytes(reader, &byOffset, files);
+    if (mode != SORT_MODE_SPILLSORT) {
+        const std::vector<size_t>* order = (mode == SORT_MODE_LINEAR) ? &byOffset : NULL;
+        const std::vector<size_t> bounds = splitByBytes(reader, order, files);
 #pragma omp parallel for schedule(dynamic, 1) num_threads(workers)
         for (size_t f = 0; f < files; f++) {
             unsigned int thread_idx = 0;
@@ -1707,7 +1142,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
             openPart(w, f);
             for (size_t i = bounds[f]; i < bounds[f + 1]; i++) {
                 progress.updateProgress();
-                const size_t id = byOffset[i];
+                const size_t id = (order != NULL) ? (*order)[i] : i;
                 char* data = reader.getData(id, thread_idx);
                 writeEntryRows(w, reader.getDbKey(id), data, entryLength(reader, id, data), thread_idx);
             }
@@ -1717,8 +1152,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
         return;
     }
 
-    // spillsort phase 1: scatter entries in file order into one temporary file per key sub-range
-    // record: uint64 key, uint64 length, data
+    // spillsort scatter entries in file order into one temporary file per key sub-range
     const size_t subs = std::max(files, (rawBytes + SUB_BYTES - 1) / SUB_BYTES);
     const std::vector<size_t> subBounds = splitByBytes(reader, NULL, subs);
     std::vector<DBKeyType> subFirstKey(subs);
@@ -1756,7 +1190,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
         buf.insert(buf.end(), reinterpret_cast<const char*>(&key), reinterpret_cast<const char*>(&key) + sizeof(key));
         buf.insert(buf.end(), reinterpret_cast<const char*>(&len), reinterpret_cast<const char*>(&len) + sizeof(len));
         buf.insert(buf.end(), data, data + len);
-        buf.push_back('\0');   // entries handed to the hooks are \0 terminated
+        buf.push_back('\0');
         if (buf.size() >= SPILL_BUFFER) {
             fwrite(buf.data(), 1, buf.size(), spills[s].fp);
             buf.clear();
@@ -1768,7 +1202,7 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
         fclose(spills[s].fp);
     }
 
-    // phase 2: each file gets consecutive sub-ranges; load (next one prefetched), sort by key, write
+    // phase 2: each file gets consecutive sub-ranges;
     auto loadSpill = [&](size_t s, std::vector<char>& out) {
         FILE* fp = FileUtil::openFileOrDie(spillNames[s].c_str(), "rb", true);
         fseek(fp, 0, SEEK_END);
@@ -1825,4 +1259,3 @@ void ParquetDBWriter::writeDbAsParquet(DBReader<DBKeyType>& reader, const std::s
     rmdir(spillDir.c_str());
     writeEmptyKeys();
 }
-

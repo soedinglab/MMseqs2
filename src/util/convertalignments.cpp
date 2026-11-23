@@ -751,7 +751,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         break;
                                     case Parameters::OUTFMT_QSETID:
                                         if (isParquet){
-                                            parquetWriter->writeCell(static_cast<int>(qKeyToSet[queryKey]), i);
+                                            parquetWriter->writeCell(static_cast<int64_t>(qKeyToSet[queryKey]), i);
                                         } else {
                                             result.append(SSTR(qKeyToSet[queryKey]));
                                         }
@@ -765,7 +765,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         break;
                                     case Parameters::OUTFMT_TSETID:
                                         if (isParquet){
-                                            parquetWriter->writeCell(static_cast<int>(tKeyToSet[res.dbKey]), i);
+                                            parquetWriter->writeCell(static_cast<int64_t>(tKeyToSet[res.dbKey]), i);
                                         } else {
                                             result.append(SSTR(tKeyToSet[res.dbKey]));
                                         }
