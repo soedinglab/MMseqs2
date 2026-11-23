@@ -352,10 +352,17 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( DBLocalId *assignedcluster) 
                 continue;
             }
 
-            if (keys.size() <= 1) {
+            // The representative's own hit can be missing (e.g. in the nucleotide
+            // workflow the query and target databases differ). Treat it as present
+            // so the sequence always claims itself; otherwise it can become the
+            // representative of its members while being a member elsewhere.
+            const DBKeyType selfKey = seqDbr->getDbKey(clusterId);
+            const bool hasSelf = std::find(keys.begin(), keys.end(), selfKey) != keys.end();
+            if (keys.size() + (hasSelf ? 0 : 1) <= 1) {
                 continue;
             }
 
+            assignedcluster[clusterId] = clusterId;
             for (DBKeyType key : keys) {
                 size_t currElement = seqDbr->getId(key);
 
