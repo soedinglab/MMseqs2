@@ -12,6 +12,7 @@
 #include <cstddef>
 
 std::vector<Sequence::SeqAuxInfo> Sequence::auxRegistry;
+std::string Sequence::auxProfileSuffix;
 
 void Sequence::registerAuxSplit(unsigned int extFlag,
                                 const unsigned char *primary,

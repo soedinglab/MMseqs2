@@ -85,12 +85,28 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     ungappedSubMatAux = NULL;
     const Sequence::SeqAuxInfo *auxInfoTarget = Sequence::getAuxInfo(targetSeqType);
     const Sequence::SeqAuxInfo *auxInfoQuery  = Sequence::getAuxInfo(querySeqType);
-    if (par.useAuxScoring && auxInfoTarget != NULL && auxInfoQuery != NULL && auxInfoTarget->auxMatData != NULL) {
+    qAuxProfileDbr = NULL;
+    const bool queryIsProfile = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE);
+    bool haveQueryAuxProfile = false;
+    const std::string auxProfileDB = queryDB + Sequence::auxProfileSuffix;
+    if (par.useAuxScoring && queryIsProfile && Sequence::auxProfileSuffix.empty() == false
+        && FileUtil::fileExists((auxProfileDB + ".dbtype").c_str())) {
+        haveQueryAuxProfile = true;
+    }
+    if (par.useAuxScoring && auxInfoTarget != NULL && (auxInfoQuery != NULL || haveQueryAuxProfile)
+        && auxInfoTarget->auxMatData != NULL) {
         std::string matName("aux.out");
         std::string matData(reinterpret_cast<const char*>(auxInfoTarget->auxMatData), auxInfoTarget->auxMatDataLen);
         char *serialized = BaseMatrix::serialize(matName, matData);
         ungappedSubMatAux = new SubstitutionMatrix(serialized, 2.0, -0.2f);
         free(serialized);
+        if (haveQueryAuxProfile) {
+            qAuxProfileDbr = new DBReader<DBKeyType>(auxProfileDB.c_str(), (auxProfileDB + ".index").c_str(),
+                                                      par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
+            qAuxProfileDbr->open(DBReader<DBKeyType>::NOSORT);
+            Debug(Debug::INFO) << "Using aux-channel query profile " << auxProfileDB
+                               << " for prefilter refinement\n";
+        }
     }
 
     if (Parameters::isEqualDbtype(FileUtil::parseDbType(targetDB.c_str()), Parameters::DBTYPE_INDEX_DB)) {
@@ -212,7 +228,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         const bool queryCPC = DBReader<DBKeyType>::getExtendedDbtype(querySeqType) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
         const bool targetCPC = DBReader<DBKeyType>::getExtendedDbtype(targetSeqType) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
         const bool contextPseudoCnts = queryCPC || targetCPC;
-        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore.values, kmerSize);
+        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore.values, kmerSize, qAuxProfileDbr != NULL);
     }else {
         kmerThr = 0;
     }
@@ -279,6 +295,11 @@ Prefiltering::~Prefiltering() {
 
     if (ungappedSubMatAux != NULL) {
         delete ungappedSubMatAux;
+    }
+    if (qAuxProfileDbr != NULL) {
+        qAuxProfileDbr->close();
+        delete qAuxProfileDbr;
+        qAuxProfileDbr = NULL;
     }
     if (kmerSubMat != ungappedSubMat) {
         delete ungappedSubMat;
@@ -826,6 +847,9 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
         Sequence seq(qdbr->getMaxSeqLen(), querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
+        Sequence *seqAux = (qAuxProfileDbr != NULL)
+            ? new Sequence(qdbr->getMaxSeqLen(), Parameters::DBTYPE_HMM_PROFILE, ungappedSubMatAux, 0, false, false, false)
+            : NULL;
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
                              kmerThr, kmerSize, dbSize, std::max(tdbr->getMaxSeqLen(),qdbr->getMaxSeqLen()), maxResListLen, aaBiasCorrection, aaBiasCorrectionScale,
                              diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES,
@@ -854,6 +878,15 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             char *seqData = qdbr->getData(id, thread_idx);
             DBKeyType qKey = qdbr->getDbKey(id);
             seq.mapSequence(id, qKey, seqData, qdbr->getSeqLen(id));
+            Sequence *seqAuxPtr = NULL;
+            if (seqAux != NULL) {
+                size_t idAux = qAuxProfileDbr->getId(qKey);
+                if (idAux != DB_ENTRY_NOT_FOUND) {
+                    seqAux->mapSequence(idAux, qKey, qAuxProfileDbr->getData(idAux, thread_idx),
+                                         qAuxProfileDbr->getSeqLen(idAux));
+                    seqAuxPtr = (seqAux->L == seq.L) ? seqAux : NULL;
+                }
+            }
             DBLocalId targetSeqId = DB_LOCAL_ID_INVALID;
             if (sameQTDB || includeIdentical) {
                 size_t foundTargetSeqId = tdbr->getId(seq.getDbKey());
@@ -872,7 +905,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             if (taxonomyHook != NULL) {
                 taxonomyHook->setDbFrom(dbFrom);
             }
-            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId, targetSeqType == Parameters::DBTYPE_NUCLEOTIDES);
+            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId, targetSeqType == Parameters::DBTYPE_NUCLEOTIDES, seqAuxPtr);
             size_t resultSize = prefResults.second;
             const float queryLength = static_cast<float>(qdbr->getSeqLen(id));
             for (size_t i = 0; i < resultSize; i++) {
@@ -917,6 +950,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 reslens[thread_idx]->emplace_back(resultSize);
             }
         } // step end
+        delete seqAux;
     }
 
     if (Debug::debugLevel >= Debug::INFO) {
@@ -1035,7 +1069,7 @@ void Prefiltering::mergePrefilterSplits(const std::string &outDB, const std::str
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts, const SeqProf<int> kmerScore, const int kmerSize) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts, const SeqProf<int> kmerScore, const int kmerSize, const bool auxProfile) {
     if (isProfile == true && kmerScore.profile() != INT_MAX) {
         return kmerScore.profile();
     }
@@ -1045,7 +1079,8 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
     float kmerThrBest = FLT_MAX;
     int paramType = isProfile ? Parameters::DBTYPE_HMM_PROFILE : Parameters::DBTYPE_AMINO_ACIDS;
     for(size_t i = 0; i < externalThreshold.size(); i++){
-        if(kmerSize == externalThreshold[i].kmerSize && externalThreshold[i].sequenceType == paramType){
+        if(kmerSize == externalThreshold[i].kmerSize && externalThreshold[i].sequenceType == paramType
+           && externalThreshold[i].auxProfile == (isProfile && auxProfile)){
             return static_cast<int>(externalThreshold[i].base - (externalThreshold[i].sensPerStep * sensitivity));
         }
     }

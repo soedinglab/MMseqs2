@@ -20,6 +20,7 @@ struct KmerThreshold{
     int kmerSize;
     float base;
     float sensPerStep;
+    bool auxProfile = false;
 };
 
 extern std::vector<KmerThreshold> externalThreshold;
@@ -57,7 +58,7 @@ public:
                            size_t& maxResListLen, int& kmerSize, int& split, int& splitMode);
 
     static int getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts,
-                                const SeqProf<int> kmerScore, const int kmerSize);
+                                const SeqProf<int> kmerScore, const int kmerSize, const bool auxProfile = false);
 
     static void mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex,
                                   const std::vector<std::pair<std::string, std::string>> &fileNames, unsigned int threads);
@@ -75,6 +76,7 @@ private:
     BaseMatrix *kmerSubMat;
     BaseMatrix *ungappedSubMat;
     BaseMatrix *ungappedSubMatAux;
+    DBReader<DBKeyType> *qAuxProfileDbr;
     ScoreMatrix _2merSubMatrix;
     ScoreMatrix _3merSubMatrix;
     IndexTable *indexTable;

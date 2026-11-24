@@ -63,7 +63,8 @@ public:
 
     // returns result for the sequence
     // identityId is the id of the identical sequence in the target database if there is any, DB_LOCAL_ID_INVALID otherwise
-    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, DBLocalId identityId, bool isNucleotide);
+    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, DBLocalId identityId, bool isNucleotide,
+                                         Sequence *querySeqAux = NULL);
 
     void setQueryMatcherHook(QueryMatcherHook* hook) {
         this->hook = hook;
@@ -238,7 +239,7 @@ protected:
                                 CounterResult *writePos, const unsigned int scoreThreshold,
                                 const CounterResult *results, const size_t resultSize);
 
-    std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, unsigned int *scoreSizes, CounterResult *results,
+    std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, Sequence * querySeqAux, unsigned int *scoreSizes, CounterResult *results,
                                                 size_t resultSize, UngappedAlignment *align, int lowerBoundScore);
 
 #define CacheFriendlyOperations(x)  CacheFriendlyOperations<x> * cachedOperation##x

@@ -542,6 +542,7 @@ public:
         unsigned int auxAlphabetSize;        // number of states in aux alphabet (e.g. 12)
     };
     static std::vector<SeqAuxInfo> auxRegistry;
+    static std::string auxProfileSuffix;
     static void registerAuxSplit(unsigned int extFlag,
                                  const unsigned char *primary,
                                  const unsigned char *aux,
