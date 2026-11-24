@@ -562,6 +562,7 @@ public:
     MultiParam<PseudoCounts> pca;
     MultiParam<PseudoCounts> pcb;
     int profileOutputMode;
+    int profileAuxChannel;
 
     // pickrepprofile / pickconsensusrepfast
     bool switchConsensusRep;
@@ -932,6 +933,7 @@ public:
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
     PARAMETER(PARAM_PROFILE_OUTPUT_MODE)
+    PARAMETER(PARAM_PROFILE_AUX_CHANNEL)
 
     // pickrepprofile / pickconsensusrepfast
     PARAMETER(PARAM_SWITCH_CONSENSUS_REP)
