@@ -553,6 +553,9 @@ public:
     // Per-instance remap pointers (NULL if no remap active)
     const unsigned char *activePrimaryRemap;
     const unsigned char *activeAuxRemap;
+    // activePrimaryRemap followed by the matrix's reduceIndex(), for decoding DB bytes in mapSequence(const char *)
+    const unsigned char *rawPrimaryRemap;
+    unsigned char reducedPrimaryRemap[256];
 
 private:
     void mapSequence(const char *seq, unsigned int dataLen);

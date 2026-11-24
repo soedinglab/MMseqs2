@@ -59,6 +59,8 @@ public:
 
     virtual double getBackgroundProb(size_t aa_index);
 
+    virtual unsigned char reduceIndex(unsigned char origIndex) const { return origIndex; }
+
     virtual void setupLetterMapping() {};
 
     virtual float getBitFactor() {return 1.0; }
