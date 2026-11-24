@@ -2,6 +2,7 @@
 #define MMSEQS_EVALUE_COMPUTATION_H
 
 #include "Debug.h"
+#include "NucleotideMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "sls_alignment_evaluer.hpp"
@@ -66,12 +67,12 @@ private:
                                                        1.0135243407674570104, -2.5226486486783059604,
                                                        1.0135243407674570104, -2.5226486486783059604,
                                                        1.0031949332622873694, -2.3780369436059309862 }},
-                {"blosum62.out", 11, 1, true,  {0.27359865037097330642, 0.044620920658722244834,
-                                                       1.5938724404943873658, -19.959867650284412122,
-                                                       1.5938724404943873658, -19.959867650284412122,
-                                                       30.455610143099914211, -622.28684628915891608,
-                                                       30.455610143099914211, -622.28684628915891608,
-                                                       29.602444874818868215, -601.81087985041381216}},
+                {"blosum62.out", 11, 1, true,  {0.25268120083384587593, 0.030136802276522055982,
+                                                       2.1287352075023013853, -30.06352622026815169,
+                                                       2.1287352075023013853, -30.06352622026815169,
+                                                       56.246590827638115684, -1137.8311841582360557,
+                                                       56.246590827638115684, -1137.8311841582360557,
+                                                       54.748265481143981503, -1104.8680265353650611}},
                 {"blosum62.out", 0,  0, false, {0.3207378152604042354,  0.13904657125294345166,
                                                        0.76221128839920349041, 0,
                                                        0.76221128839920349041, 0,
@@ -105,11 +106,13 @@ private:
                 }
             }
             if(isGapped) {
+                const bool isNucleotide = dynamic_cast<NucleotideMatrix*>(subMat) != NULL;
+                const int alpGapOpen = isNucleotide ? gapOpen : gapOpen - gapExtend;
                 //-1 to avoid X
                 evaluer.initGapped(
                         subMat->alphabetSize-1, (const long *const *)tmpMat,
                         subMat->pBack, subMat->pBack,
-                        gapOpen, gapExtend, gapOpen, gapExtend,
+                        alpGapOpen, gapExtend, alpGapOpen, gapExtend,
                         false, lambdaTolerance, kTolerance,
                         maxSeconds, maxMegabytes, randomSeed);
 //                std::cout << std::setprecision(20) <<
