@@ -42,6 +42,8 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
         char * pssm = (char * )mem_align(16, Sequence::PROFILE_AA_SIZE * sequenceDb.getMaxSeqLen() * sizeof(char));
         float * Neff_M = new float[sequenceDb.getMaxSeqLen()];
         std::fill(Neff_M, Neff_M + sequenceDb.getMaxSeqLen(), 1.0f);
+        float * profile = new float[Sequence::PROFILE_AA_SIZE * sequenceDb.getMaxSeqLen()];
+        unsigned char * consensus = new unsigned char[sequenceDb.getMaxSeqLen()];
 
         int thread_idx = 0;
 #ifdef OPENMP
@@ -57,12 +59,19 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             unsigned int seqLen = sequenceDb.getSeqLen(id);
 
             seq.mapSequence(id, queryKey, seqData, seqLen);
-            float * profile = ps.computeSequenceCs(seq.numSequence, seq.L, par.tau);
+            float * csProfile = ps.computeSequenceCs(seq.numSequence, seq.L, par.tau);
+            // CSProfile rows have PROFILE_AA_SIZE + 4 entries, the consensus is stored as letters
+            for (int pos = 0; pos < seq.L; pos++) {
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                    profile[pos * Sequence::PROFILE_AA_SIZE + aa] = csProfile[pos * (Sequence::PROFILE_AA_SIZE + 4) + aa];
+                }
+                consensus[pos] = subMat.num2aa[seq.numSequence[pos]];
+            }
             PSSMCalculator::computeLogPSSM(&subMat, pssm, profile, 8.0,  seq.L, 0.0);
 #ifdef GAP_POS_SCORING
-            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, NULL, NULL, seq.numSequence);
+            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, NULL, NULL, consensus);
 #else
-            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, seq.numSequence);
+            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, consensus);
 #endif
             if (par.maskProfile == true) {
                 masker.maskPssm(seq, par.maskProb, pssmRes);
@@ -74,6 +83,8 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
         }
         free(pssm);
         delete [] Neff_M;
+        delete [] profile;
+        delete [] consensus;
     }
     sequenceDb.close();
     resultDbw.close();
