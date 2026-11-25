@@ -162,6 +162,7 @@ public:
           aaBiasCorrection(aaBiasCorrection),
           aaBiasCorrectionScale(aaBiasCorrectionScale),
           queryLength(0),
+          isProfile(false),
           alphabetSize(0),
           maxSegLen(static_cast<int32_t>((this->maxSequenceLength + (VECSIZE_INT * 4) - 1) / (VECSIZE_INT * 4))),
           bias(0),
@@ -207,7 +208,7 @@ public:
     }
 
     void initQuery(const Sequence *q, const int8_t *mat, const BaseMatrix *m) {
-        const bool isProfile = Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE);
+        isProfile = Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE);
         queryLength = q->L;
         alphabetSize = m->alphabetSize;
 
@@ -279,6 +280,33 @@ public:
         return scoreImpl<true>(db_sequence, db_length, bestDiagonal);
     }
 
+    int saturationScore() const {
+        return 255 - static_cast<int>(bias);
+    }
+
+    int scoreExact(const unsigned char *db_sequence, int32_t db_length, int &bestDiagonal) const {
+        std::vector<int> exactPrev(queryLength + 1, 0);
+        std::vector<int> exactCurr(queryLength + 1, 0);
+        int best = 0;
+        bestDiagonal = 0;
+        for (int32_t j = 0; j < db_length; j++) {
+            const int nt = db_sequence[j];
+            for (int32_t i = 0; i < queryLength; i++) {
+                const int subst = isProfile
+                        ? queryMat[nt * queryLength + i]
+                        : queryMat[nt * alphabetSize + querySequence[i]] + compositionBias[i];
+                const int cell = std::max(exactPrev[i] + subst, 0);
+                exactCurr[i + 1] = cell;
+                if (cell > best) {
+                    best = cell;
+                    bestDiagonal = i - j;
+                }
+            }
+            std::swap(exactPrev, exactCurr);
+        }
+        return best;
+    }
+
 private:
     // TrackDiagonal is a compile-time flag so the non-tracking path generates exactly the code
     // it would without the diagonal bookkeeping.
@@ -345,16 +373,17 @@ private:
                 if (columnBest > trackedBest) {
                     trackedBest = columnBest;
                     const unsigned char *cells = (const unsigned char *) s_curr;
-                    for (int band = 0; band < W; band++) {
-                        for (int lane = 0; lane < element_count; lane++) {
+                    // visit query positions in increasing order, so ties go to the smallest one
+                    for (int lane = 0; lane < element_count; lane++) {
+                        for (int band = 0; band < W; band++) {
                             // striped layout: query position = band + lane * W (createQueryProfile)
                             const int queryPos = band + lane * W;
                             if (queryPos >= queryLength) {
-                                continue;  // padded lanes, never the real maximum
+                                break;  // padded lanes, never the real maximum
                             }
                             if ((int) cells[band * element_count + lane] == columnBest) {
                                 trackedDiagonal = queryPos - j;
-                                band = W;  // break out of both loops
+                                lane = element_count;  // break out of both loops
                                 break;
                             }
                         }
@@ -375,6 +404,7 @@ private:
     float aaBiasCorrectionScale;
 
     int32_t queryLength;
+    bool isProfile;
     int32_t alphabetSize;
     int32_t maxSegLen;
     uint8_t bias;

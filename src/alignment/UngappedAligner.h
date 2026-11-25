@@ -23,6 +23,8 @@ public:
         virtual void initQuery(const Sequence *q, const int8_t *mat, const BaseMatrix *m) = 0;
         virtual int score(const unsigned char *db_sequence, int32_t db_length) const = 0;
         virtual int score(const unsigned char *db_sequence, int32_t db_length, int &bestDiagonal) const = 0;
+        virtual int saturationScore() const = 0;
+        virtual int scoreExact(const unsigned char *db_sequence, int32_t db_length, int &bestDiagonal) const = 0;
     };
 
     UngappedAligner(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, float aaBiasCorrectionScale);
@@ -48,6 +50,17 @@ public:
     // 2-argument form whenever the diagonal is not needed, so the hot path stays untouched.
     int score(const unsigned char *db_sequence, int32_t db_length, int &bestDiagonal) const {
         return impl->score(db_sequence, db_length, bestDiagonal);
+    }
+
+    // Score at which score() saturates (255 - bias).
+    int saturationScore() const {
+        return impl->saturationScore();
+    }
+
+    // Exact score and diagonal with plain integers, for pairs whose score() reached saturationScore().
+    // Ties go to the smallest db position, then the smallest query position, as in score().
+    int scoreExact(const unsigned char *db_sequence, int32_t db_length, int &bestDiagonal) const {
+        return impl->scoreExact(db_sequence, db_length, bestDiagonal);
     }
 
     // Name of the SIMD backend the dispatcher selected, for debug output.
