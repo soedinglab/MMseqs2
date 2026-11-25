@@ -35,18 +35,27 @@ struct GPUSharedMemory {
     unsigned int resultsOffset;               // Offset to the results data
     unsigned int resultLen;                   // Length of the result list
     unsigned int profileOffset;               // Offset to the profile data
+    unsigned int profileAuxOffset;            // Offset to the aux profile data (packed two-alphabet db)
+    bool packedDb;                            // Server db is a packed two-alphabet db
+    int topNSize;                             // Requested result list length (packed db)
+    int maskThreshold;                        // Repeat masking threshold (packed db)
+    char maskLetter;                          // Masking letter (packed db)
+
+    static const unsigned int AUX_PROFILE_ROWS = 12;
 
     // Get pointers to the query, results, and profile data sections
     int8_t* getQueryPtr() { return reinterpret_cast<int8_t*>(this) + queryOffset; }
     Marv::Result* getResultsPtr() { return reinterpret_cast<Marv::Result*>(reinterpret_cast<char*>(this) + resultsOffset); }
     int8_t* getProfilePtr() { return reinterpret_cast<int8_t*>(this) + profileOffset; }
+    int8_t* getProfileAuxPtr() { return reinterpret_cast<int8_t*>(this) + profileAuxOffset; }
 
     // Calculate the total size needed for the shared memory
     static size_t calculateSize(unsigned int maxSeqLen, unsigned int maxResListLen) {
         return sizeof(GPUSharedMemory) +
                sizeof(char) * maxSeqLen +              // Size for query data
                sizeof(Marv::Result) * maxResListLen +  // Size for results data
-               sizeof(int8_t) * 21 * maxSeqLen;        // Size for profile data
+               sizeof(int8_t) * 21 * maxSeqLen +       // Size for profile data
+               sizeof(int8_t) * AUX_PROFILE_ROWS * maxSeqLen; // Size for aux profile data
     }
 
     static std::string getShmHash(const std::string& db);

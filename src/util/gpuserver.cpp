@@ -39,6 +39,15 @@ int gpuserver(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
+    const bool packedDb = DBReader<DBKeyType>::getExtendedDbtype(dbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_AUX_SEQ;
+    if (packedDb && par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
+        Debug(Debug::ERROR) << "--prefilter-mode " << par.prefMode << " is not supported for packed two-alphabet databases\n";
+        EXIT(EXIT_FAILURE);
+    }
+    const unsigned int maxResults = packedDb
+        ? (unsigned int) std::max(par.maxResListLen, std::min(dbr->getSize(), (size_t) Parameters::AUX_RESCORE_TOP_N))
+        : (unsigned int) par.maxResListLen;
+
     std::vector<size_t> offsets;
     offsets.reserve(dbr->getSize() + 1);
 
@@ -74,14 +83,22 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     sigaction(SIGTERM, &act, NULL);
 
     std::string shmFile = GPUSharedMemory::getShmHash(par.db1);
-    GPUSharedMemory* layout = GPUSharedMemory::alloc(shmFile, par.maxSeqLen, par.maxResListLen);
+    GPUSharedMemory* layout = GPUSharedMemory::alloc(shmFile, par.maxSeqLen, maxResults);
+    layout->packedDb = packedDb;
     Debug(Debug::WARNING) << shmFile << "\n";
     while (keepRunning) {
         if (layout->state.load(std::memory_order_acquire) == GPUSharedMemory::READY) {
             std::atomic_thread_fence(std::memory_order_acquire);
 
-            Marv::Stats stats = marvSearch(marv, gapped, reinterpret_cast<const char *>(layout->getQueryPtr()), layout->queryLen,
-                                           layout->getProfilePtr(), par.maxResListLen, layout->getResultsPtr());
+            Marv::Stats stats;
+            if (packedDb) {
+                stats = marv.search_scoreOnly_foldseek(
+                    layout->getResultsPtr(), layout->queryLen, layout->getProfilePtr(), layout->getProfileAuxPtr(),
+                    layout->topNSize, true, true, layout->maskLetter, layout->maskThreshold);
+            } else {
+                stats = marvSearch(marv, gapped, reinterpret_cast<const char *>(layout->getQueryPtr()), layout->queryLen,
+                                   layout->getProfilePtr(), par.maxResListLen, layout->getResultsPtr());
+            }
             layout->resultLen = stats.results;
 
             std::atomic_thread_fence(std::memory_order_release);

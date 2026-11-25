@@ -328,6 +328,7 @@ public:
     static const int PREF_MODE_UNGAPPED = 1;
     static const int PREF_MODE_EXHAUSTIVE = 2;
     static const int PREF_MODE_UNGAPPED_AND_GAPPED = 3;
+    static const size_t AUX_RESCORE_TOP_N = 100000;
 
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
