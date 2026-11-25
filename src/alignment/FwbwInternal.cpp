@@ -98,6 +98,25 @@ inline simd_float loadCols(const float *row, int p, int cols, float pad) {
 #endif
 }
 
+// a double kept in two floats: high 32 bits in high[j], low 32 bits in low[j]
+inline void storeDoubleHalves(float *high, float *low, int j, double v) {
+    uint64_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    const uint32_t half[2] = {(uint32_t)(bits >> 32), (uint32_t)bits};
+    memcpy(&high[j], &half[0], sizeof(float));
+    memcpy(&low[j], &half[1], sizeof(float));
+}
+
+inline double loadDoubleHalves(const float *high, const float *low, int j) {
+    uint32_t half[2];
+    memcpy(&half[0], &high[j], sizeof(float));
+    memcpy(&half[1], &low[j], sizeof(float));
+    const uint64_t bits = ((uint64_t)half[0] << 32) | half[1];
+    double v;
+    memcpy(&v, &bits, sizeof(v));
+    return v;
+}
+
 inline void storeCols(float *row, int p, int cols, simd_float a) {
     if (p + VECSIZE_FLOAT <= cols) {
         simdf32_storeu(row + p, a);
@@ -134,10 +153,12 @@ class ScaledFwBw {
 public:
     // with expScores, expScore holds exp(score / temperature) rows and score the score rows,
     // otherwise both are the score rows
+    // rowMaxP: largest P of each row, if given
     template<bool expScores>
     void run(FwBwAligner::ScaledMode mode, float **score, float **expScore, int rows, int cols, float temperature,
-             float exp_go, float exp_ge, float **prob, float &maxP) {
+             float exp_go, float exp_ge, float **prob, float &maxP, float *rowMaxP = nullptr) {
         this->temperature = temperature;
+        this->rowMaxP = rowMaxP;
         const bool checkZ = (mode != FwBwAligner::SCALED_FAST);
         bool valid;
         // without a gap extension penalty the powers of exp_ge are 1 and their products are left out
@@ -154,9 +175,6 @@ public:
         if (runScaledDouble(score, rows, cols, exp_go, exp_ge, prob, maxP) == false) {
             runLogDouble(score, rows, cols, exp_go, exp_ge, prob, maxP);
         }
-        // rows x cols doubles, only needed by the rare calls that fall back
-        std::vector<double>().swap(dM);
-        std::vector<double>().swap(dExpScore);
         std::vector<double>().swap(dPred);
         for (int k = 0; k < 6; ++k) {
             std::vector<double>().swap(dRow[k]);
@@ -259,11 +277,9 @@ private:
     // a path next to a much stronger one can underflow in runScaledFloat, double mantissas keep it
     bool runScaledDouble(float **score, int rows, int cols, float exp_go, float exp_ge, float **prob, float &maxP) {
         const int blocks = (cols + DOUBLE_BLOCK_COLS - 1) / DOUBLE_BLOCK_COLS;
-        if (dM.size() < (size_t)rows * cols) {
-            dM.resize((size_t)rows * cols);
-        }
-        if (dExpScore.size() < (size_t)rows * cols) {
-            dExpScore.resize((size_t)rows * cols);
+        // forward M for the backward pass: high 32 bits in expScore, low 32 bits in prob (free until P is written)
+        if (expScore.size() < (size_t)rows * cols) {
+            expScore.resize((size_t)rows * cols);
         }
         if (dFwdScale.size() < (size_t)rows * blocks) {
             dFwdScale.resize((size_t)rows * blocks);
@@ -295,10 +311,11 @@ private:
         const double negInf = -std::numeric_limits<double>::infinity();
         const double logGo = std::log((double)exp_go);
         const double logGe = std::log((double)exp_ge);
-        if (dM.size() < (size_t)rows * cols) {
-            dM.resize((size_t)rows * cols);
+        // M in expScore and prob as in runScaledDouble
+        if (expScore.size() < (size_t)rows * cols) {
+            expScore.resize((size_t)rows * cols);
         }
-        double *M = dM.data();
+        float *const mHigh = expScore.data();
         std::vector<double> &prevE = dRow[0], &currE = dRow[1], &prevF = dRow[2], &currF = dRow[3];
         prevE.assign(cols, negInf);
         currE.assign(cols, negInf);
@@ -306,13 +323,16 @@ private:
         currF.assign(cols, negInf);
         double logZ = negInf;
         for (int i = 0; i < rows; ++i) {
+            float *mHighRow = mHigh + (size_t)i * cols;
+            const float *mHighUp = (i > 0) ? mHighRow - cols : nullptr;
+            const float *mLowUp = (i > 0) ? prob[i - 1] : nullptr;
             for (int j = 0; j < cols; ++j) {
                 const double s = score[i][j] / temperature;
-                const double pred = (i > 0 && j > 0) ? logSumExp(M[(size_t)(i - 1) * cols + j - 1], prevE[j - 1], prevF[j - 1]) : negInf;
+                const double pred = (i > 0 && j > 0) ? logSumExp(loadDoubleHalves(mHighUp, mLowUp, j - 1), prevE[j - 1], prevF[j - 1]) : negInf;
                 const double m = (s == negInf) ? negInf : s + logSumExp(pred, 0.0);
-                M[(size_t)i * cols + j] = m;
-                currF[j] = (i > 0) ? logSumExp(M[(size_t)(i - 1) * cols + j] + logGo, prevF[j] + logGe) : negInf;
-                currE[j] = (j > 0) ? logSumExp(M[(size_t)i * cols + j - 1] + logGo, currE[j - 1] + logGe) : negInf;
+                storeDoubleHalves(mHighRow, prob[i], j, m);
+                currF[j] = (i > 0) ? logSumExp(loadDoubleHalves(mHighUp, mLowUp, j) + logGo, prevF[j] + logGe) : negInf;
+                currE[j] = (j > 0) ? logSumExp(loadDoubleHalves(mHighRow, prob[i], j - 1) + logGo, currE[j - 1] + logGe) : negInf;
                 logZ = logSumExp(logZ, m);
             }
             std::swap(prevE, currE);
@@ -323,6 +343,9 @@ private:
             for (int i = 0; i < rows; ++i) {
                 std::fill(prob[i], prob[i] + cols, 0.0f);
             }
+            if (rowMaxP != nullptr) {
+                std::fill(rowMaxP, rowMaxP + rows, 0.0f);
+            }
             return;
         }
         std::vector<double> &nextBM = dRow[0], &nextBE = dRow[1], &nextBF = dRow[2];
@@ -332,6 +355,7 @@ private:
         }
         double maxPd = 0.0;
         for (int i = rows - 1; i >= 0; --i) {
+            double rowMaxPd = 0.0;
             for (int j = cols - 1; j >= 0; --j) {
                 const double s = score[i][j] / temperature;
                 const double pred = (i < rows - 1 && j < cols - 1) ? logSumExp(nextBM[j + 1], nextBE[j + 1], nextBF[j + 1]) : negInf;
@@ -339,9 +363,13 @@ private:
                 currBM[j] = bm;
                 currBF[j] = (i < rows - 1) ? logSumExp(nextBM[j] + logGo, nextBF[j] + logGe) : negInf;
                 currBE[j] = (j < cols - 1) ? logSumExp(currBM[j + 1] + logGo, currBE[j + 1] + logGe) : negInf;
-                const double p = (s == negInf) ? 0.0 : std::exp(M[(size_t)i * cols + j] + bm - s - logZ);
+                const double p = (s == negInf) ? 0.0 : std::exp(loadDoubleHalves(mHigh + (size_t)i * cols, prob[i], j) + bm - s - logZ);
                 prob[i][j] = (float)p;
                 maxPd = std::max(maxPd, p);
+                rowMaxPd = std::max(rowMaxPd, p);
+            }
+            if (rowMaxP != nullptr) {
+                rowMaxP[i] = (float)rowMaxPd;
             }
             std::swap(nextBM, currBM);
             std::swap(nextBE, currBE);
@@ -423,6 +451,7 @@ private:
             float carryE = 0.0f;
             int carryScale = 0;
             int diagLeftScale = 0;
+            simd_float vRowMaxP = simdf32_setzero();
             // inlined into both calls below, so that the row and pass state stay in registers
             const auto processBlock = [&](const int b, const bool edge) __attribute__((__always_inline__)) {
                 const int j0 = b * BLOCK_COLS;
@@ -572,7 +601,7 @@ private:
                         } else {
                             simdf32_storeu(probRow + p, simdf32_reverse(P));
                         }
-                        vMaxP = simdf32_max(vMaxP, P);
+                        vRowMaxP = simdf32_max(vRowMaxP, P);
                         pSum = simdf32_add(pSum, P);
                     }
                     nan = simdf32_or(nan, simdf32_cmp(pSum, pSum, _CMP_UNORD_Q));
@@ -586,6 +615,12 @@ private:
                     processBlock(b, true);
                 } else {
                     processBlock(b, false);
+                }
+            }
+            if (backward) {
+                vMaxP = simdf32_max(vMaxP, vRowMaxP);
+                if (rowMaxP != nullptr) {
+                    rowMaxP[i] = simdf32_hmax(vRowMaxP);
                 }
             }
         }
@@ -630,10 +665,11 @@ private:
         bool valid = true;
         for (int row = 0; row < rows; ++row) {
             const int i = backward ? rows - 1 - row : row;
-            double *expRow = dExpScore.data() + (size_t)i * cols;
-            double *mFwdRow = dM.data() + (size_t)i * cols;
+            float *mFwdHigh = expScore.data() + (size_t)i * cols;
+            float *mFwdLow = prob[i];
             int *fwdScaleRow = dFwdScale.data() + (size_t)i * blocks;
             double mLeft = 0.0, eLeft = 0.0;
+            double rowMaxPd = 0.0;
             int leftScale = 0;
             for (int b = 0; b < blocks; ++b) {
                 const int c0 = b * DOUBLE_BLOCK_COLS;
@@ -657,13 +693,7 @@ private:
                 // c: column in pass order, j: column in the matrix
                 for (int c = c0; c < c1; ++c) {
                     const int j = backward ? cols - 1 - c : c;
-                    double expS;
-                    if (!backward) {
-                        expS = std::exp((double)(score[i][j] / temperature));
-                        expRow[j] = expS;
-                    } else {
-                        expS = expRow[j];
-                    }
+                    const double expS = std::exp((double)(score[i][j] / temperature));
                     const double pred = diagPrev[c] * ((c == c0) ? fromDiagLeft : fromAbove) + localStart;
                     const double f = (mPrev[c] * exp_go + fPrev[c] * exp_ge) * fromAbove;
                     e = m * exp_go + e * exp_ge;
@@ -693,22 +723,28 @@ private:
                 dCurrScale[b] = newScale;
                 if (!backward) {
                     for (int c = c0; c < c1; ++c) {
-                        mFwdRow[c] = mCurr[c];
+                        storeDoubleHalves(mFwdHigh, mFwdLow, c, mCurr[c]);
                     }
                     fwdScaleRow[b] = newScale;
                 } else {
                     for (int c = c0; c < c1; ++c) {
                         const int j = cols - 1 - c;
                         const int pExp = fwdScaleRow[j / DOUBLE_BLOCK_COLS] + scale - zExp;
-                        const double p = mFwdRow[j] * dPred[c] * zInvMant * pow2d(pExp / 2) * pow2d(pExp - pExp / 2);
+                        // before P overwrites the low half
+                        const double mFwd = loadDoubleHalves(mFwdHigh, mFwdLow, j);
+                        const double p = mFwd * dPred[c] * zInvMant * pow2d(pExp / 2) * pow2d(pExp - pExp / 2);
                         prob[i][j] = (float)p;
                         if (std::isnan(p)) {
                             valid = false;
                         }
                         maxPd = std::max(maxPd, p);
+                        rowMaxPd = std::max(rowMaxPd, p);
                     }
                 }
                 ZSum::add(sumM, newScale, z.value, z.exp);
+            }
+            if (backward && rowMaxP != nullptr) {
+                rowMaxP[i] = (float)rowMaxPd;
             }
             std::swap(mPrev, mCurr);
             std::swap(fPrev, fCurr);
@@ -735,6 +771,7 @@ private:
     }
 
     float temperature;
+    float *rowMaxP = nullptr;
     std::vector<float> prevM, prevF;
     std::vector<float> diagRow[2];
     std::vector<int> prevScale;
@@ -742,8 +779,7 @@ private:
     std::vector<float> expScore;
     ZSum zFwd, zBwd;
     // runScaledDouble and runLogDouble
-    std::vector<double> dM, dRow[6];
-    std::vector<double> dExpScore, dPred;
+    std::vector<double> dRow[6], dPred;
     std::vector<int> dFwdScale;
     std::vector<int> dPrevScale, dCurrScale;
 };
@@ -767,7 +803,7 @@ public:
     void setScaledMode(FwBwAligner::ScaledMode mode) { scaledMode = mode; }
     void initProfile(unsigned char* colAANum, size_t colAALen);
     void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen);
-    void initScoreMatrix(float** inputScoreMatrix, int* gaps);
+    void initScoreMatrix(float** inputScoreMatrix, int* gaps, float** probMatrix, float* rowMaxP);
     void runFwBw(bool profile, int backtraceMode);
     FwBwAligner::s_align getFwbwAlnResult() const;
 
@@ -862,6 +898,10 @@ private:
     ScaledFwBw<32> scaledFwBwProfile;
     std::vector<float*> scaledProfileRows;
     std::vector<float*> scoreMatrixRows;
+    // caller rows for P and the row maxima, see initScoreMatrix
+    std::vector<float*> probRows;
+    bool probOut = false;
+    float *rowMaxP = nullptr;
     std::vector<float> macRow[2];
 };
 
@@ -1146,7 +1186,7 @@ void Impl::initAlignment(unsigned char* targetAANum, size_t targetLen, size_t qu
     resizeMatrix<true, true>(targetLen, queryLen);
 }
 
-void Impl::initScoreMatrix(float** inputScoreMatrix, int* gaps) {
+void Impl::initScoreMatrix(float** inputScoreMatrix, int* gaps, float** probMatrix, float* rowMaxP) {
     //gaps: [rowStart, rowEnd, colStart, colEnd]
     rowSeqLen = gaps[1]-gaps[0]; colSeqLen = gaps[3]-gaps[2]; //row=tlen, col=qlen
     colSeqLen_padding = ((colSeqLen + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT) * VECSIZE_FLOAT; //colpadding
@@ -1156,6 +1196,14 @@ void Impl::initScoreMatrix(float** inputScoreMatrix, int* gaps) {
     for (size_t i = 0; i < rowSeqLen; ++i) {
         scoreMatrixRows[i] = inputScoreMatrix[i + gaps[0]] + gaps[2];
     }
+    probOut = (probMatrix != nullptr);
+    if (probOut) {
+        probRows.resize(rowSeqLen);
+        for (size_t i = 0; i < rowSeqLen; ++i) {
+            probRows[i] = probMatrix[i + gaps[0]] + gaps[2];
+        }
+    }
+    this->rowMaxP = (rowMaxP != nullptr) ? rowMaxP + gaps[0] : nullptr;
 }
 
 void Impl::initProfile(unsigned char* colAANum, size_t colAALen) {
@@ -2033,7 +2081,7 @@ void Impl::resizeMatrix(bool profile, bool backtrace, size_t newRowsCapacity, si
 
 void Impl::runFwBw(bool profile, int backtraceMode) {
     if (scaledMode != FwBwAligner::SCALED_OFF) {
-        P = zm;
+        P = (profile == false && probOut) ? probRows.data() : zm;
         const int rows = (int)rowSeqLen;
         const int cols = (int)colSeqLen;
         if (profile) {
@@ -2046,7 +2094,7 @@ void Impl::runFwBw(bool profile, int backtraceMode) {
             scaledFwBwProfile.run<true>(scaledMode, scaledProfileRows.data(), scaledProfileRows.data() + rowSeqLen,
                                         rows, cols, 1.0f, exp_go, exp_ge, zm, maxP);
         } else {
-            scaledFwBw.run<false>(scaledMode, scoreMatrixRows.data(), scoreMatrixRows.data(), rows, cols, temperature, exp_go, exp_ge, zm, maxP);
+            scaledFwBw.run<false>(scaledMode, scoreMatrixRows.data(), scoreMatrixRows.data(), rows, cols, temperature, exp_go, exp_ge, P, maxP, rowMaxP);
         }
         switch (backtraceMode) {
             case 0: break;
@@ -2091,6 +2139,22 @@ void Impl::runFwBw(bool profile, int backtraceMode) {
             case 2: runFwBw<false, 2>(); break;
             case 3: runFwBw<false, 3>(); break;
             default: runFwBw<false, 1>(); break;
+        }
+        // the log kernel works in zm
+        if (probOut) {
+            for (size_t i = 0; i < rowSeqLen; ++i) {
+                std::copy(zm[i], zm[i] + colSeqLen, probRows[i]);
+            }
+            P = probRows.data();
+        }
+        if (rowMaxP != nullptr) {
+            for (size_t i = 0; i < rowSeqLen; ++i) {
+                float rowMax = 0.0f;
+                for (size_t j = 0; j < colSeqLen; ++j) {
+                    rowMax = std::max(rowMax, zm[i][j]);
+                }
+                rowMaxP[i] = rowMax;
+            }
         }
     }
 }
