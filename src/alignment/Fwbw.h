@@ -51,7 +51,7 @@ public:
         virtual void setScaledMode(ScaledMode mode) = 0;
         virtual void initProfile(unsigned char* colAANum, size_t colAALen) = 0;
         virtual void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen) = 0;
-        virtual void initScoreMatrix(float** inputScoreMatrix, int* gaps) = 0;
+        virtual void initScoreMatrix(float** inputScoreMatrix, int* gaps, float** probMatrix, float* rowMaxP) = 0;
         virtual void runFwBw(bool profile, int backtraceMode) = 0;
         virtual s_align getFwbwAlnResult() const = 0;
         virtual float getProbability(int i, int j) const = 0;
@@ -89,7 +89,11 @@ public:
     void initAlignment(unsigned char* targetNum, size_t targetLen, size_t queryLen) {
         impl->initAlignment(targetNum, targetLen, queryLen);
     }
-    void initScoreMatrix(float** inputScoreMatrix, int* gaps) { impl->initScoreMatrix(inputScoreMatrix, gaps); }
+    // gaps: [rowStart, rowEnd, colStart, colEnd]. If given, P goes to the same region of probMatrix and the
+    // largest P of each row to rowMaxP[rowStart, rowEnd) (not in profile mode)
+    void initScoreMatrix(float** inputScoreMatrix, int* gaps, float** probMatrix = nullptr, float* rowMaxP = nullptr) {
+        impl->initScoreMatrix(inputScoreMatrix, gaps, probMatrix, rowMaxP);
+    }
     void setTemperature(float newTemperature) { impl->setTemperature(newTemperature); }
     void setScaledMode(ScaledMode mode) { impl->setScaledMode(mode); }
 
