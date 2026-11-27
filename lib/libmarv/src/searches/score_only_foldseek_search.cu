@@ -21,6 +21,7 @@
 #include <thrust/iterator/transform_output_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/logical.h>
+#include <thrust/remove.h>
 #include <thrust/merge.h>
 
 #if defined(__CUDACC__)
@@ -48,6 +49,19 @@ namespace cub = hipcub;
 
 #include "../namespace.hpp"
 LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
+
+    struct ScoreNotAboveTopNLast{
+        const int* lastTopNScore;
+        template<class Tuple>
+        __device__
+        bool operator()(const Tuple& t) const{
+            #if defined(__CUDACC__)
+            return cuda::std::get<0>(t) <= *lastTopNScore;
+            #else
+            return thrust::get<0>(t) <= *lastTopNScore;
+            #endif
+        }
+    };
 
 
 
@@ -130,15 +144,15 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         if(sequenceLengthUpperBound <= 16){
             CALLSINGLETHREADSINGLETILE(128, 16)
         }else if(sequenceLengthUpperBound <= 32){
-            CALLSINGLETHREADSINGLETILE(128, 16)
-        }else if(sequenceLengthUpperBound <= 32){
-            CALLSINGLETHREADSINGLETILE(512, 48)
+            CALLSINGLETHREADSINGLETILE(128, 32)
+        }else if(sequenceLengthUpperBound <= 48){
+            CALLSINGLETHREADSINGLETILE(256, 48)
         }else if(sequenceLengthUpperBound <= 64){
-            CALLSINGLETHREADSINGLETILE(512, 64)
+            CALLSINGLETHREADSINGLETILE(256, 64)
         }else if(sequenceLengthUpperBound <= 80){
-            CALLSINGLETHREADSINGLETILE(512, 80)
+            CALLSINGLETHREADSINGLETILE(256, 80)
         }else if(sequenceLengthUpperBound <= 96){
-            CALLSINGLETHREADSINGLETILE(512, 96)
+            CALLSINGLETHREADSINGLETILE(256, 96)
         }else if(sequenceLengthUpperBound <= 112){
             CALLSINGLETHREADSINGLETILE(256, 112)
         }else if(sequenceLengthUpperBound <= 128){
@@ -775,7 +789,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
 
                                 if(numOverflows > 0){
                                     CUDACHECK(cudaSetDevice(callbackInput[gpu].deviceId));
-                                    cudaStream_t stream = streamsPerGpuPerQuery[gpu * numQueries + queryIndex];
+                                    cudaStream_t stream = streamsPerGpuPerQuery[gpu * maxNumQueries + queryIndex];
 
                                     auto& ws = *workingSets[gpu];
 
@@ -900,7 +914,7 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
                             CUDACHECK(cudaSetDevice(deviceIds[gpu]));
                             auto& ws = *workingSets[gpu];
                             cudaStream_t stream = cudaStreamPerThread;
-                            cudaStream_t alignmentStream = streamsPerGpuPerQuery[gpu * numQueries + queryIndex];
+                            cudaStream_t alignmentStream = streamsPerGpuPerQuery[gpu * maxNumQueries + queryIndex];
                             CUDACHECK(cudaEventRecord(ws.forkStreamEvent, alignmentStream));
                             CUDACHECK(cudaStreamWaitEvent(stream, ws.forkStreamEvent, 0));
                         }
@@ -939,6 +953,20 @@ LIBMARV_NAMESPACE_WITH_NESTING_BEGIN
         const int numGpus = deviceIds.size();
             
         auto& ws = *workingSets[gpu];
+        if(ws.kernelOutputArrayUsedSize[queryIndex] > 0 && topNSize > 0 && resultSizePerQueryPerGpu[queryIndex][gpu] == topNSize){
+            CUDACHECK(cudaSetDevice(deviceIds[gpu]));
+            auto outputs = thrust::make_zip_iterator(
+                ws.getKernelOutputArrayScores(queryIndex),
+                ws.getKernelOutputArrayIndices(queryIndex)
+            );
+            auto keptEnd = thrust::remove_if(
+                thrust::cuda::par_nosync(thrust_async_allocator<char>(stream)).on(stream),
+                outputs,
+                outputs + ws.kernelOutputArrayUsedSize[queryIndex],
+                ScoreNotAboveTopNLast{ws.getTopN_scores(queryIndex).data() + topNSize - 1}
+            );
+            ws.kernelOutputArrayUsedSize[queryIndex] = keptEnd - outputs;
+        }
         if(ws.kernelOutputArrayUsedSize[queryIndex] > 0){
             CUDACHECK(cudaSetDevice(deviceIds[gpu]));
 
