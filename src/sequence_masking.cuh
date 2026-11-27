@@ -419,6 +419,7 @@ namespace maskingsinglethread{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
 
         #ifdef WITH_TIMING
         timer1.print();
@@ -771,6 +772,7 @@ namespace maskingsinglethread{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -1144,6 +1146,7 @@ namespace maskingsinglethread{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -1551,6 +1554,7 @@ namespace maskingsinglethread{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -2007,6 +2011,7 @@ namespace maskingsinglethread{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -2412,6 +2417,7 @@ namespace maskingsinglethread{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -2738,6 +2744,7 @@ namespace maskingsinglegroup{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -3076,6 +3083,7 @@ namespace maskingsinglegroup{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -3402,6 +3410,7 @@ namespace maskingsingleblock{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif
@@ -3723,6 +3732,7 @@ namespace maskingsingleblock{
             paddingLetter,
             inputTransformOp
         );
+        CUDACHECKASYNC;
         #ifdef WITH_TIMING
         timer1.print();
         #endif

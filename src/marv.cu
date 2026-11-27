@@ -27,6 +27,8 @@ namespace b64 {
 struct SearchWorkspaceCache {
     std::unique_ptr<libmarv::ScoreOnlySearch> search;
     size_t maxBytes = 0;
+    // Foldseek search state, kept like search; shared_ptr because the Foldseek search is not built for every backend
+    std::shared_ptr<libmarv::ScoreOnlyFoldseekSearch> foldseekSearch;
 
     std::unique_ptr<libmarv::ScoreOnlySearch> acquire(libmarv::GpuDatabase& db, int outputSize, int topN, int queries) {
         const int effectiveOutput = int(std::min(size_t(outputSize), std::max(size_t(1), db.getNumSequences())));
@@ -375,6 +377,7 @@ libmarv::SearchResult do_search_scoreEndpos_impl(
 
 
 std::vector<libmarv::SearchResult> do_search_scoreOnly_foldseek_impl(
+    SearchWorkspaceCache& workspaceCache,
     libmarv::GpuDatabase& gpuDatabase, 
     const std::vector<int>& queryLengths,
     const std::vector<int8_t*>& queryPssms_3di,
@@ -454,9 +457,15 @@ std::vector<libmarv::SearchResult> do_search_scoreOnly_foldseek_impl(
         queryPssmViews_aa12.emplace_back(queryPssms_aa12[queryIndex], 12, queryLength);
     }
 
-    constexpr int kernelOutputArraySize = 10'000'000;
+    const int kernelOutputArraySize = int(std::min(size_t(10'000'000), std::max(size_t(1), gpuDatabase.getNumSequences())));
     constexpr bool isAA20dbTesting = false;
-    libmarv::ScoreOnlyFoldseekSearch scoreOnlyFoldseekSearch(isAA20dbTesting, gpuDatabase, kernelOutputArraySize, topNSize, numQueries);
+    std::shared_ptr<libmarv::ScoreOnlyFoldseekSearch>& cachedSearch = workspaceCache.foldseekSearch;
+    if (!cachedSearch || cachedSearch->gpuDatabase != &gpuDatabase || cachedSearch->topNSize != topNSize
+        || cachedSearch->maxNumQueries < numQueries || cachedSearch->kernelOutputArraySize != kernelOutputArraySize) {
+        cachedSearch.reset();
+        cachedSearch = std::make_shared<libmarv::ScoreOnlyFoldseekSearch>(isAA20dbTesting, gpuDatabase, kernelOutputArraySize, topNSize, numQueries);
+    }
+    libmarv::ScoreOnlyFoldseekSearch& scoreOnlyFoldseekSearch = *cachedSearch;
 
     auto overflowSettings = libmarv::OverflowSettings::withoutOverflowCorrection();
     if(handleOverflows){
@@ -481,6 +490,7 @@ std::vector<libmarv::SearchResult> do_search_scoreOnly_foldseek_impl(
 }
 
 libmarv::SearchResult do_search_scoreOnly_foldseek_impl(
+    SearchWorkspaceCache& workspaceCache,
     libmarv::GpuDatabase& gpuDatabase, 
     int queryLength,
     int8_t* queryPssm_3di,
@@ -491,6 +501,7 @@ libmarv::SearchResult do_search_scoreOnly_foldseek_impl(
     bool handleOverflows
 ){
     auto resultvector = do_search_scoreOnly_foldseek_impl(
+        workspaceCache,
         gpuDatabase, 
         std::vector<int>{queryLength}, 
         std::vector<int8_t*>{queryPssm_3di}, 
@@ -558,6 +569,7 @@ Marv::~Marv() {
 
 void Marv::releaseSearchWorkspace() {
     static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr)->search.reset();
+    static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr)->foldseekSearch.reset();
 }
 
 std::vector<int> Marv::getDeviceIds() {
@@ -635,6 +647,7 @@ void Marv::setDbWithAllocation(void* dbhandle, const std::string& allocationinfo
     libmarv::GpuDatabase* gpuDatabase = static_cast<libmarv::GpuDatabase*>(gpuDatabaseVoidPtr);
     // OpaqueAllocationManager* manager = static_cast<OpaqueAllocationManager*>(allocationhandle);
     static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr)->search.reset();
+    static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr)->foldseekSearch.reset();
     gpuDatabase->setDatabase(dbPtr, allocations_remote);
 }
 
@@ -644,6 +657,7 @@ void Marv::setDb(void* dbhandle) {
     std::shared_ptr<libmarv::MMseqsDB> dbPtr(static_cast<libmarv::MMseqsDB*>(db), doNothingDeleter);
     libmarv::GpuDatabase* gpuDatabase = static_cast<libmarv::GpuDatabase*>(gpuDatabaseVoidPtr);
     static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr)->search.reset();
+    static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr)->foldseekSearch.reset();
     gpuDatabase->setDatabase(dbPtr);
 }
 
@@ -1011,6 +1025,7 @@ std::vector<Marv::Stats> Marv::search_scoreOnly_foldseek(
     const int numQueries = queryLengths.size();
 
     auto searchResultPerQuery = do_search_scoreOnly_foldseek_impl(
+        *static_cast<SearchWorkspaceCache*>(searchWorkspaceVoidPtr),
         *gpuDatabase,
         queryLengths,
         queryPssms_3di,

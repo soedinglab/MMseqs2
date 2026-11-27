@@ -67,7 +67,7 @@ struct ScoreOnlyFoldseekSearch{
     struct ConvertCombinedTo3di{
         __host__ __device__
         char operator()(char combined) const{
-            return combined / 12;
+            return static_cast<unsigned char>(combined) / 12;
         }
     };
 
@@ -81,7 +81,7 @@ struct ScoreOnlyFoldseekSearch{
     struct ConvertCombinedToAA12{
         __host__ __device__
         char operator()(char combined) const{
-            return combined % 12;
+            return static_cast<unsigned char>(combined) % 12;
         }
     };
 
