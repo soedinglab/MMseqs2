@@ -542,6 +542,7 @@ public:
         unsigned int auxAlphabetSize;        // number of states in aux alphabet (e.g. 12)
     };
     static std::vector<SeqAuxInfo> auxRegistry;
+    static std::string auxProfileSuffix;
     static void registerAuxSplit(unsigned int extFlag,
                                  const unsigned char *primary,
                                  const unsigned char *aux,
@@ -553,6 +554,9 @@ public:
     // Per-instance remap pointers (NULL if no remap active)
     const unsigned char *activePrimaryRemap;
     const unsigned char *activeAuxRemap;
+    // activePrimaryRemap followed by the matrix's reduceIndex(), for decoding DB bytes in mapSequence(const char *)
+    const unsigned char *rawPrimaryRemap;
+    unsigned char reducedPrimaryRemap[256];
 
 private:
     void mapSequence(const char *seq, unsigned int dataLen);

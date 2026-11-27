@@ -328,6 +328,7 @@ public:
     static const int PREF_MODE_UNGAPPED = 1;
     static const int PREF_MODE_EXHAUSTIVE = 2;
     static const int PREF_MODE_UNGAPPED_AND_GAPPED = 3;
+    static const size_t AUX_RESCORE_TOP_N = 100000;
 
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
@@ -562,6 +563,7 @@ public:
     MultiParam<PseudoCounts> pca;
     MultiParam<PseudoCounts> pcb;
     int profileOutputMode;
+    int profileAuxChannel;
 
     // pickrepprofile / pickconsensusrepfast
     bool switchConsensusRep;
@@ -932,6 +934,7 @@ public:
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
     PARAMETER(PARAM_PROFILE_OUTPUT_MODE)
+    PARAMETER(PARAM_PROFILE_AUX_CHANNEL)
 
     // pickrepprofile / pickconsensusrepfast
     PARAMETER(PARAM_SWITCH_CONSENSUS_REP)

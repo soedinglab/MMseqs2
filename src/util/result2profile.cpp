@@ -188,6 +188,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 continue;
             }
             centerSequence.mapSequence(queryId, queryKey, qDbr->getData(queryId, thread_idx), qDbr->getSeqLen(queryId));
+            if (par.profileAuxChannel && centerSequence.numSequenceAux != NULL) {
+                memcpy(centerSequence.numSequence, centerSequence.numSequenceAux, centerSequence.L);
+            }
 
             bool isQueryInit = false;
             char *data = resultReader.getData(id, thread_idx);
@@ -219,6 +222,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                         EXIT(EXIT_FAILURE);
                     }
                     edgeSequence.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
+                    if (par.profileAuxChannel && edgeSequence.numSequenceAux != NULL) {
+                        memcpy(edgeSequence.numSequence, edgeSequence.numSequenceAux, edgeSequence.L);
+                    }
                     seqSet.emplace_back(std::vector<unsigned char>(edgeSequence.numSequence, edgeSequence.numSequence + edgeSequence.L));
 
                     if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {

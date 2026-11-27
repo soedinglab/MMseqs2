@@ -59,6 +59,7 @@ GPUSharedMemory* GPUSharedMemory::alloc(const std::string& name, unsigned int ma
     layout->queryOffset = sizeof(GPUSharedMemory);
     layout->resultsOffset = layout->queryOffset + sizeof(char) * maxSeqLen;
     layout->profileOffset = layout->resultsOffset + sizeof(Marv::Result) * maxResListLen;
+    layout->profileAuxOffset = layout->profileOffset + sizeof(int8_t) * 21 * maxSeqLen;
     return layout;
 }
 

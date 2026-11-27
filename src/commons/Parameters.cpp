@@ -143,6 +143,7 @@ Parameters::Parameters():
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Pseudo count admixture strength", typeid(MultiParam<PseudoCounts>), (void *) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(MultiParam<PseudoCounts>), (void *) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROFILE_OUTPUT_MODE(PARAM_PROFILE_OUTPUT_MODE_ID, "--profile-output-mode", "Profile output mode", "Profile output mode: 0: binary log-odds 1: human-readable frequencies", typeid(int), (void *) &profileOutputMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROFILE_AUX_CHANNEL(PARAM_PROFILE_AUX_CHANNEL_ID, "--profile-aux-channel", "Profile aux channel", "Build the profile from the aux channel of sequences that have one (e.g. the 12-state alphabet of a packed DB) [0,1]", typeid(int), (void *) &profileAuxChannel, "^[0-1]{1}$", MMseqsParameter::COMMAND_HIDDEN),
         // pickrepprofile / pickconsensusrepfast
         PARAM_SWITCH_CONSENSUS_REP(PARAM_SWITCH_CONSENSUS_REP_ID, "--switch-consensus-rep", "Switch to consensus representatives", "After clustering, reuse the alignments to pick the most profile-consistent observed member as the new representative (linclust-version 2 / cluster-version 2 only)", typeid(bool), (void *) &switchConsensusRep, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         // sequence2profile
@@ -642,6 +643,7 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_COMPRESSED);
     result2profile.push_back(&PARAM_V);
     result2profile.push_back(&PARAM_PROFILE_OUTPUT_MODE);
+    result2profile.push_back(&PARAM_PROFILE_AUX_CHANNEL);
 
     // createtsv
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
@@ -2662,6 +2664,7 @@ void Parameters::setDefaults() {
     pca = MultiParam<PseudoCounts>(PseudoCounts(1.1, 1.4));
     pcb = MultiParam<PseudoCounts>(PseudoCounts(4.1, 5.8));
     profileOutputMode = 0;
+    profileAuxChannel = 0;
 
     // pickrepprofile / pickconsensusrepfast
     switchConsensusRep = false;

@@ -101,7 +101,7 @@ QueryMatcher::~QueryMatcher(){
     delete kmerGenerator;
 }
 
-std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId identityId, bool isNucleotide) {
+std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId identityId, bool isNucleotide, Sequence *querySeqAux) {
     querySeq->resetCurrPos();
 //    std::cout << "Id: " << querySeq->getId() << std::endl;
     memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
@@ -118,8 +118,12 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId
     }
     if(diagonalScoring == true){
         ungappedAlignment->createProfile(querySeq, compositionBias);
-        if (ungappedAlignmentAux != NULL && querySeq->numSequenceAux != NULL) {
-            ungappedAlignmentAux->createProfile(querySeq, NULL, querySeq->numSequenceAux);
+        if (ungappedAlignmentAux != NULL) {
+            if (querySeqAux != NULL) {
+                ungappedAlignmentAux->createProfile(querySeqAux, NULL, NULL);
+            } else if (querySeq->numSequenceAux != NULL) {
+                ungappedAlignmentAux->createProfile(querySeq, NULL, querySeq->numSequenceAux);
+            }
         }
     }
     size_t resultSize = match(querySeq, compositionBias);
@@ -130,7 +134,7 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId
     if (diagonalScoring) {
         // write diagonal scores in count value
         ungappedAlignment->align(foundDiagonals, resultSize);
-        if (ungappedAlignmentAux != NULL && querySeq->numSequenceAux != NULL) {
+        if (ungappedAlignmentAux != NULL && (querySeqAux != NULL || querySeq->numSequenceAux != NULL)) {
             for (size_t i = 0; i < resultSize; i++) {
                 scoreBackup[i] = foundDiagonals[i].count;
                 foundDiagonals[i].count = 0;
@@ -193,7 +197,7 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId
             std::swap(resultReadPos, resultWritePos);
             if (scoreIsTruncated == true) {
                 memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, resultReadPos, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
+                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, querySeqAux, scoreSizes, resultReadPos, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
                 size_t newResultSize = rescoreResult.first;
                 unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
                 elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, resultWritePos, 0, resultReadPos, newResultSize);
@@ -217,7 +221,7 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, DBLocalId
                     }
                 }
                 memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, resultReadPos, filteredSize, ungappedAlignment, maxDiagonalScoreThr);
+                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, querySeqAux, scoreSizes, resultReadPos, filteredSize, ungappedAlignment, maxDiagonalScoreThr);
                 size_t newResultSize = rescoreResult.first;
                 unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
                 size_t elementsCntAboveDiagonalThr;
@@ -592,14 +596,19 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
     return aboveThresholdCnt;
 }
 
-std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes, CounterResult *results,
+std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, Sequence * querySeqAux, unsigned int * scoreSizes, CounterResult *results,
                                                           size_t resultSize, UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
     const unsigned char * query = querySeq->numSequence;
     int maxSelfScore = align->scoreSingleSequence(std::make_pair(query, querySeq->L), 0,0);
-    if (ungappedAlignmentAux != NULL && querySeq->numSequenceAux != NULL) {
-        const unsigned char *queryAux = querySeq->numSequenceAux;
-        maxSelfScore += ungappedAlignmentAux->scoreSingleSequence(std::make_pair(queryAux, querySeq->L), 0, 0);
+    if (ungappedAlignmentAux != NULL) {
+        if (querySeqAux != NULL) {
+            maxSelfScore += ungappedAlignmentAux->scoreSingleSequence(
+                    std::make_pair(querySeqAux->numSequence, (unsigned int)querySeqAux->L), 0, 0);
+        } else if (querySeq->numSequenceAux != NULL) {
+            const unsigned char *queryAux = querySeq->numSequenceAux;
+            maxSelfScore += ungappedAlignmentAux->scoreSingleSequence(std::make_pair(queryAux, querySeq->L), 0, 0);
+        }
     }
 
     maxSelfScore = (maxSelfScore-lowerBoundScore);
