@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -19,7 +19,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>      // presumes zstd library is installed
 #include <zstd_errors.h>
-#if defined(WIN32) || defined(_WIN32)
+#if defined(_WIN32)
 #  include <windows.h>
 #  define SLEEP(x) Sleep(x)
 #else
@@ -29,7 +29,7 @@
 
 #include "pool.h"      // use zstd thread pool for demo
 
-#include "zstd_seekable.h"
+#include "../zstd_seekable.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -100,13 +100,11 @@ struct sum_job {
     const char* fname;
     unsigned long long sum;
     unsigned frameNb;
-    int done;
 };
 
 static void sumFrame(void* opaque)
 {
     struct sum_job* job = (struct sum_job*)opaque;
-    job->done = 0;
 
     FILE* const fin = fopen_orDie(job->fname, "rb");
 
@@ -128,7 +126,6 @@ static void sumFrame(void* opaque)
         sum += data[i];
     }
     job->sum = sum;
-    job->done = 1;
 
     fclose(fin);
     ZSTD_seekable_free(seekable);
@@ -148,20 +145,20 @@ static void sumFile_orDie(const char* fname, int nbThreads)
     size_t const initResult = ZSTD_seekable_initFile(seekable, fin);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_init() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
-    size_t const numFrames = ZSTD_seekable_getNumFrames(seekable);
+    unsigned const numFrames = ZSTD_seekable_getNumFrames(seekable);
     struct sum_job* jobs = (struct sum_job*)malloc(numFrames * sizeof(struct sum_job));
 
-    size_t i;
-    for (i = 0; i < numFrames; i++) {
-        jobs[i] = (struct sum_job){ fname, 0, i, 0 };
-        POOL_add(pool, sumFrame, &jobs[i]);
+    unsigned fnb;
+    for (fnb = 0; fnb < numFrames; fnb++) {
+        jobs[fnb] = (struct sum_job){ fname, 0, fnb };
+        POOL_add(pool, sumFrame, &jobs[fnb]);
     }
+    POOL_joinJobs(pool);
 
     unsigned long long total = 0;
 
-    for (i = 0; i < numFrames; i++) {
-        while (!jobs[i].done) SLEEP(5); /* wake up every 5 milliseconds to check */
-        total += jobs[i].sum;
+    for (fnb = 0; fnb < numFrames; fnb++) {
+        total += jobs[fnb].sum;
     }
 
     printf("Sum: %llu\n", total);

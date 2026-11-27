@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -45,7 +45,7 @@ class Buffer {
       : buffer_(buffer), range_(data) {}
 
   Buffer(Buffer&&) = default;
-  Buffer& operator=(Buffer&&) & = default;
+  Buffer& operator=(Buffer&&) = default;
 
   /**
    * Splits the data into two pieces: [begin, begin + n), [begin + n, end).

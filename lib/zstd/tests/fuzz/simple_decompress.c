@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /**
@@ -15,32 +16,41 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#define ZSTD_STATIC_LINKING_ONLY
+
 #include "fuzz_helpers.h"
 #include "zstd.h"
+#include "fuzz_data_producer.h"
 
 static ZSTD_DCtx *dctx = NULL;
-static void* rBuf = NULL;
-static size_t bufSize = 0;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    size_t neededBufSize;
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size = FUZZ_dataProducer_reserveDataPrefix(producer);
 
-    FUZZ_seed(&src, &size);
-    neededBufSize = MAX(20 * size, (size_t)256 << 10);
-
-    /* Allocate all buffers and contexts if not already allocated */
-    if (neededBufSize > bufSize) {
-        free(rBuf);
-        rBuf = malloc(neededBufSize);
-        bufSize = neededBufSize;
-        FUZZ_ASSERT(rBuf);
-    }
     if (!dctx) {
         dctx = ZSTD_createDCtx();
         FUZZ_ASSERT(dctx);
     }
-    ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, src, size);
+
+    {
+        size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
+        void *rBuf = FUZZ_malloc(bufSize);
+        size_t const dSize = ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
+        if (!ZSTD_isError(dSize)) {
+            /* If decompression was successful, the content size from the frame header(s) should be valid. */
+            unsigned long long const expectedSize = ZSTD_findDecompressedSize(src, size);
+            FUZZ_ASSERT(expectedSize != ZSTD_CONTENTSIZE_ERROR);
+            FUZZ_ASSERT(expectedSize == ZSTD_CONTENTSIZE_UNKNOWN || expectedSize == dSize);
+        }
+        free(rBuf);
+    }
+
+    FUZZ_dataProducer_free(producer);
 
 #ifndef STATEFUL_FUZZING
     ZSTD_freeDCtx(dctx); dctx = NULL;

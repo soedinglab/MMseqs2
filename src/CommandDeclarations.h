@@ -19,6 +19,7 @@ extern int combinepvalperset(int argc, const char **argv, const Command &command
 extern int compress(int argc, const char **argv, const Command &command);
 extern int concatdbs(int argc, const char **argv, const Command& command);
 extern int convert2fasta(int argc, const char **argv, const Command& command);
+extern int convert2parquet(int argc, const char **argv, const Command& command);
 extern int convertalignments(int argc, const char **argv, const Command& command);
 extern int convertblastdb(int argc, const char **argv, const Command& command);
 extern int convertca3m(int argc, const char **argv, const Command& command);

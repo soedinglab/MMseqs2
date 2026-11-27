@@ -12,6 +12,7 @@
 #include "MemoryMapped.h"
 #include "NcbiTaxonomy.h"
 #include "MappingReader.h"
+#include "ParquetDBWriter.h"
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
@@ -62,6 +63,7 @@ void printSeqBasedOnAln(std::string &out, const char *seq, unsigned int offset,
         }
     }
 }
+
 
 /*
 query       Query sequence label
@@ -150,10 +152,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
     int format = par.formatAlignmentMode;
     bool addColumnHeaders = false;
+    bool isParquet = false;
+    if (format == Parameters::FORMAT_ALIGNMENT_BLAST_TAB_AS_PARQUET){
+        isParquet = true;
+        format = Parameters::FORMAT_ALIGNMENT_BLAST_TAB;
+    }
+
     if (format == Parameters::FORMAT_ALIGNMENT_BLAST_TAB_WITH_HEADERS) {
         format = Parameters::FORMAT_ALIGNMENT_BLAST_TAB;
         addColumnHeaders = true;
     }
+
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
     bool needSequenceDB = false;
@@ -254,7 +263,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     DBReader<DBKeyType> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<DBKeyType>::USE_INDEX|DBReader<DBKeyType>::USE_DATA);
-    alnDbr.open(DBReader<DBKeyType>::LINEAR_ACCCESS);
+    alnDbr.open(isParquet ? DBReader<DBKeyType>::SORT_BY_ID : DBReader<DBKeyType>::LINEAR_ACCCESS);
 
     size_t localThreads = 1;
 #ifdef OPENMP
@@ -264,10 +273,14 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
     const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, shouldCompress, dbType);
-    resultWriter.open();
+    if (!isParquet){
+        resultWriter.open();
+    }
 
     const bool isDb = par.dbOut;
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
+
+
 
     if (format == Parameters::FORMAT_ALIGNMENT_SAM) {
         char buffer[1024];
@@ -327,40 +340,39 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         resultWriter.writeData(header.c_str(), header.length(), 0, 0, false, false);
     }
 
+    
     Debug::Progress progress(alnDbr.getSize());
-#pragma omp parallel num_threads(localThreads)
-    {
-        unsigned int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
+    // per-thread buffers of processEntry
+    struct ThreadBuffers {
         char buffer[1024];
-
         std::string result;
-        result.reserve(1024*1024);
-
         std::string queryProfData;
-        queryProfData.reserve(1024);
-
         std::string queryHeaderBuffer;
-        queryHeaderBuffer.reserve(1024);
-
         std::string targetProfData;
-        targetProfData.reserve(1024);
-
         std::string newBacktrace;
-        newBacktrace.reserve(1024);
-
         std::string complementBuffer;
-        complementBuffer.reserve(1024);
+        ThreadBuffers() {
+            result.reserve(1024*1024);
+            queryProfData.reserve(1024);
+            queryHeaderBuffer.reserve(1024);
+            targetProfData.reserve(1024);
+            newBacktrace.reserve(1024);
+            complementBuffer.reserve(1024);
+        }
+    };
+    std::vector<ThreadBuffers> threadBuffers(localThreads);
 
-        const TaxonNode * taxonNode = NULL;
-
-#pragma omp  for schedule(dynamic, 10)
-        for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            progress.updateProgress();
-
-            const DBKeyType queryKey = alnDbr.getDbKey(i);
+    // all output of one alignment entry: text into the result buffer, or rows into parquetWriter (parquet format)
+    auto processEntry = [&](const DBKeyType queryKey, char *data, const unsigned int thread_idx, ParquetDBWriter *parquetWriter) {
+            ThreadBuffers& tb = threadBuffers[thread_idx];
+            char (&buffer)[1024] = tb.buffer;
+            std::string& result = tb.result;
+            std::string& queryProfData = tb.queryProfData;
+            std::string& queryHeaderBuffer = tb.queryHeaderBuffer;
+            std::string& targetProfData = tb.targetProfData;
+            std::string& newBacktrace = tb.newBacktrace;
+            std::string& complementBuffer = tb.complementBuffer;
+            const TaxonNode * taxonNode = NULL;
             char *querySeqData = NULL;
             size_t querySeqLen = 0;
             queryProfData.clear();
@@ -387,8 +399,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 const char* jsStart = "{\"query\": {\"accession\": \"%s\",\"sequence\": \"";
                 int count = snprintf(buffer, sizeof(buffer), jsStart, queryId.c_str(), querySeqData);
                 if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                    Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
-                    continue;
+                    Debug(Debug::WARNING) << "Truncated line in entry " << queryKey << "!\n";
+                    return;
                 }
                 result.append(buffer, count);
                 if (queryProfile) {
@@ -399,11 +411,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 result.append("\"}, \"alignments\": [\n");
             }
 
-            char *data = alnDbr.getData(i, thread_idx);
+            int row_counter = 0;
             while (*data != '\0') {
                 Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
                 data = Util::skipLine(data);
-
                 if (res.backtrace.empty() && needBacktrace == true) {
                     Debug(Debug::ERROR) << "Backtrace cigar is missing in the alignment result. Please recompute the alignment with the -a flag.\n"
                                            "Command: mmseqs align " << par.db1 << " " << par.db2 << " " << par.db3 << " " << "alnNew -a\n";
@@ -464,7 +475,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                                  res.dbStartPos + 1, res.dbEndPos + 1,
                                                  res.eval, res.score);
                             if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                                Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                                Debug(Debug::WARNING) << "Truncated line in entry " << queryKey << "!\n";
                                 continue;
                             }
                             result.append(buffer, count);
@@ -480,7 +491,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                     taxonNode = t->taxonNode(taxon, false);
                                 }
                             }
-
                             if (needSequenceDB) {
                                 size_t tId = tDbr->sequenceReader->getId(res.dbKey);
                                 targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
@@ -492,150 +502,329 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             for(size_t i = 0; i < outcodes.size(); i++) {
                                 switch (outcodes[i]) {
                                     case Parameters::OUTFMT_QUERY:
-                                        result.append(queryId);
+                                        if (isParquet){
+                                            parquetWriter->writeCell(queryId, i);
+                                        } else {
+                                            result.append(queryId);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TARGET:
-                                        result.append(targetId);
+                                        if (isParquet){
+                                           parquetWriter->writeCell(targetId, i);
+                                        } else {
+                                            result.append(targetId);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_EVALUE:
-                                        result.append(SSTR(res.eval));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.eval, i);
+                                        }
+                                        else {
+                                            result.append(SSTR(res.eval));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_GAPOPEN:
-                                        result.append(SSTR(gapOpenCount));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(gapOpenCount), i);
+                                        } else {
+                                            result.append(SSTR(gapOpenCount));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_FIDENT:
-                                        result.append(SSTR(res.seqId));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.seqId, i);
+                                        } else {
+                                            result.append(SSTR(res.seqId));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_PIDENT:
-                                        result.append(SSTR(res.seqId*100));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.seqId*100, i);
+                                        } else {
+                                            result.append(SSTR(res.seqId*100));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_NIDENT:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(identical), i);
+                                        } else {
                                         result.append(SSTR(identical));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QSTART:
-                                        result.append(SSTR(res.qStartPos + 1));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.qStartPos + 1, i);
+                                        } else {
+                                            result.append(SSTR(res.qStartPos + 1));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QEND:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.qEndPos + 1, i);
+                                        } else {
                                         result.append(SSTR(res.qEndPos + 1));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QLEN:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(res.qLen), i);
+                                        } else {
                                         result.append(SSTR(res.qLen));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TSTART:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.dbStartPos + 1, i);
+                                        } else {
                                         result.append(SSTR(res.dbStartPos + 1));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TEND:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.dbEndPos + 1, i);
+                                        } else {
                                         result.append(SSTR(res.dbEndPos + 1));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TLEN:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(res.dbLen), i);
+                                        } else {
                                         result.append(SSTR(res.dbLen));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_ALNLEN:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(alnLen), i);
+                                        } else {
                                         result.append(SSTR(alnLen));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_RAW:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5), i);
+                                        } else {
                                         result.append(SSTR(static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5)));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_BITS:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.score, i);
+                                        } else {
                                         result.append(SSTR(res.score));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_CIGAR:
                                         if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
                                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                                             res.backtrace = newBacktrace;
                                         }
-                                        result.append(SSTR(res.backtrace));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.backtrace, i);
+                                            } else {
+                                            result.append(SSTR(res.backtrace));
+                                        }
                                         newBacktrace.clear();
                                         break;
                                     case Parameters::OUTFMT_QSEQ:
                                         if (queryProfile) {
-                                            result.append(queryProfData.c_str(), res.qLen);
+                                            if (isParquet){
+                                                parquetWriter->writeCell(queryProfData, i);
+                                            } else {
+                                                result.append(queryProfData.c_str(), res.qLen);
+                                            }
                                         } else {
-                                            result.append(querySeqData, res.qLen);
+                                            if (isParquet){
+                                                parquetWriter->writeCell(std::string(querySeqData,res.qLen), i);
+                                            } else {
+                                                result.append(querySeqData, res.qLen);
+                                            }
                                         }
                                         break;
                                     case Parameters::OUTFMT_TSEQ:
                                         if (targetProfile) {
-                                            result.append(targetProfData.c_str(), res.dbLen);
+                                            if (isParquet){
+                                                parquetWriter->writeCell(targetProfData, i);
+                                            } else {
+                                                result.append(targetProfData.c_str(), res.dbLen);
+                                            }                                        
                                         } else {
-                                            result.append(targetSeqData, res.dbLen);
+                                            if (isParquet){
+                                                parquetWriter->writeCell(std::string(targetSeqData,  res.dbLen), i);
+                                            } else {                                            
+                                                result.append(targetSeqData, res.dbLen);
+                                            }
                                         }
                                         break;
                                     case Parameters::OUTFMT_QHEADER:
-                                        result.append(qHeader, qHeaderLen);
+                                        if (isParquet){
+                                            parquetWriter->writeCell(std::string(qHeader, qHeaderLen),i);
+                                        } else {  
+                                            result.append(qHeader, qHeaderLen);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_THEADER:
-                                        result.append(tHeader, tHeaderLen);
+                                        if (isParquet){
+                                            parquetWriter->writeCell(std::string(tHeader, tHeaderLen), i);
+                                        } else { 
+                                            result.append(tHeader, tHeaderLen);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QALN:
                                         if (queryProfile) {
-                                            printSeqBasedOnAln(result, queryProfData.c_str(), res.qStartPos,
+                                           if (isParquet){
+                                                parquetWriter->addSeqBasedOnAln(i, queryProfData.c_str(), res.qStartPos,
                                                                Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
                                                                (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                           } else {
+                                                printSeqBasedOnAln(result, queryProfData.c_str(), res.qStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                                               (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                           }
                                         } else {
-                                            printSeqBasedOnAln(result, querySeqData, res.qStartPos,
+                                            if (isParquet){
+                                                parquetWriter->addSeqBasedOnAln(i, querySeqData, res.qStartPos,
                                                                Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
                                                                (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                            } else {
+                                                printSeqBasedOnAln(result, querySeqData, res.qStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                                               (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                            }    
                                         }
                                         break;
                                     case Parameters::OUTFMT_TALN: {
                                         if (targetProfile) {
-                                            printSeqBasedOnAln(result, targetProfData.c_str(), res.dbStartPos,
+                                            if (isParquet){
+                                                parquetWriter->addSeqBasedOnAln(i, targetProfData.c_str(), res.dbStartPos,
                                                                Matcher::uncompressAlignment(res.backtrace), true,
                                                                (res.dbStartPos > res.dbEndPos),
                                                                (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                                            } else {
+                                                printSeqBasedOnAln(result, targetProfData.c_str(), res.dbStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), true,
+                                                               (res.dbStartPos > res.dbEndPos),
+                                                               (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                                            }
                                         } else {
-                                            printSeqBasedOnAln(result, targetSeqData, res.dbStartPos,
+                                            if (isParquet){
+                                                parquetWriter->addSeqBasedOnAln(i, targetSeqData, res.dbStartPos,
                                                                Matcher::uncompressAlignment(res.backtrace), true,
                                                                (res.dbStartPos > res.dbEndPos),
                                                                (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                                            } else {
+                                                printSeqBasedOnAln(result, targetSeqData, res.dbStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), true,
+                                                               (res.dbStartPos > res.dbEndPos),
+                                                               (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                                            }
                                         }
                                         break;
                                     }
                                     case Parameters::OUTFMT_MISMATCH:
-                                        result.append(SSTR(missMatchCount));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(missMatchCount), i);
+                                        } else { 
+                                            result.append(SSTR(missMatchCount));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QCOV:
-                                        result.append(SSTR(res.qcov));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.qcov, i);
+                                        } else { 
+                                            result.append(SSTR(res.qcov));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TCOV:
-                                        result.append(SSTR(res.dbcov));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.dbcov, i);
+                                        } else { 
+                                            result.append(SSTR(res.dbcov));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QSET:
-                                        result.append(SSTR(qSetToSource[qKeyToSet[queryKey]]));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(qSetToSource[qKeyToSet[queryKey]], i);
+                                        } else { 
+                                            result.append(SSTR(qSetToSource[qKeyToSet[queryKey]]));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QSETID:
-                                        result.append(SSTR(qKeyToSet[queryKey]));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int64_t>(qKeyToSet[queryKey]), i);
+                                        } else {
+                                            result.append(SSTR(qKeyToSet[queryKey]));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TSET:
-                                        result.append(SSTR(tSetToSource[tKeyToSet[res.dbKey]]));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(tSetToSource[tKeyToSet[res.dbKey]], i);
+                                        } else {
+                                            result.append(SSTR(tSetToSource[tKeyToSet[res.dbKey]]));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TSETID:
-                                        result.append(SSTR(tKeyToSet[res.dbKey]));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int64_t>(tKeyToSet[res.dbKey]), i);
+                                        } else {
+                                            result.append(SSTR(tKeyToSet[res.dbKey]));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TAXID:
-                                        result.append(SSTR(taxon));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(static_cast<int>(taxon), i);
+                                        } else {
+                                            result.append(SSTR(taxon));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TAXNAME:
-                                        result.append((taxonNode != NULL) ? t->getString(taxonNode->nameIdx) : "unclassified");
+                                        if (isParquet){
+                                            parquetWriter->writeCell((taxonNode != NULL) ? t->getString(taxonNode->nameIdx) : "unclassified", i);
+                                        } else {
+                                            result.append((taxonNode != NULL) ? t->getString(taxonNode->nameIdx) : "unclassified");
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TAXLIN:
-                                        result.append((taxonNode != NULL) ? t->taxLineage(taxonNode, true) : "unclassified");
+                                        if (isParquet){
+                                            parquetWriter->writeCell((taxonNode != NULL) ? t->taxLineage(taxonNode, true) : "unclassified", i);
+                                        } else {
+                                            result.append((taxonNode != NULL) ? t->taxLineage(taxonNode, true) : "unclassified");
+                                        }
                                         break;
                                     case Parameters::OUTFMT_EMPTY:
-                                        result.push_back('-');
+                                        if (isParquet){
+                                            parquetWriter->writeCell(std::string("-"), i);
+                                        } else {
+                                            result.push_back('-');
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QORFSTART:
-                                        result.append(SSTR(res.queryOrfStartPos));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.queryOrfStartPos, i);
+                                        } else {
+                                            result.append(SSTR(res.queryOrfStartPos));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QORFEND:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.queryOrfEndPos, i);
+                                        } else {
                                         result.append(SSTR(res.queryOrfEndPos));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TORFSTART:
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.dbOrfStartPos, i);
+                                        } else {
                                         result.append(SSTR(res.dbOrfStartPos));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TORFEND:
-                                        result.append(SSTR(res.dbOrfEndPos));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(res.dbOrfEndPos, i);
+                                        } else {
+                                            result.append(SSTR(res.dbOrfEndPos));
+                                        }
                                         break;
                                     case Parameters::OUTFMT_PPOS: {
                                         float pPositive = 0;
@@ -665,7 +854,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                             }
                                             pPositive /= static_cast<float>(matchCount);
                                         }
-                                        result.append(SSTR(pPositive));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(pPositive, i);
+                                        } else {
+                                            result.append(SSTR(pPositive));
+                                        }
                                         break;
                                     }
                                     case Parameters::OUTFMT_QFRAME: {
@@ -675,7 +868,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         } else {
                                             frame = -1 * ((res.qLen - res.qStartPos) % 3 + 1);
                                         }
-                                        result.append(SSTR(frame));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(frame, i);
+                                        } else {
+                                            result.append(SSTR(frame));
+                                        }
                                         break;
                                     }
                                     case Parameters::OUTFMT_TFRAME: {
@@ -685,15 +882,21 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         } else {
                                             frame = -1 * ((res.dbLen - res.dbStartPos) % 3 + 1);
                                         }
-                                        result.append(SSTR(frame));
+                                        if (isParquet){
+                                            parquetWriter->writeCell(frame, i);
+                                        } else {
+                                            result.append(SSTR(frame));
+                                        }
                                         break;
                                     } 
                                 }
-                                if (i < outcodes.size() - 1) {
+                                if (i < outcodes.size() - 1 && !isParquet) {
                                     result.push_back('\t');
                                 }
                             }
+                            if (!isParquet){
                             result.push_back('\n');
+                            }
                         }
                         break;
                     }
@@ -708,7 +911,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                              res.qLen, res.dbLen);
 
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            Debug(Debug::WARNING) << "Truncated line in entry " << queryKey << "!\n";
                             continue;
                         }
 
@@ -723,7 +926,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         mapq = mapq < 254 ? mapq : 254;
                         int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (forward) ? 0 : 16, targetId.c_str(), std::min(res.dbStartPos + 1, res.dbEndPos + 1), mapq);
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            Debug(Debug::WARNING) << "Truncated line in entry " << queryKey << "!\n";
                             continue;
                         }
                         result.append(buffer, count);
@@ -758,7 +961,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         }
                         count = snprintf(buffer, sizeof(buffer), "\t*\tAS:i:%d\tNM:i:%d\n", rawScore, missMatchCount);
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            Debug(Debug::WARNING) << "Truncated line in entry " << queryKey << "!\n";
                             continue;
                         }
                         result.append(buffer, count);
@@ -775,7 +978,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                              res.qLen, res.dbLen);
 
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            Debug(Debug::WARNING) << "Truncated line in entry " << queryKey << "!\n";
                             continue;
                         }
                         result.append(buffer, count);
@@ -835,13 +1038,62 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         Debug(Debug::ERROR) << "Not implemented yet";
                         EXIT(EXIT_FAILURE);
                 }
+                if (isParquet) {
+                    // row complete, the writer flushes to carquet once enough data is pending
+                    parquetWriter->endRow();
+                }
+                row_counter++;
             }
 
             if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
                 result.append("]},\n");
             }
-            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, isDb);
-            result.clear();
+
+            if (!isParquet) {
+                resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, isDb);
+                result.clear();
+            }
+    };
+
+    if (isParquet) {
+        // file layout, sort modes and writer options of convert2parquet; columns (init(outcodes)) and
+        // file names (<output dir>/<output name>_<n>.parquet) stay those of convertalis
+        const std::string dir = FileUtil::dirName(par.db4);
+        const std::string base = FileUtil::baseName(par.db4);
+        const size_t lastdot = base.find_last_of(".");
+        const std::string noExtension = (lastdot == std::string::npos) ? base : base.substr(0, lastdot);
+        ParquetDBWriter::ConvertHooks hooks;
+        hooks.partNames = [&](size_t files) {
+            ParquetDBWriter::removeNumberedParquet(dir, noExtension);
+            std::vector<std::string> names;
+            for (size_t f = 0; f < files; f++) {
+                names.push_back(dir + "/" + noExtension + "_" + std::to_string(f) + ".parquet");
+            }
+            return names;
+        };
+        hooks.openPart = [&](ParquetDBWriter& writer, const std::string& file) {
+            writer.init(file.c_str(), outcodes);
+        };
+        hooks.writeEntry = [&](ParquetDBWriter& writer, DBKeyType key, char* data, size_t, unsigned int thread_idx) {
+            processEntry(key, data, thread_idx, &writer);
+        };
+        // one file per thread at least, as before
+        hooks.minFiles = localThreads;
+        ParquetDBWriter::writeDbAsParquet(alnDbr, par.db4, par.parquetSortMode, localThreads,
+                                          ParquetDBWriter::writerOptionsFromParameters(par), NULL,
+                                          std::vector<ParquetDBWriter::ColumnSpec>(), hooks);
+    } else {
+#pragma omp parallel num_threads(localThreads)
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+#pragma omp for schedule(dynamic, 10)
+            for (size_t i = 0; i < alnDbr.getSize(); i++) {
+                progress.updateProgress();
+                processEntry(alnDbr.getDbKey(i), alnDbr.getData(i, thread_idx), thread_idx, NULL);
+            }
         }
     }
     if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
@@ -849,9 +1101,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         resultWriter.writeData(endBlock, strlen(endBlock), 0, localThreads - 1, false, false);
     }
     // tsv output
-    resultWriter.close(true);
-    if (isDb == false) {
-        FileUtil::remove(par.db4Index.c_str());
+    if (!isParquet){
+        resultWriter.close(true);
+        if (isDb == false) {
+            FileUtil::remove(par.db4Index.c_str());
+        }
     }
     if (needTaxonomy) {
         delete t;
@@ -859,7 +1113,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     if (mapping != NULL) {
         delete mapping;
     }
+    
     alnDbr.close();
+
     if (sameDB == false) {
         delete tDbr;
         delete tDbrHeader;

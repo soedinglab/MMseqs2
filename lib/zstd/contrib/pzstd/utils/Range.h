@@ -1,20 +1,22 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
  */
- 
+
 /**
  * A subset of `folly/Range.h`.
- * All code copied verbatiam modulo formatting
+ * All code copied verbatim modulo formatting
  */
 #pragma once
 
 #include "utils/Likely.h"
+#include "utils/Portability.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
@@ -83,8 +85,8 @@ class Range {
   Range(const Range&) = default;
   Range(Range&&) = default;
 
-  Range& operator=(const Range&) & = default;
-  Range& operator=(Range&&) & = default;
+  Range& operator=(const Range&) = default;
+  Range& operator=(Range&&) = default;
 
   constexpr size_type size() const {
     return e_ - b_;

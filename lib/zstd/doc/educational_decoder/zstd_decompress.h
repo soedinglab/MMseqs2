@@ -1,11 +1,14 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
+
+#include <stddef.h>   /* size_t */
 
 /******* EXPOSED TYPES ********************************************************/
 /*
@@ -39,7 +42,7 @@ size_t ZSTD_get_decompressed_size(const void *const src, const size_t src_len);
  * Return a valid dictionary_t pointer for use with dictionary initialization
  * or decompression
  */
-dictionary_t* create_dictionary();
+dictionary_t* create_dictionary(void);
 
 /*
  * Parse a provided dictionary blob for use in decompression

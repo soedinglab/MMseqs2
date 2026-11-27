@@ -1,0 +1,13 @@
+prefix=@CARQUET_PC_PREFIX@
+exec_prefix=${prefix}
+libdir=@CARQUET_PC_LIBDIR@
+includedir=@CARQUET_PC_INCLUDEDIR@
+
+Name: carquet
+Description: Pure C library for reading and writing Apache Parquet files
+URL: https://github.com/Vitruves/carquet
+Version: @PROJECT_VERSION@
+
+Cflags: -I${includedir}@CARQUET_PC_CFLAGS@
+Libs: -L${libdir} -lcarquet
+Libs.private: @CARQUET_PC_PRIVATE_LIBS@

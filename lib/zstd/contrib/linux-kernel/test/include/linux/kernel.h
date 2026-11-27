@@ -1,16 +1,19 @@
-#ifndef LINUX_KERNEL_H_
-#define LINUX_KERNEL_H_
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * All rights reserved.
+ *
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
+ */
+#ifndef LINUX_KERNEL_H
+#define LINUX_KERNEL_H
 
-#define ALIGN(x, a) ({                                                         \
-    typeof(x) const __xe = (x);                                                \
-    typeof(a) const __ae = (a);                                                \
-    typeof(a) const __m = __ae - 1;                                            \
-    typeof(x) const __r = __xe & __m;                                          \
-    __xe + (__r ? (__ae - __r) : 0);                                           \
-  })
+#define WARN_ON(x)
 
 #define PTR_ALIGN(p, a) (typeof(p))ALIGN((unsigned long long)(p), (a))
+#define ALIGN(x, a)         ALIGN_MASK((x), (a) - 1)
+#define ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 
-#define current Something that doesn't compile :)
-
-#endif // LINUX_KERNEL_H_
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -16,7 +16,7 @@
 #include <zstd.h>      // presumes zstd library is installed
 #include <zstd_errors.h>
 
-#include "zstd_seekable.h"
+#include "../zstd_seekable.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -99,6 +99,9 @@ static void decompressFile_orDie(const char* fname, off_t startOffset, off_t end
 
     while (startOffset < endOffset) {
         size_t const result = ZSTD_seekable_decompress(seekable, buffOut, MIN(endOffset - startOffset, buffOutSize), startOffset);
+        if (!result) {
+            break;
+        }
 
         if (ZSTD_isError(result)) {
             fprintf(stderr, "ZSTD_seekable_decompress() error : %s \n",

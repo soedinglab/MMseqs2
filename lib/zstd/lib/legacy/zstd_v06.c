@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -14,7 +14,8 @@
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include <string.h>    /* memcpy */
 #include <stdlib.h>    /* malloc, free, qsort */
-#include "error_private.h"
+#include "../common/compiler.h"
+#include "../common/error_private.h"
 
 
 
@@ -23,7 +24,7 @@
    low-level memory access routines
    Copyright (C) 2013-2015, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -67,22 +68,17 @@ extern "C" {
 #   include <stdlib.h>  /* _byteswap_ulong */
 #   include <intrin.h>  /* _byteswap_* */
 #endif
-#if defined(__GNUC__)
-#  define MEM_STATIC static __attribute__((unused))
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define MEM_STATIC static inline
-#elif defined(_MSC_VER)
-#  define MEM_STATIC static __inline
-#else
-#  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
 
 
 /*-**************************************************************
 *  Basic Types
 *****************************************************************/
 #if  !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
-# include <stdint.h>
+# if defined(_AIX)
+#  include <inttypes.h>
+# else
+#  include <stdint.h> /* intptr_t */
+# endif
   typedef  uint8_t BYTE;
   typedef uint16_t U16;
   typedef  int16_t S16;
@@ -104,27 +100,6 @@ extern "C" {
 /*-**************************************************************
 *  Memory I/O
 *****************************************************************/
-/* MEM_FORCE_MEMORY_ACCESS :
- * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
- * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
- * The below switch allow to select different access method for improved performance.
- * Method 0 (default) : use `memcpy()`. Safe and portable.
- * Method 1 : `__packed` statement. It depends on compiler extension (ie, not portable).
- *            This method is safe if your compiler supports it, and *generally* as fast or faster than `memcpy`.
- * Method 2 : direct access. This method is portable but violate C standard.
- *            It can generate buggy code on targets depending on alignment.
- *            In some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
- * See http://fastcompression.blogspot.fr/2015/08/accessing-unaligned-memory.html for details.
- * Prefer these methods in priority order (0 > 1 > 2)
- */
-#ifndef MEM_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  if defined(__GNUC__) && ( defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__) )
-#    define MEM_FORCE_MEMORY_ACCESS 2
-#  elif (defined(__INTEL_COMPILER) && !defined(WIN32)) || \
-  (defined(__GNUC__) && ( defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__) ))
-#    define MEM_FORCE_MEMORY_ACCESS 1
-#  endif
-#endif
 
 MEM_STATIC unsigned MEM_32bits(void) { return sizeof(size_t)==4; }
 MEM_STATIC unsigned MEM_64bits(void) { return sizeof(size_t)==8; }
@@ -134,33 +109,6 @@ MEM_STATIC unsigned MEM_isLittleEndian(void)
     const union { U32 u; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
 }
-
-#if defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==2)
-
-/* violates C standard, by lying on structure alignment.
-Only use if no other choice to achieve best performance on target platform */
-MEM_STATIC U16 MEM_read16(const void* memPtr) { return *(const U16*) memPtr; }
-MEM_STATIC U32 MEM_read32(const void* memPtr) { return *(const U32*) memPtr; }
-MEM_STATIC U64 MEM_read64(const void* memPtr) { return *(const U64*) memPtr; }
-
-MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
-
-#elif defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==1)
-
-/* __pack instructions are safer, but compiler specific, hence potentially problematic for some compilers */
-/* currently only defined for gcc and icc */
-typedef union { U16 u16; U32 u32; U64 u64; size_t st; } __attribute__((packed)) unalign;
-
-MEM_STATIC U16 MEM_read16(const void* ptr) { return ((const unalign*)ptr)->u16; }
-MEM_STATIC U32 MEM_read32(const void* ptr) { return ((const unalign*)ptr)->u32; }
-MEM_STATIC U64 MEM_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
-
-MEM_STATIC void MEM_write16(void* memPtr, U16 value) { ((unalign*)memPtr)->u16 = value; }
-
-#else
-
-/* default method, safe and standard.
-   can sometimes prove slower */
 
 MEM_STATIC U16 MEM_read16(const void* memPtr)
 {
@@ -181,9 +129,6 @@ MEM_STATIC void MEM_write16(void* memPtr, U16 value)
 {
     memcpy(memPtr, &value, sizeof(value));
 }
-
-
-#endif /* MEM_FORCE_MEMORY_ACCESS */
 
 MEM_STATIC U32 MEM_swap32(U32 in)
 {
@@ -280,7 +225,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
     Header File for static linking only
     Copyright (C) 2014-2016, Yann Collet.
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
@@ -304,7 +249,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd homepage : http://www.zstd.net
+    - zstd homepage : https://facebook.github.io/zstd
 */
 #ifndef ZSTDv06_STATIC_H
 #define ZSTDv06_STATIC_H
@@ -411,7 +356,7 @@ ZSTDLIBv06_API size_t ZSTDv06_decompressBlock(ZSTDv06_DCtx* dctx, void* dst, siz
     Header File for include
     Copyright (C) 2014-2016, Yann Collet.
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
@@ -478,7 +423,7 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
-#define HufLog 12
+#define ZSTD_HUFFDTABLE_CAPACITY_LOG 12
 
 #define IS_HUF 0
 #define IS_PCH 1
@@ -505,6 +450,8 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define FSEv06_ENCODING_RLE     1
 #define FSEv06_ENCODING_STATIC  2
 #define FSEv06_ENCODING_DYNAMIC 3
+
+#define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
 
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                       1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
@@ -605,9 +552,9 @@ typedef struct {
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
     ZSTDv06_stats_t stats;
-} seqStore_t;
+} SeqStore_t;
 
-void ZSTDv06_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
+void ZSTDv06_seqToCodes(const SeqStore_t* seqStorePtr, size_t const nbSeq);
 
 
 #endif   /* ZSTDv06_CCOMMON_H_MODULE */
@@ -616,7 +563,7 @@ void ZSTDv06_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
    Public Prototypes declaration
    Copyright (C) 2013-2016, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -764,7 +711,7 @@ If there is an error, the function will return an error code, which can be teste
    header file (to include)
    Copyright (C) 2013-2016, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -854,11 +801,10 @@ MEM_STATIC size_t BITv06_readBitsFast(BITv06_DStream_t* bitD, unsigned nbBits);
 MEM_STATIC unsigned BITv06_highbit32 ( U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */
-    unsigned long r=0;
-    _BitScanReverse ( &r, val );
-    return (unsigned) r;
+    unsigned long r;
+    return _BitScanReverse(&r, val) ? (unsigned)r : 0;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
-    return 31 - __builtin_clz (val);
+    return __builtin_clz (val) ^ 31;
 #   else   /* Software version */
     static const unsigned DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
     U32 v = val;
@@ -926,7 +872,7 @@ MEM_STATIC size_t BITv06_initDStream(BITv06_DStream_t* bitD, const void* srcBuff
 }
 
 /*! BITv06_lookBitsFast() :
-*   unsafe version; only works only if nbBits >= 1 */
+*   unsafe version; only works if nbBits >= 1 */
 MEM_STATIC size_t BITv06_lookBitsFast(const BITv06_DStream_t* bitD, U32 nbBits)
 {
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
@@ -946,7 +892,7 @@ MEM_STATIC size_t BITv06_readBits(BITv06_DStream_t* bitD, U32 nbBits)
 }
 
 /*! BITv06_readBitsFast() :
-*   unsafe version; only works only if nbBits >= 1 */
+*   unsafe version; only works if nbBits >= 1 */
 MEM_STATIC size_t BITv06_readBitsFast(BITv06_DStream_t* bitD, U32 nbBits)
 {
     size_t const value = BITv06_lookBitsFast(bitD, nbBits);
@@ -1000,7 +946,7 @@ MEM_STATIC unsigned BITv06_endOfDStream(const BITv06_DStream_t* DStream)
    header file for static linking (only)
    Copyright (C) 2013-2015, Yann Collet
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -1208,7 +1154,7 @@ MEM_STATIC BYTE FSEv06_decodeSymbolFast(FSEv06_DState_t* DStatePtr, BITv06_DStre
    Common functions of New Generation Entropy library
    Copyright (C) 2016, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -1256,7 +1202,7 @@ static unsigned HUFv06_isError(size_t code) { return ERR_isError(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-static short FSEv06_abs(short a) { return a<0 ? -a : a; }
+static short FSEv06_abs(short a) { return a<0 ? (short)-a : a; }
 
 size_t FSEv06_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                  const void* headerBuffer, size_t hbSize)
@@ -1353,7 +1299,7 @@ size_t FSEv06_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned
    FSE : Finite State Entropy decoder
    Copyright (C) 2013-2015, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -1677,7 +1623,7 @@ size_t FSEv06_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t 
    header file
    Copyright (C) 2013-2016, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -1747,7 +1693,7 @@ size_t HUFv06_compressBound(size_t size);       /**< maximum compressed size */
    header file, for static linking only
    Copyright (C) 2013-2016, Yann Collet
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -1860,7 +1806,7 @@ MEM_STATIC size_t HUFv06_readStats(BYTE* huffWeight, size_t hwSize, U32* rankSta
 
     if (!srcSize) return ERROR(srcSize_wrong);
     iSize = ip[0];
-    //memset(huffWeight, 0, hwSize);   /* is not necessary, even though some analyzer complain ... */
+    /* memset(huffWeight, 0, hwSize); */   /* is not necessary, even though some analyzer complain ... */
 
     if (iSize >= 128)  { /* special header */
         if (iSize >= (242)) {  /* RLE */
@@ -1929,7 +1875,7 @@ MEM_STATIC size_t HUFv06_readStats(BYTE* huffWeight, size_t hwSize, U32* rankSta
    Huffman decoder, part of New Generation Entropy library
    Copyright (C) 2013-2016, Yann Collet.
 
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -2012,7 +1958,7 @@ size_t HUFv06_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
     HUFv06_DEltX2* const dt = (HUFv06_DEltX2*)dtPtr;
 
     HUFv06_STATIC_ASSERT(sizeof(HUFv06_DEltX2) == sizeof(U16));   /* if compilation fails here, assertion is false */
-    //memset(huffWeight, 0, sizeof(huffWeight));   /* is not necessary, even though some analyzer complain ... */
+    /* memset(huffWeight, 0, sizeof(huffWeight)); */   /* is not necessary, even though some analyzer complain ... */
 
     iSize = HUFv06_readStats(huffWeight, HUFv06_MAX_SYMBOL_VALUE + 1, rankVal, &nbSymbols, &tableLog, src, srcSize);
     if (HUFv06_isError(iSize)) return iSize;
@@ -2338,7 +2284,7 @@ size_t HUFv06_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
 
     HUFv06_STATIC_ASSERT(sizeof(HUFv06_DEltX4) == sizeof(U32));   /* if compilation fails here, assertion is false */
     if (memLog > HUFv06_ABSOLUTEMAX_TABLELOG) return ERROR(tableLog_tooLarge);
-    //memset(weightList, 0, sizeof(weightList));   /* is not necessary, even though some analyzer complain ... */
+    /* memset(weightList, 0, sizeof(weightList)); */   /* is not necessary, even though some analyzer complain ... */
 
     iSize = HUFv06_readStats(weightList, HUFv06_MAX_SYMBOL_VALUE + 1, rankStats, &nbSymbols, &tableLog, src, srcSize);
     if (HUFv06_isError(iSize)) return iSize;
@@ -2662,19 +2608,19 @@ size_t HUFv06_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cS
 
     {   U32 algoNb = 0;
         if (Dtime[1] < Dtime[0]) algoNb = 1;
-        // if (Dtime[2] < Dtime[algoNb]) algoNb = 2;   /* current speed of HUFv06_decompress4X6 is not good */
+        /* if (Dtime[2] < Dtime[algoNb]) algoNb = 2; */   /* current speed of HUFv06_decompress4X6 is not good */
         return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
     }
 
-    //return HUFv06_decompress4X2(dst, dstSize, cSrc, cSrcSize);   /* multi-streams single-symbol decoding */
-    //return HUFv06_decompress4X4(dst, dstSize, cSrc, cSrcSize);   /* multi-streams double-symbols decoding */
-    //return HUFv06_decompress4X6(dst, dstSize, cSrc, cSrcSize);   /* multi-streams quad-symbols decoding */
+    /* return HUFv06_decompress4X2(dst, dstSize, cSrc, cSrcSize); */   /* multi-streams single-symbol decoding */
+    /* return HUFv06_decompress4X4(dst, dstSize, cSrc, cSrcSize); */   /* multi-streams double-symbols decoding */
+    /* return HUFv06_decompress4X6(dst, dstSize, cSrc, cSrcSize); */   /* multi-streams quad-symbols decoding */
 }
 /*
     Common functions of Zstd compression library
     Copyright (C) 2015-2016, Yann Collet.
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
@@ -2698,7 +2644,7 @@ size_t HUFv06_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cS
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd homepage : http://www.zstd.net/
+    - zstd homepage : https://facebook.github.io/zstd/
 */
 
 
@@ -2728,7 +2674,7 @@ const char* ZBUFFv06_getErrorName(size_t errorCode) { return ERR_getErrorName(er
     zstd - standard compression library
     Copyright (C) 2014-2016, Yann Collet.
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
@@ -2752,7 +2698,7 @@ const char* ZBUFFv06_getErrorName(size_t errorCode) { return ERR_getErrorName(er
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd homepage : http://www.zstd.net
+    - zstd homepage : https://facebook.github.io/zstd
 */
 
 /* ***************************************************************
@@ -2804,7 +2750,7 @@ struct ZSTDv06_DCtx_s
     FSEv06_DTable LLTable[FSEv06_DTABLE_SIZE_U32(LLFSELog)];
     FSEv06_DTable OffTable[FSEv06_DTABLE_SIZE_U32(OffFSELog)];
     FSEv06_DTable MLTable[FSEv06_DTABLE_SIZE_U32(MLFSELog)];
-    unsigned   hufTableX4[HUFv06_DTABLE_SIZE(HufLog)];
+    unsigned   hufTableX4[HUFv06_DTABLE_SIZE(ZSTD_HUFFDTABLE_CAPACITY_LOG)];
     const void* previousDstEnd;
     const void* base;
     const void* vBase;
@@ -2832,7 +2778,7 @@ size_t ZSTDv06_decompressBegin(ZSTDv06_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
-    dctx->hufTableX4[0] = HufLog;
+    dctx->hufTableX4[0] = ZSTD_HUFFDTABLE_CAPACITY_LOG;
     dctx->flagRepeatTable = 0;
     return 0;
 }
@@ -3023,7 +2969,7 @@ typedef struct
 *   Provides the size of compressed block from block header `src` */
 static size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
-    const BYTE* const in = (const BYTE* const)src;
+    const BYTE* const in = (const BYTE*)src;
     U32 cSize;
 
     if (srcSize < ZSTDv06_blockHeaderSize) return ERROR(srcSize_wrong);
@@ -3217,7 +3163,7 @@ static size_t ZSTDv06_decodeSeqHeaders(int* nbSeqPtr,
                              FSEv06_DTable* DTableLL, FSEv06_DTable* DTableML, FSEv06_DTable* DTableOffb, U32 flagRepeatTable,
                              const void* src, size_t srcSize)
 {
-    const BYTE* const istart = (const BYTE* const)src;
+    const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;
     const BYTE* ip = istart;
 
@@ -3240,13 +3186,11 @@ static size_t ZSTDv06_decodeSeqHeaders(int* nbSeqPtr,
     }
 
     /* FSE table descriptors */
+    if (ip + 4 > iend) return ERROR(srcSize_wrong); /* min : header byte + all 3 are "raw", hence no header, but at least xxLog bits per type */
     {   U32 const LLtype  = *ip >> 6;
         U32 const Offtype = (*ip >> 4) & 3;
         U32 const MLtype  = (*ip >> 2) & 3;
         ip++;
-
-        /* check */
-        if (ip > iend-3) return ERROR(srcSize_wrong); /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
 
         /* Build DTables */
         {   size_t const bhSize = ZSTDv06_buildSeqTable(DTableLL, LLtype, MaxLL, LLFSELog, ip, iend-ip, LL_defaultNorm, LL_defaultNormLog, flagRepeatTable);
@@ -3370,13 +3314,19 @@ static size_t ZSTDv06_execSequence(BYTE* op,
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
 
-    /* check */
-    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
+    /* checks */
+    size_t const seqLength = sequence.litLength + sequence.matchLength;
+
+    if (seqLength > (size_t)(oend - op)) return ERROR(dstSize_tooSmall);
+    if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);
+    /* Now we know there are no overflow in literal nor match lengths, can use pointer checks */
+    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);
+
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
 
     /* copy Literals */
-    ZSTDv06_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
+    ZSTDv06_wildcopy(op, *litPtr, (ptrdiff_t)sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 
@@ -3406,7 +3356,7 @@ static size_t ZSTDv06_execSequence(BYTE* op,
     if (sequence.offset < 8) {
         /* close range match, overlap */
         static const U32 dec32table[] = { 0, 1, 2, 1, 4, 4, 4, 4 };   /* added */
-        static const int dec64table[] = { 8, 8, 8, 7, 8, 9,10,11 };   /* substracted */
+        static const int dec64table[] = { 8, 8, 8, 7, 8, 9,10,11 };   /* subtracted */
         int const sub2 = dec64table[sequence.offset];
         op[0] = match[0];
         op[1] = match[1];
@@ -3441,7 +3391,7 @@ static size_t ZSTDv06_decompressSequences(
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
@@ -3501,8 +3451,10 @@ static size_t ZSTDv06_decompressSequences(
     {   size_t const lastLLSize = litEnd - litPtr;
         if (litPtr > litEnd) return ERROR(corruption_detected);   /* too many literals already used */
         if (op+lastLLSize > oend) return ERROR(dstSize_tooSmall);
-        memcpy(op, litPtr, lastLLSize);
-        op += lastLLSize;
+        if (lastLLSize > 0) {
+            memcpy(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
     }
 
     return op-ostart;
@@ -3555,7 +3507,7 @@ static size_t ZSTDv06_decompressFrame(ZSTDv06_DCtx* dctx,
 {
     const BYTE* ip = (const BYTE*)src;
     const BYTE* const iend = ip + srcSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstCapacity;
     size_t remainingSize = srcSize;
@@ -3654,36 +3606,62 @@ size_t ZSTDv06_decompress(void* dst, size_t dstCapacity, const void* src, size_t
 #endif
 }
 
-size_t ZSTDv06_findFrameCompressedSize(const void* src, size_t srcSize)
+/* ZSTD_errorFrameSizeInfoLegacy() :
+   assumes `cSize` and `dBound` are _not_ NULL */
+static void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long* dBound, size_t ret)
+{
+    *cSize = ret;
+    *dBound = ZSTD_CONTENTSIZE_ERROR;
+}
+
+void ZSTDv06_findFrameSizeInfoLegacy(const void *src, size_t srcSize, size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;
+    size_t nbBlocks = 0;
     blockProperties_t blockProperties = { bt_compressed, 0 };
 
     /* Frame Header */
-    {   size_t const frameHeaderSize = ZSTDv06_frameHeaderSize(src, ZSTDv06_frameHeaderSize_min);
-        if (ZSTDv06_isError(frameHeaderSize)) return frameHeaderSize;
-        if (MEM_readLE32(src) != ZSTDv06_MAGICNUMBER) return ERROR(prefix_unknown);
-        if (srcSize < frameHeaderSize+ZSTDv06_blockHeaderSize) return ERROR(srcSize_wrong);
+    {   size_t const frameHeaderSize = ZSTDv06_frameHeaderSize(src, srcSize);
+        if (ZSTDv06_isError(frameHeaderSize)) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, frameHeaderSize);
+            return;
+        }
+        if (MEM_readLE32(src) != ZSTDv06_MAGICNUMBER) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(prefix_unknown));
+            return;
+        }
+        if (srcSize < frameHeaderSize+ZSTDv06_blockHeaderSize) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(srcSize_wrong));
+            return;
+        }
         ip += frameHeaderSize; remainingSize -= frameHeaderSize;
     }
 
     /* Loop on each block */
     while (1) {
         size_t const cBlockSize = ZSTDv06_getcBlockSize(ip, remainingSize, &blockProperties);
-        if (ZSTDv06_isError(cBlockSize)) return cBlockSize;
+        if (ZSTDv06_isError(cBlockSize)) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, cBlockSize);
+            return;
+        }
 
         ip += ZSTDv06_blockHeaderSize;
         remainingSize -= ZSTDv06_blockHeaderSize;
-        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+        if (cBlockSize > remainingSize) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(srcSize_wrong));
+            return;
+        }
 
         if (cBlockSize == 0) break;   /* bt_end */
 
         ip += cBlockSize;
         remainingSize -= cBlockSize;
+        nbBlocks++;
     }
 
-    return ip - (const BYTE*)src;
+    *cSize = ip - (const BYTE*)src;
+    *dBound = nbBlocks * ZSTDv06_BLOCKSIZE_MAX;
 }
 
 /*_******************************
@@ -3759,6 +3737,7 @@ size_t ZSTDv06_decompressContinue(ZSTDv06_DCtx* dctx, void* dst, size_t dstCapac
             }
             dctx->stage = ZSTDds_decodeBlockHeader;
             dctx->expected = ZSTDv06_blockHeaderSize;
+            if (ZSTDv06_isError(rSize)) return rSize;
             dctx->previousDstEnd = (char*)dst + rSize;
             return rSize;
         }
@@ -3861,7 +3840,7 @@ size_t ZSTDv06_decompressBegin_usingDict(ZSTDv06_DCtx* dctx, const void* dict, s
     Buffered version of Zstd compression library
     Copyright (C) 2015-2016, Yann Collet.
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
@@ -3885,7 +3864,7 @@ size_t ZSTDv06_decompressBegin_usingDict(ZSTDv06_DCtx* dctx, const void* dict, s
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You can contact the author at :
-    - zstd homepage : http://www.zstd.net/
+    - zstd homepage : https://facebook.github.io/zstd/
 */
 
 
@@ -3940,6 +3919,10 @@ ZBUFFv06_DCtx* ZBUFFv06_createDCtx(void)
     if (zbd==NULL) return NULL;
     memset(zbd, 0, sizeof(*zbd));
     zbd->zd = ZSTDv06_createDCtx();
+    if (zbd->zd==NULL) {
+        ZBUFFv06_freeDCtx(zbd); /* avoid leaking the context */
+        return NULL;
+    }
     zbd->stage = ZBUFFds_init;
     return zbd;
 }
@@ -3974,7 +3957,9 @@ size_t ZBUFFv06_decompressInit(ZBUFFv06_DCtx* zbd)
 MEM_STATIC size_t ZBUFFv06_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     size_t length = MIN(dstCapacity, srcSize);
-    memcpy(dst, src, length);
+    if (length > 0) {
+        memcpy(dst, src, length);
+    }
     return length;
 }
 
@@ -4005,7 +3990,8 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     size_t const toLoad = hSize - zbd->lhSize;   /* if hSize!=0, hSize > zbd->lhSize */
                     if (ZSTDv06_isError(hSize)) return hSize;
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
-                        memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
+                        if (ip != NULL)
+                            memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
                         zbd->lhSize += iend-ip;
                         *dstCapacityPtr = 0;
                         return (hSize - zbd->lhSize) + ZSTDv06_blockHeaderSize;   /* remaining header bytes + next block header */
@@ -4083,7 +4069,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     if (!decodedSize) { zbd->stage = ZBUFFds_read; break; }   /* this was just a header */
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
-                    // break; /* ZBUFFds_flush follows */
+                    /* break; */ /* ZBUFFds_flush follows */
                 }
 	    }
 	    /* fall-through */

@@ -32,6 +32,10 @@
     <ClCompile Include="..\..\..\lib\compress\huf_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_compress_literals.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_compress_sequences.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_compress_superblock.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_preSplit.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_double_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_lazy.c" />
@@ -53,27 +57,35 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
     <ClCompile Include="..\..\..\programs\util.c" />
+    <ClCompile Include="..\..\..\programs\timefn.c" />
     <ClCompile Include="..\..\..\programs\benchfn.c" />
     <ClCompile Include="..\..\..\programs\benchzstd.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
+    <ClCompile Include="..\..\..\programs\fileio_asyncio.c" />
+    <ClCompile Include="..\..\..\programs\lorem.c" />
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
+    <ClCompile Include="..\..\..\programs\zstdcli_trace.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\common\pool.h" />
     <ClInclude Include="..\..\..\lib\common\threading.h" />
     <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
-    <ClInclude Include="..\..\..\lib\dictBuilder\zdict.h" />
+    <ClInclude Include="..\..\..\lib\zdict.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\cover.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
     <ClInclude Include="..\..\..\lib\common\fse.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
-    <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />
+    <ClInclude Include="..\..\..\lib\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_compress_literals.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_compress_sequences.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_cwksp.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_compress_superblock.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_double_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_lazy.h" />
@@ -104,6 +116,7 @@
     <RootNamespace>zstd</RootNamespace>
     <OutDir>$(SolutionDir)bin\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\obj\$(RootNamespace)_$(Platform)_$(Configuration)\</IntDir>
+    <InstructionSet>NotSet</InstructionSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -174,9 +187,10 @@
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnablePREfast>false</EnablePREfast>
+      <EnableEnhancedInstructionSet>$(InstructionSet)</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -190,9 +204,10 @@
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>true</TreatWarningAsError>
       <EnablePREfast>false</EnablePREfast>
+      <EnableEnhancedInstructionSet>$(InstructionSet)</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -208,10 +223,11 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnablePREfast>false</EnablePREfast>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>$(InstructionSet)</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -229,11 +245,12 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
       <EnablePREfast>false</EnablePREfast>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/DZSTD_MULTITHREAD %(AdditionalOptions)</AdditionalOptions>
+      <EnableEnhancedInstructionSet>$(InstructionSet)</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

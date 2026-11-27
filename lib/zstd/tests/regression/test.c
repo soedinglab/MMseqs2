@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -153,7 +153,7 @@ static void print_help(void) {
     }
 }
 
-/** Parse the arguments. Teturn 0 on success. Print help on failure. */
+/** Parse the arguments. Return 0 on success. Print help on failure. */
 static int parse_args(int argc, char** argv) {
     int option_index = 0;
     int c;

@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /**
@@ -14,9 +15,11 @@
 #ifndef FUZZ_HELPERS_H
 #define FUZZ_HELPERS_H
 
+#include "debug.h"
 #include "fuzz.h"
 #include "xxhash.h"
 #include "zstd.h"
+#include "fuzz_data_producer.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,35 +58,22 @@ extern "C" {
 #endif
 
 /**
- * Determininistically constructs a seed based on the fuzz input.
- * Consumes up to the first FUZZ_RNG_SEED_SIZE bytes of the input.
+ * malloc except return NULL for zero sized data and FUZZ_ASSERT
+ * that malloc doesn't fail.
  */
-FUZZ_STATIC uint32_t FUZZ_seed(uint8_t const **src, size_t* size) {
-    uint8_t const *data = *src;
-    size_t const toHash = MIN(FUZZ_RNG_SEED_SIZE, *size);
-    *size -= toHash;
-    *src += toHash;
-    return XXH32(data, toHash, 0);
-}
+void* FUZZ_malloc(size_t size);
 
-#define FUZZ_rotl32(x, r) (((x) << (r)) | ((x) >> (32 - (r))))
+/**
+ * malloc except returns random pointer for zero sized data and FUZZ_ASSERT
+ * that malloc doesn't fail.
+ * WARNING: Only free the returned pointer if size > 0!
+ */
+void* FUZZ_malloc_rand(size_t size,  FUZZ_dataProducer_t *producer);
 
-FUZZ_STATIC uint32_t FUZZ_rand(uint32_t *state) {
-    static const uint32_t prime1 = 2654435761U;
-    static const uint32_t prime2 = 2246822519U;
-    uint32_t rand32 = *state;
-    rand32 *= prime1;
-    rand32 += prime2;
-    rand32 = FUZZ_rotl32(rand32, 13);
-    *state = rand32;
-    return rand32 >> 5;
-}
-
-/* Returns a random numer in the range [min, max]. */
-FUZZ_STATIC uint32_t FUZZ_rand32(uint32_t *state, uint32_t min, uint32_t max) {
-    uint32_t random = FUZZ_rand(state);
-    return min + (random % (max - min + 1));
-}
+/**
+ * memcmp but accepts NULL.
+ */
+int FUZZ_memcmp(void const* lhs, void const* rhs, size_t size);
 
 #ifdef __cplusplus
 }

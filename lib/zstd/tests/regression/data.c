@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>   /* free() */
 
 #include <sys/stat.h>
 
@@ -67,10 +68,27 @@ data_t github = {
         },
 };
 
+data_t github_tar = {
+    .name = "github.tar",
+    .type = data_type_file,
+    .data =
+        {
+            .url = REGRESSION_RELEASE("github.tar.zst"),
+            .xxhash64 = 0xa9b1b44b020df292LL,
+        },
+    .dict =
+        {
+            .url = REGRESSION_RELEASE("github.dict.zst"),
+            .xxhash64 = 0x1eddc6f737d3cb53LL,
+
+        },
+};
+
 static data_t* g_data[] = {
     &silesia,
     &silesia_tar,
     &github,
+    &github_tar,
     NULL,
 };
 
@@ -173,21 +191,10 @@ void data_buffer_free(data_buffer_t buffer) {
  * data filenames helpers.
  */
 
-data_filenames_t data_filenames_get(data_t const* data) {
-    data_filenames_t filenames = {.buffer = NULL, .size = 0};
-    char const* path = data->data.path;
-
-    filenames.filenames = UTIL_createFileList(
-        &path,
-        1,
-        &filenames.buffer,
-        &filenames.size,
-        /* followLinks */ 0);
-    return filenames;
-}
-
-void data_filenames_free(data_filenames_t filenames) {
-    UTIL_freeFileList(filenames.filenames, filenames.buffer);
+FileNamesTable* data_filenames_get(data_t const* data)
+{
+    char const* const path = data->data.path;
+    return UTIL_createExpandedFNT(&path, 1, 0 /* followLinks */ );
 }
 
 /**
@@ -196,26 +203,33 @@ void data_filenames_free(data_filenames_t filenames) {
 
 data_buffers_t data_buffers_get(data_t const* data) {
     data_buffers_t buffers = {.size = 0};
-    data_filenames_t filenames = data_filenames_get(data);
-    if (filenames.size == 0)
+    FileNamesTable* const filenames = data_filenames_get(data);
+    if (filenames == NULL) return buffers;
+    if (filenames->tableSize == 0) {
+        UTIL_freeFileNamesTable(filenames);
         return buffers;
+    }
 
     data_buffer_t* buffersPtr =
-        (data_buffer_t*)malloc(filenames.size * sizeof(data_buffer_t));
-    if (buffersPtr == NULL)
+        (data_buffer_t*)malloc(filenames->tableSize * sizeof(*buffersPtr));
+    if (buffersPtr == NULL) {
+        UTIL_freeFileNamesTable(filenames);
         return buffers;
+    }
     buffers.buffers = (data_buffer_t const*)buffersPtr;
-    buffers.size = filenames.size;
+    buffers.size = filenames->tableSize;
 
-    for (size_t i = 0; i < filenames.size; ++i) {
-        buffersPtr[i] = data_buffer_read(filenames.filenames[i]);
+    for (size_t i = 0; i < filenames->tableSize; ++i) {
+        buffersPtr[i] = data_buffer_read(filenames->fileNames[i]);
         if (buffersPtr[i].data == NULL) {
             data_buffers_t const kEmptyBuffer = {};
             data_buffers_free(buffers);
+            UTIL_freeFileNamesTable(filenames);
             return kEmptyBuffer;
         }
     }
 
+    UTIL_freeFileNamesTable(filenames);
     return buffers;
 }
 

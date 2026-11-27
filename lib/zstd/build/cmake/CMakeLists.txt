@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -7,107 +7,75 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
-PROJECT(zstd)
-SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+#-----------------------------------------------------------------------------
+# Setup CMake environment
+#-----------------------------------------------------------------------------
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "No build type selected, defaulting to Release")
-  set(CMAKE_BUILD_TYPE "Release")
+# Define project paths
+set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
+
+#-----------------------------------------------------------------------------
+# Configure CMake policies and version
+#-----------------------------------------------------------------------------
+include(ZstdVersion)
+
+#-----------------------------------------------------------------------------
+# Project declaration
+#-----------------------------------------------------------------------------
+project(zstd
+    VERSION "${ZSTD_FULL_VERSION}"
+    LANGUAGES C   # Main library is in C and ASM, ASM is enabled conditionally
+    HOMEPAGE_URL "${zstd_HOMEPAGE_URL}"
+    DESCRIPTION "${zstd_DESCRIPTION}"
+)
+
+#-----------------------------------------------------------------------------
+# Build type configuration
+#-----------------------------------------------------------------------------
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
-INCLUDE(GNUInstallDirs)
+#-----------------------------------------------------------------------------
+# Include standard modules
+#-----------------------------------------------------------------------------
+include(GNUInstallDirs)
 
 #-----------------------------------------------------------------------------
-# Add extra compilation flags
+# Display installation information
 #-----------------------------------------------------------------------------
-INCLUDE(AddZstdCompilationFlags)
-ADD_ZSTD_COMPILATION_FLAGS()
-
-# Always hide XXHash symbols
-ADD_DEFINITIONS(-DXXH_NAMESPACE=ZSTD_)
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 
 #-----------------------------------------------------------------------------
-# Installation variables
+# Configure build options
 #-----------------------------------------------------------------------------
-MESSAGE(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
-MESSAGE(STATUS "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
-
-#-----------------------------------------------------------------------------
-# Options
-#-----------------------------------------------------------------------------
-
-# Legacy support
-OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
-
-IF (ZSTD_LEGACY_SUPPORT)
-    MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT defined!")
-    ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=4)
-ELSE (ZSTD_LEGACY_SUPPORT)
-    MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
-    ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=0)
-ENDIF (ZSTD_LEGACY_SUPPORT)
-
-# Multi-threading support
-OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
-
-IF (ZSTD_MULTITHREAD_SUPPORT)
-    MESSAGE(STATUS "ZSTD_MULTITHREAD_SUPPORT is enabled")
-ELSE (ZSTD_MULTITHREAD_SUPPORT)
-    MESSAGE(STATUS "ZSTD_MULTITHREAD_SUPPORT is disabled")
-ENDIF (ZSTD_MULTITHREAD_SUPPORT)
-
-OPTION(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
-OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
-OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
-if (MSVC)
-    OPTION(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
-endif ()
+include(ZstdOptions)
 
 #-----------------------------------------------------------------------------
-# External dependencies
+# Configure compilation flags
 #-----------------------------------------------------------------------------
-IF (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
-    SET(THREADS_PREFER_PTHREAD_FLAG ON)
-    FIND_PACKAGE(Threads REQUIRED)
-    IF(CMAKE_USE_PTHREADS_INIT)
-        SET(THREADS_LIBS "${CMAKE_THREAD_LIBS_INIT}")
-    ELSE()
-        MESSAGE(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
-    ENDIF()
-ENDIF (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
+include(AddZstdCompilationFlags)
+ADD_ZSTD_COMPILATION_FLAGS(ON ZSTD_ENABLE_CXX ON)
 
 #-----------------------------------------------------------------------------
-# Add source directories
+# Configure dependencies
 #-----------------------------------------------------------------------------
-ADD_SUBDIRECTORY(lib)
-
-IF (ZSTD_BUILD_PROGRAMS)
-    IF (NOT ZSTD_BUILD_STATIC)
-        MESSAGE(SEND_ERROR "You need to build static library to build zstd CLI")
-    ENDIF (NOT ZSTD_BUILD_STATIC)
-
-    ADD_SUBDIRECTORY(programs)
-ENDIF (ZSTD_BUILD_PROGRAMS)
-
-IF (ZSTD_BUILD_TESTS)
-    IF (NOT ZSTD_BUILD_STATIC)
-        MESSAGE(SEND_ERROR "You need to build static library to build tests")
-    ENDIF (NOT ZSTD_BUILD_STATIC)
-
-    ADD_SUBDIRECTORY(tests)
-ENDIF (ZSTD_BUILD_TESTS)
-
-IF (ZSTD_BUILD_CONTRIB)
-    ADD_SUBDIRECTORY(contrib)
-ENDIF (ZSTD_BUILD_CONTRIB)
+include(ZstdDependencies)
 
 #-----------------------------------------------------------------------------
-# Add clean-all target
+# Configure build targets
 #-----------------------------------------------------------------------------
-ADD_CUSTOM_TARGET(clean-all
-   COMMAND ${CMAKE_BUILD_TOOL} clean
-   COMMAND rm -rf ${CMAKE_BINARY_DIR}/
-)
+include(ZstdBuild)
+
+#-----------------------------------------------------------------------------
+# Configure package generation
+#-----------------------------------------------------------------------------
+include(ZstdPackage)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -17,7 +17,7 @@
 static const size_t kMatchBytes = 128;
 
 #define SEQ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
-static BYTE SEQ_randByte(U32* src)
+static BYTE SEQ_randByte(unsigned* src)
 {
     static const U32 prime1 = 2654435761U;
     static const U32 prime2 = 2246822519U;

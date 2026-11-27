@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -14,30 +14,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>  /* time(), for seed random initialization */
 
 #include "util.h"
+#include "timefn.h"   /* UTIL_clockSpanMicro, SEC_TO_MICRO, UTIL_TIME_INITIALIZER */
 #include "zstd.h"
 #include "zstd_internal.h"
 #include "mem.h"
 #define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"
 
-// Direct access to internal compression functions is required
-#include "zstd_compress.c"
+/* Direct access to internal compression functions is required */
+#include "compress/zstd_compress.c" /* ZSTD_resetSeqStore, ZSTD_storeSeq, *_TO_OFFBASE, HIST_countFast_wksp, HIST_isError */
+#include "decompress/zstd_decompress_block.h" /* ZSTD_decompressBlock_deprecated */
 
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"     /* XXH64 */
 
-#ifndef MIN
-    #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef MAX_PATH
-    #ifdef PATH_MAX
-        #define MAX_PATH PATH_MAX
-    #else
-        #define MAX_PATH 256
-    #endif
+#if !(defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */))
+# define inline  /* disable */
 #endif
 
 /*-************************************
@@ -69,10 +64,11 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
         }                                                                      \
     } while (0)
 
+
 /*-*******************************************************
 *  Random function
 *********************************************************/
-static unsigned RAND(unsigned* src)
+static U32 RAND(U32* src)
 {
 #define RAND_rotl32(x,r) ((x << r) | (x >> (32 - r)))
     static const U32 prime1 = 2654435761U;
@@ -135,7 +131,7 @@ static void RAND_genDist(U32* seed, BYTE* dist, double weight)
     BYTE step = (BYTE) ((RAND(seed) % 256) | 1); /* force it to be odd so it's relatively prime to 256 */
 
     while (i < DISTSIZE) {
-        size_t states = ((size_t)(weight * statesLeft)) + 1;
+        size_t states = ((size_t)(weight * (double)statesLeft)) + 1;
         size_t j;
         for (j = 0; j < states && i < DISTSIZE; j++, i++) {
             dist[i] = symb;
@@ -164,7 +160,7 @@ static double RAND_exp(U32* seed, double mean)
 /*-*******************************************************
 *  Constants and Structs
 *********************************************************/
-const char *BLOCK_TYPES[] = {"raw", "rle", "compressed"};
+const char* BLOCK_TYPES[] = {"raw", "rle", "compressed"};
 
 #define MAX_DECOMPRESSED_SIZE_LOG 20
 #define MAX_DECOMPRESSED_SIZE (1ULL << MAX_DECOMPRESSED_SIZE_LOG)
@@ -174,17 +170,25 @@ const char *BLOCK_TYPES[] = {"raw", "rle", "compressed"};
 #define MIN_SEQ_LEN (3)
 #define MAX_NB_SEQ ((ZSTD_BLOCKSIZE_MAX + MIN_SEQ_LEN - 1) / MIN_SEQ_LEN)
 
+#ifndef MAX_PATH
+    #ifdef PATH_MAX
+        #define MAX_PATH PATH_MAX
+    #else
+        #define MAX_PATH 256
+    #endif
+#endif
+
 BYTE CONTENT_BUFFER[MAX_DECOMPRESSED_SIZE];
 BYTE FRAME_BUFFER[MAX_DECOMPRESSED_SIZE * 2];
 BYTE LITERAL_BUFFER[ZSTD_BLOCKSIZE_MAX];
 
-seqDef SEQUENCE_BUFFER[MAX_NB_SEQ];
+SeqDef SEQUENCE_BUFFER[MAX_NB_SEQ];
 BYTE SEQUENCE_LITERAL_BUFFER[ZSTD_BLOCKSIZE_MAX]; /* storeSeq expects a place to copy literals to */
 BYTE SEQUENCE_LLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_MLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_OFCODE[ZSTD_BLOCKSIZE_MAX];
 
-unsigned WKSP[1024];
+U64 WKSP[HUF_WORKSPACE_SIZE_U64];
 
 typedef struct {
     size_t contentSize; /* 0 means unknown (unless contentSize == windowSize == 0) */
@@ -198,7 +202,7 @@ typedef struct {
     int hufInit;
     /* the distribution used in the previous block for repeat mode */
     BYTE hufDist[DISTSIZE];
-    U32 hufTable [256]; /* HUF_CElt is an incomplete type */
+    HUF_CElt hufTable [HUF_CTABLE_SIZE_ST(255)];
 
     int fseInit;
     FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
@@ -239,6 +243,16 @@ typedef enum {
   gt_block,      /* generate compressed blocks without block/frame headers */
 } genType_e;
 
+#ifndef MIN
+    #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+typedef enum {
+  lt_raw,
+  lt_rle,
+  lt_compressed,
+} literalType_e;
+
 /*-*******************************************************
 *  Global variables (set from command line)
 *********************************************************/
@@ -251,7 +265,11 @@ U32 g_maxBlockSize = ZSTD_BLOCKSIZE_MAX;                       /* <= 128 KB */
 
 struct {
     int contentSize; /* force the content size to be present */
-} opts; /* advanced options on generation */
+    blockType_e *blockType; /* force specific block type */
+    literalType_e *literalType; /* force specific literals type */
+    int frame_header_only; /* generate only frame header */
+    int no_magic; /* do not generate magic number */
+} opts;
 
 /* Generate and write a random frame header */
 static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
@@ -280,10 +298,19 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
 
     {
         /* Generate random content size */
+        int force_block_type = opts.blockType != NULL;
         size_t highBit;
         if (RAND(seed) & 7 && g_maxDecompressedSizeLog > 7) {
             /* do content of at least 128 bytes */
             highBit = 1ULL << RAND_range(seed, 7, g_maxDecompressedSizeLog);
+        } else if (force_block_type) {
+            if ((RAND(seed) & 3) || (*(opts.blockType) == bt_rle)) {
+                /* do small content */
+                highBit = 1ULL << RAND_range(seed, 0, MIN(7, 1U << g_maxDecompressedSizeLog));
+            } else {
+                /* 0 size frame */
+                highBit = 0;
+            }
         } else if (RAND(seed) & 3) {
             /* do small content */
             highBit = 1ULL << RAND_range(seed, 0, MIN(7, 1U << g_maxDecompressedSizeLog));
@@ -316,8 +343,10 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
     }
 
     /* write out the header */
-    MEM_writeLE32(op + pos, ZSTD_MAGICNUMBER);
-    pos += 4;
+    if (!opts.no_magic) {
+        MEM_writeLE32(op + pos, ZSTD_MAGICNUMBER);
+        pos += 4;
+    }
 
     {
         /*
@@ -350,7 +379,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
         }
     }
 
-    DISPLAYLEVEL(3, " frame content size:\t%u\n", (U32)fh.contentSize);
+    DISPLAYLEVEL(3, " frame content size:\t%u\n", (unsigned)fh.contentSize);
     DISPLAYLEVEL(3, " frame window size:\t%u\n", fh.windowSize);
     DISPLAYLEVEL(3, " content size flag:\t%d\n", contentSizeFlag);
     DISPLAYLEVEL(3, " single segment flag:\t%d\n", singleSegment);
@@ -362,8 +391,10 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
 /* Write a literal block in either raw or RLE form, return the literals size */
 static size_t writeLiteralsBlockSimple(U32* seed, frame_t* frame, size_t contentSize)
 {
+    int force_literal_type = opts.literalType != NULL;
+    int const type = (force_literal_type) ? *(opts.literalType) : RAND(seed) % 2;
+
     BYTE* op = (BYTE*)frame->data;
-    int const type = RAND(seed) % 2;
     int const sizeFormatDesc = RAND(seed) % 8;
     size_t litSize;
     size_t maxLitSize = MIN(contentSize, g_maxBlockSize);
@@ -412,7 +443,7 @@ static size_t writeLiteralsBlockSimple(U32* seed, frame_t* frame, size_t content
         /* RLE literals */
         BYTE const symb = (BYTE) (RAND(seed) % 256);
 
-        DISPLAYLEVEL(4, "   rle literals: 0x%02x\n", (U32)symb);
+        DISPLAYLEVEL(4, "   rle literals: 0x%02x\n", (unsigned)symb);
 
         memset(LITERAL_BUFFER, symb, litSize);
         op[0] = symb;
@@ -432,9 +463,9 @@ static size_t writeHufHeader(U32* seed, HUF_CElt* hufTable, void* dst, size_t ds
     BYTE* op = ostart;
 
     unsigned huffLog = 11;
-    U32 maxSymbolValue = 255;
+    unsigned maxSymbolValue = 255;
 
-    U32 count[HUF_SYMBOLVALUE_MAX+1];
+    unsigned count[HUF_SYMBOLVALUE_MAX+1];
 
     /* Scan input and build symbol stats */
     {   size_t const largest = HIST_count_wksp (count, &maxSymbolValue, (const BYTE*)src, srcSize, WKSP, sizeof(WKSP));
@@ -453,7 +484,7 @@ static size_t writeHufHeader(U32* seed, HUF_CElt* hufTable, void* dst, size_t ds
     }
 
     /* Write table description header */
-    {   size_t const hSize = HUF_writeCTable (op, dstSize, hufTable, maxSymbolValue, huffLog);
+    {   size_t const hSize = HUF_writeCTable_wksp (op, dstSize, hufTable, maxSymbolValue, huffLog, WKSP, sizeof(WKSP));
         if (hSize + 12 >= srcSize) return 0;   /* not useful to try compression */
         op += hSize;
     }
@@ -474,7 +505,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
     size_t compressedSize = 0;
     size_t maxLitSize = MIN(contentSize-3, g_maxBlockSize);
 
-    symbolEncodingType_e hType;
+    SymbolEncodingType_e hType;
 
     if (contentSize < 64) {
         /* make sure we get reasonably-sized literals for compression */
@@ -513,7 +544,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
         if ((RAND(seed) & 3) || !frame->stats.hufInit) {
             do {
                 if (RAND(seed) & 3) {
-                    /* add 10 to ensure some compressability */
+                    /* add 10 to ensure some compressibility */
                     double const weight = ((RAND(seed) % 90) + 10) / 100.0;
 
                     DISPLAYLEVEL(5, "    distribution weight: %d%%\n",
@@ -534,7 +565,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
                  * actual data to avoid bugs with symbols that were in the
                  * distribution but never showed up in the output */
                 hufHeaderSize = writeHufHeader(
-                        seed, (HUF_CElt*)frame->stats.hufTable, op, opend - op,
+                        seed, frame->stats.hufTable, op, opend - op,
                         frame->stats.hufDist, DISTSIZE);
                 CHECKERR(hufHeaderSize);
                 /* repeat until a valid header is written */
@@ -557,10 +588,10 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
                     sizeFormat == 0
                             ? HUF_compress1X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      (HUF_CElt*)frame->stats.hufTable)
+                                      frame->stats.hufTable, /* flags */ 0)
                             : HUF_compress4X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      (HUF_CElt*)frame->stats.hufTable);
+                                      frame->stats.hufTable, /* flags */ 0);
             CHECKERR(compressedSize);
             /* this only occurs when it could not compress or similar */
         } while (compressedSize <= 0);
@@ -568,8 +599,8 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
         op += compressedSize;
 
         compressedSize += hufHeaderSize;
-        DISPLAYLEVEL(5, "    regenerated size: %u\n", (U32)litSize);
-        DISPLAYLEVEL(5, "    compressed size: %u\n", (U32)compressedSize);
+        DISPLAYLEVEL(5, "    regenerated size: %u\n", (unsigned)litSize);
+        DISPLAYLEVEL(5, "    compressed size: %u\n", (unsigned)compressedSize);
         if (compressedSize >= litSize) {
             DISPLAYLEVEL(5, "     trying again\n");
             /* if we have to try again, reset the stats so we don't accidentally
@@ -611,15 +642,22 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
 
 static size_t writeLiteralsBlock(U32* seed, frame_t* frame, size_t contentSize)
 {
-    /* only do compressed for larger segments to avoid compressibility issues */
-    if (RAND(seed) & 7 && contentSize >= 64) {
+    int select_compressed = 0;
+    if (opts.literalType) {
+        select_compressed = *(opts.literalType) == lt_compressed;
+    } else {
+        /* only do compressed for larger segments to avoid compressibility issues */
+        select_compressed = RAND(seed) & 7 && contentSize >= 64;
+    }
+
+    if (select_compressed) {
         return writeLiteralsBlockCompressed(seed, frame, contentSize);
     } else {
         return writeLiteralsBlockSimple(seed, frame, contentSize);
     }
 }
 
-static inline void initSeqStore(seqStore_t *seqStore) {
+static inline void initSeqStore(SeqStore_t *seqStore) {
     seqStore->maxNbSeq = MAX_NB_SEQ;
     seqStore->maxNbLit = ZSTD_BLOCKSIZE_MAX;
     seqStore->sequencesStart = SEQUENCE_BUFFER;
@@ -632,16 +670,15 @@ static inline void initSeqStore(seqStore_t *seqStore) {
 }
 
 /* Randomly generate sequence commands */
-static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
-                                size_t contentSize, size_t literalsSize, dictInfo info)
+static U32
+generateSequences(U32* seed, frame_t* frame, SeqStore_t* seqStore,
+                  size_t contentSize, size_t literalsSize, dictInfo info)
 {
     /* The total length of all the matches */
     size_t const remainingMatch = contentSize - literalsSize;
     size_t excessMatch = 0;
     U32 numSequences = 0;
-
     U32 i;
-
 
     const BYTE* literals = LITERAL_BUFFER;
     BYTE* srcPtr = frame->src;
@@ -656,22 +693,22 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         excessMatch = remainingMatch - numSequences * MIN_SEQ_LEN;
     }
 
-    DISPLAYLEVEL(5, "    total match lengths: %u\n", (U32)remainingMatch);
+    DISPLAYLEVEL(5, "    total match lengths: %u\n", (unsigned)remainingMatch);
     for (i = 0; i < numSequences; i++) {
         /* Generate match and literal lengths by exponential distribution to
          * ensure nice numbers */
         U32 matchLen =
                 MIN_SEQ_LEN +
-                ROUND(RAND_exp(seed, excessMatch / (double)(numSequences - i)));
+                ROUND(RAND_exp(seed, (double)excessMatch / (double)(numSequences - i)));
         U32 literalLen =
                 (RAND(seed) & 7)
                         ? ROUND(RAND_exp(seed,
-                                         literalsSize /
+                                         (double)literalsSize /
                                                  (double)(numSequences - i)))
                         : 0;
         /* actual offset, code to send, and point to copy up to when shifting
          * codes in the repeat offsets history */
-        U32 offset, offsetCode, repIndex;
+        U32 offset, offBase, repIndex;
 
         /* bounds checks */
         matchLen = (U32) MIN(matchLen, excessMatch + MIN_SEQ_LEN);
@@ -702,32 +739,31 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                             lenPastStart = MIN(lenPastStart+MIN_SEQ_LEN, (U32)info.dictContentSize);
                             offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) + lenPastStart;
                         }
-                        {
-                            U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
+                        {   U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
                             matchLen = MIN(matchLen, matchLenBound);
                         }
                     }
                 }
-                offsetCode = offset + ZSTD_REP_MOVE;
+                offBase = OFFSET_TO_OFFBASE(offset);
                 repIndex = 2;
             } else {
                 /* do a repeat offset */
-                offsetCode = RAND(seed) % 3;
+                U32 const randomRepIndex = RAND(seed) % 3;
+                offBase = REPCODE_TO_OFFBASE(randomRepIndex + 1);  /* expects values between 1 & 3 */
                 if (literalLen > 0) {
-                    offset = frame->stats.rep[offsetCode];
-                    repIndex = offsetCode;
+                    offset = frame->stats.rep[randomRepIndex];
+                    repIndex = randomRepIndex;
                 } else {
-                    /* special case */
-                    offset = offsetCode == 2 ? frame->stats.rep[0] - 1
-                                           : frame->stats.rep[offsetCode + 1];
-                    repIndex = MIN(2, offsetCode + 1);
+                    /* special case : literalLen == 0 */
+                    offset = randomRepIndex == 2 ? frame->stats.rep[0] - 1
+                                           : frame->stats.rep[randomRepIndex + 1];
+                    repIndex = MIN(2, randomRepIndex + 1);
                 }
             }
         } while (((!info.useDict) && (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) || offset == 0);
 
-        {
+        {   BYTE* const dictEnd = ZSTD_maybeNullPtrAdd(info.dictContent, info.dictContentSize);
             size_t j;
-            BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             for (j = 0; j < matchLen; j++) {
                 if ((U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
                     /* copy from dictionary instead of literals */
@@ -738,8 +774,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                     *srcPtr = *(srcPtr-offset);
                 }
                 srcPtr++;
-            }
-        }
+        }   }
 
         {   int r;
             for (r = repIndex; r > 0; r--) {
@@ -748,16 +783,17 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             frame->stats.rep[0] = offset;
         }
 
-        DISPLAYLEVEL(6, "      LL: %5u OF: %5u ML: %5u", literalLen, offset, matchLen);
+        DISPLAYLEVEL(6, "      LL: %5u OF: %5u ML: %5u",
+                    (unsigned)literalLen, (unsigned)offset, (unsigned)matchLen);
         DISPLAYLEVEL(7, " srcPos: %8u seqNb: %3u",
-                     (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart), i);
+                     (unsigned)((BYTE*)srcPtr - (BYTE*)frame->srcStart), (unsigned)i);
         DISPLAYLEVEL(6, "\n");
-        if (offsetCode < 3) {
-            DISPLAYLEVEL(7, "        repeat offset: %d\n", repIndex);
+        if (OFFBASE_IS_REPCODE(offBase)) {  /* expects sumtype numeric representation of ZSTD_storeSeq() */
+            DISPLAYLEVEL(7, "        repeat offset: %d\n", (int)repIndex);
         }
         /* use libzstd sequence handling */
-        ZSTD_storeSeq(seqStore, literalLen, literals, offsetCode,
-                      matchLen - MINMATCH);
+        ZSTD_storeSeq(seqStore, literalLen, literals, literals + literalLen,
+                      offBase, matchLen);
 
         literalsSize -= literalLen;
         excessMatch -= (matchLen - MIN_SEQ_LEN);
@@ -766,8 +802,8 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
 
     memcpy(srcPtr, literals, literalsSize);
     srcPtr += literalsSize;
-    DISPLAYLEVEL(6, "      excess literals: %5u", (U32)literalsSize);
-    DISPLAYLEVEL(7, " srcPos: %8u", (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart));
+    DISPLAYLEVEL(6, "      excess literals: %5u ", (unsigned)literalsSize);
+    DISPLAYLEVEL(7, "srcPos: %8u ", (unsigned)((BYTE*)srcPtr - (BYTE*)frame->srcStart));
     DISPLAYLEVEL(6, "\n");
 
     return numSequences;
@@ -796,30 +832,30 @@ static int isSymbolSubset(const BYTE* symbols, size_t len, const BYTE* set, BYTE
     return 1;
 }
 
-static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
+static size_t writeSequences(U32* seed, frame_t* frame, SeqStore_t* seqStorePtr,
                              size_t nbSeq)
 {
     /* This code is mostly copied from ZSTD_compressSequences in zstd_compress.c */
-    U32 count[MaxSeq+1];
+    unsigned count[MaxSeq+1];
     S16 norm[MaxSeq+1];
     FSE_CTable* CTable_LitLength = frame->stats.litlengthCTable;
     FSE_CTable* CTable_OffsetBits = frame->stats.offcodeCTable;
     FSE_CTable* CTable_MatchLength = frame->stats.matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
-    const seqDef* const sequences = seqStorePtr->sequencesStart;
+    const SeqDef* const sequences = seqStorePtr->sequencesStart;
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
     const BYTE* const llCodeTable = seqStorePtr->llCode;
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
     BYTE* const oend = (BYTE*)frame->dataEnd;
     BYTE* op = (BYTE*)frame->data;
     BYTE* seqHead;
-    BYTE scratchBuffer[1<<MAX(MLFSELog,LLFSELog)];
+    BYTE scratchBuffer[FSE_BUILD_CTABLE_WORKSPACE_SIZE(MaxSeq, MaxFSELog)];
 
     /* literals compressing block removed so that can be done separately */
 
     /* Sequences Header */
     if ((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead */) return ERROR(dstSize_tooSmall);
-    if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
+    if (nbSeq < 128) *op++ = (BYTE)nbSeq;
     else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
     else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
 
@@ -835,49 +871,49 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     ZSTD_seqToCodes(seqStorePtr);
 
     /* CTable for Literal Lengths */
-    {   U32 max = MaxLL;
+    {   unsigned max = MaxLL;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
-        if (mostFrequent == nbSeq) {
-            /* do RLE if we have the chance */
-            *op++ = llCodeTable[0];
-            FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
-            LLtype = set_rle;
-        } else if (frame->stats.fseInit && !(RAND(seed) & 3) &&
+        if (frame->stats.fseInit && !(RAND(seed) & 3) &&
                    isSymbolSubset(llCodeTable, nbSeq,
                                   frame->stats.litlengthSymbolSet, 35)) {
             /* maybe do repeat mode if we're allowed to */
             LLtype = set_repeat;
+        } else if (mostFrequent == nbSeq) {
+            /* do RLE if we have the chance */
+            *op++ = llCodeTable[0];
+            FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
+            LLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* maybe use the default distribution */
-            FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
+            CHECKERR(FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer)));
             LLtype = set_basic;
         } else {
             /* fall back on a full table */
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(LLFSELog, nbSeq, max);
             if (count[llCodeTable[nbSeq-1]]>1) { count[llCodeTable[nbSeq-1]]--; nbSeq_1--; }
-            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
+            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max, nbSeq >= 2048);
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
+            CHECKERR(FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer)));
             LLtype = set_compressed;
     }   }
 
     /* CTable for Offsets */
     /* see Literal Lengths for descriptions of mode choices */
-    {   U32 max = MaxOff;
+    {   unsigned max = MaxOff;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, ofCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
-        if (mostFrequent == nbSeq) {
-            *op++ = ofCodeTable[0];
-            FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
-            Offtype = set_rle;
-        } else if (frame->stats.fseInit && !(RAND(seed) & 3) &&
+        if (frame->stats.fseInit && !(RAND(seed) & 3) &&
                    isSymbolSubset(ofCodeTable, nbSeq,
                                   frame->stats.offsetSymbolSet, 28)) {
             Offtype = set_repeat;
+        } else if (mostFrequent == nbSeq) {
+            *op++ = ofCodeTable[0];
+            FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
+            Offtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, DefaultMaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_basic;
@@ -885,7 +921,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(OffFSELog, nbSeq, max);
             if (count[ofCodeTable[nbSeq-1]]>1) { count[ofCodeTable[nbSeq-1]]--; nbSeq_1--; }
-            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
+            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max, nbSeq >= 2048);
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
@@ -895,17 +931,17 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 
     /* CTable for MatchLengths */
     /* see Literal Lengths for descriptions of mode choices */
-    {   U32 max = MaxML;
+    {   unsigned max = MaxML;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
-        if (mostFrequent == nbSeq) {
-            *op++ = *mlCodeTable;
-            FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
-            MLtype = set_rle;
-        } else if (frame->stats.fseInit && !(RAND(seed) & 3) &&
+        if (frame->stats.fseInit && !(RAND(seed) & 3) &&
                    isSymbolSubset(mlCodeTable, nbSeq,
                                   frame->stats.matchlengthSymbolSet, 52)) {
             MLtype = set_repeat;
+        } else if (mostFrequent == nbSeq) {
+            *op++ = *mlCodeTable;
+            FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
+            MLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* sometimes do default distribution */
             FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
@@ -915,7 +951,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             size_t nbSeq_1 = nbSeq;
             const U32 tableLog = FSE_optimalTableLog(MLFSELog, nbSeq, max);
             if (count[mlCodeTable[nbSeq-1]]>1) { count[mlCodeTable[nbSeq-1]]--; nbSeq_1--; }
-            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max);
+            FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max, nbSeq >= 2048);
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
@@ -927,7 +963,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     initSymbolSet(ofCodeTable, nbSeq, frame->stats.offsetSymbolSet, 28);
     initSymbolSet(mlCodeTable, nbSeq, frame->stats.matchlengthSymbolSet, 52);
 
-    DISPLAYLEVEL(5, "    LL type: %d OF type: %d ML type: %d\n", LLtype, Offtype, MLtype);
+    DISPLAYLEVEL(5, "    LL type: %d OF type: %d ML type: %d\n", (unsigned)LLtype, (unsigned)Offtype, (unsigned)MLtype);
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
 
@@ -937,7 +973,9 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
         FSE_CState_t  stateOffsetBits;
         FSE_CState_t  stateLitLength;
 
-        CHECK_E(BIT_initCStream(&blockStream, op, oend-op), dstSize_tooSmall); /* not enough space remaining */
+        RETURN_ERROR_IF(
+            ERR_isError(BIT_initCStream(&blockStream, op, oend-op)),
+            dstSize_tooSmall, "not enough space remaining");
 
         /* first symbols */
         FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
@@ -945,9 +983,9 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
         FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
         BIT_addBits(&blockStream, sequences[nbSeq-1].litLength, LL_bits[llCodeTable[nbSeq-1]]);
         if (MEM_32bits()) BIT_flushBits(&blockStream);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].matchLength, ML_bits[mlCodeTable[nbSeq-1]]);
+        BIT_addBits(&blockStream, sequences[nbSeq-1].mlBase, ML_bits[mlCodeTable[nbSeq-1]]);
         if (MEM_32bits()) BIT_flushBits(&blockStream);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
+        BIT_addBits(&blockStream, sequences[nbSeq-1].offBase, ofCodeTable[nbSeq-1]);
         BIT_flushBits(&blockStream);
 
         {   size_t n;
@@ -967,9 +1005,9 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
                     BIT_flushBits(&blockStream);                                /* (7)*/
                 BIT_addBits(&blockStream, sequences[n].litLength, llBits);
                 if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
-                BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
+                BIT_addBits(&blockStream, sequences[n].mlBase, mlBits);
                 if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
-                BIT_addBits(&blockStream, sequences[n].offset, ofBits);         /* 31 */
+                BIT_addBits(&blockStream, sequences[n].offBase, ofBits);         /* 31 */
                 BIT_flushBits(&blockStream);                                    /* (7)*/
         }   }
 
@@ -990,7 +1028,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 static size_t writeSequencesBlock(U32* seed, frame_t* frame, size_t contentSize,
                                   size_t literalsSize, dictInfo info)
 {
-    seqStore_t seqStore;
+    SeqStore_t seqStore;
     size_t numSequences;
 
 
@@ -1014,11 +1052,11 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 
     literalsSize = writeLiteralsBlock(seed, frame, contentSize);
 
-    DISPLAYLEVEL(4, "   literals size: %u\n", (U32)literalsSize);
+    DISPLAYLEVEL(4, "   literals size: %u\n", (unsigned)literalsSize);
 
     nbSeq = writeSequencesBlock(seed, frame, contentSize, literalsSize, info);
 
-    DISPLAYLEVEL(4, "   number of sequences: %u\n", (U32)nbSeq);
+    DISPLAYLEVEL(4, "   number of sequences: %u\n", (unsigned)nbSeq);
 
     return (BYTE*)frame->data - blockStart;
 }
@@ -1026,7 +1064,8 @@ static size_t writeCompressedBlock(U32* seed, frame_t* frame, size_t contentSize
 static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
                        int lastBlock, dictInfo info)
 {
-    int const blockTypeDesc = RAND(seed) % 8;
+    int force_block_type = opts.blockType != NULL;
+    int const blockTypeDesc = (force_block_type) ? *(opts.blockType) : RAND(seed) % 8;
     size_t blockSize;
     int blockType;
 
@@ -1034,7 +1073,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     BYTE *op = header + 3;
 
     DISPLAYLEVEL(4, " block:\n");
-    DISPLAYLEVEL(4, "  block content size: %u\n", (U32)contentSize);
+    DISPLAYLEVEL(4, "  block content size: %u\n", (unsigned)contentSize);
     DISPLAYLEVEL(4, "  last block: %s\n", lastBlock ? "yes" : "no");
 
     if (blockTypeDesc == 0) {
@@ -1046,8 +1085,8 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
         op += contentSize;
         blockType = 0;
         blockSize = contentSize;
-    } else if (blockTypeDesc == 1) {
-        /* RLE */
+    } else if (blockTypeDesc == 1 && frame->header.contentSize > 0) {
+        /* RLE (Don't create RLE block if frame content is 0 since block size of 1 may exceed max block size)*/
         BYTE const symbol = RAND(seed) & 0xff;
 
         op[0] = symbol;
@@ -1065,7 +1104,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
 
         frame->data = op;
         compressedSize = writeCompressedBlock(seed, frame, contentSize, info);
-        if (compressedSize >= contentSize) {   /* compressed block must be strictly smaller than uncompressed one */
+        if (compressedSize >= contentSize && !force_block_type) {   /* compressed block must be strictly smaller than uncompressed one */
             blockType = 0;
             memcpy(op, frame->src, contentSize);
 
@@ -1082,7 +1121,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
     frame->src = (BYTE*)frame->src + contentSize;
 
     DISPLAYLEVEL(4, "  block type: %s\n", BLOCK_TYPES[blockType]);
-    DISPLAYLEVEL(4, "  block size field: %u\n", (U32)blockSize);
+    DISPLAYLEVEL(4, "  block size field: %u\n", (unsigned)blockSize);
 
     header[0] = (BYTE) ((lastBlock | (blockType << 1) | (blockSize << 3)) & 0xff);
     MEM_writeLE16(header + 1, (U16) (blockSize >> 5));
@@ -1124,7 +1163,7 @@ static void writeChecksum(frame_t* frame)
 {
     /* write checksum so implementations can verify their output */
     U64 digest = XXH64(frame->srcStart, (BYTE*)frame->src-(BYTE*)frame->srcStart, 0);
-    DISPLAYLEVEL(3, "  checksum: %08x\n", (U32)digest);
+    DISPLAYLEVEL(3, "  checksum: %08x\n", (unsigned)digest);
     MEM_writeLE32(frame->data, (U32)digest);
     frame->data = (BYTE*)frame->data + 4;
 }
@@ -1185,7 +1224,7 @@ static U32 generateCompressedBlock(U32 seed, frame_t* frame, dictInfo info)
     size_t blockContentSize;
     int blockWritten = 0;
     BYTE* op;
-    DISPLAYLEVEL(4, "block seed: %u\n", seed);
+    DISPLAYLEVEL(4, "block seed: %u\n", (unsigned)seed);
     initFrame(frame);
     op = (BYTE*)frame->data;
 
@@ -1222,7 +1261,7 @@ static U32 generateCompressedBlock(U32 seed, frame_t* frame, dictInfo info)
             DISPLAYLEVEL(5, "   can't compress block : try again \n");
         } else {
             blockWritten = 1;
-            DISPLAYLEVEL(4, "   block size: %u \n", (U32)cSize);
+            DISPLAYLEVEL(4, "   block size: %u \n", (unsigned)cSize);
             frame->src = (BYTE*)frame->src + blockContentSize;
         }
     }
@@ -1233,10 +1272,14 @@ static U32 generateCompressedBlock(U32 seed, frame_t* frame, dictInfo info)
 static U32 generateFrame(U32 seed, frame_t* fr, dictInfo info)
 {
     /* generate a complete frame */
-    DISPLAYLEVEL(3, "frame seed: %u\n", seed);
+    DISPLAYLEVEL(3, "frame seed: %u\n", (unsigned)seed);
     initFrame(fr);
 
+
     writeFrameHeader(&seed, fr, info);
+    if (opts.frame_header_only)
+        return seed;
+
     writeBlocks(&seed, fr, info);
     writeChecksum(fr);
 
@@ -1427,7 +1470,7 @@ static size_t testDecodeWithDict(U32 seed, genType_e genType)
                 ZSTD_freeDCtx(dctx);
                 goto dictTestCleanup;
             }
-            ret = ZSTD_decompressBlock(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
+            ret = ZSTD_decompressBlock_deprecated(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
                                        fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart);
         }
         ZSTD_freeDCtx(dctx);
@@ -1454,7 +1497,7 @@ static size_t testDecodeRawBlock(frame_t* fr)
     size_t ret = ZSTD_decompressBegin(dctx);
     if (ZSTD_isError(ret)) return ret;
 
-    ret = ZSTD_decompressBlock(
+    ret = ZSTD_decompressBlock_deprecated(
             dctx,
             DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
             fr->dataStart, (BYTE*)fr->data - (BYTE*)fr->dataStart);
@@ -1479,8 +1522,8 @@ static int runBlockTest(U32* seed)
 
     {   size_t const r = testDecodeRawBlock(&fr);
         if (ZSTD_isError(r)) {
-            DISPLAY("Error in block mode on test seed %u: %s\n", seedCopy,
-                    ZSTD_getErrorName(r));
+            DISPLAY("Error in block mode on test seed %u: %s\n",
+                    (unsigned)seedCopy, ZSTD_getErrorName(r));
             return 1;
         }
     }
@@ -1488,7 +1531,7 @@ static int runBlockTest(U32* seed)
     {   size_t const r = testDecodeWithDict(*seed, gt_block);
         if (ZSTD_isError(r)) {
             DISPLAY("Error in block mode with dictionary on test seed %u: %s\n",
-                    seedCopy, ZSTD_getErrorName(r));
+                    (unsigned)seedCopy, ZSTD_getErrorName(r));
             return 1;
         }
     }
@@ -1506,21 +1549,21 @@ static int runFrameTest(U32* seed)
     {   size_t const r = testDecodeSimple(&fr);
         if (ZSTD_isError(r)) {
             DISPLAY("Error in simple mode on test seed %u: %s\n",
-                    seedCopy, ZSTD_getErrorName(r));
+                    (unsigned)seedCopy, ZSTD_getErrorName(r));
             return 1;
         }
     }
     {   size_t const r = testDecodeStreaming(&fr);
         if (ZSTD_isError(r)) {
             DISPLAY("Error in streaming mode on test seed %u: %s\n",
-                    seedCopy, ZSTD_getErrorName(r));
+                    (unsigned)seedCopy, ZSTD_getErrorName(r));
             return 1;
         }
     }
     {   size_t const r = testDecodeWithDict(*seed, gt_frame);  /* avoid big dictionaries */
         if (ZSTD_isError(r)) {
             DISPLAY("Error in dictionary mode on test seed %u: %s\n",
-                    seedCopy, ZSTD_getErrorName(r));
+                    (unsigned)seedCopy, ZSTD_getErrorName(r));
             return 1;
         }
     }
@@ -1537,7 +1580,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 
     if (numFiles == 0 && !testDurationS) numFiles = 1;
 
-    DISPLAY("seed: %u\n", seed);
+    DISPLAY("seed: %u\n", (unsigned)seed);
 
     for (fnum = 0; fnum < numFiles || UTIL_clockSpanMicro(startClock) < maxClockSpan; fnum++) {
         if (fnum < numFiles)
@@ -1567,7 +1610,7 @@ static int generateFile(U32 seed, const char* const path,
 {
     frame_t fr;
 
-    DISPLAY("seed: %u\n", seed);
+    DISPLAY("seed: %u\n", (unsigned)seed);
 
     {   dictInfo const info = initDictInfo(0, 0, NULL, 0);
         if (genType == gt_frame) {
@@ -1589,7 +1632,7 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
     char outPath[MAX_PATH];
     unsigned fnum;
 
-    DISPLAY("seed: %u\n", seed);
+    DISPLAY("seed: %u\n", (unsigned)seed);
 
     for (fnum = 0; fnum < numFiles; fnum++) {
         frame_t fr;
@@ -1764,6 +1807,9 @@ static void advancedUsage(const char* programName)
     DISPLAY( " --max-block-size-log=#   : max block size log, must be in range [2, 17]\n");
     DISPLAY( " --max-content-size-log=# : max content size log, must be <= 20\n");
     DISPLAY( "                            (this is ignored with gen-blocks)\n");
+    DISPLAY( " --block-type=#           : force certain block type (raw=0, rle=1, compressed=2)\n");
+    DISPLAY( " --frame-header-only      : dump only frame header\n");
+    DISPLAY( " --no-magic               : do not add magic number\n");
 }
 
 /*! readU32FromChar() :
@@ -1885,6 +1931,18 @@ int main(int argc, char** argv)
                         U32 value = readU32FromChar(&argument);
                         g_maxDecompressedSizeLog =
                                 MIN(MAX_DECOMPRESSED_SIZE_LOG, value);
+                    } else if (longCommandWArg(&argument, "block-type=")) {
+                        U32 value = readU32FromChar(&argument);
+                        opts.blockType = malloc(sizeof(blockType_e));
+                        *(opts.blockType) = value;
+                    } else if (longCommandWArg(&argument, "literal-type=")) {
+                        U32 value = readU32FromChar(&argument);
+                        opts.literalType = malloc(sizeof(literalType_e));
+                        *(opts.literalType) = value;
+                    } else if (strcmp(argument, "frame-header-only") == 0) {
+                        opts.frame_header_only = 1;
+                    } else if (strcmp(argument, "no-magic") == 0) {
+                        opts.no_magic = 1;
                     } else {
                         advancedUsage(argv[0]);
                         return 1;
@@ -1895,6 +1953,18 @@ int main(int argc, char** argv)
                     usage(argv[0]);
                     return 1;
     }   }   }   }   /* for (argNb=1; argNb<argc; argNb++) */
+
+    if (opts.blockType) {
+        if ((opts.contentSize == 0) && (*(opts.blockType) == bt_rle)) {
+            DISPLAY("Error: content-size has to be used together with blockType=1 (rle block)\n");
+            return 1;
+        }
+
+        if (opts.literalType && (*(opts.blockType) != bt_compressed)) {
+            DISPLAY("Error: literal-type can be used only with blockType=2 (compressed block)\n");
+            return 1;
+        }
+    }
 
     if (!seedset) {
         seed = makeSeed();

@@ -341,6 +341,7 @@ else ()
     set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd")
     set(CMAKE_INSTALL_LIBDIR bin)
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd/build/cmake/CMakeModules")
+    set(ZSTD_HAS_NOEXECSTACK OFF CACHE BOOL "Work around zstd CMake regression" FORCE) # AI sugestion, added to fix non existens of ZSTD_HAS_NOEXECSTACK in ZSTD cmake 
     option(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
     option(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
     option(ZSTD_BUILD_SHARED "BUILD SHARED LIBRARIES" OFF)
@@ -349,7 +350,7 @@ else ()
     option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
     option(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
     include_directories(lib/zstd/lib)
-    add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
+    add_subdirectory(lib/zstd/build/cmake EXCLUDE_FROM_ALL)
     set_target_properties(libzstd_static PROPERTIES COMPILE_FLAGS "${MMSEQS_C_FLAGS}" LINK_FLAGS "${MMSEQS_C_FLAGS}")
     set(ZSTD_LIBRARIES libzstd_static)
 endif()
@@ -365,6 +366,24 @@ add_subdirectory(lib/microtar)
 # tantan
 include_directories(lib/tantan)
 add_subdirectory(lib/tantan)
+
+# carquet
+# brotli is off by default: linking the system libbrotlienc/libbrotlidec fails 
+set(CARQUET_ENABLE_BROTLI OFF CACHE BOOL "Build the BROTLI codec of carquet (needs libbrotli)")
+if (USE_SYSTEM_ZSTD)
+    add_library(mmseqs_system_zstd STATIC IMPORTED)
+    set_target_properties(mmseqs_system_zstd PROPERTIES IMPORTED_LOCATION "${ZSTD_LIBRARIES}"
+                          INTERFACE_INCLUDE_DIRECTORIES "${ZSTD_INCLUDE_DIRS}")
+    set(CARQUET_ZSTD_TARGET mmseqs_system_zstd CACHE STRING "zstd for carquet (the zstd of MMseqs2)" FORCE)
+else ()
+    set(CARQUET_ZSTD_TARGET libzstd_static CACHE STRING "zstd for carquet (the zstd of MMseqs2)" FORCE)
+endif ()
+include_directories(lib/carquet)
+add_subdirectory(lib/carquet)
+# Turns of carquet's -flto=auto compile option, otherwise some compile settings are set with FORCE
+if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+    target_compile_options(carquet PRIVATE -fno-lto)
+endif ()
 
 # simde
 include_directories(lib/simde)

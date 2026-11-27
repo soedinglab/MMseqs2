@@ -1,0 +1,222 @@
+
+queryDB = "queryDB"
+targetDB = "targetDB"
+alignmentDB = "alignmentDB"
+writeColums = "query,target,evalue,gapopen,pident,fident,nident,qstart,qend,qlen"
+mmseqsPath = "../build/src/mmseqs"
+useThreads = 4
+
+rule all:
+    input:
+        "output/differences/print.txt",
+        'output/benchmark_eval.tsv',
+        'output/benchmark_sql.tsv'
+
+
+rule tsv_write:
+    input:
+        query= queryDB,
+        target = targetDB,
+        alignment = alignmentDB
+    output:
+        results = 'output/tsv/results.tsv'
+    threads:
+        useThreads
+    params:
+        columns = writeColums,
+        formatMode = 4,
+        mmseqsPath = mmseqsPath
+    benchmark:
+        repeat("output/benchmark/tsv/write.tsv", 10)
+    shell:
+        """
+        {params.mmseqsPath} convertalis {input.query} {input.target} {input.alignment} {output.results} --threads {threads} --format-mode 4 --format-output {params.columns}
+        """
+
+rule parquet_write:
+    input:
+        query = queryDB,
+        target = targetDB,
+        alignment = alignmentDB
+    output:
+        results = [f"output/parquet/results_{x}.parquet" for x in range(0,useThreads)],
+        done = touch('output/parquet.done')
+    threads:
+        useThreads
+    params:
+        columns = writeColums,
+        formatMode = 4,
+        mmseqsPath = mmseqsPath,
+        outputName = "output/parquet/results.parquet"
+    benchmark:
+        repeat("output/benchmark/parquet/write.tsv", 10)
+    shell:
+        """
+        {params.mmseqsPath} convertalis {input.query} {input.target} {input.alignment} {params.outputName} --threads {threads} --format-mode 5 --format-output {params.columns}
+        """
+
+rule test_differences:
+    input:
+        done = "output/parquet.done",
+        tsv = "output/tsv/results.tsv"
+    output:
+        results = "output/differences/print.txt"
+    params:
+        parquetPath = "output/parquet/"
+    shell:
+        """
+        python compare_columns.py {params.parquetPath} {input.tsv} > {output.results}
+        """
+
+rule tsv_SQL:
+    input:
+        tsv = 'output/tsv/results.tsv'
+    output:
+        bench = 'output/benchmark/tsv/SQL.tsv'
+    threads:
+        useThreads
+    params:
+        repeats = 10
+    shell:
+        """
+        python <<EOF
+import duckdb
+import time
+import pandas as pd
+
+def run():
+    con = duckdb.connect()
+    con.execute('SET threads = {useThreads};')
+    times = []
+    for x in range(0,{params.repeats}):
+        start_time = time.time()
+        con.execute("SELECT count(evalue) FROM \'{input.tsv}\' WHERE evalue BETWEEN 0.0 AND 1.0 AND pident BETWEEN 25.4 AND 95.00;")
+        end_sql = time.time()
+        con.execute("CREATE OR REPLACE TABLE parqTB AS SELECT * FROM \'{input.tsv}\';")
+        end_load = time.time()
+        con.execute("SELECT count(evalue) FROM parqTB WHERE evalue BETWEEN 0.0 AND 1.0 AND pident BETWEEN 25.4 AND 95.00;")
+        end_tableSQL = time.time()
+
+        times.append(["tsv","sqlScan",end_sql-start_time])
+        times.append(["tsv","load",end_load-end_sql])
+        times.append(["tsv","sqlTable",end_tableSQL-end_load])
+    
+    benchResults = pd.DataFrame(times,columns = ["origin", "task", "time"])
+    benchResults.to_csv('{output.bench}',sep='\\t', header = True)
+
+run()
+EOF
+        """
+
+rule parquet_SQL:
+    input:
+        'output/parquet.done'
+    output:
+        bench = 'output/benchmark/parquet/SQL.tsv'
+    threads:
+        useThreads
+    params:
+        parquetPath = "output/parquet/results_*.parquet",
+        repeats = 10
+    shell:
+        """
+        python <<EOF
+import duckdb
+import time
+import pandas as pd
+
+def run():
+    con = duckdb.connect()
+    con.execute('SET threads = {useThreads};')
+    times = []
+    for x in range(0,{params.repeats}):
+        start_time = time.time()
+        con.execute("SELECT count(evalue) FROM \'{params.parquetPath}\' WHERE evalue BETWEEN 0.0 AND 1.0 AND pident BETWEEN 25.4 AND 95.00;")
+        end_sql = time.time()
+        con.execute("CREATE OR REPLACE TABLE parqTB AS SELECT * FROM \'{params.parquetPath}\';")
+        end_load = time.time()
+        con.execute("SELECT count(evalue) FROM parqTB WHERE evalue BETWEEN 0.0 AND 1.0 AND pident BETWEEN 25.4 AND 95.00;")
+        end_tableSQL = time.time()
+
+        times.append(["parquet","sqlScan",end_sql-start_time])
+        times.append(["parquet","load",end_load-end_sql])
+        times.append(["parquet","sqlTable",end_tableSQL-end_load])
+    
+    benchResults = pd.DataFrame(times,columns = ["origin", "task", "time"])
+    benchResults.to_csv('{output.bench}',sep='\\t', header = True)
+
+run()
+EOF
+        """
+
+
+rule evalSQL:
+    input:
+        parq = 'output/benchmark/parquet/SQL.tsv',
+        tsv = 'output/benchmark/tsv/SQL.tsv'
+    output:
+        report = 'output/benchmark_sql.tsv'
+    threads:
+        useThreads
+    shell:
+            """
+        duckdb <<EOF
+CREATE OR REPLACE TABLE
+bench_results
+AS 
+    SELECT
+        * 
+    FROM
+        read_csv('output/benchmark/*/SQL.tsv', union_by_name = true, header = true);
+
+COPY(
+    SELECT
+        origin, task, round(mean(time), 3) as time
+    FROM
+        bench_results
+    GROUP BY
+        (origin, task)
+    ORDER BY task
+)
+TO
+    '{output.report}' (FORMAT csv, delim '\\t', HEADER TRUE);
+EOF
+    """
+
+
+rule evalWrite:
+    input:
+        tsvWrite = "output/benchmark/tsv/write.tsv",
+        parquetWrite = "output/benchmark/parquet/write.tsv",
+    output:
+        report = 'output/benchmark_eval.tsv'
+    threads:
+        useThreads
+    params:
+        readPath = "output/benchmark/*/write.tsv"
+    shell:
+        """
+        duckdb <<EOF
+CREATE OR REPLACE TABLE
+bench_results
+AS 
+    SELECT
+        * 
+    FROM
+        read_csv('{params.readPath}', union_by_name = true, filename = true, header = true, nullstr = 'NA');
+
+COPY(
+    SELECT
+        filename, round(mean(s),3) AS mean_s, round(max(s),3) as max_s,
+        round(min(s),3) as min_s, round(var_pop(s),3) as var_s,
+        round(mean(max_rss),3) AS mean_max_rss_MB, round(max(max_rss),3) as max_max_rss_MB,
+        round(min(max_rss),3) as min_max_rss_MB, round(var_pop(max_rss),3) as var_max_rss_MB
+    FROM
+        bench_results
+    GROUP BY
+        filename
+)
+TO
+    '{output.report}' (FORMAT csv, delim '\\t', HEADER TRUE);
+EOF
+    """

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -10,13 +10,14 @@
 
 #include <cstdio>
 #include <mutex>
+#include <chrono>
 
 namespace pzstd {
 
-constexpr int ERROR = 1;
-constexpr int INFO = 2;
-constexpr int DEBUG = 3;
-constexpr int VERBOSE = 4;
+constexpr int kLogError = 1;
+constexpr int kLogInfo = 2;
+constexpr int kLogDebug = 3;
+constexpr int kLogVerbose = 4;
 
 class Logger {
   std::mutex mutex_;

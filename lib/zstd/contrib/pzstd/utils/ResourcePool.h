@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -54,7 +54,7 @@ class ResourcePool {
 
   /**
    * @returns  A unique pointer to a resource.  The resource is null iff
-   *           there are no avaiable resources and `factory()` returns null.
+   *           there are no available resources and `factory()` returns null.
    */
   UniquePtr get() {
     std::lock_guard<std::mutex> lock(mutex_);

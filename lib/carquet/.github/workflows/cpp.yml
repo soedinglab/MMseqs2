@@ -1,0 +1,188 @@
+name: Test
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: OS ${{ matrix.os }} with BUILD_SHARED_LIBS=${{matrix.shared}}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest, ubuntu-24.04-arm]
+        shared: [ON, OFF]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Support longpaths
+        if: runner.os == 'Windows'
+        run: git config --system core.longpaths true
+
+      # cmake + a C/C++ compiler are preinstalled on the Linux/macOS runner images;
+      # we only install ninja, ccache, and the three codec libs. zlib is provided by
+      # the macOS SDK. Windows self-supplies zstd/zlib/lz4 via CMake FetchContent.
+      - name: Install deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ccache pkg-config \
+            zlib1g-dev libzstd-dev liblz4-dev libbrotli-dev
+
+      - name: Install deps (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja ccache pkg-config zstd lz4 brotli
+
+      # ccache on Linux/macOS, sccache on Windows (ccache doesn't support MSVC).
+      # sccache caches both the FetchContent codec builds and carquet's objects.
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          variant: ${{ runner.os == 'Windows' && 'sccache' || 'ccache' }}
+          key: ${{ matrix.os }}-${{ matrix.shared }}
+
+      - name: Configure
+        shell: bash
+        env:
+          BUILD_SHARED_LIBS: ${{ matrix.shared }}
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            export CC=cl.exe CXX=cl.exe
+            # sccache can't cache MSVC /Zi PDBs, so build Release (no /Zi) here.
+            LAUNCHER="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+            BUILD_TYPE=Release
+          else
+            LAUNCHER="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+            BUILD_TYPE=RelWithDebInfo
+          fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCARQUET_BUILD_SHARED=$BUILD_SHARED_LIBS \
+            -DCARQUET_BUILD_TESTS=ON \
+            $LAUNCHER
+
+      - name: Compile
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build -VV --rerun-failed --output-on-failure
+
+  # Other Windows toolchains. MinGW-w64 GCC catches GCC-only issues on Windows
+  # (LTO archives need gcc-ar, LLP64 printf formats, winpthreads/libgomp) and
+  # clang-cl takes the GCC-like flag path with an MSVC driver. Uses the MinGW
+  # preinstalled on the runner image; no caching to keep the job simple.
+  windows-toolchains:
+    name: Windows ${{ matrix.name }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CXX matters: the fetched zstd project enables C++, and CMake would
+          # otherwise pick a mismatched C++ driver (clang++ next to clang-cl).
+          - { name: MinGW-w64 GCC static, cc: gcc,      cxx: g++,      shared: OFF, msvc: false, gen: MinGW Makefiles }
+          - { name: MinGW-w64 GCC shared, cc: gcc,      cxx: g++,      shared: ON,  msvc: false, gen: MinGW Makefiles }
+          - { name: clang-cl static,      cc: clang-cl, cxx: clang-cl, shared: OFF, msvc: true,  gen: Ninja }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.msvc
+      - name: Support longpaths
+        run: git config --system core.longpaths true
+
+      - name: MinGW on PATH
+        if: ${{ !matrix.msvc }}
+        shell: bash
+        run: echo "C:/mingw64/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        shell: bash
+        run: |
+          export CC=${{ matrix.cc }} CXX=${{ matrix.cxx }}
+          cmake -S . -B build -G "${{ matrix.gen }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCARQUET_BUILD_SHARED=${{ matrix.shared }} \
+            -DCARQUET_BUILD_TESTS=ON \
+            -DCARQUET_BUILD_EXAMPLES=ON
+
+      - name: Compile
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --timeout 300
+
+  # 32-bit MSVC (issue #36): catches x64-only intrinsics (_BitScanForward64,
+  # _mm_extract_epi64, ...). Default options, so SSE/AVX2 stay on and AVX-512
+  # must auto-disable.
+  windows-x86:
+    name: Windows Win32 (MSVC x86)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+      - name: Support longpaths
+        run: git config --system core.longpaths true
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          variant: sccache
+          key: windows-x86
+
+      - name: Configure
+        shell: bash
+        run: |
+          export CC=cl.exe CXX=cl.exe
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCARQUET_BUILD_TESTS=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Compile
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build -VV --rerun-failed --output-on-failure
+
+  redhat-build:
+    name: Rocky Linux 9
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux:9
+
+    steps:
+     - name: Install build dependencies
+       run: |
+          dnf install -y \
+            gcc gcc-c++ \
+            cmake make git \
+            pkgconf-pkg-config \
+            zlib-devel libzstd-devel lz4-devel
+
+     - uses: actions/checkout@v4
+
+     - name: Configure
+       run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCARQUET_BUILD_TESTS=ON
+
+     - name: Compile
+       run: |
+          cmake --build build --parallel
+
+     - name: Test
+       run: |
+          ctest --test-dir build -VV --rerun-failed --output-on-failure

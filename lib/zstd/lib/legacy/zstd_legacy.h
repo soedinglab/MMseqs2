@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -18,9 +18,9 @@ extern "C" {
 /* *************************************
 *  Includes
 ***************************************/
-#include "mem.h"            /* MEM_STATIC */
-#include "error_private.h"  /* ERROR */
-#include "zstd.h"           /* ZSTD_inBuffer, ZSTD_outBuffer */
+#include "../common/mem.h"            /* MEM_STATIC */
+#include "../common/error_private.h"  /* ERROR */
+#include "../common/zstd_internal.h"  /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTD_frameSizeInfo */
 
 #if !defined (ZSTD_LEGACY_SUPPORT) || (ZSTD_LEGACY_SUPPORT == 0)
 #  undef ZSTD_LEGACY_SUPPORT
@@ -124,6 +124,20 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
                const void* dict,size_t dictSize)
 {
     U32 const version = ZSTD_isLegacy(src, compressedSize);
+    char x;
+    /* Avoid passing NULL to legacy decoding. */
+    if (dst == NULL) {
+        assert(dstCapacity == 0);
+        dst = &x;
+    }
+    if (src == NULL) {
+        assert(compressedSize == 0);
+        src = &x;
+    }
+    if (dict == NULL) {
+        assert(dictSize == 0);
+        dict = &x;
+    }
     (void)dst; (void)dstCapacity; (void)dict; (void)dictSize;  /* unused when ZSTD_LEGACY_SUPPORT >= 8 */
     switch(version)
     {
@@ -178,43 +192,84 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
     }
 }
 
-MEM_STATIC size_t ZSTD_findFrameCompressedSizeLegacy(const void *src,
-                                             size_t compressedSize)
+MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size_t srcSize)
 {
-    U32 const version = ZSTD_isLegacy(src, compressedSize);
+    ZSTD_frameSizeInfo frameSizeInfo;
+    U32 const version = ZSTD_isLegacy(src, srcSize);
     switch(version)
     {
 #if (ZSTD_LEGACY_SUPPORT <= 1)
         case 1 :
-            return ZSTDv01_findFrameCompressedSize(src, compressedSize);
+            ZSTDv01_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 2)
         case 2 :
-            return ZSTDv02_findFrameCompressedSize(src, compressedSize);
+            ZSTDv02_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 3)
         case 3 :
-            return ZSTDv03_findFrameCompressedSize(src, compressedSize);
+            ZSTDv03_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 4)
         case 4 :
-            return ZSTDv04_findFrameCompressedSize(src, compressedSize);
+            ZSTDv04_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 5)
         case 5 :
-            return ZSTDv05_findFrameCompressedSize(src, compressedSize);
+            ZSTDv05_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 6)
         case 6 :
-            return ZSTDv06_findFrameCompressedSize(src, compressedSize);
+            ZSTDv06_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 7)
         case 7 :
-            return ZSTDv07_findFrameCompressedSize(src, compressedSize);
+            ZSTDv07_findFrameSizeInfoLegacy(src, srcSize,
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
+            break;
 #endif
         default :
-            return ERROR(prefix_unknown);
+            frameSizeInfo.compressedSize = ERROR(prefix_unknown);
+            frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
+            break;
     }
+    if (!ZSTD_isError(frameSizeInfo.compressedSize) && frameSizeInfo.compressedSize > srcSize) {
+        frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
+        frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
+    }
+    /* In all cases, decompressedBound == nbBlocks * ZSTD_BLOCKSIZE_MAX.
+     * So we can compute nbBlocks without having to change every function.
+     */
+    if (frameSizeInfo.decompressedBound != ZSTD_CONTENTSIZE_ERROR) {
+        assert((frameSizeInfo.decompressedBound & (ZSTD_BLOCKSIZE_MAX - 1)) == 0);
+        frameSizeInfo.nbBlocks = (size_t)(frameSizeInfo.decompressedBound / ZSTD_BLOCKSIZE_MAX);
+    }
+    return frameSizeInfo;
+}
+
+MEM_STATIC size_t ZSTD_findFrameCompressedSizeLegacy(const void *src, size_t srcSize)
+{
+    ZSTD_frameSizeInfo frameSizeInfo = ZSTD_findFrameSizeInfoLegacy(src, srcSize);
+    return frameSizeInfo.compressedSize;
 }
 
 MEM_STATIC size_t ZSTD_freeLegacyStreamContext(void* legacyContext, U32 version)
@@ -246,6 +301,12 @@ MEM_STATIC size_t ZSTD_freeLegacyStreamContext(void* legacyContext, U32 version)
 MEM_STATIC size_t ZSTD_initLegacyStream(void** legacyContext, U32 prevVersion, U32 newVersion,
                                         const void* dict, size_t dictSize)
 {
+    char x;
+    /* Avoid passing NULL to legacy decoding. */
+    if (dict == NULL) {
+        assert(dictSize == 0);
+        dict = &x;
+    }
     DEBUGLOG(5, "ZSTD_initLegacyStream for v0.%u", newVersion);
     if (prevVersion != newVersion) ZSTD_freeLegacyStreamContext(*legacyContext, prevVersion);
     switch(newVersion)
@@ -305,6 +366,16 @@ MEM_STATIC size_t ZSTD_initLegacyStream(void** legacyContext, U32 prevVersion, U
 MEM_STATIC size_t ZSTD_decompressLegacyStream(void* legacyContext, U32 version,
                                               ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
+    static char x;
+    /* Avoid passing NULL to legacy decoding. */
+    if (output->dst == NULL) {
+        assert(output->size == 0);
+        output->dst = &x;
+    }
+    if (input->src == NULL) {
+        assert(input->size == 0);
+        input->src = &x;
+    }
     DEBUGLOG(5, "ZSTD_decompressLegacyStream for v0.%u", version);
     switch(version)
     {

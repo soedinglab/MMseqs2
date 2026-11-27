@@ -365,6 +365,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_literals.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>
@@ -397,7 +409,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\programs\bench.c"
+				RelativePath="..\..\..\programs\benchfn.c"
 				>
 			</File>
 			<File
@@ -405,7 +417,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\tests\util.c"
+				RelativePath="..\..\..\programs\util.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\timefn.c"
 				>
 			</File>
 			<File
@@ -447,7 +463,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd_errors.h"
+				RelativePath="..\..\..\lib\zstd_errors.h"
 				>
 			</File>
 			<File
@@ -488,6 +504,22 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_literals.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_cwksp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.h"
 				>
 			</File>
 			<File

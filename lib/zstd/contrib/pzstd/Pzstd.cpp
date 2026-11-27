@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -10,11 +10,13 @@
 #include "Pzstd.h"
 #include "SkippableFrame.h"
 #include "utils/FileSystem.h"
+#include "utils/Portability.h"
 #include "utils/Range.h"
 #include "utils/ScopeGuard.h"
 #include "utils/ThreadPool.h"
 #include "utils/WorkQueue.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cinttypes>
 #include <cstddef>
@@ -55,7 +57,7 @@ static std::uint64_t handleOneInput(const Options &options,
                              SharedState& state) {
   auto inputSize = fileSizeOrZero(inputFile);
   // WorkQueue outlives ThreadPool so in the case of error we are certain
-  // we don't accidently try to call push() on it after it is destroyed
+  // we don't accidentally try to call push() on it after it is destroyed
   WorkQueue<std::shared_ptr<BufferWorkQueue>> outs{options.numThreads + 1};
   std::uint64_t bytesRead;
   std::uint64_t bytesWritten;
@@ -94,12 +96,12 @@ static std::uint64_t handleOneInput(const Options &options,
     if (!options.decompress) {
       double ratio = static_cast<double>(bytesWritten) /
                      static_cast<double>(bytesRead + !bytesRead);
-      state.log(INFO, "%-20s :%6.2f%%   (%6" PRIu64 " => %6" PRIu64
+      state.log(kLogInfo, "%-20s :%6.2f%%   (%6" PRIu64 " => %6" PRIu64
                    " bytes, %s)\n",
                    inputFileName.c_str(), ratio * 100, bytesRead, bytesWritten,
                    outputFileName.c_str());
     } else {
-      state.log(INFO, "%-20s: %" PRIu64 " bytes \n",
+      state.log(kLogInfo, "%-20s: %" PRIu64 " bytes \n",
                    inputFileName.c_str(),bytesWritten);
     }
   }
@@ -139,12 +141,12 @@ static FILE *openOutputFile(const Options &options,
     auto outputFd = std::fopen(outputFile.c_str(), "rb");
     if (outputFd != nullptr) {
       std::fclose(outputFd);
-      if (!state.log.logsAt(INFO)) {
+      if (!state.log.logsAt(kLogInfo)) {
         state.errorHolder.setError("Output file exists");
         return nullptr;
       }
       state.log(
-          INFO,
+          kLogInfo,
           "pzstd: %s already exists; do you wish to overwrite (y/n) ? ",
           outputFile.c_str());
       int c = getchar();
@@ -170,7 +172,7 @@ int pzstdMain(const Options &options) {
     auto printErrorGuard = makeScopeGuard([&] {
       if (state.errorHolder.hasError()) {
         returnCode = 1;
-        state.log(ERROR, "pzstd: %s: %s.\n", input.c_str(),
+        state.log(kLogError, "pzstd: %s: %s.\n", input.c_str(),
                   state.errorHolder.getError().c_str());
       }
     });
@@ -267,14 +269,17 @@ static void compress(
     std::shared_ptr<BufferWorkQueue> out,
     size_t maxInputSize) {
   auto& errorHolder = state.errorHolder;
-  auto guard = makeScopeGuard([&] { out->finish(); });
+  auto guard = makeScopeGuard([&] {
+    in->finish();
+    out->finish();
+  });
   // Initialize the CCtx
   auto ctx = state.cStreamPool->get();
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_CStream")) {
     return;
   }
   {
-    auto err = ZSTD_resetCStream(ctx.get(), 0);
+    auto err = ZSTD_CCtx_reset(ctx.get(), ZSTD_reset_session_only);
     if (!errorHolder.check(!ZSTD_isError(err), ZSTD_getErrorName(err))) {
       return;
     }
@@ -336,6 +341,10 @@ static size_t calculateStep(
     const ZSTD_parameters &params) {
   (void)size;
   (void)numThreads;
+  // Not validated to work correctly for window logs > 23.
+  // It will definitely fail if windowLog + 2 is >= 4GB because
+  // the skippable frame can only store sizes up to 4GB.
+  assert(params.cParams.windowLog <= 23);
   return size_t{1} << (params.cParams.windowLog + 2);
 }
 
@@ -388,7 +397,7 @@ std::uint64_t asyncCompressChunks(
   // Break the input up into chunks of size `step` and compress each chunk
   // independently.
   size_t step = calculateStep(size, numThreads, params);
-  state.log(DEBUG, "Chosen frame size: %zu\n", step);
+  state.log(kLogDebug, "Chosen frame size: %zu\n", step);
   auto status = FileStatus::Continue;
   while (status == FileStatus::Continue && !state.errorHolder.hasError()) {
     // Make a new input queue that we will put the chunk's input data into.
@@ -403,7 +412,7 @@ std::uint64_t asyncCompressChunks(
     });
     // Pass the output queue to the writer thread.
     chunks.push(std::move(out));
-    state.log(VERBOSE, "%s\n", "Starting a new frame");
+    state.log(kLogVerbose, "%s\n", "Starting a new frame");
     // Fill the input queue for the compression job we just started
     status = readData(*in, ZSTD_CStreamInSize(), step, fd, &bytesRead);
   }
@@ -425,14 +434,17 @@ static void decompress(
     std::shared_ptr<BufferWorkQueue> in,
     std::shared_ptr<BufferWorkQueue> out) {
   auto& errorHolder = state.errorHolder;
-  auto guard = makeScopeGuard([&] { out->finish(); });
+  auto guard = makeScopeGuard([&] {
+    in->finish();
+    out->finish();
+  });
   // Initialize the DCtx
   auto ctx = state.dStreamPool->get();
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_DStream")) {
     return;
   }
   {
-    auto err = ZSTD_resetDStream(ctx.get());
+    auto err = ZSTD_DCtx_reset(ctx.get(), ZSTD_reset_session_only);
     if (!errorHolder.check(!ZSTD_isError(err), ZSTD_getErrorName(err))) {
       return;
     }
@@ -540,14 +552,14 @@ std::uint64_t asyncDecompressFrames(
     if (frameSize == 0) {
       // We hit a non SkippableFrame ==> not compressed by pzstd or corrupted
       // Pass the rest of the source to this decompression task
-      state.log(VERBOSE, "%s\n",
+      state.log(kLogVerbose, "%s\n",
           "Input not in pzstd format, falling back to serial decompression");
       while (status == FileStatus::Continue && !state.errorHolder.hasError()) {
         status = readData(*in, chunkSize, chunkSize, fd, &totalBytesRead);
       }
       break;
     }
-    state.log(VERBOSE, "Decompressing a frame of size %zu", frameSize);
+    state.log(kLogVerbose, "Decompressing a frame of size %zu", frameSize);
     // Fill the input queue for the decompression job we just started
     status = readData(*in, chunkSize, frameSize, fd, &totalBytesRead);
   }
@@ -572,13 +584,15 @@ std::uint64_t writeFile(
     FILE* outputFd,
     bool decompress) {
   auto& errorHolder = state.errorHolder;
+  auto outsFinishGuard = makeScopeGuard([&outs] { outs.finish(); });
   auto lineClearGuard = makeScopeGuard([&state] {
-    state.log.clear(INFO);
+    state.log.clear(kLogInfo);
   });
   std::uint64_t bytesWritten = 0;
   std::shared_ptr<BufferWorkQueue> out;
   // Grab the output queue for each decompression job (in order).
   while (outs.pop(out)) {
+    auto outFinishGuard = makeScopeGuard([&out] { out->finish(); });
     if (errorHolder.hasError()) {
       continue;
     }
@@ -587,7 +601,8 @@ std::uint64_t writeFile(
       // start writing before compression is done because we need to know the
       // compressed size.
       // Wait for the compressed size to be available and write skippable frame
-      SkippableFrame frame(out->size());
+      assert(uint64_t(out->size()) < uint64_t(1) << 32);
+      SkippableFrame frame(uint32_t(out->size()));
       if (!writeData(frame.data(), outputFd)) {
         errorHolder.setError("Failed to write output");
         return bytesWritten;
@@ -602,7 +617,7 @@ std::uint64_t writeFile(
         return bytesWritten;
       }
       bytesWritten += buffer.size();
-      state.log.update(INFO, "Written: %u MB   ",
+      state.log.update(kLogInfo, "Written: %u MB   ",
                 static_cast<std::uint32_t>(bytesWritten >> 20));
     }
   }

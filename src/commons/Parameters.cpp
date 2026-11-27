@@ -109,7 +109,7 @@ Parameters::Parameters():
         PARAM_GPU_SERVER(PARAM_GPU_SERVER_ID, "--gpu-server", "Use GPU server", "Use GPU server", typeid(int), (void *) &gpuServer, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_GPU_SERVER_WAIT_TIMEOUT(PARAM_GPU_SERVER_WAIT_TIMEOUT_ID, "--gpu-server-wait-timeout", "Wait for GPU server", "Wait for GPU server for 0: don't wait -1: no wait limit: >0 this many seconds", typeid(int), (void *) &gpuServerWaitTimeout, "^-?[0-9]+", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format:\n0: BLAST-TAB\n1: SAM\n2: BLAST-TAB + query/db length\n3: Pretty HTML\n4: BLAST-TAB + column headers\nBLAST-TAB (0) and BLAST-TAB + column headers (4) support custom output formats (--format-output)", typeid(int), (void *) &formatAlignmentMode, "^[0-4]{1}$"),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format:\n0: BLAST-TAB\n1: SAM\n2: BLAST-TAB + query/db length\n3: Pretty HTML\n4: BLAST-TAB + column headers\n5: Parquet output file\nBLAST-TAB (0) and BLAST-TAB + column headers (4) support custom output formats (--format-output)", typeid(int), (void *) &formatAlignmentMode, "^[0-5]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,fident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend,ppos", typeid(std::string), (void *) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Return a result DB instead of a text file", typeid(bool), (void *) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
@@ -220,6 +220,13 @@ Parameters::Parameters():
         PARAM_SHUFFLE(PARAM_SHUFFLE_ID, "--shuffle", "Shuffle input database", "Shuffle input database", typeid(bool), (void *) &shuffleDatabase, ""),
         PARAM_WRITE_LOOKUP(PARAM_WRITE_LOOKUP_ID, "--write-lookup", "Write lookup file", "write .lookup file containing mapping from internal id, fasta id and file number", typeid(int), (void *) &writeLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use header DB", "use the sequence header DB instead of the body to map the entry keys", typeid(bool), (void *) &useHeaderFile, ""),
+        // convert2parquet
+        PARAM_PARQUET_SORT_MODE(PARAM_PARQUET_SORT_MODE_ID, "--parquet-sort-mode", "Parquet sort mode", "Row order of the parquet output:\n0: auto (keyorder if the DB fits into half of the available memory, else spillsort)\n1: linear (DB file order, no key order)\n2: keyorder (read in key order)\n3: spillsort (sequential read, key ranges sorted via temporary files)", typeid(int), (void *) &parquetSortMode, "^[0-3]{1}$"),
+        PARAM_PARQUET_COMPRESSION(PARAM_PARQUET_COMPRESSION_ID, "--parquet-compression", "Parquet compression", "Compression codec:\n0: uncompressed\n1: zstd\n2: snappy\n3: gzip\n4: lz4", typeid(int), (void *) &parquetCompression, "^[0-4]{1}$"),
+        PARAM_PARQUET_COMPRESSION_LEVEL(PARAM_PARQUET_COMPRESSION_LEVEL_ID, "--parquet-compression-level", "Parquet compression level", "Compression level of the codec (zstd: 1-22, gzip: 1-9)", typeid(int), (void *) &parquetCompressionLevel, "^[0-9]{1,2}$"),
+        PARAM_PARQUET_ROW_GROUP_SIZE(PARAM_PARQUET_ROW_GROUP_SIZE_ID, "--parquet-row-group-size", "Parquet row group size", "Uncompressed row group size, e.g. 64M, 128M, 1G", typeid(ByteParser), (void *) &parquetRowGroupSize, "^[1-9]{1}[0-9]*(B|K|M|G|T)?$"),
+        PARAM_PARQUET_SCHEMA(PARAM_PARQUET_SCHEMA_ID, "--parquet-schema", "Parquet schema", "Columns as '{name:type, name:type, ...}', types: int8, uint8, int16, int32, int64, float, double, string.\nGeneric DBs (required): one row per tab separated line, columns in line order, prefixed by the entry key.\nOther DBs: write only the named columns of the DB layout (types as in the layout)", typeid(std::string), (void *) &parquetSchema, ""),
+        PARAM_LOOKUP_DB(PARAM_LOOKUP_DB_ID, "--lookup-db", "Lookup DB", "Lookup file (<name>.lookup) or DB name whose .lookup maps the keys of the input DB to accessions, if it is not <input DB>.lookup", typeid(std::string), (void *) &lookupDb, ""),
         // setextendeddbtype
         PARAM_EXTENDED_DBTYPE(PARAM_EXTENDED_DBTYPE_ID, "--extended-dbtype", "Extended dbtype", "Set extended dbtype 1: compressed, 2: need src, 4: context pseudoe cnts", typeid(int), (void *) &extendedDbtype, "^[0-4]{1}"),
         // splitsequence
@@ -671,6 +678,11 @@ Parameters::Parameters():
     convertalignments.push_back(&PARAM_DB_OUTPUT);
     convertalignments.push_back(&PARAM_PRELOAD_MODE);
     convertalignments.push_back(&PARAM_SEARCH_TYPE);
+    // --format-mode 5 (parquet): same file layout and writer options as convert2parquet
+    convertalignments.push_back(&PARAM_PARQUET_SORT_MODE);
+    convertalignments.push_back(&PARAM_PARQUET_COMPRESSION);
+    convertalignments.push_back(&PARAM_PARQUET_COMPRESSION_LEVEL);
+    convertalignments.push_back(&PARAM_PARQUET_ROW_GROUP_SIZE);
     convertalignments.push_back(&PARAM_THREADS);
     convertalignments.push_back(&PARAM_COMPRESSED);
     convertalignments.push_back(&PARAM_V);
@@ -927,6 +939,16 @@ Parameters::Parameters():
     // convert2fasta
     convert2fasta.push_back(&PARAM_USE_HEADER_FILE);
     convert2fasta.push_back(&PARAM_V);
+
+    // convert2parquet
+    convert2parquet.push_back(&PARAM_PARQUET_SORT_MODE);
+    convert2parquet.push_back(&PARAM_PARQUET_COMPRESSION);
+    convert2parquet.push_back(&PARAM_PARQUET_COMPRESSION_LEVEL);
+    convert2parquet.push_back(&PARAM_PARQUET_ROW_GROUP_SIZE);
+    convert2parquet.push_back(&PARAM_PARQUET_SCHEMA);
+    convert2parquet.push_back(&PARAM_LOOKUP_DB);
+    convert2parquet.push_back(&PARAM_THREADS);
+    convert2parquet.push_back(&PARAM_V);
 
     // result2flat
     result2flat.push_back(&PARAM_USE_HEADER);
@@ -2713,6 +2735,14 @@ void Parameters::setDefaults() {
 
     // convert2fasta
     useHeaderFile = false;
+
+    // convert2parquet
+    parquetSortMode = 0;
+    parquetCompression = 1;
+    parquetCompressionLevel = 3;
+    parquetRowGroupSize = 128 * 1024 * 1024;
+    parquetSchema = "";
+    lookupDb = "";
 
     // result2flat
     useHeader = false;

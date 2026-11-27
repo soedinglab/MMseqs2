@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -8,80 +8,36 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#include <stdlib.h>    // malloc, exit
 #include <stdio.h>     // printf
-#include <string.h>    // strerror
-#include <errno.h>     // errno
-#include <sys/stat.h>  // stat
-#define ZSTD_STATIC_LINKING_ONLY   // ZSTD_findDecompressedSize
+#include <stdlib.h>    // free
 #include <zstd.h>      // presumes zstd library is installed
-
-
-static off_t fsize_orDie(const char *filename)
-{
-    struct stat st;
-    if (stat(filename, &st) == 0) return st.st_size;
-    /* error */
-    fprintf(stderr, "stat: %s : %s \n", filename, strerror(errno));
-    exit(1);
-}
-
-static FILE* fopen_orDie(const char *filename, const char *instruction)
-{
-    FILE* const inFile = fopen(filename, instruction);
-    if (inFile) return inFile;
-    /* error */
-    fprintf(stderr, "fopen: %s : %s \n", filename, strerror(errno));
-    exit(2);
-}
-
-static void* malloc_orDie(size_t size)
-{
-    void* const buff = malloc(size + !size);   /* avoid allocating size of 0 : may return NULL (implementation dependent) */
-    if (buff) return buff;
-    /* error */
-    fprintf(stderr, "malloc: %s \n", strerror(errno));
-    exit(3);
-}
-
-static void* loadFile_orDie(const char* fileName, size_t* size)
-{
-    off_t const buffSize = fsize_orDie(fileName);
-    FILE* const inFile = fopen_orDie(fileName, "rb");
-    void* const buffer = malloc_orDie(buffSize);
-    size_t const readSize = fread(buffer, 1, buffSize, inFile);
-    if (readSize != (size_t)buffSize) {
-        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
-        exit(4);
-    }
-    fclose(inFile);   /* can't fail (read only) */
-    *size = buffSize;
-    return buffer;
-}
-
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 static void decompress(const char* fname)
 {
     size_t cSize;
-    void* const cBuff = loadFile_orDie(fname, &cSize);
-    unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
-    if (rSize==ZSTD_CONTENTSIZE_ERROR) {
-        fprintf(stderr, "%s : it was not compressed by zstd.\n", fname);
-        exit(5);
-    } else if (rSize==ZSTD_CONTENTSIZE_UNKNOWN) {
-        fprintf(stderr,
-                "%s : original size unknown. Use streaming decompression instead.\n", fname);
-        exit(6);
-    }
+    void* const cBuff = mallocAndLoadFile_orDie(fname, &cSize);
+    /* Read the content size from the frame header. For simplicity we require
+     * that it is always present. By default, zstd will write the content size
+     * in the header when it is known. If you can't guarantee that the frame
+     * content size is always written into the header, either use streaming
+     * decompression, or ZSTD_decompressBound().
+     */
+    unsigned long long const rSize = ZSTD_getFrameContentSize(cBuff, cSize);
+    CHECK(rSize != ZSTD_CONTENTSIZE_ERROR, "%s: not compressed by zstd!", fname);
+    CHECK(rSize != ZSTD_CONTENTSIZE_UNKNOWN, "%s: original size unknown!", fname);
 
     void* const rBuff = malloc_orDie((size_t)rSize);
 
+    /* Decompress.
+     * If you are doing many decompressions, you may want to reuse the context
+     * and use ZSTD_decompressDCtx(). If you want to set advanced parameters,
+     * use ZSTD_DCtx_setParameter().
+     */
     size_t const dSize = ZSTD_decompress(rBuff, rSize, cBuff, cSize);
-
-    if (dSize != rSize) {
-        fprintf(stderr, "error decoding %s : %s \n", fname, ZSTD_getErrorName(dSize));
-        exit(7);
-    }
+    CHECK_ZSTD(dSize);
+    /* When zstd knows the content size, it will error if it doesn't match. */
+    CHECK(dSize == rSize, "Impossible because zstd will check this condition!");
 
     /* success */
     printf("%25s : %6u -> %7u \n", fname, (unsigned)cSize, (unsigned)rSize);
@@ -89,7 +45,6 @@ static void decompress(const char* fname)
     free(rBuff);
     free(cBuff);
 }
-
 
 int main(int argc, const char** argv)
 {

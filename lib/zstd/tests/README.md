@@ -8,7 +8,6 @@ This directory contains the following programs and scripts:
 - `paramgrill` : parameter tester for zstd
 - `test-zstd-speed.py` : script for testing zstd speed difference between commits
 - `test-zstd-versions.py` : compatibility test between zstd versions stored on Github (v0.1+)
-- `zbufftest`  : Test tool to check ZBUFF (a buffered streaming API) integrity
 - `zstreamtest` : Fuzzer test tool for zstd streaming API
 - `legacy` : Test tool to test decoding of legacy zstd frames
 - `decodecorpus` : Tool to generate valid Zstandard frames, for verifying decoder implementations
@@ -20,8 +19,50 @@ This script creates `versionsTest` directory to which zstd repository is cloned.
 Then all tagged (released) versions of zstd are compiled.
 In the following step interoperability between zstd versions is checked.
 
+#### `automated-benchmarking.py` - script for benchmarking zstd prs to dev
+
+This script benchmarks facebook:dev and changes from pull requests made to zstd and compares
+them against facebook:dev to detect regressions. This script currently runs on a dedicated
+desktop machine for every pull request that is made to the zstd repo but can also
+be run on any machine via the command line interface.
+
+There are three modes of usage for this script: fastmode will just run a minimal single
+build comparison (between facebook:dev and facebook:release), onetime will pull all the current
+pull requests from the zstd repo and compare facebook:dev to all of them once, continuous
+will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
+
+```
+Example usage: python automated_benchmarking.py
+```
+
+```
+usage: automated_benchmarking.py [-h] [--directory DIRECTORY]
+                                 [--levels LEVELS] [--iterations ITERATIONS]
+                                 [--emails EMAILS] [--frequency FREQUENCY]
+                                 [--mode MODE] [--dict DICT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --directory DIRECTORY
+                        directory with files to benchmark
+  --levels LEVELS       levels to test e.g. ('1,2,3')
+  --iterations ITERATIONS
+                        number of benchmark iterations to run
+  --emails EMAILS       email addresses of people who will be alerted upon
+                        regression. Only for continuous mode
+  --frequency FREQUENCY
+                        specifies the number of seconds to wait before each
+                        successive check for new PRs in continuous mode
+  --mode MODE           'fastmode', 'onetime', 'current', or 'continuous' (see
+                        README.md for details)
+  --dict DICT           filename of dictionary to use (when set, this
+                        dictionary will be used to compress the files provided
+                        inside --directory)
+```
 
 #### `test-zstd-speed.py` - script for testing zstd speed difference between commits
+
+DEPRECATED
 
 This script creates `speedTest` directory to which zstd repository is cloned.
 Then it compiles all branches of zstd and performs a speed benchmark for a given list of files (the `testFileNames` parameter).
@@ -29,7 +70,7 @@ After `sleepTime` (an optional parameter, default 300 seconds) seconds the scrip
 If a new commit is found it is compiled and a speed benchmark for this commit is performed.
 The results of the speed benchmark are compared to the previous results.
 If compression or decompression speed for one of zstd levels is lower than `lowerLimit` (an optional parameter, default 0.98) the speed benchmark is restarted.
-If second results are also lower than `lowerLimit` the warning e-mail is send to recipients from the list (the `emails` parameter).
+If second results are also lower than `lowerLimit` the warning e-mail is sent to recipients from the list (the `emails` parameter).
 
 Additional remarks:
 - To be sure that speed results are accurate the script should be run on a "stable" target system with no other jobs running in parallel
@@ -41,7 +82,7 @@ Additional remarks:
 The example usage with two test files, one e-mail address, and with an additional message:
 ```
 ./test-zstd-speed.py "silesia.tar calgary.tar" "email@gmail.com" --message "tested on my laptop" --sleepTime 60
-``` 
+```
 
 To run the script in background please use:
 ```
@@ -72,7 +113,7 @@ Command line tool to generate test .zst files.
 
 This tool will generate .zst files with checksums,
 as well as optionally output the corresponding correct uncompressed data for
-extra verfication.
+extra verification.
 
 Example:
 ```
@@ -100,19 +141,19 @@ Full list of arguments
     h# - hashLog
     c# - chainLog
     s# - searchLog
-    l# - searchLength
+    l# - minMatch
     t# - targetLength
     S# - strategy
     L# - level
  --zstd=      : Single run, parameter selection syntax same as zstdcli with more parameters
-                    (Added forceAttachDictionary / fadt) 
-                    When invoked with --optimize, this represents the sample to exceed. 
+                    (Added forceAttachDictionary / fadt)
+                    When invoked with --optimize, this represents the sample to exceed.
  --optimize=  : find parameters to maximize compression ratio given parameters
                     Can use all --zstd= commands to constrain the type of solution found in addition to the following constraints
     cSpeed=   : Minimum compression speed
     dSpeed=   : Minimum decompression speed
     cMem=     : Maximum compression memory
-    lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed, 
+    lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed,
     stc=      : When invoked with lvl=, represents percentage slack in ratio/cSpeed allowed for a solution to be considered (Default 100%)
               : In normal operation, represents percentage slack in choosing viable starting strategy selection in choosing the default parameters
                     (Lower value will begin with stronger strategies) (Default 90%)
@@ -121,13 +162,13 @@ Full list of arguments
                     when determining overall winner (default 5 (1% ratio = 5% speed)).
     tries=    : Maximum number of random restarts on a single strategy before switching (Default 5)
                     Higher values will make optimizer run longer, more chances to find better solution.
-    memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size. 
-                    Setting memLog = 0 turns off memoization 
- --display=   : specifiy which parameters are included in the output
-                    can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters 
+    memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size.
+                    Setting memLog = 0 turns off memoization
+ --display=   : specify which parameters are included in the output
+                    can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters
                     (Default: display all params available)
  -P#          : generated sample compressibility (when no file is provided)
- -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
+ -t#          : Caps runtime of operation in seconds (default: 99999 seconds (about 27 hours))
  -v           : Prints Benchmarking output
  -D           : Next argument dictionary file
  -s           : Benchmark all files separately

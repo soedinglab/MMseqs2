@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2017-present, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -11,9 +11,11 @@
 
 ZSTDLIB_PATH = ../../../lib
 ZSTDLIB_NAME = libzstd.a
+# Parallel tools only make sense against multi-threaded libzstd
+ZSTDLIB_TARGET = $(ZSTDLIB_NAME)-mt
 ZSTDLIB = $(ZSTDLIB_PATH)/$(ZSTDLIB_NAME)
 
-CPPFLAGS += -I../ -I../../../lib -I../../../lib/common
+CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -I../ -I../../../lib -I../../../lib/common
 
 CFLAGS ?= -O3
 CFLAGS += -g
@@ -24,15 +26,19 @@ SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
 
 default: all
 
-all: seekable_compression seekable_decompression parallel_processing
+all: seekable_compression seekable_decompression seekable_decompression_mem \
+	parallel_processing
 
 $(ZSTDLIB):
-	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
+	$(MAKE) -C $(ZSTDLIB_PATH) $(ZSTDLIB_TARGET)
 
 seekable_compression : seekable_compression.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 seekable_decompression : seekable_decompression.c $(SEEKABLE_OBJS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+seekable_decompression_mem : seekable_decompression_mem.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 parallel_processing : parallel_processing.c $(SEEKABLE_OBJS)
@@ -44,5 +50,6 @@ parallel_compression : parallel_compression.c $(SEEKABLE_OBJS)
 clean:
 	@rm -f core *.o tmp* result* *.zst \
 		seekable_compression seekable_decompression \
+		seekable_decompression_mem \
 		parallel_processing parallel_compression
 	@echo Cleaning completed

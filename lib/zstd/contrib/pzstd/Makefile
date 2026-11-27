@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2016-present, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -10,7 +10,7 @@
 # Standard variables for installation
 DESTDIR ?=
 PREFIX  ?= /usr/local
-BINDIR  := $(DESTDIR)$(PREFIX)/bin
+BINDIR  := $(PREFIX)/bin
 
 ZSTDDIR = ../../lib
 PROGDIR = ../../programs
@@ -30,14 +30,20 @@ CXXFLAGS ?= -O3 -Wall -Wextra -pedantic
 CPPFLAGS ?=
 LDFLAGS  ?=
 
+# PZstd uses legacy APIs
+CFLAGS   += -Wno-deprecated-declarations
+
 # Include flags
 PZSTD_INC  = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 GTEST_INC  = -isystem googletest/googletest/include
 
+# Set the minimum required by gtest
+PZSTD_CXX_STD := -std=c++14
+
 PZSTD_CPPFLAGS  = $(PZSTD_INC)
 PZSTD_CCXXFLAGS =
 PZSTD_CFLAGS    = $(PZSTD_CCXXFLAGS)
-PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS) -std=c++11
+PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS) $(PZSTD_CXX_STD)
 PZSTD_LDFLAGS   =
 EXTRA_FLAGS     =
 ALL_CFLAGS      = $(EXTRA_FLAGS) $(CPPFLAGS) $(PZSTD_CPPFLAGS) $(CFLAGS)   $(PZSTD_CFLAGS)
@@ -53,19 +59,6 @@ LIBS       =
 LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -pthread -o $@
 CC_COMMAND  = $(CC)  $(DEPFLAGS) $(ALL_CFLAGS)   -c $<  -o $@
 CXX_COMMAND = $(CXX) $(DEPFLAGS) $(ALL_CXXFLAGS) -c $<  -o $@
-
-# Get a list of all zstd files so we rebuild the static library when we need to
-ZSTDCOMMON_FILES := $(wildcard $(ZSTDDIR)/common/*.c) \
-                    $(wildcard $(ZSTDDIR)/common/*.h)
-ZSTDCOMP_FILES   := $(wildcard $(ZSTDDIR)/compress/*.c) \
-                    $(wildcard $(ZSTDDIR)/compress/*.h)
-ZSTDDECOMP_FILES := $(wildcard $(ZSTDDIR)/decompress/*.c) \
-                    $(wildcard $(ZSTDDIR)/decompress/*.h)
-ZSTDPROG_FILES   := $(wildcard $(PROGDIR)/*.c) \
-                    $(wildcard $(PROGDIR)/*.h)
-ZSTD_FILES       := $(wildcard $(ZSTDDIR)/*.h) \
-                    $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-                    $(ZSTDPROG_FILES)
 
 # List all the pzstd source files so we can determine their dependencies
 PZSTD_SRCS  := $(wildcard *.cpp)
@@ -116,12 +109,12 @@ check:
 .PHONY: install
 install: PZSTD_CPPFLAGS += -DNDEBUG
 install: pzstd$(EXT)
-	install -d -m 755 $(BINDIR)/
-	install -m 755 pzstd$(EXT) $(BINDIR)/pzstd$(EXT)
+	install -d -m 755 $(DESTDIR)$(BINDIR)/
+	install -m 755 pzstd$(EXT) $(DESTDIR)$(BINDIR)/pzstd$(EXT)
 
 .PHONY: uninstall
 uninstall:
-	$(RM) $(BINDIR)/pzstd$(EXT)
+	$(RM) $(DESTDIR)$(BINDIR)/pzstd$(EXT)
 
 # Targets for many different builds
 .PHONY: all
@@ -186,17 +179,20 @@ roundtrip: test/RoundTripTest$(EXT)
 
 # Use the static library that zstd builds for simplicity and
 # so we get the compiler options correct
-$(ZSTDDIR)/libzstd.a: $(ZSTD_FILES)
+.PHONY: $(ZSTDDIR)/libzstd.a
+$(ZSTDDIR)/libzstd.a:
 	CFLAGS="$(ALL_CFLAGS)" LDFLAGS="$(ALL_LDFLAGS)" $(MAKE) -C $(ZSTDDIR) libzstd.a
 
 # Rules to build the tests
-test/RoundTripTest$(EXT): test/RoundTripTest.o $(PROGDIR)/datagen.o Options.o \
+test/RoundTripTest$(EXT): test/RoundTripTest.o $(PROGDIR)/datagen.o \
+                          $(PROGDIR)/util.o Options.o \
                           Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
 	$(LD_COMMAND)
 
 test/%Test$(EXT): PZSTD_LDFLAGS += $(GTEST_LIB)
 test/%Test$(EXT): LIBS += -lgtest -lgtest_main
-test/%Test$(EXT): test/%Test.o $(PROGDIR)/datagen.o Options.o Pzstd.o  \
+test/%Test$(EXT): test/%Test.o $(PROGDIR)/datagen.o \
+                  $(PROGDIR)/util.o Options.o Pzstd.o \
                   SkippableFrame.o $(ZSTDDIR)/libzstd.a
 	$(LD_COMMAND)
 

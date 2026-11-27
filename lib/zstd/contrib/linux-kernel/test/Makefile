@@ -1,43 +1,49 @@
+# ################################################################
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
+# You may select, at your option, one of the above-listed licenses.
+# ################################################################
 
-IFLAGS := -isystem include/ -I ../include/ -I ../lib/zstd/ -isystem googletest/googletest/include -isystem ../../../lib/common/
+LINUX := ../linux
+LINUX_ZSTDLIB := $(LINUX)/lib/zstd
 
-SOURCES := $(wildcard ../lib/zstd/*.c)
-OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
+CPPFLAGS += -I$(LINUX)/include -I$(LINUX_ZSTDLIB) -Iinclude -DNDEBUG -Wno-deprecated-declarations
+# Don't poison the workspace, it currently doesn't work with static allocation and workspace reuse
+CPPFLAGS += -DZSTD_ASAN_DONT_POISON_WORKSPACE
 
-ARFLAGS := rcs
-CXXFLAGS += -std=c++11 -g -O3 -Wcast-align
-CFLAGS += -g -O3 -Wframe-larger-than=400 -Wcast-align
-CPPFLAGS += $(IFLAGS)
+LINUX_ZSTD_MODULE     := $(wildcard $(LINUX_ZSTDLIB)/*.c)
+LINUX_ZSTD_COMMON     := $(wildcard $(LINUX_ZSTDLIB)/common/*.c)
+LINUX_ZSTD_COMPRESS   := $(wildcard $(LINUX_ZSTDLIB)/compress/*.c)
+LINUX_ZSTD_DECOMPRESS := $(wildcard $(LINUX_ZSTDLIB)/decompress/*.c $(LINUX_ZSTDLIB)/decompress/*.S)
+LINUX_ZSTD_FILES      := $(LINUX_ZSTD_MODULE) $(LINUX_ZSTD_COMMON) $(LINUX_ZSTD_COMPRESS) $(LINUX_ZSTD_DECOMPRESS)
+LINUX_ZSTD_OBJECTS0   := $(LINUX_ZSTD_FILES:.c=.o)
+LINUX_ZSTD_OBJECTS    := $(LINUX_ZSTD_OBJECTS0:.S=.o)
 
-../lib/zstd/libzstd.a: $(OBJECTS)
+%.o: %.S
+	$(COMPILE.S) $(OUTPUT_OPTION) $<
+
+liblinuxzstd.a: $(LINUX_ZSTD_OBJECTS)
 	$(AR) $(ARFLAGS) $@ $^
 
-DecompressCrash: DecompressCrash.o $(OBJECTS) libFuzzer.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+test: test.c liblinuxzstd.a
+	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $^ -o $@
 
-RoundTripCrash: RoundTripCrash.o $(OBJECTS) ../lib/xxhash.o libFuzzer.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+static_test: static_test.c
+	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $^ -o $@
 
-UserlandTest: UserlandTest.cpp ../lib/zstd/libzstd.a ../lib/xxhash.o
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
+run-test: test static_test
+	./macro-test.sh
+	./test
+	./static_test
 
-XXHashUserlandTest: XXHashUserlandTest.cpp ../lib/xxhash.o ../../../lib/common/xxhash.o
-	$(CXX) $(CXXFLAGS) $(CFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
-
-# Install libfuzzer
-libFuzzer.a:
-	@$(RM) -rf Fuzzer
-	@git clone https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer
-	@./Fuzzer/build.sh
-
-# Install googletest
-.PHONY: googletest
-googletest:
-	@$(RM) -rf googletest
-	@git clone https://github.com/google/googletest
-	@mkdir -p googletest/build
-	@cd googletest/build && cmake .. && $(MAKE)
-
+.PHONY:
 clean:
-	$(RM) -f *.{o,a} ../lib/zstd/*.{o,a} ../lib/*.o
-	$(RM) -f DecompressCrash RoundTripCrash UserlandTest XXHashUserlandTest
+	$(RM) -f $(LINUX_ZSTDLIB)/*.o
+	$(RM) -f $(LINUX_ZSTDLIB)/**/*.o
+	$(RM) -f *.o *.a
+	$(RM) -f static_test
+	$(RM) -f test

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -11,46 +11,34 @@
 #ifndef UTIL_H_MODULE
 #define UTIL_H_MODULE
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
 /*-****************************************
 *  Dependencies
 ******************************************/
 #include "platform.h"     /* PLATFORM_POSIX_VERSION, ZSTD_NANOSLEEP_SUPPORT, ZSTD_SETPRIORITY_SUPPORT */
-#include <stdlib.h>       /* malloc */
 #include <stddef.h>       /* size_t, ptrdiff_t */
-#include <stdio.h>        /* fprintf */
-#include <string.h>       /* strncmp */
+#include <stdio.h>        /* FILE */
 #include <sys/types.h>    /* stat, utime */
 #include <sys/stat.h>     /* stat, chmod */
-#if defined(_MSC_VER)
-#  include <sys/utime.h>  /* utime */
-#  include <io.h>         /* _chmod */
-#else
-#  include <unistd.h>     /* chown, stat */
-#  include <utime.h>      /* utime */
+#include "../lib/common/mem.h"          /* U64 */
+#if !(defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__))
+#include <libgen.h>
 #endif
-#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
-#include <errno.h>
-#include "mem.h"          /* U32, U64 */
-
 
 /*-************************************************************
-* Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
+*  Fix fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
-#if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#   define UTIL_fseek _fseeki64
+#if defined(LIBC_NO_FSEEKO)
+/* Some older libc implementations don't include these functions (e.g. Bionic < 24) */
+#  define UTIL_fseek fseek
+#elif defined(_MSC_VER) && (_MSC_VER >= 1400)
+#  define UTIL_fseek _fseeki64
 #elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
 #  define UTIL_fseek fseeko
 #elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS)
-#   define UTIL_fseek fseeko64
+#  define UTIL_fseek fseeko64
 #else
-#   define UTIL_fseek fseek
+#  define UTIL_fseek fseek
 #endif
-
 
 /*-*************************************************
 *  Sleep & priority functions: Windows - Posix - others
@@ -76,17 +64,11 @@ extern "C" {
 #    define SET_REALTIME_PRIORITY /* disabled */
 #  endif
 
-#else  /* unknown non-unix operating systen */
+#else  /* unknown non-unix operating system */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
 #  define SET_REALTIME_PRIORITY  /* disabled */
 #endif
-
-
-/*-*************************************
-*  Constants
-***************************************/
-#define LIST_SIZE_INCREASE   (8*1024)
 
 
 /*-****************************************
@@ -106,114 +88,274 @@ extern "C" {
 #endif
 
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /*-****************************************
 *  Console log
 ******************************************/
 extern int g_utilDisplayLevel;
-#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
 
+/**
+ * Displays a message prompt and returns success (0) if first character from stdin
+ * matches any from acceptableLetters. Otherwise, returns failure (1) and displays abortMsg.
+ * If any of the inputs are stdin itself, then automatically return failure (1).
+ */
+int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const char* acceptableLetters, int hasStdinInput);
 
-/*-****************************************
-*  Time functions
-******************************************/
-#if defined(_WIN32)   /* Windows */
-    #define UTIL_TIME_INITIALIZER { { 0, 0 } }
-    typedef LARGE_INTEGER UTIL_time_t;
-#elif defined(__APPLE__) && defined(__MACH__)
-    #include <mach/mach_time.h>
-    #define UTIL_TIME_INITIALIZER 0
-    typedef U64 UTIL_time_t;
-#elif (PLATFORM_POSIX_VERSION >= 200112L) \
-   && (defined(__UCLIBC__)                \
-      || (defined(__GLIBC__)              \
-          && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) \
-             || (__GLIBC__ > 2))))
-
-    #define UTIL_TIME_INITIALIZER { 0, 0 }
-    typedef struct timespec UTIL_freq_t;
-    typedef struct timespec UTIL_time_t;
-
-    UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end);
-#else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
-    typedef clock_t UTIL_time_t;
-    #define UTIL_TIME_INITIALIZER 0
-#endif
-UTIL_time_t UTIL_getTime(void);
-U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-
-#define SEC_TO_MICRO 1000000
-
-/* returns time span in microseconds */
-U64 UTIL_clockSpanMicro(UTIL_time_t clockStart);
-
-/* returns time span in microseconds */
-U64 UTIL_clockSpanNano(UTIL_time_t clockStart);
-void UTIL_waitForNextTick(void);
 
 /*-****************************************
 *  File functions
 ******************************************/
 #if defined(_MSC_VER)
-    #define chmod _chmod
     typedef struct __stat64 stat_t;
+    typedef int mode_t;
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    typedef struct _stati64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+#define PATH_SEP '\\'
+#define STRDUP(s) _strdup(s)
+#else
+#define PATH_SEP '/'
+#define STRDUP(s) strdup(s)
+#endif
 
-int UTIL_isRegularFile(const char* infilename);
-int UTIL_setFileStat(const char *filename, stat_t *statbuf);
-U32 UTIL_isDirectory(const char* infilename);
-int UTIL_getFileStat(const char* infilename, stat_t *statbuf);
 
-U32 UTIL_isLink(const char* infilename);
-#define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
-U64 UTIL_getFileSize(const char* infilename);
+/**
+ * Calls platform's equivalent of stat() on filename and writes info to statbuf.
+ * Returns success (1) or failure (0).
+ *
+ * UTIL_fstat() is like UTIL_stat() but takes an optional fd that refers to the
+ * file in question. It turns out that this can be meaningfully faster. If fd is
+ * -1, behaves just like UTIL_stat() (i.e., falls back to using the filename).
+ */
+int UTIL_stat(const char* filename, stat_t* statbuf);
+int UTIL_fstat(const int fd, const char* filename, stat_t* statbuf);
 
-U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
+/**
+ * Instead of getting a file's stats, this updates them with the info in the
+ * provided stat_t. Currently sets owner, group, atime, and mtime. Will only
+ * update this info for regular files.
+ *
+ * UTIL_setFDStat() also takes an fd, and will preferentially use that to
+ * indicate which file to modify, If fd is -1, it will fall back to using the
+ * filename.
+ */
+int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
+int UTIL_setFDStat(const int fd, const char* filename, const stat_t* statbuf);
+
+/**
+ * Set atime to now and mtime to the st_mtim in statbuf.
+ *
+ * Directly wraps utime() or utimensat(). Returns -1 on error.
+ * Does not validate filename is valid.
+ */
+int UTIL_utime(const char* filename, const stat_t *statbuf);
 
 /*
- * A modified version of realloc().
- * If UTIL_realloc() fails the original block is freed.
-*/
-UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
-{
-    void *newptr = realloc(ptr, size);
-    if (newptr) return newptr;
-    free(ptr);
-    return NULL;
-}
+ * These helpers operate on a pre-populated stat_t, i.e., the result of
+ * calling one of the above functions.
+ */
 
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks);
+int UTIL_isRegularFileStat(const stat_t* statbuf);
+int UTIL_isDirectoryStat(const stat_t* statbuf);
+int UTIL_isFIFOStat(const stat_t* statbuf);
+int UTIL_isBlockDevStat(const stat_t* statbuf);
+U64 UTIL_getFileSizeStat(const stat_t* statbuf);
+
+/**
+ * Like chmod(), but only modifies regular files. Provided statbuf may be NULL,
+ * in which case this function will stat() the file internally, in order to
+ * check whether it should be modified.
+ *
+ * If fd is -1, fd is ignored and the filename is used.
+ */
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
+int UTIL_fchmod(const int fd, char const* filename, const stat_t* statbuf, mode_t permissions);
+
+/*
+ * In the absence of a pre-existing stat result on the file in question, these
+ * functions will do a stat() call internally and then use that result to
+ * compute the needed information.
+ */
+
+int UTIL_isFdRegularFile(int fd);
+int UTIL_isRegularFile(const char* infilename);
+int UTIL_isDirectory(const char* infilename);
+int UTIL_isSameFile(const char* file1, const char* file2);
+int UTIL_isSameFileStat(const char* file1, const char* file2, const stat_t* file1Stat, const stat_t* file2Stat);
+int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
+int UTIL_isLink(const char* infilename);
+int UTIL_isFIFO(const char* infilename);
+int UTIL_isFileDescriptorPipe(const char* filename);
+
+/**
+ * Returns with the given file descriptor is a console.
+ * Allows faking whether stdin/stdout/stderr is a console
+ * using UTIL_fake*IsConsole().
+ */
+int UTIL_isConsole(FILE* file);
+
+/**
+ * Pretends that stdin/stdout/stderr is a console for testing.
+ */
+void UTIL_fakeStdinIsConsole(void);
+void UTIL_fakeStdoutIsConsole(void);
+void UTIL_fakeStderrIsConsole(void);
+
+/**
+ * Emit traces for functions that read, or modify file metadata.
+ */
+void UTIL_traceFileStat(void);
+
+#define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
+U64 UTIL_getFileSize(const char* infilename);
+U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
+
+/**
+ * Take @size in bytes,
+ * prepare the components to pretty-print it in a scaled way.
+ * The components in the returned struct should be passed in
+ * precision, value, suffix order to a "%.*f%s" format string.
+ * Output policy is sensible to @g_utilDisplayLevel,
+ * for verbose mode (@g_utilDisplayLevel >= 4),
+ * does not scale down.
+ */
+typedef struct {
+  double value;
+  int precision;
+  const char* suffix;
+} UTIL_HumanReadableSize_t;
+
+UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size);
+
+int UTIL_compareStr(const void *p1, const void *p2);
+const char* UTIL_getFileExtension(const char* infilename);
+void  UTIL_mirrorSourceFilesDirectories(const char** fileNamesTable, unsigned int nbFiles, const char *outDirName);
+char* UTIL_createMirroredDestDirName(const char* srcFileName, const char* outDirRootName);
+
+
+
+/*-****************************************
+ *  Lists of Filenames
+ ******************************************/
+
+typedef struct
+{   const char** fileNames;
+    char* buf;            /* fileNames are stored in this buffer (or are read-only) */
+    size_t tableSize;     /* nb of fileNames */
+    size_t tableCapacity;
+} FileNamesTable;
+
+/*! UTIL_createFileNamesTable_fromFileList() :
+ *  read filenames from @inputFileName, and store them into returned object.
+ * @return : a FileNamesTable*, or NULL in case of error (ex: @inputFileName doesn't exist).
+ *  Note: inputFileSize must be less than 50MB
+ */
+FileNamesTable*
+UTIL_createFileNamesTable_fromFileList(const char* inputFileName);
+
+/*! UTIL_assembleFileNamesTable() :
+ *  This function takes ownership of its arguments, @filenames and @buf,
+ *  and store them inside the created object.
+ *  note : this function never fails,
+ *         it will rather exit() the program if internal allocation fails.
+ * @return : resulting FileNamesTable* object.
+ */
+FileNamesTable*
+UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf);
+
+/*! UTIL_freeFileNamesTable() :
+ *  This function is compatible with NULL argument and never fails.
+ */
+void UTIL_freeFileNamesTable(FileNamesTable* table);
+
+/*! UTIL_mergeFileNamesTable():
+ * @return : FileNamesTable*, concatenation of @table1 and @table2
+ *  note: @table1 and @table2 are consumed (freed) by this operation
+ */
+FileNamesTable*
+UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2);
+
+
+/*! UTIL_expandFNT() :
+ *  read names from @fnt, and expand those corresponding to directories
+ *  update @fnt, now containing only file names,
+ *  note : in case of error, @fnt[0] is NULL
+ */
+void UTIL_expandFNT(FileNamesTable** fnt, int followLinks);
+
+/*! UTIL_createFNT_fromROTable() :
+ *  copy the @filenames pointer table inside the returned object.
+ *  The names themselves are still stored in their original buffer, which must outlive the object.
+ * @return : a FileNamesTable* object,
+ *        or NULL in case of error
+ */
+FileNamesTable*
+UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames);
+
+/*! UTIL_allocateFileNamesTable() :
+ *  Allocates a table of const char*, to insert read-only names later on.
+ *  The created FileNamesTable* doesn't hold a buffer.
+ * @return : FileNamesTable*, or NULL, if allocation fails.
+ */
+FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize);
+
+/*! UTIL_searchFileNamesTable() :
+ *  Searched through entries in FileNamesTable for a specific name.
+ * @return : index of entry if found or -1 if not found
+ */
+int UTIL_searchFileNamesTable(FileNamesTable* table, char const* name);
+
+/*! UTIL_refFilename() :
+ *  Add a reference to read-only name into @fnt table.
+ *  As @filename is only referenced, its lifetime must outlive @fnt.
+ *  Internal table must be large enough to reference a new member,
+ *  otherwise its UB (protected by an `assert()`).
+ */
+void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
+
+
+/* UTIL_createExpandedFNT() is only active if UTIL_HAS_CREATEFILELIST is defined.
+ * Otherwise, UTIL_createExpandedFNT() is a shell function which does nothing
+ * apart from displaying a warning message.
+ */
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 #  define UTIL_HAS_CREATEFILELIST
-#  include <dirent.h>       /* opendir, readdir */
-#  include <string.h>       /* strerror, memcpy */
+#  define UTIL_HAS_MIRRORFILELIST
 #else
-#endif /* #ifdef _WIN32 */
+   /* do not define UTIL_HAS_CREATEFILELIST */
+#endif
 
-/*
- * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
- *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
- * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
- * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
+/*! UTIL_createExpandedFNT() :
+ *  read names from @filenames, and expand those corresponding to directories.
+ *  links are followed or not depending on @followLinks directive.
+ * @return : an expanded FileNamesTable*, where each name is a file
+ *        or NULL in case of error
  */
-const char**
-UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
-                    char** allocatedBuffer, unsigned* allocatedNamesNb,
-                    int followLinks);
+FileNamesTable*
+UTIL_createExpandedFNT(const char* const* filenames, size_t nbFilenames, int followLinks);
 
-UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer)
-{
-    if (allocatedBuffer) free(allocatedBuffer);
-    if (filenameTable) free((void*)filenameTable);
-}
+#if defined(_WIN32)
+DWORD CountSetBits(ULONG_PTR bitMask);
+#endif
+
+/*-****************************************
+ *  System
+ ******************************************/
+
+int UTIL_countCores(int logical);
 
 int UTIL_countPhysicalCores(void);
+
+int UTIL_countLogicalCores(void);
 
 #if defined (__cplusplus)
 }

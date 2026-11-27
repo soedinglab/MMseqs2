@@ -397,7 +397,18 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <o:fastaFile>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::allDb },
                                                            {"fastaFile", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
-        {"result2flat",          result2flat,          &par.result2flat,          COMMAND_FORMAT_CONVERSION | COMMAND_EXPERT,
+        {"convert2parquet",      convert2parquet,      &par.convert2parquet,      COMMAND_FORMAT_CONVERSION,
+                "Convert a DB to Parquet file",
+                "# A <DB>.lookup is written as _<name>.lookup.pq (one file) or <dir>/_lookup.pq (directory).\n"
+                "# generic DBs need a schema of their tab separated columns, e.g. convertalis --db-output 1\n"
+                "mmseqs convert2parquet alnTsvDB alnTsv.parquet --parquet-schema '{query:string, target:string, evalue:double, alnlen:int32}'\n"
+                "# other DBs: write only some columns of the layout\n"
+                "mmseqs convert2parquet alnDB aln.parquet --parquet-schema '{query:int64, target:int64, evalue:double}'\n",
+                "Eulium <pboppert@snu.ac.kr>",
+                "<i:DB> <o:parquetFile>",
+                CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, NULL },
+                                          {"parquetFile", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
+        {"result2flat",         result2flat,          &par.result2flat,          COMMAND_FORMAT_CONVERSION | COMMAND_EXPERT,
                 "Create flat file by adding FASTA headers to DB entries",
                 NULL,
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",

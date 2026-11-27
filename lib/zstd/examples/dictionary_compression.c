@@ -1,90 +1,37 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
- */
+**/
 
+/* This example deals with Dictionary compression,
+ * its counterpart is `examples/dictionary_decompression.c` .
+ * These examples presume that a dictionary already exists.
+ * The main method to create a dictionary is `zstd --train`,
+ * look at the CLI documentation for details.
+ * Another possible method is to employ dictionary training API,
+ * published in `lib/zdict.h` .
+**/
 
-#include <stdlib.h>    // malloc, exit
 #include <stdio.h>     // printf
-#include <string.h>    // strerror
-#include <errno.h>     // errno
-#include <sys/stat.h>  // stat
+#include <stdlib.h>    // free
+#include <string.h>    // memset, strcat
 #include <zstd.h>      // presumes zstd library is installed
-
-
-static off_t fsize_orDie(const char *filename)
-{
-    struct stat st;
-    if (stat(filename, &st) == 0) return st.st_size;
-    /* error */
-    perror(filename);
-    exit(1);
-}
-
-static FILE* fopen_orDie(const char *filename, const char *instruction)
-{
-    FILE* const inFile = fopen(filename, instruction);
-    if (inFile) return inFile;
-    /* error */
-    perror(filename);
-    exit(2);
-}
-
-static void* malloc_orDie(size_t size)
-{
-    void* const buff = malloc(size);
-    if (buff) return buff;
-    /* error */
-    perror("malloc");
-    exit(3);
-}
-
-static void* loadFile_orDie(const char* fileName, size_t* size)
-{
-    off_t const buffSize = fsize_orDie(fileName);
-    FILE* const inFile = fopen_orDie(fileName, "rb");
-    void* const buffer = malloc_orDie(buffSize);
-    size_t const readSize = fread(buffer, 1, buffSize, inFile);
-    if (readSize != (size_t)buffSize) {
-        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
-        exit(4);
-    }
-    fclose(inFile);
-    *size = buffSize;
-    return buffer;
-}
-
-static void saveFile_orDie(const char* fileName, const void* buff, size_t buffSize)
-{
-    FILE* const oFile = fopen_orDie(fileName, "wb");
-    size_t const wSize = fwrite(buff, 1, buffSize, oFile);
-    if (wSize != (size_t)buffSize) {
-        fprintf(stderr, "fwrite: %s : %s \n", fileName, strerror(errno));
-        exit(5);
-    }
-    if (fclose(oFile)) {
-        perror(fileName);
-        exit(6);
-    }
-}
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 /* createDict() :
-   `dictFileName` is supposed to have been created using `zstd --train` */
+** `dictFileName` is supposed already created using `zstd --train` */
 static ZSTD_CDict* createCDict_orDie(const char* dictFileName, int cLevel)
 {
     size_t dictSize;
     printf("loading dictionary %s \n", dictFileName);
-    void* const dictBuffer = loadFile_orDie(dictFileName, &dictSize);
+    void* const dictBuffer = mallocAndLoadFile_orDie(dictFileName, &dictSize);
     ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, cLevel);
-    if (!cdict) {
-        fprintf(stderr, "ZSTD_createCDict error \n");
-        exit(7);
-    }
+    CHECK(cdict != NULL, "ZSTD_createCDict() failed!");
     free(dictBuffer);
     return cdict;
 }
@@ -93,17 +40,20 @@ static ZSTD_CDict* createCDict_orDie(const char* dictFileName, int cLevel)
 static void compress(const char* fname, const char* oname, const ZSTD_CDict* cdict)
 {
     size_t fSize;
-    void* const fBuff = loadFile_orDie(fname, &fSize);
+    void* const fBuff = mallocAndLoadFile_orDie(fname, &fSize);
     size_t const cBuffSize = ZSTD_compressBound(fSize);
     void* const cBuff = malloc_orDie(cBuffSize);
 
+    /* Compress using the dictionary.
+     * This function writes the dictionary id, and content size into the header.
+     * But, it doesn't use a checksum. You can control these options using the
+     * advanced API: ZSTD_CCtx_setParameter(), ZSTD_CCtx_refCDict(),
+     * and ZSTD_compress2().
+     */
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-    if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); }
+    CHECK(cctx != NULL, "ZSTD_createCCtx() failed!");
     size_t const cSize = ZSTD_compress_usingCDict(cctx, cBuff, cBuffSize, fBuff, fSize, cdict);
-    if (ZSTD_isError(cSize)) {
-        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
-        exit(7);
-    }
+    CHECK_ZSTD(cSize);
 
     saveFile_orDie(oname, cBuff, cSize);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -36,27 +36,42 @@ compress(ZSTD_CStream *ctx, ZSTD_outBuffer out, const void *data, size_t size)
 int main(int argc, const char** argv)
 {
   ZSTD_CStream* ctx;
-  ZSTD_parameters params;
-  size_t rc;
-  unsigned windowLog;
+  unsigned windowLog = 18;
   (void)argc;
   (void)argv;
+  int _exit_code = 0;
   /* Create stream */
-  ctx = ZSTD_createCStream();
+  ctx = ZSTD_createCCtx();
   if (!ctx) { return 1; }
   /* Set parameters */
-  memset(&params, 0, sizeof(params));
-  params.cParams.windowLog = 18;
-  params.cParams.chainLog = 13;
-  params.cParams.hashLog = 14;
-  params.cParams.searchLog = 1;
-  params.cParams.searchLength = 7;
-  params.cParams.targetLength = 16;
-  params.cParams.strategy = ZSTD_fast;
-  windowLog = params.cParams.windowLog;
-  /* Initialize stream */
-  rc = ZSTD_initCStream_advanced(ctx, NULL, 0, params, 0);
-  if (ZSTD_isError(rc)) { return 2; }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, windowLog))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, 13))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, 14))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, 1))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, 7))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, 16))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(ctx, ZSTD_c_strategy, ZSTD_fast))) {
+    _exit_code = 2;
+    goto _clean_ctx;
+  }
   {
     U64 compressed = 0;
     const U64 toCompress = ((U64)1) << 33;
@@ -81,21 +96,28 @@ int main(int argc, const char** argv)
     }
     printf("Compressing, trying to generate a segfault \n");
     if (compress(ctx, out, srcBuffer, size)) {
-      return 1;
+       _exit_code = 1;
+       goto _clean_buffer;
     }
     compressed += size;
     while (compressed < toCompress) {
       const size_t block = rand() % (size - pos + 1);
       if (pos == size) { pos = 0; }
       if (compress(ctx, out, srcBuffer + pos, block)) {
-        return 1;
+        _exit_code = 1;
+        goto _clean_buffer;
       }
       pos += block;
       compressed += block;
     }
     printf("Compression completed successfully (no error triggered)\n");
+
+_clean_buffer:
     free(srcBuffer);
     free(dstBuffer);
   }
-  return 0;
+
+_clean_ctx:
+  ZSTD_freeCCtx(ctx);
+  return _exit_code;
 }

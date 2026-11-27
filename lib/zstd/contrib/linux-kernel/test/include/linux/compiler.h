@@ -1,12 +1,23 @@
-#ifndef LINUX_COMIPLER_H_
-#define LINUX_COMIPLER_H_
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * All rights reserved.
+ *
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
+ */
+#ifndef LINUX_COMPILER_H
+#define LINUX_COMPILER_H
 
-#ifndef __always_inline
-#  define __always_inline inline
+#ifndef inline
+#define inline __inline __attribute__((unused))
 #endif
 
 #ifndef noinline
-#  define noinline __attribute__((__noinline__))
+#define noinline __attribute__((noinline))
 #endif
 
-#endif // LINUX_COMIPLER_H_
+#define fallthrough __attribute__((__fallthrough__))
+
+#endif

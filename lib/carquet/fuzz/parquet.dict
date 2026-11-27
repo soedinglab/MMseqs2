@@ -1,0 +1,116 @@
+# Parquet format dictionary for libFuzzer
+# Reference: https://parquet.apache.org/docs/file-format/
+
+# Magic bytes
+"PAR1"
+
+# Thrift compact protocol field headers (type + field delta)
+# Type IDs: 1=bool_true, 2=bool_false, 3=i8, 4=i16, 5=i32, 6=i64, 7=double, 8=binary, 9=list, 10=set, 11=map, 12=struct
+"\x15"
+"\x16"
+"\x17"
+"\x18"
+"\x25"
+"\x26"
+"\x35"
+"\x36"
+
+# Thrift stop field
+"\x00"
+
+# Common varint values (used in lengths, counts)
+"\x00"
+"\x01"
+"\x02"
+"\x04"
+"\x08"
+"\x10"
+"\x20"
+"\x40"
+"\x80\x01"
+"\x80\x02"
+"\x80\x04"
+"\x80\x08"
+
+# Page types (Thrift enum values as varints)
+# 0=DATA_PAGE, 1=INDEX_PAGE, 2=DICTIONARY_PAGE, 3=DATA_PAGE_V2
+"\x00"
+"\x02"
+"\x04"
+"\x06"
+
+# Encoding types
+# 0=PLAIN, 1=GROUP_VAR_INT, 2=PLAIN_DICTIONARY, 3=RLE, 4=BIT_PACKED
+# 5=DELTA_BINARY_PACKED, 6=DELTA_LENGTH_BYTE_ARRAY, 7=DELTA_BYTE_ARRAY
+# 8=RLE_DICTIONARY, 9=BYTE_STREAM_SPLIT
+"\x00"
+"\x02"
+"\x04"
+"\x06"
+"\x08"
+"\x0a"
+"\x0c"
+"\x0e"
+"\x10"
+"\x12"
+
+# Compression types
+# 0=UNCOMPRESSED, 1=SNAPPY, 2=GZIP, 3=LZ4, 4=ZSTD, 5=LZ4_RAW, 6=BROTLI
+"\x00"
+"\x02"
+"\x04"
+"\x06"
+"\x08"
+
+# Physical types
+# 0=BOOLEAN, 1=INT32, 2=INT64, 3=INT96, 4=FLOAT, 5=DOUBLE, 6=BYTE_ARRAY, 7=FIXED_LEN_BYTE_ARRAY
+"\x00"
+"\x02"
+"\x04"
+"\x06"
+"\x08"
+"\x0a"
+"\x0c"
+"\x0e"
+
+# Repetition types: 0=REQUIRED, 1=OPTIONAL, 2=REPEATED
+"\x00"
+"\x02"
+"\x04"
+
+# RLE/bit-packing header bytes
+"\x00"
+"\x01"
+"\x02"
+"\x03"
+"\x04"
+"\x08"
+
+# Delta encoding header (block size, mini-blocks, total count, first value)
+"\x80\x01\x04"
+
+# Common 4-byte patterns (little-endian integers)
+"\x00\x00\x00\x00"
+"\x01\x00\x00\x00"
+"\xff\xff\xff\xff"
+
+# Common 8-byte patterns
+"\x00\x00\x00\x00\x00\x00\x00\x00"
+"\x01\x00\x00\x00\x00\x00\x00\x00"
+"\xff\xff\xff\xff\xff\xff\xff\xff"
+
+# Snappy framing
+"\x00"
+"\x01"
+
+# ZSTD magic
+"\x28\xb5\x2f\xfd"
+
+# GZIP magic
+"\x1f\x8b"
+
+# LZ4 block format tokens
+"\x00"
+"\xf0"
+"\x0f"
+"\xff"

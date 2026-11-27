@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -20,7 +20,7 @@
 
 typedef struct {
     ZSTD_cParameter param;
-    unsigned value;
+    int value;
 } param_value_t;
 
 typedef struct {
@@ -53,6 +53,11 @@ typedef struct {
      * when the method allows it. Defaults to yes.
      */
     int no_pledged_src_size;
+    /**
+     * Boolean parameter that says that this config should only be used
+     * for methods that use the advanced compression API
+     */
+    int advanced_api_only;
 } config_t;
 
 /**
@@ -69,6 +74,14 @@ int config_skip_data(config_t const* config, data_t const* data);
  * default.
  */
 int config_get_level(config_t const* config);
+
+/**
+ * Returns the compression parameters specified by the config.
+ */
+ZSTD_parameters config_get_zstd_params(
+    config_t const* config,
+    uint64_t srcSize,
+    size_t dictSize);
 
 /**
  * The NULL-terminated list of configs.

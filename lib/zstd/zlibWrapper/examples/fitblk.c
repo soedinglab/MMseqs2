@@ -21,7 +21,7 @@
    data in order to determine how much of that input will compress to
    nearly the requested output block size.  The first pass generates
    enough deflate blocks to produce output to fill the requested
-   output size plus a specfied excess amount (see the EXCESS define
+   output size plus a specified excess amount (see the EXCESS define
    below).  The last deflate block may go quite a bit past that, but
    is discarded.  The second pass decompresses and recompresses just
    the compressed data that fit in the requested plus excess sized
@@ -119,7 +119,7 @@ local int recompress(z_streamp inf, z_streamp def)
         if (ret == Z_MEM_ERROR)
             return ret;
 
-        /* compress what was decompresed until done or no room */
+        /* compress what was decompressed until done or no room */
         def->avail_in = RAWLEN - inf->avail_out;
         def->next_in = raw;
         if (inf->avail_out != 0)
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
     if (ZWRAP_isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
 
     /* allocate memory for buffers and compression engine */
-    blk = malloc(size + EXCESS);
+    blk = (unsigned char*)malloc(size + EXCESS);
     def.zalloc = Z_NULL;
     def.zfree = Z_NULL;
     def.opaque = Z_NULL;
@@ -180,8 +180,8 @@ int main(int argc, char **argv)
     if (ret == Z_STREAM_END && def.avail_out >= EXCESS) {
         /* write block to stdout */
         have = size + EXCESS - def.avail_out;
-   //     if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
-   //         quit("error writing output");
+   /*     if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
+    *         quit("error writing output"); */
 
         /* clean up and print results to stderr */
         ret = deflateEnd(&def);
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
     inf.avail_in = 0;
     inf.next_in = Z_NULL;
     ret = inflateInit(&inf);
-    tmp = malloc(size + EXCESS);
+    tmp = (unsigned char*)malloc(size + EXCESS);
     if (ret != Z_OK || tmp == NULL)
         quit("out of memory");
     ret = deflateReset(&def);
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
     if (ret == Z_MEM_ERROR)
         quit("out of memory");
 
-    /* set up for next reocmpression */
+    /* set up for next recompression */
     ret = inflateReset(&inf);
     assert(ret != Z_STREAM_ERROR);
     ret = deflateReset(&def);
@@ -237,8 +237,8 @@ int main(int argc, char **argv)
 
     /* done -- write block to stdout */
     have = size - def.avail_out;
-//    if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
-//        quit("error writing output");
+    /* if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
+     *     quit("error writing output"); */
 
     /* clean up and print results to stderr */
     free(tmp);

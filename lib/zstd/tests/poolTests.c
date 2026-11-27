@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -12,6 +12,7 @@
 #include "pool.h"
 #include "threading.h"
 #include "util.h"
+#include "timefn.h"
 #include <stddef.h>
 #include <stdio.h>
 
@@ -25,25 +26,27 @@
 #define ASSERT_EQ(lhs, rhs) ASSERT_TRUE((lhs) == (rhs))
 
 struct data {
-  pthread_mutex_t mutex;
+  ZSTD_pthread_mutex_t mutex;
   unsigned data[16];
   size_t i;
 };
 
-static void fn(void *opaque) {
+static void fn(void *opaque)
+{
   struct data *data = (struct data *)opaque;
   ZSTD_pthread_mutex_lock(&data->mutex);
-  data->data[data->i] = data->i;
+  data->data[data->i] = (unsigned)(data->i);
   ++data->i;
   ZSTD_pthread_mutex_unlock(&data->mutex);
 }
 
-static int testOrder(size_t numThreads, size_t queueSize) {
+static int testOrder(size_t numThreads, size_t queueSize)
+{
   struct data data;
-  POOL_ctx *ctx = POOL_create(numThreads, queueSize);
+  POOL_ctx* const ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
   data.i = 0;
-  ZSTD_pthread_mutex_init(&data.mutex, NULL);
+  ASSERT_FALSE(ZSTD_pthread_mutex_init(&data.mutex, NULL));
   { size_t i;
     for (i = 0; i < 16; ++i) {
       POOL_add(ctx, &fn, &data);
@@ -71,7 +74,7 @@ static void waitFn(void *opaque) {
 /* Tests for deadlock */
 static int testWait(size_t numThreads, size_t queueSize) {
   struct data data;
-  POOL_ctx *ctx = POOL_create(numThreads, queueSize);
+  POOL_ctx* const ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
   { size_t i;
     for (i = 0; i < 16; ++i) {
@@ -87,55 +90,64 @@ static int testWait(size_t numThreads, size_t queueSize) {
 
 typedef struct {
     ZSTD_pthread_mutex_t mut;
+    int countdown;
     int val;
     int max;
     ZSTD_pthread_cond_t cond;
 } poolTest_t;
 
 static void waitLongFn(void *opaque) {
-  poolTest_t* test = (poolTest_t*) opaque;
-  UTIL_sleepMilli(10);
+  poolTest_t* const test = (poolTest_t*) opaque;
   ZSTD_pthread_mutex_lock(&test->mut);
-  test->val = test->val + 1;
-  if (test->val == test->max)
-    ZSTD_pthread_cond_signal(&test->cond);
+  test->val++;
+  if (test->val > test->max)
+      test->max = test->val;
+  ZSTD_pthread_mutex_unlock(&test->mut);
+
+  UTIL_sleepMilli(10);
+
+  ZSTD_pthread_mutex_lock(&test->mut);
+  test->val--;
+  test->countdown--;
+  if (test->countdown == 0)
+      ZSTD_pthread_cond_signal(&test->cond);
   ZSTD_pthread_mutex_unlock(&test->mut);
 }
 
 static int testThreadReduction_internal(POOL_ctx* ctx, poolTest_t test)
 {
     int const nbWaits = 16;
-    UTIL_time_t startTime;
-    U64 time4threads, time2threads;
 
+    test.countdown = nbWaits;
     test.val = 0;
-    test.max = nbWaits;
+    test.max = 0;
 
-    startTime = UTIL_getTime();
     {   int i;
         for (i=0; i<nbWaits; i++)
             POOL_add(ctx, &waitLongFn, &test);
     }
     ZSTD_pthread_mutex_lock(&test.mut);
-    ZSTD_pthread_cond_wait(&test.cond, &test.mut);
-    ASSERT_EQ(test.val, nbWaits);
+    while (test.countdown > 0)
+        ZSTD_pthread_cond_wait(&test.cond, &test.mut);
+    ASSERT_EQ(test.val, 0);
+    ASSERT_EQ(test.max, 4);
     ZSTD_pthread_mutex_unlock(&test.mut);
-    time4threads = UTIL_clockSpanNano(startTime);
 
     ASSERT_EQ( POOL_resize(ctx, 2/*nbThreads*/) , 0 );
+    test.countdown = nbWaits;
     test.val = 0;
-    startTime = UTIL_getTime();
+    test.max = 0;
     {   int i;
         for (i=0; i<nbWaits; i++)
             POOL_add(ctx, &waitLongFn, &test);
     }
     ZSTD_pthread_mutex_lock(&test.mut);
-    ZSTD_pthread_cond_wait(&test.cond, &test.mut);
-    ASSERT_EQ(test.val, nbWaits);
+    while (test.countdown > 0)
+        ZSTD_pthread_cond_wait(&test.cond, &test.mut);
+    ASSERT_EQ(test.val, 0);
+    ASSERT_EQ(test.max, 2);
     ZSTD_pthread_mutex_unlock(&test.mut);
-    time2threads = UTIL_clockSpanNano(startTime);
 
-    if (time4threads >= time2threads) return 1;   /* check 4 threads were effectively faster than 2 */
     return 0;
 }
 
@@ -243,7 +255,7 @@ int main(int argc, const char **argv) {
       printf("FAIL: thread reduction not effective \n");
       return 1;
   } else {
-      printf("SUCCESS: thread reduction effective (slower execution) \n");
+      printf("SUCCESS: thread reduction effective \n");
   }
 
   if (testAbruptEnding()) {

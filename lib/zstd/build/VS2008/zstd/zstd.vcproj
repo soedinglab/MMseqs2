@@ -45,7 +45,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\compress"
-				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -122,7 +122,7 @@
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\compress"
-				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;NDEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -197,7 +197,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\compress"
-				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -275,7 +275,7 @@
 				EnableIntrinsicFunctions="true"
 				OmitFramePointers="true"
 				AdditionalIncludeDirectories="$(SolutionDir)..\..\lib;$(SolutionDir)..\..\lib\common;$(SolutionDir)..\..\lib\legacy;$(SolutionDir)..\..\lib\dictBuilder;$(SolutionDir)..\..\lib\compress"
-				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=5;WIN32;NDEBUG;_CONSOLE"
+				PreprocessorDefinitions="ZSTD_MULTITHREAD=1;ZSTD_LEGACY_SUPPORT=0;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -337,7 +337,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\programs\bench.c"
+				RelativePath="..\..\..\programs\timefn.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\benchfn.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\benchzstd.c"
 				>
 			</File>
 			<File
@@ -346,6 +354,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\programs\dibio.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\lorem.c"
 				>
 			</File>
 			<File
@@ -376,6 +388,10 @@
 				RelativePath="..\..\..\programs\fileio.c"
 				>
 			</File>
+			<File
+                RelativePath="..\..\..\programs\fileio_asyncio.c"
+                >
+            </File>
 			<File
 				RelativePath="..\..\..\lib\compress\fse_compress.c"
 				>
@@ -414,6 +430,18 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_literals.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.c"
 				>
 			</File>
 			<File
@@ -458,6 +486,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\programs\zstdcli.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\zstdcli_trace.c"
 				>
 			</File>
 			<File
@@ -535,7 +567,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\dictBuilder\zdict.h"
+				RelativePath="..\..\..\lib\zdict.h"
 				>
 			</File>
 			<File
@@ -551,7 +583,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd_errors.h"
+				RelativePath="..\..\..\lib\zstd_errors.h"
 				>
 			</File>
 			<File
@@ -600,6 +632,22 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_literals.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_cwksp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.h"
 				>
 			</File>
 			<File

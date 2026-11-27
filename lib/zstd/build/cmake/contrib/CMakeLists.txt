@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -7,7 +7,7 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-PROJECT(contrib)
+project(contrib)
 
-ADD_SUBDIRECTORY(pzstd)
-ADD_SUBDIRECTORY(gen_html)
+add_subdirectory(pzstd)
+add_subdirectory(gen_html)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -17,6 +17,9 @@
 #include "utils/ThreadPool.h"
 #include "utils/WorkQueue.h"
 #define ZSTD_STATIC_LINKING_ONLY
+#define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, pzstd itself is deprecated
+                                         * and uses deprecated functions
+                                         */
 #include "zstd.h"
 #undef ZSTD_STATIC_LINKING_ONLY
 
@@ -41,7 +44,7 @@ class SharedState {
       auto parameters = options.determineParameters();
       cStreamPool.reset(new ResourcePool<ZSTD_CStream>{
           [this, parameters]() -> ZSTD_CStream* {
-            this->log(VERBOSE, "%s\n", "Creating new ZSTD_CStream");
+            this->log(kLogVerbose, "%s\n", "Creating new ZSTD_CStream");
             auto zcs = ZSTD_createCStream();
             if (zcs) {
               auto err = ZSTD_initCStream_advanced(
@@ -59,7 +62,7 @@ class SharedState {
     } else {
       dStreamPool.reset(new ResourcePool<ZSTD_DStream>{
           [this]() -> ZSTD_DStream* {
-            this->log(VERBOSE, "%s\n", "Creating new ZSTD_DStream");
+            this->log(kLogVerbose, "%s\n", "Creating new ZSTD_DStream");
             auto zds = ZSTD_createDStream();
             if (zds) {
               auto err = ZSTD_initDStream(zds);

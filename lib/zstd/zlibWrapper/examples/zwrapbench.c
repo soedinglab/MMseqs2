@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -17,14 +17,16 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <time.h>        /* clock_t, clock, CLOCKS_PER_SEC */
 #include <ctype.h>       /* toupper */
+#include <errno.h>       /* errno */
 
+#include "timefn.h"      /* UTIL_time_t, UTIL_getTime, UTIL_clockSpanMicro, UTIL_waitForNextTick */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 
-#include "zstd_zlibwrapper.h"
+#include "../zstd_zlibwrapper.h"
 
 
 
@@ -72,7 +74,7 @@ static U32 g_compressibilityDefault = 50;
 #define DEFAULT_DISPLAY_LEVEL 2
 #define DISPLAY(...)         fprintf(displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
-static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
+static unsigned g_displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
 static FILE* displayOut;
 
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
@@ -103,24 +105,24 @@ static clock_t g_time = 0;
 /* *************************************
 *  Benchmark Parameters
 ***************************************/
-static U32 g_nbIterations = NBLOOPS;
+static unsigned g_nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 int g_additionalParam = 0;
 
-void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
+static void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
-void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
+static void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
 
-void BMK_SetNbIterations(unsigned nbLoops)
+static void BMK_SetNbIterations(unsigned nbLoops)
 {
     g_nbIterations = nbLoops;
     DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression -\n", g_nbIterations);
 }
 
-void BMK_SetBlockSize(size_t blockSize)
+static void BMK_SetBlockSize(size_t blockSize)
 {
     g_blockSize = blockSize;
-    DISPLAYLEVEL(2, "using blocks of size %u KB \n", (U32)(blockSize>>10));
+    DISPLAYLEVEL(2, "using blocks of size %u KB \n", (unsigned)(blockSize>>10));
 }
 
 
@@ -191,7 +193,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                 remaining -= thisBlockSize;
     }   }   }
 
-    /* warmimg up memory */
+    /* warming up memory */
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */
@@ -221,7 +223,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             }
 
             /* Compression */
-            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
+            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (unsigned)srcSize);
             if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             UTIL_sleepMilli(1);  /* give processor time to other processes */
@@ -262,14 +264,29 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     ZSTD_outBuffer outBuffer;
                     ZSTD_CStream* zbc = ZSTD_createCStream();
                     size_t rSize;
+                    ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+
+                    if (!cctxParams) EXM_THROW(1, "ZSTD_createCCtxParams() allocation failure");
                     if (zbc == NULL) EXM_THROW(1, "ZSTD_createCStream() allocation failure");
-                    rSize = ZSTD_initCStream_advanced(zbc, dictBuffer, dictBufferSize, zparams, avgSize);
-                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initCStream_advanced() failed : %s", ZSTD_getErrorName(rSize));
+
+                    {   int initErr = 0;
+                        initErr |= ZSTD_isError(ZSTD_CCtx_reset(zbc, ZSTD_reset_session_only));
+                        initErr |= ZSTD_isError(ZSTD_CCtxParams_init_advanced(cctxParams, zparams));
+                        initErr |= ZSTD_isError(ZSTD_CCtx_setParametersUsingCCtxParams(zbc, cctxParams));
+                        initErr |= ZSTD_isError(ZSTD_CCtx_setPledgedSrcSize(zbc, avgSize));
+                        initErr |= ZSTD_isError(ZSTD_CCtx_loadDictionary(zbc, dictBuffer, dictBufferSize));
+
+                        ZSTD_freeCCtxParams(cctxParams);
+                        if (initErr) EXM_THROW(1, "CCtx init failed!");
+                    }
+
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            rSize = ZSTD_resetCStream(zbc, blockTable[blockNb].srcSize);
-                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_resetCStream() failed : %s", ZSTD_getErrorName(rSize));
+                            rSize = ZSTD_CCtx_reset(zbc, ZSTD_reset_session_only);
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_CCtx_reset() failed : %s", ZSTD_getErrorName(rSize));
+                            rSize = ZSTD_CCtx_setPledgedSrcSize(zbc, blockTable[blockNb].srcSize);
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_CCtx_setPledgedSrcSize() failed : %s", ZSTD_getErrorName(rSize));
                             inBuffer.src = blockTable[blockNb].srcPtr;
                             inBuffer.size = blockTable[blockNb].srcSize;
                             inBuffer.pos = 0;
@@ -309,14 +326,14 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                                 ret = deflateReset(&def);
                             if (ret != Z_OK) EXM_THROW(1, "deflateReset failure");
                             if (useSetDict) {
-                                ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
+                                ret = deflateSetDictionary(&def, (const z_Bytef*)dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
                                 if (ZWRAP_isUsingZSTDcompression()) useSetDict = 0; /* zstd doesn't require deflateSetDictionary after ZWRAP_deflateReset_keepDict */
                             }
-                            def.next_in = (z_const void*) blockTable[blockNb].srcPtr;
+                            def.next_in = (z_const z_Bytef*) blockTable[blockNb].srcPtr;
                             def.avail_in = (uInt)blockTable[blockNb].srcSize;
                             def.total_in = 0;
-                            def.next_out = (void*) blockTable[blockNb].cPtr;
+                            def.next_out = (z_Bytef*) blockTable[blockNb].cPtr;
                             def.avail_out = (uInt)blockTable[blockNb].cRoom;
                             def.total_out = 0;
                             ret = deflate(&def, Z_FINISH);
@@ -341,13 +358,13 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             ret = deflateInit(&def, cLevel);
                             if (ret != Z_OK) EXM_THROW(1, "deflateInit failure");
                             if (dictBuffer) {
-                                ret = deflateSetDictionary(&def, dictBuffer, dictBufferSize);
+                                ret = deflateSetDictionary(&def, (const z_Bytef*)dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "deflateSetDictionary failure");
                             }
-                            def.next_in = (z_const void*) blockTable[blockNb].srcPtr;
+                            def.next_in = (z_const z_Bytef*) blockTable[blockNb].srcPtr;
                             def.avail_in = (uInt)blockTable[blockNb].srcSize;
                             def.total_in = 0;
-                            def.next_out = (void*) blockTable[blockNb].cPtr;
+                            def.next_out = (z_Bytef*) blockTable[blockNb].cPtr;
                             def.avail_out = (uInt)blockTable[blockNb].cRoom;
                             def.total_out = 0;
                             ret = deflate(&def, Z_FINISH);
@@ -370,8 +387,8 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             ratio = (double)srcSize / (double)cSize;
             markNb = (markNb+1) % NB_MARKS;
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
-                    (double)srcSize / fastestC );
+                    marks[markNb], displayName, (unsigned)srcSize, (unsigned)cSize, ratio,
+                    (double)srcSize / (double)fastestC );
 
             (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
 #if 1
@@ -388,7 +405,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                     if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
                     do {
-                        U32 blockNb;
+                        unsigned blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                             size_t const regenSize = ZSTD_decompress_usingDDict(dctx,
                                 blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
@@ -411,13 +428,15 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     ZSTD_DStream* zbd = ZSTD_createDStream();
                     size_t rSize;
                     if (zbd == NULL) EXM_THROW(1, "ZSTD_createDStream() allocation failure");
-                    rSize = ZSTD_initDStream_usingDict(zbd, dictBuffer, dictBufferSize);
-                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initDStream() failed : %s", ZSTD_getErrorName(rSize));
+                    rSize = ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only);
+                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_DCtx_reset() failed : %s", ZSTD_getErrorName(rSize));
+                    rSize = ZSTD_DCtx_loadDictionary(zbd, dictBuffer, dictBufferSize);
+                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_DCtx_loadDictionary() failed : %s", ZSTD_getErrorName(rSize));
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            rSize = ZSTD_resetDStream(zbd);
-                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_resetDStream() failed : %s", ZSTD_getErrorName(rSize));
+                            rSize = ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only);
+                            if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_DCtx_reset() failed : %s", ZSTD_getErrorName(rSize));
                             inBuffer.src = blockTable[blockNb].cPtr;
                             inBuffer.size = blockTable[blockNb].cSize;
                             inBuffer.pos = 0;
@@ -449,15 +468,15 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             else
                                 ret = inflateReset(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateReset failure");
-                            inf.next_in = (z_const void*) blockTable[blockNb].cPtr;
+                            inf.next_in = (z_const z_Bytef*) blockTable[blockNb].cPtr;
                             inf.avail_in = (uInt)blockTable[blockNb].cSize;
                             inf.total_in = 0;
-                            inf.next_out = (void*) blockTable[blockNb].resPtr;
+                            inf.next_out = (z_Bytef*) blockTable[blockNb].resPtr;
                             inf.avail_out = (uInt)blockTable[blockNb].srcSize;
                             inf.total_out = 0;
                             ret = inflate(&inf, Z_FINISH);
                             if (ret == Z_NEED_DICT) {
-                                ret = inflateSetDictionary(&inf, dictBuffer, dictBufferSize);
+                                ret = inflateSetDictionary(&inf, (const z_Bytef*)dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "inflateSetDictionary failure");
                                 ret = inflate(&inf, Z_FINISH);
                             }
@@ -481,15 +500,15 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                             inf.opaque = Z_NULL;
                             ret = inflateInit(&inf);
                             if (ret != Z_OK) EXM_THROW(1, "inflateInit failure");
-                            inf.next_in = (z_const void*) blockTable[blockNb].cPtr;
+                            inf.next_in = (z_const z_Bytef*) blockTable[blockNb].cPtr;
                             inf.avail_in = (uInt)blockTable[blockNb].cSize;
                             inf.total_in = 0;
-                            inf.next_out = (void*) blockTable[blockNb].resPtr;
+                            inf.next_out = (z_Bytef*) blockTable[blockNb].resPtr;
                             inf.avail_out = (uInt)blockTable[blockNb].srcSize;
                             inf.total_out = 0;
                             ret = inflate(&inf, Z_FINISH);
                             if (ret == Z_NEED_DICT) {
-                                ret = inflateSetDictionary(&inf, dictBuffer, dictBufferSize);
+                                ret = inflateSetDictionary(&inf, (const z_Bytef*) dictBuffer, dictBufferSize);
                                 if (ret != Z_OK) EXM_THROW(1, "inflateSetDictionary failure");
                                 ret = inflate(&inf, Z_FINISH);
                             }
@@ -509,9 +528,9 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
 
             markNb = (markNb+1) % NB_MARKS;
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
-                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
-                    (double)srcSize / fastestC,
-                    (double)srcSize / fastestD );
+                    marks[markNb], displayName, (unsigned)srcSize, (unsigned)cSize, ratio,
+                    (double)srcSize / (double)fastestC,
+                    (double)srcSize / (double)fastestD );
 
             /* CRC Checking */
             {   U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
@@ -520,9 +539,9 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                     for (u=0; u<srcSize; u++) {
                         if (((const BYTE*)srcBuffer)[u] != ((const BYTE*)resultBuffer)[u]) {
-                            U32 segNb, bNb, pos;
+                            unsigned segNb, bNb, pos;
                             size_t bacc = 0;
-                            DISPLAY("Decoding error at pos %u ", (U32)u);
+                            DISPLAY("Decoding error at pos %u ", (unsigned)u);
                             for (segNb = 0; segNb < nbBlocks; segNb++) {
                                 if (bacc + blockTable[segNb].srcSize > u) break;
                                 bacc += blockTable[segNb].srcSize;
@@ -541,8 +560,8 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
         }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
 
         if (g_displayLevel == 1) {
-            double cSpeed = (double)srcSize / fastestC;
-            double dSpeed = (double)srcSize / fastestD;
+            double cSpeed = (double)srcSize / (double)fastestC;
+            double dSpeed = (double)srcSize / (double)fastestD;
             if (g_additionalParam)
                 DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, g_additionalParam);
             else
@@ -593,7 +612,9 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     SET_REALTIME_PRIORITY;
 
     if (g_displayLevel == 1 && !g_additionalParam)
-        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
+        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n",
+                ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING,
+                (unsigned)benchedSize, g_nbIterations, (unsigned)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
@@ -725,7 +746,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
         dictBufferSize = (size_t)dictFileSize;
         dictBuffer = malloc(dictBufferSize);
         if (dictBuffer==NULL)
-            EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (U32)dictBufferSize);
+            EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (unsigned)dictBufferSize);
         BMK_loadFiles(dictBuffer, dictBufferSize, fileSizes, &dictFileName, 1);
     }
 
@@ -733,7 +754,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     benchedSize = BMK_findMaxMem(totalSizeToLoad * 3) / 3;
     if ((U64)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
-        DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
+        DISPLAY("Not enough memory; testing %u MB only...\n", (unsigned)(benchedSize >> 20));
     srcBuffer = malloc(benchedSize + !benchedSize);
     if (!srcBuffer) EXM_THROW(12, "not enough memory");
 
@@ -777,7 +798,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 }
 
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
+static int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel, int cLevelLast)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
@@ -817,7 +838,7 @@ static int usage(const char* programName)
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : %d) \n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: %d)\n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
-    DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
+    DISPLAY( " -B#    : cut file into independent chunks of size # (default: no chunking)\n");
     return 0;
 }
 
@@ -844,7 +865,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 {
     unsigned result = 0;
     while ((**stringPtr >='0') && (**stringPtr <='9'))
-        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+        result *= 10, result += (unsigned)(**stringPtr - '0'), (*stringPtr)++ ;
     return result;
 }
 
@@ -861,24 +882,18 @@ int main(int argCount, char** argv)
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
     int cLevelLast = 1;
     unsigned recursive = 0;
-    const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
-    unsigned filenameIdx = 0;
+    FileNamesTable* filenames = UTIL_allocateFileNamesTable((size_t)argCount);
     const char* programName = argv[0];
     const char* dictFileName = NULL;
     char* dynNameSpace = NULL;
-#ifdef UTIL_HAS_CREATEFILELIST
-    const char** fileNamesTable = NULL;
-    char* fileNamesBuf = NULL;
-    unsigned fileNamesNb;
-#endif
 
     /* init */
-    if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
+    if (filenames==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     displayOut = stderr;
 
     /* Pick out program name from path. Don't rely on stdlib because of conflicting behavior */
     {   size_t pos;
-        for (pos = (int)strlen(programName); pos > 0; pos--) { if (programName[pos] == '/') { pos++; break; } }
+        for (pos = strlen(programName); pos > 0; pos--) { if (programName[pos] == '/') { pos++; break; } }
         programName += pos;
     }
 
@@ -926,14 +941,14 @@ int main(int argCount, char** argv)
                     case 'b':
                             /* first compression Level */
                             argument++;
-                            cLevel = readU32FromChar(&argument);
+                            cLevel = (int)readU32FromChar(&argument);
                             break;
 
                         /* range bench (benchmark only) */
                     case 'e':
                             /* last compression Level */
                             argument++;
-                            cLevelLast = readU32FromChar(&argument);
+                            cLevelLast = (int)readU32FromChar(&argument);
                             break;
 
                         /* Modify Nb Iterations (benchmark only) */
@@ -960,7 +975,7 @@ int main(int argCount, char** argv)
                         /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
                     case 'p': argument++;
                         if ((*argument>='0') && (*argument<='9')) {
-                            BMK_setAdditionalParam(readU32FromChar(&argument));
+                            BMK_setAdditionalParam((int)readU32FromChar(&argument));
                         } else
                             main_pause=1;
                         break;
@@ -980,7 +995,7 @@ int main(int argCount, char** argv)
         }
 
         /* add filename to list */
-        filenameTable[filenameIdx++] = argument;
+        UTIL_refFilename(filenames, argument);
     }
 
     /* Welcome message (if verbose) */
@@ -988,28 +1003,16 @@ int main(int argCount, char** argv)
 
 #ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {
-        fileNamesTable = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, 1);
-        if (fileNamesTable) {
-            unsigned u;
-            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, fileNamesTable[u]);
-            free((void*)filenameTable);
-            filenameTable = fileNamesTable;
-            filenameIdx = fileNamesNb;
-        }
+        UTIL_expandFNT(&filenames, 1);
     }
 #endif
 
     BMK_setNotificationLevel(g_displayLevel);
-    BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast);
+    BMK_benchFiles(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, cLevelLast);
 
 _end:
     if (main_pause) waitEnter();
     free(dynNameSpace);
-#ifdef UTIL_HAS_CREATEFILELIST
-    if (fileNamesTable)
-        UTIL_freeFileList(fileNamesTable, fileNamesBuf);
-    else
-#endif
-        free((void*)filenameTable);
+    UTIL_freeFileNamesTable(filenames);
     return operationResult;
 }
