@@ -139,7 +139,7 @@ int main(int, const char**) {
             tmpMat,
             letterFreqs1,
             letterFreqs2,
-            11,1,11,1, false,lambdaTolerance,kTolerance,max_seconds,maxMegabytes,randomSeed);
+            10,1,10,1, false,lambdaTolerance,kTolerance,max_seconds,maxMegabytes,randomSeed);
 
 
 std::cout << std::setprecision(20) <<
